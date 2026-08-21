@@ -64,14 +64,17 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
 
   const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json.choices?.[0]?.message?.content ?? "";
+  // Some grounded responses wrap the object in a single-element array.
+  const unwrap = (v: unknown): T => (Array.isArray(v) ? ((v[0] ?? {}) as T) : (v as T));
   try {
-    return JSON.parse(content) as T;
+    return unwrap(JSON.parse(content));
   } catch {
-    const m = content.match(/\{[\s\S]*\}/);
+    const m = content.match(/[[{][\s\S]*[\]}]/);
     if (!m) throw new Error("Research provider returned an unparseable response (no JSON object).");
-    return JSON.parse(m[0]) as T;
+    return unwrap(JSON.parse(m[0]));
   }
 }
+
 
 const IDENTITY_SHAPE = `{"player1_canonical":string|null,"player2_canonical":string|null,"player1_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","player2_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","tournament":string|null,"event_level":string|null,"round":string|null,"scheduled_date":string|null,"surface":string|null,"indoor":boolean|null,"best_of":number|null,"surface_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","unresolved_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}],"conflicts":[{"field":string,"values":[string],"note":string|null}]}`;
 
