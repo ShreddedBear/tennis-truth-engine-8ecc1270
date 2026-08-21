@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
+import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, winRate, type EngineInput } from "@/lib/audit-engine";
 import { MATRIX_FIELDS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,8 @@ function Workspace() {
   const [winner, setWinner] = useState("");
   const [low, setLow] = useState("");
   const [high, setHigh] = useState("");
+  const [running, setRunning] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["match", matchId],
@@ -96,12 +100,74 @@ function Workspace() {
     },
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["match", matchId] });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["match", matchId] });
+    qc.invalidateQueries({ queryKey: ["stages", matchId] });
+  };
+
+  const { data: stages } = useQuery({
+    queryKey: ["stages", matchId],
+    refetchInterval: running ? 3000 : false,
+    queryFn: async () => {
+      const { data: rows } = await supabase
+        .from("audit_stage_runs")
+        .select("*")
+        .eq("match_id", matchId)
+        .order("stage_order");
+      return rows ?? [];
+    },
+  });
+
+  const executePipeline = useServerFn(runAuditPipeline);
+
+  const runAudit = async () => {
+    setRunning(true);
+    setPipelineError(null);
+    try {
+      // The pipeline is time-budgeted, idempotent and resumable: drive it in
+      // chunks until it reports completion or stops making progress.
+      for (let chunk = 0; chunk < 20; chunk += 1) {
+        const res = await executePipeline({ data: { matchId } });
+        refresh();
+        if (!res.ok) {
+          setPipelineError(res.failures[0]?.message ?? "Pipeline failed");
+          toast.error(res.failures[0]?.message ?? "Pipeline failed");
+          return;
+        }
+        if (res.complete) {
+          toast.success(`Audit executed — ${res.color ?? "gate run"} · ${Math.round(res.completionPercent ?? 0)}%`);
+          return;
+        }
+        if (!res.nextStage) {
+          setPipelineError(res.failures[0]?.message ?? "Pipeline stopped before completing all stages.");
+          toast.warning("Pipeline stopped early — see stage diagnostics");
+          return;
+        }
+      }
+      toast.warning("Pipeline still running — press Run Audit again to resume");
+    } catch (e) {
+      setPipelineError((e as Error).message);
+      toast.error((e as Error).message);
+    } finally {
+      setRunning(false);
+      refresh();
+    }
+  };
+
 
   if (isLoading || !data?.match) return <div className="panel p-6 text-sm">Loading match…</div>;
   const { match, run } = data;
 
-  if (!run) return <div className="panel p-6 text-sm">No audit run yet. Start one from the Active Slate.</div>;
+  if (!run)
+    return (
+      <div className="panel space-y-3 p-6 text-sm">
+        <p>No audit run yet for {match.player1_name} vs {match.player2_name}.</p>
+        <Button onClick={runAudit} disabled={running}>
+          {running ? "Running audit…" : "Run Audit"}
+        </Button>
+        {pipelineError && <p className="text-blocked text-xs">{pipelineError}</p>}
+      </div>
+    );
 
   const matrixWpRaw = data.fields?.find((f) => f.field_key === "matrix_wp")?.normalized_value ?? null;
   const matrixWp = matrixWpRaw ? Number(String(matrixWpRaw).replace(/[^\d.]/g, "")) : null;
@@ -141,15 +207,6 @@ function Workspace() {
     refresh();
   };
 
-  const bulkMetrics = async (status: string) => {
-    await supabase
-      .from("metric_results")
-      .update({ status, p1_status: status, p2_status: status })
-      .eq("audit_run_id", run.id)
-      .neq("status", "COMPLETE");
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "P1 VS P2 FULL METRICS", status: `BULK ${status}` });
-    refresh();
-  };
 
   const commitIndependent = async () => {
     if (!winner) {
@@ -250,7 +307,12 @@ function Workspace() {
           </div>
           <div className="flex items-center gap-2">
             <AuditColorBadge color={data.decision?.final_audit_color ?? report.color} />
-            <Button onClick={runGate}>Run Final Combination Gate</Button>
+            <Button onClick={runAudit} disabled={running}>
+              {running ? "Running audit…" : "Run Audit"}
+            </Button>
+            <Button variant="secondary" onClick={runGate}>
+              Run Final Combination Gate
+            </Button>
           </div>
         </div>
 
@@ -270,6 +332,30 @@ function Workspace() {
                   refresh();
                 }}
               />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel p-4">
+        <h2 className="font-semibold">Execution diagnostics</h2>
+        {pipelineError && <p className="mt-1 text-xs text-blocked">{pipelineError}</p>}
+        {!stages?.length && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            No stage has executed yet. Press Run Audit to execute the pipeline end to end.
+          </p>
+        )}
+        <div className="mt-2 grid gap-1 text-xs md:grid-cols-2">
+          {stages?.map((st) => (
+            <div key={st.stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
+              <span className="truncate">{st.stage}</span>
+              <span className="mono-num flex shrink-0 items-center gap-2">
+                <span>
+                  {st.done_count}/{st.total_count}
+                </span>
+                <StateText state={st.status} />
+              </span>
+              {st.error_message && <span className="text-blocked">{st.error_message}</span>}
             </div>
           ))}
         </div>
@@ -343,14 +429,6 @@ function Workspace() {
         </TabsList>
 
         <TabsContent value="metrics" className="panel mt-3 p-3">
-          <div className="mb-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => bulkMetrics("RUNNING")}>
-              Mark remaining RUNNING
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => bulkMetrics("UNAVAILABLE")}>
-              Mark remaining UNAVAILABLE
-            </Button>
-          </div>
           <div className="max-h-[70vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-header text-header-foreground">

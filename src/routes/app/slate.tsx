@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { createAuditRun } from "@/lib/audit-runs";
+import { useServerFn } from "@tanstack/react-start";
+import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
 
@@ -30,10 +31,15 @@ function Slate() {
     },
   });
 
+  const execute = useServerFn(runAuditPipeline);
   const start = useMutation({
-    mutationFn: (matchId: string) => createAuditRun(matchId),
+    mutationFn: async (matchId: string) => {
+      const res = await execute({ data: { matchId } });
+      if (!res.ok) throw new Error(res.failures[0]?.message ?? "Pipeline failed");
+      return res;
+    },
     onSuccess: () => {
-      toast.success("Audit run created with research lock");
+      toast.success("Audit execution started — open the workspace for stage diagnostics");
       qc.invalidateQueries({ queryKey: ["slate"] });
     },
     onError: (e) => toast.error((e as Error).message),
@@ -94,7 +100,7 @@ function Slate() {
                       </Button>
                     ) : (
                       <Button size="sm" onClick={() => start.mutate(m.id)} disabled={start.isPending}>
-                        Start audit run
+                        Run Audit
                       </Button>
                     )}
                   </td>
