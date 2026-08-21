@@ -176,6 +176,81 @@ export type Database = {
           },
         ]
       }
+      audit_stage_runs: {
+        Row: {
+          attempts: number
+          audit_run_id: string
+          created_at: string
+          detail: Json
+          done_count: number
+          error_code: string | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          match_id: string | null
+          stage: string
+          stage_order: number
+          started_at: string | null
+          status: string
+          total_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          audit_run_id: string
+          created_at?: string
+          detail?: Json
+          done_count?: number
+          error_code?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          match_id?: string | null
+          stage: string
+          stage_order?: number
+          started_at?: string | null
+          status?: string
+          total_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          attempts?: number
+          audit_run_id?: string
+          created_at?: string
+          detail?: Json
+          done_count?: number
+          error_code?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          match_id?: string | null
+          stage?: string
+          stage_order?: number
+          started_at?: string | null
+          status?: string
+          total_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_stage_runs_audit_run_id_fkey"
+            columns: ["audit_run_id"]
+            isOneToOne: false
+            referencedRelation: "audit_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_stage_runs_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       autopsies: {
         Row: {
           audit_color: string | null
