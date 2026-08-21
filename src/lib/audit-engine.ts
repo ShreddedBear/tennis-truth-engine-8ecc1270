@@ -175,8 +175,8 @@ export function evaluate(input: EngineInput): GateReport {
     input.disagreement.some((d) => d.contradiction_severity === "CRITICAL");
 
   const checks = [
-    { key: "identity", label: "Match identity verified", pass: match.identity_status === "VERIFIED", detail: match.identity_status },
-    { key: "surface", label: "Surface verified", pass: match.surface_status === "VERIFIED", detail: match.surface_status },
+    { key: "identity", label: "Match identity verified or unavailable", pass: ["VERIFIED", "UNAVAILABLE"].includes(match.identity_status), detail: match.identity_status },
+    { key: "surface", label: "Surface verified or unavailable", pass: ["VERIFIED", "UNAVAILABLE"].includes(match.surface_status), detail: match.surface_status },
     { key: "lock", label: "Pre-match research lock set", pass: !!run.research_lock_at, detail: run.research_lock_at ?? "not locked" },
     { key: "conflicts", label: "Critical source conflicts resolved", pass: criticalConflicts.done === criticalConflicts.total, detail: `${criticalConflicts.done}/${criticalConflicts.total}` },
     { key: "p1", label: "Player 1 metric sweep complete", pass: full(p1), detail: `${p1.done}/${p1.total}` },
@@ -186,7 +186,7 @@ export function evaluate(input: EngineInput): GateReport {
     { key: "disagreement", label: "Disagreement / Trap Audit complete", pass: full(disagreement), detail: `${disagreement.done}/${disagreement.total}` },
     { key: "underdog", label: "Dangerous Underdog Audit complete", pass: full(underdog), detail: `${underdog.done}/${underdog.total}` },
     { key: "stress", label: "Stress / removal tests complete", pass: full(stress), detail: `${stress.done}/${stress.total}` },
-    { key: "committed", label: "Independent conclusion committed", pass: !!run.independent_decision_committed_at && !!run.independent_winner, detail: run.independent_winner ?? "not committed" },
+    { key: "committed", label: "Independent conclusion committed", pass: !!run.independent_decision_committed_at, detail: run.independent_winner ?? "INSUFFICIENT EVIDENCE" },
     { key: "firewall", label: "Matrix firewall respected", pass: firewallValid, detail: firewallValid ? "VALID" : "VIOLATED" },
     { key: "reveal", label: "Matrix comparison complete", pass: !!run.matrix_revealed_at, detail: run.matrix_revealed_at ?? "not revealed" },
     { key: "calibration", label: "Current calibration applied", pass: !!run.calibration_version_id, detail: run.calibration_version_id ? "COMPLETE" : "INCOMPLETE" },
@@ -210,7 +210,7 @@ export function evaluate(input: EngineInput): GateReport {
   let color: GateReport["color"] = "INCOMPLETE";
   if (!auditComplete) {
     color = "INCOMPLETE";
-  } else if (lowCoverage) {
+  } else if (lowCoverage || !run.independent_winner) {
     color = "INSUFFICIENT EVIDENCE";
   } else if (unresolvedCritical || strongUnderdogPathways >= 2 || !matrixRemovalSurvived || (input.matrixWp !== null && input.matrixWp <= 55)) {
     color = "RED / PASS";

@@ -484,17 +484,31 @@ async function identityAndContext(deps: PipelineDeps, matchId: string, runId: st
 
   const parsed = await deps.getParsedFields(matchId);
   // Names come only from the uploaded PDF — never substituted.
-  const finding = await deps.research.identity({
-    p1: match.player1_name,
-    p2: match.player2_name,
-    hints: {
-      tournament: match.tournament_name ?? parsed["tournament"] ?? null,
-      round: match.round ?? parsed["round"] ?? null,
-      scheduled_date: match.scheduled_date ?? parsed["scheduled_date"] ?? null,
-      surface: match.surface ?? parsed["surface"] ?? null,
-      event_level: match.event_level ?? parsed["event_level"] ?? null,
-    },
-  });
+  let finding: IdentityFinding;
+  try {
+    finding = await deps.research.identity({
+      p1: match.player1_name,
+      p2: match.player2_name,
+      hints: {
+        tournament: match.tournament_name ?? parsed["tournament"] ?? null,
+        round: match.round ?? parsed["round"] ?? null,
+        scheduled_date: match.scheduled_date ?? parsed["scheduled_date"] ?? null,
+        surface: match.surface ?? parsed["surface"] ?? null,
+        event_level: match.event_level ?? parsed["event_level"] ?? null,
+      },
+    });
+  } catch {
+    if (isIdentity) {
+      await deps.updateMatch(matchId, { identity_status: "UNAVAILABLE" });
+      await deps.saveIdentityRecords(matchId, [
+        { field: "player_1", claimed_value: match.player1_name, verified_value: null, status: "UNAVAILABLE", note: "Identity search unavailable; names retained from PDF." },
+        { field: "player_2", claimed_value: match.player2_name, verified_value: null, status: "UNAVAILABLE", note: "Identity search unavailable; names retained from PDF." },
+      ]);
+      return { status: "COMPLETE", done: 0, total: 2, detail: { unavailable: "identity search" } };
+    }
+    await deps.updateMatch(matchId, { surface_status: "UNAVAILABLE" });
+    return { status: "COMPLETE", done: 0, total: 6, detail: { unavailable: "context search" } };
+  }
 
   const retrieved = deps.now().toISOString();
   await deps.saveSnapshots(
@@ -761,17 +775,22 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
 
   for (let i = 0; i < pending.length; i += METRIC_BATCH) {
     const batch = pending.slice(i, i + METRIC_BATCH);
-    const findings = await deps.research.metrics({
-      p1: match.player1_name,
-      p2: match.player2_name,
-      context: digestContext,
-      dossier,
-      metrics: batch.map((r) => ({
-        code: String(r["metric_code"]),
-        name: String(r["metric_name"]),
-        body: bodyByCode.get(String(r["metric_code"])) ?? null,
-      })),
-    });
+    let findings: MetricFinding[] = [];
+    try {
+      findings = await deps.research.metrics({
+        p1: match.player1_name,
+        p2: match.player2_name,
+        context: digestContext,
+        dossier,
+        metrics: batch.map((r) => ({
+          code: String(r["metric_code"]),
+          name: String(r["metric_name"]),
+          body: bodyByCode.get(String(r["metric_code"])) ?? null,
+        })),
+      });
+    } catch {
+      findings = [];
+    }
     const byCode = new Map(findings.map((f) => [f.metric_code, f]));
     for (const row of batch) {
       const code = String(row["metric_code"]);
@@ -808,7 +827,12 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
     const cached = (run as unknown as { independent_inputs?: Record<string, unknown> } | null)?.independent_inputs?.[
       "dossiers"
     ] as Record<string, string> | undefined;
-    const raw = await deps.research.extractStats({ player, dossier: cached?.[player] ?? dossier, context: digestContext });
+    let raw: SourcedStat[] = [];
+    try {
+      raw = await deps.research.extractStats({ player, dossier: cached?.[player] ?? dossier, context: digestContext });
+    } catch {
+      raw = [];
+    }
     const outcome = reconstruct(raw);
     const reconstructionRows = [
       ...outcome.derived.map((stat) => ({
@@ -882,14 +906,19 @@ async function executeRules(deps: PipelineDeps, matchId: string, runId: string, 
   const pending = rows.filter((r) => !["COMPLETE", "UNAVAILABLE", "EXCLUDED"].includes(String(r["status"])));
   for (let i = 0; i < pending.length; i += RULE_BATCH) {
     const batch = pending.slice(i, i + RULE_BATCH);
-    const findings = await deps.research.rules({
-      kind,
-      evidence,
-      rules: batch.map((r) => {
-        const def = defByCode.get(String(r["rule_code"]));
-        return { code: String(r["rule_code"]), name: String(r["rule_name"]), body: def?.body ?? null, severity: def?.severity ?? "STANDARD" };
-      }),
-    });
+    let findings: RuleFinding[] = [];
+    try {
+      findings = await deps.research.rules({
+        kind,
+        evidence,
+        rules: batch.map((r) => {
+          const def = defByCode.get(String(r["rule_code"]));
+          return { code: String(r["rule_code"]), name: String(r["rule_name"]), body: def?.body ?? null, severity: def?.severity ?? "STANDARD" };
+        }),
+      });
+    } catch {
+      findings = [];
+    }
     const byCode = new Map(findings.map((f) => [f.rule_code, f]));
     for (const row of batch) {
       const f = byCode.get(String(row["rule_code"]));
@@ -937,12 +966,17 @@ async function executeUnderdog(deps: PipelineDeps, matchId: string, runId: strin
   for (const side of [match.player1_name, match.player2_name]) {
     const pending = rows.filter((r) => r["player_side"] === side && !["COMPLETE", "UNAVAILABLE", "EXCLUDED"].includes(String(r["status"])));
     if (!pending.length) continue;
-    const findings = await deps.research.underdog({
-      evidence,
-      player_side: side,
-      opponent: side === match.player1_name ? match.player2_name : match.player1_name,
-      pathways: pending.map((r) => ({ code: String(r["pathway_code"]), name: String(r["pathway_name"]) })),
-    });
+    let findings: UnderdogFinding[] = [];
+    try {
+      findings = await deps.research.underdog({
+        evidence,
+        player_side: side,
+        opponent: side === match.player1_name ? match.player2_name : match.player1_name,
+        pathways: pending.map((r) => ({ code: String(r["pathway_code"]), name: String(r["pathway_name"]) })),
+      });
+    } catch {
+      findings = [];
+    }
     const byCode = new Map(findings.map((f) => [f.pathway_code, f]));
     for (const row of pending) {
       const f = byCode.get(String(row["pathway_code"]));
@@ -994,11 +1028,16 @@ async function executeStress(deps: PipelineDeps, matchId: string, runId: string)
   }
 
   if (rest.length) {
-    const findings = await deps.research.stress({
-      evidence,
-      conclusion: lean,
-      tests: rest.map((r) => ({ code: String(r["test_code"]), name: String(r["test_name"]) })),
-    });
+    let findings: StressFinding[] = [];
+    try {
+      findings = await deps.research.stress({
+        evidence,
+        conclusion: lean,
+        tests: rest.map((r) => ({ code: String(r["test_code"]), name: String(r["test_name"]) })),
+      });
+    } catch {
+      findings = [];
+    }
     const byCode = new Map(findings.map((f) => [f.test_code, f]));
     for (const row of rest) {
       const f = byCode.get(String(row["test_code"]));
@@ -1028,24 +1067,34 @@ async function provisionalConclusion(deps: PipelineDeps, matchId: string, runId:
     deps.list("disagreement_results", runId),
     deps.list("underdog_results", runId),
   ]);
-  return deps.research.conclusion({
-    evidence,
-    verificationSummary: ver
-      .filter((r) => r["outcome"] === "FAIL" || r["outcome"] === "WARN")
-      .map((r) => `${r["rule_code"]} ${r["outcome"]}: ${r["p1_finding"] ?? ""} | ${r["p2_finding"] ?? ""}`)
-      .join("\n")
-      .slice(0, 6000),
-    disagreementSummary: dis
-      .filter((r) => r["contradiction_severity"] && r["contradiction_severity"] !== "NONE")
-      .map((r) => `${r["rule_code"]} ${r["contradiction_severity"]}: ${r["final_effect"] ?? ""}`)
-      .join("\n")
-      .slice(0, 6000),
-    underdogSummary: und
-      .filter((r) => r["classification"] === "STRONG" || r["classification"] === "REALISTIC")
-      .map((r) => `${r["player_side"]} ${r["pathway_name"]} ${r["classification"]}: ${r["evidence"] ?? ""}`)
-      .join("\n")
-      .slice(0, 6000),
-  });
+  try {
+    return await deps.research.conclusion({
+      evidence,
+      verificationSummary: ver
+        .filter((r) => r["outcome"] === "FAIL" || r["outcome"] === "WARN")
+        .map((r) => `${r["rule_code"]} ${r["outcome"]}: ${r["p1_finding"] ?? ""} | ${r["p2_finding"] ?? ""}`)
+        .join("\n")
+        .slice(0, 6000),
+      disagreementSummary: dis
+        .filter((r) => r["contradiction_severity"] && r["contradiction_severity"] !== "NONE")
+        .map((r) => `${r["rule_code"]} ${r["contradiction_severity"]}: ${r["final_effect"] ?? ""}`)
+        .join("\n")
+        .slice(0, 6000),
+      underdogSummary: und
+        .filter((r) => r["classification"] === "STRONG" || r["classification"] === "REALISTIC")
+        .map((r) => `${r["player_side"]} ${r["pathway_name"]} ${r["classification"]}: ${r["evidence"] ?? ""}`)
+        .join("\n")
+        .slice(0, 6000),
+    });
+  } catch {
+    return {
+      winner: null,
+      low: null,
+      high: null,
+      rationale: null,
+      insufficient_reason: "Independent conclusion unavailable because the research provider did not return a result.",
+    };
+  }
 }
 
 async function commitConclusion(deps: PipelineDeps, matchId: string, runId: string): Promise<StageOutcome> {
@@ -1064,13 +1113,16 @@ async function commitConclusion(deps: PipelineDeps, matchId: string, runId: stri
   );
 
   if (!conclusion.winner) {
-    await deps.updateRun(runId, { effective_evidence_count: families.size, raw_signal_count: metrics.filter((m) => m["status"] === "COMPLETE").length });
+    await deps.updateRun(runId, {
+      independent_decision_committed_at: deps.now().toISOString(),
+      effective_evidence_count: families.size,
+      raw_signal_count: metrics.filter((m) => m["status"] === "COMPLETE").length,
+    });
     return {
-      status: "BLOCKED",
-      done: 0,
+      status: "COMPLETE",
+      done: 1,
       total: 1,
-      errorCode: "INSUFFICIENT_INDEPENDENT_EVIDENCE",
-      message: conclusion.insufficient_reason ?? "Independent evidence was insufficient to commit a conclusion.",
+      detail: { winner: null, families: families.size, insufficient_reason: conclusion.insufficient_reason ?? "Independent evidence was insufficient to commit a conclusion." },
     };
   }
 
