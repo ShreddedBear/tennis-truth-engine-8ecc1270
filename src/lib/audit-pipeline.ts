@@ -720,12 +720,45 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
   const bodyByCode = new Map(defs.map((d) => [d.rule_code, d.body]));
   const digestContext = digestFrom(match, rows).context;
 
+  // Grounded pre-pass: retrieve a public statistical dossier for each player once
+  // per stage, so metric batches map real retrieved figures instead of returning
+  // blanket UNAVAILABLE. Cached on the run so a resume does not re-fetch.
+  let dossier = "";
+  if (pending.length && deps.research.dossier) {
+    const run = await deps.getLatestRun(matchId);
+    const cached = (run as unknown as { independent_inputs?: Record<string, unknown> } | null)?.independent_inputs?.[
+      "dossiers"
+    ] as Record<string, string> | undefined;
+    const need = [match.player1_name, match.player2_name].filter((p) => !cached?.[p]);
+    const fresh: Record<string, string> = { ...(cached ?? {}) };
+    for (const player of need) {
+      const opponent = player === match.player1_name ? match.player2_name : match.player1_name;
+      try {
+        fresh[player] = await deps.research.dossier({ player, opponent, context: digestContext });
+      } catch {
+        fresh[player] = "";
+      }
+    }
+    if (need.length) {
+      await deps.updateRun(runId, {
+        independent_inputs: {
+          ...((run as unknown as { independent_inputs?: Record<string, unknown> } | null)?.independent_inputs ?? {}),
+          dossiers: fresh,
+        },
+      });
+    }
+    dossier = [match.player1_name, match.player2_name]
+      .map((p) => `### ${p}\n${fresh[p] || "(no dossier retrieved)"}`)
+      .join("\n\n");
+  }
+
   for (let i = 0; i < pending.length; i += METRIC_BATCH) {
     const batch = pending.slice(i, i + METRIC_BATCH);
     const findings = await deps.research.metrics({
       p1: match.player1_name,
       p2: match.player2_name,
       context: digestContext,
+      dossier,
       metrics: batch.map((r) => ({
         code: String(r["metric_code"]),
         name: String(r["metric_name"]),
