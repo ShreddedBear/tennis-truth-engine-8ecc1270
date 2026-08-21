@@ -16,9 +16,16 @@ export const Route = createFileRoute("/app/upload")({
   head: () => ({
     meta: [
       { title: "Upload Summaries — Tennis Matrix Audit System" },
-      { name: "description", content: "Ingest Tennis Matrix match-summary PDFs, review every parsed field and correct extraction before the audit begins." },
+      {
+        name: "description",
+        content:
+          "Ingest Tennis Matrix match-summary PDFs, review every parsed field and correct extraction before the audit begins.",
+      },
       { property: "og:title", content: "Upload Summaries — Tennis Matrix Audit System" },
-      { property: "og:description", content: "Full-document PDF ingestion with parser confidence and manual review." },
+      {
+        property: "og:description",
+        content: "Full-document PDF ingestion with parser confidence and manual review.",
+      },
     ],
   }),
   component: UploadPage,
@@ -71,7 +78,14 @@ function aiToParsed(m: AiMatchup): ParsedMatchup {
   };
 }
 
-const REVIEW_FIELDS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"];
+const REVIEW_FIELDS = [
+  "tournament",
+  "event_level",
+  "round",
+  "scheduled_date",
+  "surface",
+  "best_of",
+];
 
 function UploadPage() {
   const navigate = useNavigate();
@@ -89,13 +103,18 @@ function UploadPage() {
     for (const file of list) {
       for (const m of file.matchups) {
         done++;
-        setProgress(`Looking up match details online (${done}/${total}): ${m.player1_name} vs ${m.player2_name}…`);
+        setProgress(
+          `Looking up match details online (${done}/${total}): ${m.player1_name} vs ${m.player2_name}…`,
+        );
         const hints: Record<string, string | null> = {};
-        for (const key of REVIEW_FIELDS) hints[key] = m.fields.find((f) => f.field_key === key)?.normalized_value ?? null;
+        for (const key of REVIEW_FIELDS)
+          hints[key] = m.fields.find((f) => f.field_key === key)?.normalized_value ?? null;
         const missing = REVIEW_FIELDS.filter((k) => !hints[k]);
         if (!missing.length) continue;
         try {
-          const res = await resolveContext({ data: { p1: m.player1_name, p2: m.player2_name, hints } });
+          const res = await resolveContext({
+            data: { p1: m.player1_name, p2: m.player2_name, hints },
+          });
           if (!res.ok) continue;
           for (const key of missing) {
             const value = res.fields[key];
@@ -142,7 +161,8 @@ function UploadPage() {
           toast.error(`${file.name}: ${(e as Error).message}`);
         }
       }
-      if (matchups.length === 0) toast.warning(`${file.name}: no matchups detected — review required`);
+      if (matchups.length === 0)
+        toast.warning(`${file.name}: no matchups detected — review required`);
       next.push({ filename: file.name, pages, matchups, source });
     }
     await enrich(next);
@@ -151,8 +171,6 @@ function UploadPage() {
     setProgress(null);
     setBusy(false);
   };
-
-
 
   const editField = (fi: number, mi: number, key: string, value: string) => {
     setStaged((s) =>
@@ -166,7 +184,9 @@ function UploadPage() {
                 const exists = m.fields.some((x) => x.field_key === key);
                 const fields = exists
                   ? m.fields.map((x) =>
-                      x.field_key === key ? { ...x, normalized_value: value, extraction_status: "DIRECT" as const } : x,
+                      x.field_key === key
+                        ? { ...x, normalized_value: value, extraction_status: "DIRECT" as const }
+                        : x,
                     )
                   : [
                       ...m.fields,
@@ -186,7 +206,8 @@ function UploadPage() {
     );
   };
 
-  const fieldValue = (m: ParsedMatchup, key: string) => m.fields.find((f) => f.field_key === key)?.normalized_value ?? "";
+  const fieldValue = (m: ParsedMatchup, key: string) =>
+    m.fields.find((f) => f.field_key === key)?.normalized_value ?? "";
 
   const commit = async () => {
     setBusy(true);
@@ -215,7 +236,11 @@ function UploadPage() {
           p2: m.player2_name,
         });
 
-        const { data: existing } = await supabase.from("matches").select("id").eq("canonical_key", key).maybeSingle();
+        const { data: existing } = await supabase
+          .from("matches")
+          .select("id")
+          .eq("canonical_key", key)
+          .maybeSingle();
         let matchId = existing?.id;
         if (!matchId) {
           const { data: match } = await supabase
@@ -245,7 +270,10 @@ function UploadPage() {
           .order("version_number", { ascending: false });
 
         if (priorVersions?.length) {
-          await supabase.from("summary_versions").update({ is_active: false }).eq("match_id", matchId);
+          await supabase
+            .from("summary_versions")
+            .update({ is_active: false })
+            .eq("match_id", matchId);
         }
 
         const { data: version } = await supabase
@@ -262,7 +290,10 @@ function UploadPage() {
         if (!version) continue;
         versions++;
 
-        await supabase.from("matches").update({ active_summary_version_id: version.id }).eq("id", matchId);
+        await supabase
+          .from("matches")
+          .update({ active_summary_version_id: version.id })
+          .eq("id", matchId);
         if (m.fields.length) {
           await supabase.from("parsed_summary_fields").insert(
             m.fields.map((f) => ({
@@ -276,7 +307,12 @@ function UploadPage() {
             })),
           );
         }
-        await log({ match_id: matchId, stage: "SUMMARY PDF INGESTION", status: "COMPLETE", output: { file: file.filename, page: m.page_number } });
+        await log({
+          match_id: matchId,
+          stage: "SUMMARY PDF INGESTION",
+          status: "COMPLETE",
+          output: { file: file.filename, page: m.page_number },
+        });
         auditedMatchIds.add(matchId);
       }
     }
@@ -296,7 +332,9 @@ function UploadPage() {
 
     setBusy(false);
     setStaged([]);
-    toast.success(`${created} new matches, ${versions} summary versions, ${runs} audit runs started`);
+    toast.success(
+      `${created} new matches, ${versions} summary versions, ${runs} audit runs started`,
+    );
     navigate({ to: "/app/slate" });
   };
 
@@ -305,7 +343,8 @@ function UploadPage() {
       <div>
         <h1 className="text-xl font-semibold">Upload summaries & parse review</h1>
         <p className="text-sm text-muted-foreground">
-          Every page of every PDF is read. Nothing unreadable is guessed — correct anything below before ingesting.
+          Every page of every PDF is read. Nothing unreadable is guessed — correct anything below
+          before ingesting.
         </p>
       </div>
 
@@ -317,17 +356,22 @@ function UploadPage() {
           disabled={busy}
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
         />
-        <Button className="w-full sm:w-auto" onClick={analyze} disabled={busy || files.length === 0}>
-          {busy ? "Analyzing…" : `Start analysis${files.length ? ` (${files.length} PDF${files.length > 1 ? "s" : ""})` : ""}`}
+        <Button
+          className="w-full sm:w-auto"
+          onClick={analyze}
+          disabled={busy || files.length === 0}
+        >
+          {busy
+            ? "Analyzing…"
+            : `Start analysis${files.length ? ` (${files.length} PDF${files.length > 1 ? "s" : ""})` : ""}`}
         </Button>
         {progress && <p className="mono-num text-xs text-muted-foreground">{progress}</p>}
         <p className="text-xs text-muted-foreground">
-          Text-based PDFs are read directly; screenshot/image-only pages fall back to vision extraction. Single match,
-          multi-match combined, revised or replacement summaries are all supported. Duplicates become new summary
-          versions of the same physical match.
+          Text-based PDFs are read directly; screenshot/image-only pages fall back to vision
+          extraction. Single match, multi-match combined, revised or replacement summaries are all
+          supported. Duplicates become new summary versions of the same physical match.
         </p>
       </div>
-
 
       {staged.map((file, fi) => (
         <section key={file.filename + fi} className="panel p-4">
@@ -342,7 +386,8 @@ function UploadPage() {
               <div key={mi} className="rounded-md border border-border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">
-                    {m.player1_name} <span className="text-muted-foreground">vs</span> {m.player2_name}
+                    {m.player1_name} <span className="text-muted-foreground">vs</span>{" "}
+                    {m.player2_name}
                   </span>
                   <span className="mono-num text-xs text-muted-foreground">
                     page {m.page_number} · parser confidence {(m.confidence * 100).toFixed(0)}%
@@ -362,8 +407,8 @@ function UploadPage() {
                   ))}
                 </div>
                 <p className="mono-num mt-2 text-[11px] text-muted-foreground">
-                  {m.fields.length} fields extracted (Matrix fields are stored but stay hidden until the independent
-                  conclusion is committed)
+                  {m.fields.length} fields extracted (Matrix fields are stored but stay hidden until
+                  the independent conclusion is committed)
                 </p>
               </div>
             ))}

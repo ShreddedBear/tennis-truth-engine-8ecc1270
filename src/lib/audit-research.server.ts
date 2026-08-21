@@ -56,9 +56,11 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
 
   if (!res.ok) {
     const text = await res.text();
-    if (res.status === 429) throw new Error("Research provider rate limited (429) — retry Run Audit shortly.");
+    if (res.status === 429)
+      throw new Error("Research provider rate limited (429) — retry Run Audit shortly.");
     if (res.status === 402) throw new Error("Research provider credits exhausted (402).");
-    if (res.status === 401 || res.status === 403) throw new Error("Research provider rejected the API key (auth).");
+    if (res.status === 401 || res.status === 403)
+      throw new Error("Research provider rejected the API key (auth).");
     throw new Error(`Research provider failed (${res.status}): ${text.slice(0, 300)}`);
   }
 
@@ -75,10 +77,17 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
   }
 }
 
-
 const IDENTITY_SHAPE = `{"player1_canonical":string|null,"player2_canonical":string|null,"player1_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","player2_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","tournament":string|null,"event_level":string|null,"round":string|null,"scheduled_date":string|null,"surface":string|null,"indoor":boolean|null,"best_of":number|null,"surface_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","unresolved_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}],"conflicts":[{"field":string,"values":[string],"note":string|null}]}`;
 
-const CONTEXT_KEYS = ["tournament", "event_level", "round", "scheduled_date", "surface", "indoor", "best_of"] as const;
+const CONTEXT_KEYS = [
+  "tournament",
+  "event_level",
+  "round",
+  "scheduled_date",
+  "surface",
+  "indoor",
+  "best_of",
+] as const;
 
 function missingKeys(f: Partial<IdentityFinding>): string[] {
   return CONTEXT_KEYS.filter((k) => f[k] === null || f[k] === undefined).map(String);
@@ -128,12 +137,17 @@ Return the full object; use null only for a field you genuinely cannot source.`,
       );
       const merged = { ...out } as Record<string, unknown>;
       for (const k of CONTEXT_KEYS) {
-        if ((merged[k] === null || merged[k] === undefined) && retry[k] !== null && retry[k] !== undefined) {
+        if (
+          (merged[k] === null || merged[k] === undefined) &&
+          retry[k] !== null &&
+          retry[k] !== undefined
+        ) {
           merged[k] = retry[k];
         }
       }
       if (retry.sources?.length) merged["sources"] = [...(out.sources ?? []), ...retry.sources];
-      if (retry.surface_status && merged["surface"]) merged["surface_status"] = retry.surface_status;
+      if (retry.surface_status && merged["surface"])
+        merged["surface_status"] = retry.surface_status;
       out = merged as unknown as IdentityFinding;
     } catch {
       // keep the first-pass result; the caller reports what is still missing
@@ -155,8 +169,6 @@ export const aiResearcher: Researcher = {
   async identity(input) {
     return resolveMatchIdentity(input);
   },
-
-
 
   async dossier({ player, opponent, context }) {
     const out = await ask<{ dossier: string | null }>(
@@ -191,7 +203,8 @@ ${metrics.map((m) => `- ${m.code} | ${m.name}${m.body ? ` | definition: ${m.body
   },
 
   async rules({ kind, evidence, rules }) {
-    const label = kind === "VERIFICATION" ? "verification audit rule" : "disagreement / trap audit rule";
+    const label =
+      kind === "VERIFICATION" ? "verification audit rule" : "disagreement / trap audit rule";
     const out = await ask<{ rules: RuleFinding[] }>(
       `Independent evidence for ${evidence.p1} vs ${evidence.p2} (${evidence.context || "context unestablished"}):
 ${evidence.metrics.map((m) => `- ${m.code} ${m.name}: P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "—"}`).join("\n") || "(no metric values retrieved)"}
