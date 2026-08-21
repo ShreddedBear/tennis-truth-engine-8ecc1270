@@ -125,10 +125,13 @@ export interface EvidenceDigest {
 
 export interface Researcher {
   identity(input: { p1: string; p2: string; hints: Record<string, string | null> }): Promise<IdentityFinding>;
+  /** Optional grounded pre-pass: a retrieved public statistical dossier for one player. */
+  dossier?(input: { player: string; opponent: string; context: string }): Promise<string>;
   metrics(input: {
     p1: string;
     p2: string;
     context: string;
+    dossier?: string;
     metrics: Array<{ code: string; name: string; body: string | null }>;
   }): Promise<MetricFinding[]>;
   rules(input: {
