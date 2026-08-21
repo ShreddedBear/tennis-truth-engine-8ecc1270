@@ -95,9 +95,28 @@ Tasks:
     };
   },
 
-  async metrics({ p1, p2, context, metrics }) {
+  async dossier({ player, opponent, context }) {
+    const out = await ask<{ dossier: string | null }>(
+      `Retrieve a factual pre-match statistical dossier for the professional tennis player ${player} (upcoming opponent ${opponent}; ${context || "context not yet established"}).
+Search public sources (ATP/WTA/ITF official, Tennis Abstract, Ultimate Tennis Statistics, Tennis Explorer, tournament sites).
+Report, with the source named inline for each figure and only where a real source exists:
+ - current ranking, ranking trend, age, handedness
+ - season and 12-month win/loss, split by surface
+ - serve metrics: 1st serve %, 1st/2nd serve points won, aces/DF per match, hold %
+ - return metrics: return points won vs 1st/2nd serve, break points converted, break %
+ - tie-break and deciding-set records, recent form (last 10 matches with opponents and scores)
+ - head-to-head with ${opponent}, injury/withdrawal/fatigue news, travel and schedule load, altitude/conditions notes
+Omit anything you cannot attribute. Do not estimate. Return it as one markdown dossier string.`,
+      `{"dossier":string}`,
+      true,
+    );
+    return out.dossier ?? "";
+  },
+
+  async metrics({ p1, p2, context, dossier, metrics }) {
     const out = await ask<{ metrics: MetricFinding[] }>(
       `Match: ${p1} vs ${p2}. Context: ${context || "context not yet established"}.
+${dossier ? `Retrieved public dossiers (use these figures directly; treat them as sourced evidence):\n${dossier.slice(0, 12000)}\n` : ""}
 For EVERY metric below, research both players symmetrically and return one row per metric_code.
 Treatment per player: DIRECT (found at a named source), RECONSTRUCTED (computed from named source components — state the components in the value), PARTIAL (only a proxy/partial figure), UNAVAILABLE (attempted, nothing admissible), EXCLUDED (post-match or inadmissible).
 Metrics:
