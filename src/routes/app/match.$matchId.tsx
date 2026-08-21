@@ -96,7 +96,60 @@ function Workspace() {
     },
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["match", matchId] });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["match", matchId] });
+    qc.invalidateQueries({ queryKey: ["stages", matchId] });
+  };
+
+  const { data: stages } = useQuery({
+    queryKey: ["stages", matchId],
+    refetchInterval: running ? 3000 : false,
+    queryFn: async () => {
+      const { data: rows } = await supabase
+        .from("audit_stage_runs")
+        .select("*")
+        .eq("match_id", matchId)
+        .order("stage_order");
+      return rows ?? [];
+    },
+  });
+
+  const executePipeline = useServerFn(runAuditPipeline);
+
+  const runAudit = async () => {
+    setRunning(true);
+    setPipelineError(null);
+    try {
+      // The pipeline is time-budgeted, idempotent and resumable: drive it in
+      // chunks until it reports completion or stops making progress.
+      for (let chunk = 0; chunk < 20; chunk += 1) {
+        const res = await executePipeline({ data: { matchId } });
+        refresh();
+        if (!res.ok) {
+          setPipelineError(res.failures[0]?.message ?? "Pipeline failed");
+          toast.error(res.failures[0]?.message ?? "Pipeline failed");
+          return;
+        }
+        if (res.complete) {
+          toast.success(`Audit executed — ${res.color ?? "gate run"} · ${Math.round(res.completionPercent ?? 0)}%`);
+          return;
+        }
+        if (!res.nextStage) {
+          setPipelineError(res.failures[0]?.message ?? "Pipeline stopped before completing all stages.");
+          toast.warning("Pipeline stopped early — see stage diagnostics");
+          return;
+        }
+      }
+      toast.warning("Pipeline still running — press Run Audit again to resume");
+    } catch (e) {
+      setPipelineError((e as Error).message);
+      toast.error((e as Error).message);
+    } finally {
+      setRunning(false);
+      refresh();
+    }
+  };
+
 
   if (isLoading || !data?.match) return <div className="panel p-6 text-sm">Loading match…</div>;
   const { match, run } = data;
