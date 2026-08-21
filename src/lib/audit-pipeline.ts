@@ -1023,7 +1023,7 @@ async function applyCalibration(deps: PipelineDeps, matchId: string, runId: stri
   const fields = await deps.getParsedFields(matchId);
   const wpRaw = fields["matrix_wp"];
   const wp = wpRaw ? Number(String(wpRaw).replace(/[^\d.]/g, "")) : null;
-  const bucket = bucketFor(wp, buckets.map((b) => ({ ...b, calibration_version_id: version.id })) as never);
+  const bucket = bucketFor(wp, buckets);
   const rate = bucket ? winRate(bucket.wins, bucket.graded) : null;
   const centre = rate ?? (((run?.independent_low ?? 0) + (run?.independent_high ?? 0)) / 2 || null);
   await deps.updateRun(runId, {
@@ -1093,7 +1093,7 @@ async function finalGate(deps: PipelineDeps, matchId: string, runId: string): Pr
   const fields = await deps.getParsedFields(matchId);
   const wpRaw = fields["matrix_wp"];
   const wp = wpRaw ? Number(String(wpRaw).replace(/[^\d.]/g, "")) : null;
-  const bucket = version ? bucketFor(wp, buckets.map((b) => ({ ...b, calibration_version_id: version.id })) as never) : null;
+  const bucket = version ? bucketFor(wp, buckets) : null;
   const rate = bucket ? winRate(bucket.wins, bucket.graded) : null;
 
   const existingId = await deps.getDecisionId(runId);
