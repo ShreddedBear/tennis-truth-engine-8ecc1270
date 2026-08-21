@@ -1,0 +1,151 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tennis Matrix Audit System design tokens.
+ * Navy / slate institutional palette + calibration + audit color tokens.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-blocked: var(--blocked);
+  --color-double-green: var(--double-green);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-red: var(--red);
+  --color-incomplete: var(--incomplete);
+  --color-cal-orange: var(--cal-orange);
+  --color-cal-tan: var(--cal-tan);
+  --color-cal-purple: var(--cal-purple);
+  --color-cal-blue: var(--cal-blue);
+  --color-cal-pink: var(--cal-pink);
+  --color-cal-brown: var(--cal-brown);
+  --color-cal-indigo: var(--cal-indigo);
+  --color-cal-gold: var(--cal-gold);
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.375rem;
+  --background: oklch(0.985 0.003 250);
+  --foreground: oklch(0.23 0.035 260);
+  --surface: oklch(0.965 0.006 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.23 0.035 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.23 0.035 260);
+  --primary: oklch(0.31 0.075 262);
+  --primary-foreground: oklch(0.985 0.005 250);
+  --secondary: oklch(0.94 0.012 250);
+  --secondary-foreground: oklch(0.31 0.075 262);
+  --muted: oklch(0.945 0.008 250);
+  --muted-foreground: oklch(0.52 0.03 258);
+  --accent: oklch(0.92 0.03 240);
+  --accent-foreground: oklch(0.29 0.07 262);
+  --destructive: oklch(0.55 0.21 27);
+  --destructive-foreground: oklch(0.98 0.01 250);
+  --border: oklch(0.9 0.012 250);
+  --input: oklch(0.9 0.012 250);
+  --ring: oklch(0.45 0.09 262);
+  --header: oklch(0.24 0.06 262);
+  --header-foreground: oklch(0.97 0.008 250);
+
+  --ok: oklch(0.55 0.14 155);
+  --warn: oklch(0.72 0.15 75);
+  --blocked: oklch(0.55 0.2 27);
+
+  --double-green: oklch(0.42 0.14 155);
+  --green: oklch(0.6 0.16 152);
+  --yellow: oklch(0.79 0.15 90);
+  --red: oklch(0.55 0.21 27);
+  --incomplete: oklch(0.6 0.02 258);
+
+  --cal-orange: oklch(0.74 0.16 55);
+  --cal-tan: oklch(0.72 0.07 70);
+  --cal-purple: oklch(0.55 0.16 300);
+  --cal-blue: oklch(0.58 0.14 250);
+  --cal-pink: oklch(0.75 0.13 350);
+  --cal-brown: oklch(0.47 0.08 55);
+  --cal-indigo: oklch(0.4 0.15 290);
+  --cal-gold: oklch(0.8 0.15 90);
+}
+
+.dark {
+  --background: oklch(0.19 0.03 260);
+  --foreground: oklch(0.96 0.006 250);
+  --surface: oklch(0.23 0.035 260);
+  --card: oklch(0.24 0.035 260);
+  --card-foreground: oklch(0.96 0.006 250);
+  --popover: oklch(0.24 0.035 260);
+  --popover-foreground: oklch(0.96 0.006 250);
+  --primary: oklch(0.75 0.1 250);
+  --primary-foreground: oklch(0.2 0.04 260);
+  --secondary: oklch(0.3 0.035 260);
+  --secondary-foreground: oklch(0.96 0.006 250);
+  --muted: oklch(0.3 0.035 260);
+  --muted-foreground: oklch(0.72 0.02 255);
+  --accent: oklch(0.33 0.05 255);
+  --accent-foreground: oklch(0.96 0.006 250);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --header: oklch(0.17 0.03 262);
+  --header-foreground: oklch(0.97 0.008 250);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility panel {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+@utility mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
