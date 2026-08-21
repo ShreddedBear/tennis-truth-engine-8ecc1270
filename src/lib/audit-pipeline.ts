@@ -254,7 +254,7 @@ export interface PipelineResult {
   failures: Array<{ stage: Stage; message: string }>;
 }
 
-const METRIC_BATCH = 18;
+const METRIC_BATCH = 5;
 const RULE_BATCH = 20;
 const DEFAULT_BUDGET_MS = 45_000;
 
