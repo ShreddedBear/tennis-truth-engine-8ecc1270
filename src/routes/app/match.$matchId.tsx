@@ -343,14 +343,6 @@ function Workspace() {
         </TabsList>
 
         <TabsContent value="metrics" className="panel mt-3 p-3">
-          <div className="mb-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => bulkMetrics("RUNNING")}>
-              Mark remaining RUNNING
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => bulkMetrics("UNAVAILABLE")}>
-              Mark remaining UNAVAILABLE
-            </Button>
-          </div>
           <div className="max-h-[70vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-header text-header-foreground">
