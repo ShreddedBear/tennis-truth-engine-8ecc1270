@@ -48,6 +48,8 @@ function Workspace() {
   const [winner, setWinner] = useState("");
   const [low, setLow] = useState("");
   const [high, setHigh] = useState("");
+  const [running, setRunning] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["match", matchId],
