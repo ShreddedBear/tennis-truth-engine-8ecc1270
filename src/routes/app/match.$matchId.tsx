@@ -141,15 +141,6 @@ function Workspace() {
     refresh();
   };
 
-  const bulkMetrics = async (status: string) => {
-    await supabase
-      .from("metric_results")
-      .update({ status, p1_status: status, p2_status: status })
-      .eq("audit_run_id", run.id)
-      .neq("status", "COMPLETE");
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "P1 VS P2 FULL METRICS", status: `BULK ${status}` });
-    refresh();
-  };
 
   const commitIndependent = async () => {
     if (!winner) {
