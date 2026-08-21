@@ -338,6 +338,30 @@ function Workspace() {
       </div>
 
       <div className="panel p-4">
+        <h2 className="font-semibold">Execution diagnostics</h2>
+        {pipelineError && <p className="mt-1 text-xs text-blocked">{pipelineError}</p>}
+        {!stages?.length && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            No stage has executed yet. Press Run Audit to execute the pipeline end to end.
+          </p>
+        )}
+        <div className="mt-2 grid gap-1 text-xs md:grid-cols-2">
+          {stages?.map((st) => (
+            <div key={st.stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
+              <span className="truncate">{st.stage}</span>
+              <span className="mono-num flex shrink-0 items-center gap-2">
+                <span>
+                  {st.done_count}/{st.total_count}
+                </span>
+                <StateText state={st.status} />
+              </span>
+              {st.error_message && <span className="text-blocked">{st.error_message}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel p-4">
         <h2 className="font-semibold">Completion proof</h2>
         <div className="mono-num mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-4 xl:grid-cols-5">
           {[
