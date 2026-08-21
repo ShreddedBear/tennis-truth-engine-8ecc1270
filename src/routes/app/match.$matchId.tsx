@@ -158,7 +158,16 @@ function Workspace() {
   if (isLoading || !data?.match) return <div className="panel p-6 text-sm">Loading match…</div>;
   const { match, run } = data;
 
-  if (!run) return <div className="panel p-6 text-sm">No audit run yet. Start one from the Active Slate.</div>;
+  if (!run)
+    return (
+      <div className="panel space-y-3 p-6 text-sm">
+        <p>No audit run yet for {match.player1_name} vs {match.player2_name}.</p>
+        <Button onClick={runAudit} disabled={running}>
+          {running ? "Running audit…" : "Run Audit"}
+        </Button>
+        {pipelineError && <p className="text-blocked text-xs">{pipelineError}</p>}
+      </div>
+    );
 
   const matrixWpRaw = data.fields?.find((f) => f.field_key === "matrix_wp")?.normalized_value ?? null;
   const matrixWp = matrixWpRaw ? Number(String(matrixWpRaw).replace(/[^\d.]/g, "")) : null;
