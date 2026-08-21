@@ -45,7 +45,10 @@ function Slate() {
     onError: (e) => toast.error((e as Error).message),
   });
 
-  const runFor = (matchId: string) => data?.runs.find((r) => r.match_id === matchId);
+  const runFor = (matchId: string) =>
+    data?.runs
+      .filter((r) => r.match_id === matchId)
+      .sort((a, b) => b.run_number - a.run_number)[0];
 
   return (
     <div className="space-y-4">
@@ -92,17 +95,20 @@ function Slate() {
                   </td>
                   <td className="mono-num px-3 py-2 text-xs">{decision?.completion_percent ?? 0}%</td>
                   <td className="px-3 py-2 text-right">
-                    {run ? (
-                      <Button asChild size="sm" variant="secondary">
-                        <Link to="/app/match/$matchId" params={{ matchId: m.id }}>
-                          Open workspace
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button size="sm" onClick={() => start.mutate(m.id)} disabled={start.isPending}>
-                        Run Audit
-                      </Button>
-                    )}
+                    <div className="flex justify-end gap-2">
+                      {run && (
+                        <Button asChild size="sm" variant="secondary">
+                          <Link to="/app/match/$matchId" params={{ matchId: m.id }}>
+                            Open workspace
+                          </Link>
+                        </Button>
+                      )}
+                      {(!run || run.status !== "COMPLETE") && (
+                        <Button size="sm" onClick={() => start.mutate(m.id)} disabled={start.isPending}>
+                          {run ? "Resume Audit" : "Run Audit"}
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

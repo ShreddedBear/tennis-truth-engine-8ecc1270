@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { extractPdfText } from "@/lib/pdf-text";
 import { extractMatchupsFromPdf, type AiMatchup } from "@/lib/pdf-extract.functions";
 import { canonicalKey, parseSummaryText, type ParsedMatchup } from "@/lib/summary-parser";
-import { createAuditRun, log } from "@/lib/audit-runs";
+import { log } from "@/lib/audit-runs";
+import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
 import { resolveMatchContext } from "@/lib/match-context.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ function UploadPage() {
   const [progress, setProgress] = useState<string | null>(null);
   const visionExtract = useServerFn(extractMatchupsFromPdf);
   const resolveContext = useServerFn(resolveMatchContext);
+  const executePipeline = useServerFn(runAuditPipeline);
 
   const enrich = async (list: Staged[]) => {
     const total = list.reduce((a, f) => a + f.matchups.length, 0);
@@ -225,6 +227,7 @@ function UploadPage() {
               tournament_name: fieldValue(m, "tournament") || null,
               event_level: fieldValue(m, "event_level") || null,
               round: fieldValue(m, "round") || null,
+              scheduled_date: fieldValue(m, "scheduled_date") || null,
               surface: fieldValue(m, "surface") || null,
               best_of: Number(fieldValue(m, "best_of")) || null,
             })
@@ -283,7 +286,8 @@ function UploadPage() {
     let runs = 0;
     for (const matchId of auditedMatchIds) {
       try {
-        await createAuditRun(matchId);
+        const result = await executePipeline({ data: { matchId } });
+        if (!result.ok) throw new Error(result.failures[0]?.message ?? "Pipeline failed to start");
         runs++;
       } catch (e) {
         toast.error(`Audit run failed: ${(e as Error).message}`);

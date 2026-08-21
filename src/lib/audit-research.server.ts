@@ -40,7 +40,7 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
 
   let res = await fetch(GATEWAY, {
     method: "POST",
-    headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
+    headers: { "content-type": "application/json", "Lovable-API-Key": apiKey },
     body: JSON.stringify(body),
   });
 
@@ -49,7 +49,7 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
     delete body["tools"];
     res = await fetch(GATEWAY, {
       method: "POST",
-      headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
+      headers: { "content-type": "application/json", "Lovable-API-Key": apiKey },
       body: JSON.stringify(body),
     });
   }
