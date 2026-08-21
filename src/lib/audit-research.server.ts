@@ -73,27 +73,87 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
   }
 }
 
-export const aiResearcher: Researcher = {
-  async identity({ p1, p2, hints }) {
-    const out = await ask<IdentityFinding>(
-      `Resolve this professional tennis matchup independently against public tennis sources (ATP/WTA/ITF official, Tennis Abstract, Ultimate Tennis Statistics, Tennis Explorer).
+const IDENTITY_SHAPE = `{"player1_canonical":string|null,"player2_canonical":string|null,"player1_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","player2_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","tournament":string|null,"event_level":string|null,"round":string|null,"scheduled_date":string|null,"surface":string|null,"indoor":boolean|null,"best_of":number|null,"surface_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","unresolved_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}],"conflicts":[{"field":string,"values":[string],"note":string|null}]}`;
+
+const CONTEXT_KEYS = ["tournament", "event_level", "round", "scheduled_date", "surface", "indoor", "best_of"] as const;
+
+function missingKeys(f: Partial<IdentityFinding>): string[] {
+  return CONTEXT_KEYS.filter((k) => f[k] === null || f[k] === undefined).map(String);
+}
+
+// Resolve players + match context from the public web. Shared by the audit
+// pipeline and by the upload review screen so both fill the same fields.
+export async function resolveMatchIdentity(input: {
+  p1: string;
+  p2: string;
+  hints: Record<string, string | null>;
+}): Promise<IdentityFinding> {
+  const { p1, p2, hints } = input;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const base = `Resolve this professional tennis matchup independently against public tennis sources (ATP/WTA/ITF official tour sites and draws, Tennis Abstract, Ultimate Tennis Statistics, Tennis Explorer, Flashscore, tournament sites).
+Today's date is ${today}. Relative hints such as "Today", "Tonight" or a weekday refer to that date.
 Players exactly as printed on the uploaded summary — do not substitute anyone else:
   Player 1: ${p1}
   Player 2: ${p2}
-Context hints from the upload (may be incomplete or wrong): ${JSON.stringify(hints)}
+Context hints from the upload (may be incomplete or wrong): ${JSON.stringify(hints)}`;
+
+  let out = await ask<IdentityFinding>(
+    `${base}
 Tasks:
- 1. Confirm each player exists as a real tour player and give the canonical full name. status VERIFIED only if you can attribute it to a named source.
- 2. Independently establish tournament, event_level, round, scheduled_date (YYYY-MM-DD), surface, indoor (true/false), best_of. Do NOT return null just because a hint was missing — attempt to establish it. Return null only after a genuine attempt with no source.
+ 1. Confirm each player exists as a real tour player and give the canonical full name. Any player with an ATP/WTA/ITF profile page is VERIFIED — set UNVERIFIED only if no such profile exists at all.
+ 2. Independently establish tournament, event_level, round, scheduled_date (YYYY-MM-DD), surface, indoor (true/false), best_of by locating the current or upcoming draw containing both players. Do NOT return null just because a hint was missing. Return null only after a genuine attempt with no source.
  3. List every source used with url and retrieval note; list conflicting values.`,
-      `{"player1_canonical":string|null,"player2_canonical":string|null,"player1_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","player2_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","tournament":string|null,"event_level":string|null,"round":string|null,"scheduled_date":string|null,"surface":string|null,"indoor":boolean|null,"best_of":number|null,"surface_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","unresolved_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}],"conflicts":[{"field":string,"values":[string],"note":string|null}]}`,
-      true,
-    );
-    return {
-      ...out,
-      sources: out.sources ?? [],
-      conflicts: out.conflicts ?? [],
-    };
+    IDENTITY_SHAPE,
+    true,
+  );
+
+  // Second grounded pass targeted at whatever the first pass left blank —
+  // these fields are publicly documented for every tour match, so one silent
+  // null must not stall the audit.
+  const gaps = missingKeys(out);
+  if (gaps.length) {
+    try {
+      const retry = await ask<Partial<IdentityFinding>>(
+        `${base}
+The first retrieval pass could not establish: ${gaps.join(", ")}.
+Search again specifically for the tournament draw / order of play that contains BOTH players around ${hints["scheduled_date"] ?? today}.
+Tournament surface, indoor/outdoor and best_of follow from the event itself (e.g. ATP/Challenger main draw = best of 3), so state them once the event is identified.
+Return the full object; use null only for a field you genuinely cannot source.`,
+        IDENTITY_SHAPE,
+        true,
+      );
+      const merged = { ...out } as Record<string, unknown>;
+      for (const k of CONTEXT_KEYS) {
+        if ((merged[k] === null || merged[k] === undefined) && retry[k] !== null && retry[k] !== undefined) {
+          merged[k] = retry[k];
+        }
+      }
+      if (retry.sources?.length) merged["sources"] = [...(out.sources ?? []), ...retry.sources];
+      if (retry.surface_status && merged["surface"]) merged["surface_status"] = retry.surface_status;
+      out = merged as IdentityFinding;
+    } catch {
+      // keep the first-pass result; the caller reports what is still missing
+    }
+  }
+
+  if (out.surface && out.surface_status !== "CONFLICT") out.surface_status = "VERIFIED";
+  if (out.player1_canonical && out.player1_status !== "CONFLICT") out.player1_status = "VERIFIED";
+  if (out.player2_canonical && out.player2_status !== "CONFLICT") out.player2_status = "VERIFIED";
+
+  return {
+    ...out,
+    sources: out.sources ?? [],
+    conflicts: out.conflicts ?? [],
+  };
+}
+
+export const aiResearcher: Researcher = {
+  async identity(input) {
+    return resolveMatchIdentity(input);
   },
+
+
 
   async dossier({ player, opponent, context }) {
     const out = await ask<{ dossier: string | null }>(
