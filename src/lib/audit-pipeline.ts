@@ -76,6 +76,8 @@ export interface MetricFinding {
   reliability: number | null;
   sample: string | null;
   unavailable_reason: string | null;
+  provider_error?: string | null;
+  missing_inputs?: string[];
   sources: SourceRef[];
 }
 
@@ -90,6 +92,9 @@ export interface RuleFinding {
   supporting_evidence: string | null;
   opposing_evidence: string | null;
   final_effect: string | null;
+  unavailable_reason?: string | null;
+  provider_error?: string | null;
+  missing_inputs?: string[];
   sources: SourceRef[];
 }
 
@@ -100,6 +105,8 @@ export interface UnderdogFinding {
   evidence: string | null;
   repeatable: boolean;
   unavailable_reason: string | null;
+  missing_inputs?: string[];
+  sources?: SourceRef[];
 }
 
 export interface StressFinding {
@@ -108,6 +115,9 @@ export interface StressFinding {
   range_after: string | null;
   outcome: "STABLE" | "MOSTLY STABLE" | "UNSTABLE" | "FAILS";
   note: string | null;
+  unavailable_reason?: string | null;
+  missing_inputs?: string[];
+  sources?: SourceRef[];
 }
 
 export interface ConclusionFinding {
@@ -267,6 +277,22 @@ const DEFAULT_BUDGET_MS = 45_000;
 
 const s = (v: unknown) => (v === null || v === undefined ? null : String(v));
 
+function providerReason(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (message.includes("timeout") || message.includes("timed out")) return "PROVIDER_TIMEOUT";
+  if (message.includes("401") || message.includes("403") || message.includes("auth") || message.includes("api key")) return "PROVIDER_AUTH_FAILED";
+  if (message.includes("429") || message.includes("rate limit")) return "API_RATE_LIMIT";
+  if (message.includes("player") && message.includes("not found")) return "PLAYER_NOT_FOUND";
+  if (message.includes("match") && message.includes("not found")) return "MATCH_NOT_FOUND";
+  if (message.includes("surface")) return "SURFACE_DATA_NOT_FOUND";
+  if (message.includes("parse") || message.includes("json")) return "PARSING_FAILED";
+  return "NO_SOURCE_FOUND";
+}
+
+function errorDetail(error: unknown): string | null {
+  return error instanceof Error ? error.message.slice(0, 800) : error ? String(error).slice(0, 800) : null;
+}
+
 function digestFrom(match: MatchRow, metrics: Array<Record<string, unknown>>): EvidenceDigest {
   return {
     p1: match.player1_name,
@@ -407,6 +433,28 @@ function classify(message: string): string {
   if (m.includes("no active") || m.includes("definition")) return "MISSING_DEFINITIONS";
   if (m.includes("json") || m.includes("parse")) return "PROVIDER_RESPONSE_INVALID";
   return "ORCHESTRATION_EXCEPTION";
+}
+
+type UnavailableReason =
+  | "NO_SOURCE_FOUND" | "PROVIDER_TIMEOUT" | "PROVIDER_AUTH_FAILED" | "PLAYER_NOT_FOUND"
+  | "MATCH_NOT_FOUND" | "SURFACE_DATA_NOT_FOUND" | "INSUFFICIENT_SAMPLE" | "MISSING_REQUIRED_INPUT"
+  | "SOURCE_CONFLICT" | "RECONSTRUCTION_FAILED" | "API_RATE_LIMIT" | "PARSING_FAILED"
+  | "HISTORICAL_DATA_UNAVAILABLE";
+
+function unavailableReason(message: string): UnavailableReason {
+  const value = message.toLowerCase();
+  if (value.includes("timeout") || value.includes("timed out")) return "PROVIDER_TIMEOUT";
+  if (value.includes("rate limit") || value.includes("429")) return "API_RATE_LIMIT";
+  if (value.includes("auth") || value.includes("api key") || value.includes("401") || value.includes("403")) return "PROVIDER_AUTH_FAILED";
+  if (value.includes("player") && value.includes("not found")) return "PLAYER_NOT_FOUND";
+  if (value.includes("match") && value.includes("not found")) return "MATCH_NOT_FOUND";
+  if (value.includes("surface")) return "SURFACE_DATA_NOT_FOUND";
+  if (value.includes("sample")) return "INSUFFICIENT_SAMPLE";
+  if (value.includes("missing") || value.includes("required input")) return "MISSING_REQUIRED_INPUT";
+  if (value.includes("conflict")) return "SOURCE_CONFLICT";
+  if (value.includes("parse") || value.includes("json")) return "PARSING_FAILED";
+  if (value.includes("historical")) return "HISTORICAL_DATA_UNAVAILABLE";
+  return "NO_SOURCE_FOUND";
 }
 
 async function ensureRun(deps: PipelineDeps, match: MatchRow): Promise<RunRow> {
@@ -776,6 +824,7 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
   for (let i = 0; i < pending.length; i += METRIC_BATCH) {
     const batch = pending.slice(i, i + METRIC_BATCH);
     let findings: MetricFinding[] = [];
+    let providerError: string | null = null;
     try {
       findings = await deps.research.metrics({
         p1: match.player1_name,
@@ -788,8 +837,9 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
           body: bodyByCode.get(String(r["metric_code"])) ?? null,
         })),
       });
-    } catch {
+    } catch (error) {
       findings = [];
+      providerError = errorDetail(error);
     }
     const byCode = new Map(findings.map((f) => [f.metric_code, f]));
     for (const row of batch) {
@@ -797,6 +847,9 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
       const f = byCode.get(code);
       const treatment: Treatment = (side === "p1" ? f?.p1_treatment : f?.p2_treatment) ?? "UNAVAILABLE";
       const value = side === "p1" ? f?.p1_value ?? null : f?.p2_value ?? null;
+      const retrievedAt = deps.now().toISOString();
+      const reasonDetail = f?.unavailable_reason ?? (providerError ? "Research provider did not return a result for this metric." : null);
+      const reasonCode = treatment === "DIRECT" || treatment === "RECONSTRUCTED" ? null : f?.unavailable_reason ? unavailableReason(f.unavailable_reason) : treatment === "PARTIAL" ? "MISSING_REQUIRED_INPUT" : providerReason(providerError);
       const patch: Record<string, unknown> = {
         [side === "p1" ? "p1_value" : "p2_value"]: value,
         [statusKey]: treatmentToStatus(treatment),
@@ -804,6 +857,19 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
         sources: f?.sources ?? [],
         reliability: f?.reliability ?? null,
         sample: f?.sample ?? null,
+        unavailable_reason: reasonCode,
+        unavailable_detail: reasonDetail,
+        provider_error: providerError,
+        source_attempts: f?.sources ?? [],
+        reconstruction_attempted: false,
+        retrieved_at: retrievedAt,
+        [side === "p1" ? "p1_unavailable_reason" : "p2_unavailable_reason"]:
+          reasonCode,
+        [side === "p1" ? "p1_provider_error" : "p2_provider_error"]: providerError,
+        [side === "p1" ? "p1_retrieved_at" : "p2_retrieved_at"]: retrievedAt,
+        missing_inputs: f?.missing_inputs ?? [],
+        reconstruction_reason: null,
+        reconstruction_result: null,
       };
       if (f?.evidence_family) patch["evidence_family"] = f.evidence_family;
       if (f?.differential) patch["differential"] = f.differential;
@@ -828,10 +894,12 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
       "dossiers"
     ] as Record<string, string> | undefined;
     let raw: SourcedStat[] = [];
+    let extractionError: string | null = null;
     try {
       raw = await deps.research.extractStats({ player, dossier: cached?.[player] ?? dossier, context: digestContext });
-    } catch {
+    } catch (error) {
       raw = [];
+      extractionError = errorDetail(error);
     }
     const outcome = reconstruct(raw);
     const reconstructionRows = [
@@ -847,6 +915,14 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
         source_refs: stat.sources,
         assumptions: null,
         reliability: 0.8,
+        unavailable_reason: null,
+        provider_error: null,
+        missing_inputs: [],
+        source_attempts: stat.sources,
+        reconstruction_attempted: true,
+        reconstruction_reason: stat.calculation ?? null,
+        reconstruction_result: String(stat.value),
+        retrieved_at: deps.now().toISOString(),
       })),
       ...outcome.blocked.map((blocked) => ({
         audit_run_id: runId,
@@ -860,7 +936,35 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
         source_refs: [],
         assumptions: blocked.reason,
         reliability: null,
+        unavailable_reason: "RECONSTRUCTION_FAILED",
+        provider_error: null,
+        missing_inputs: blocked.missing,
+        source_attempts: [],
+        reconstruction_attempted: true,
+        reconstruction_reason: blocked.reason,
+        reconstruction_result: null,
+        retrieved_at: deps.now().toISOString(),
       })),
+      ...(raw.length || outcome.blocked.length ? [] : [{
+        audit_run_id: runId,
+        metric_code: "PASS2_EXTRACTION",
+        player_side: player,
+        status: "UNAVAILABLE",
+        output: null,
+        formula: null,
+        inputs: { missing: ["dossier"] },
+        calculation: extractionError ?? "No catalogued statistics were extracted from the player dossier.",
+        source_refs: [],
+        assumptions: null,
+        reliability: null,
+        unavailable_reason: extractionError ? unavailableReason(extractionError) : "NO_SOURCE_FOUND",
+        provider_error: extractionError,
+        missing_inputs: ["dossier"],
+        source_attempts: [],
+        reconstruction_attempted: true,
+        reconstruction_reason: extractionError ?? "No catalogued statistics were extracted from the player dossier.",
+        retrieved_at: deps.now().toISOString(),
+      }]),
     ];
     if (reconstructionRows.length) await deps.insert("reconstruction_results", reconstructionRows as never);
 
@@ -907,6 +1011,7 @@ async function executeRules(deps: PipelineDeps, matchId: string, runId: string, 
   for (let i = 0; i < pending.length; i += RULE_BATCH) {
     const batch = pending.slice(i, i + RULE_BATCH);
     let findings: RuleFinding[] = [];
+    let providerError: string | null = null;
     try {
       findings = await deps.research.rules({
         kind,
@@ -916,8 +1021,9 @@ async function executeRules(deps: PipelineDeps, matchId: string, runId: string, 
           return { code: String(r["rule_code"]), name: String(r["rule_name"]), body: def?.body ?? null, severity: def?.severity ?? "STANDARD" };
         }),
       });
-    } catch {
+    } catch (error) {
       findings = [];
+      providerError = errorDetail(error);
     }
     const byCode = new Map(findings.map((f) => [f.rule_code, f]));
     for (const row of batch) {
@@ -931,6 +1037,13 @@ async function executeRules(deps: PipelineDeps, matchId: string, runId: string, 
               severity: f?.severity ?? row["severity"] ?? "STANDARD",
               decision_effect: f?.decision_effect ?? null,
               sources: f?.sources ?? [],
+              unavailable_reason: f?.outcome === "UNAVAILABLE" || !f ? (f?.unavailable_reason ? unavailableReason(f.unavailable_reason) : providerReason(providerError)) : null,
+              unavailable_detail: f?.unavailable_reason ?? null,
+              provider_error: providerError,
+              missing_inputs: f?.missing_inputs ?? [],
+              source_attempts: f?.sources ?? [],
+              reconstruction_attempted: false,
+              retrieved_at: deps.now().toISOString(),
               status: f && f.outcome !== "UNAVAILABLE" ? "COMPLETE" : "UNAVAILABLE",
             }
           : {
@@ -940,6 +1053,14 @@ async function executeRules(deps: PipelineDeps, matchId: string, runId: string, 
               opposing_evidence: f?.opposing_evidence ?? null,
               contradiction_severity: f?.contradiction_severity ?? "NONE",
               final_effect: f?.final_effect ?? null,
+              unavailable_reason: !f || f?.unavailable_reason ? (f?.unavailable_reason ? unavailableReason(f.unavailable_reason) : providerReason(providerError)) : null,
+              unavailable_detail: f?.unavailable_reason ?? null,
+              provider_error: providerError,
+              missing_inputs: f?.missing_inputs ?? [],
+              sources: f?.sources ?? [],
+              source_attempts: [],
+              reconstruction_attempted: false,
+              retrieved_at: deps.now().toISOString(),
               status: f ? "COMPLETE" : "UNAVAILABLE",
             };
       await deps.update(table, String(row["id"]), patch);
@@ -967,6 +1088,7 @@ async function executeUnderdog(deps: PipelineDeps, matchId: string, runId: strin
     const pending = rows.filter((r) => r["player_side"] === side && !["COMPLETE", "UNAVAILABLE", "EXCLUDED"].includes(String(r["status"])));
     if (!pending.length) continue;
     let findings: UnderdogFinding[] = [];
+    let providerError: string | null = null;
     try {
       findings = await deps.research.underdog({
         evidence,
@@ -974,8 +1096,9 @@ async function executeUnderdog(deps: PipelineDeps, matchId: string, runId: strin
         opponent: side === match.player1_name ? match.player2_name : match.player1_name,
         pathways: pending.map((r) => ({ code: String(r["pathway_code"]), name: String(r["pathway_name"]) })),
       });
-    } catch {
+    } catch (error) {
       findings = [];
+      providerError = errorDetail(error);
     }
     const byCode = new Map(findings.map((f) => [f.pathway_code, f]));
     for (const row of pending) {
@@ -985,6 +1108,14 @@ async function executeUnderdog(deps: PipelineDeps, matchId: string, runId: strin
         evidence: f?.evidence ?? f?.unavailable_reason ?? "Retrieval attempted; no admissible pre-match evidence located.",
         repeatable: f?.repeatable ?? false,
         status: f && f.classification !== "UNRESOLVED" ? "COMPLETE" : "UNAVAILABLE",
+        unavailable_reason: f?.unavailable_reason ? unavailableReason(f.unavailable_reason) : (!f ? providerReason(providerError) : "NO_SOURCE_FOUND"),
+        unavailable_detail: f?.unavailable_reason ?? null,
+        provider_error: providerError,
+        missing_inputs: f?.missing_inputs ?? [],
+        sources: f?.sources ?? [],
+        source_attempts: [],
+        reconstruction_attempted: false,
+        retrieved_at: deps.now().toISOString(),
       });
     }
   }
@@ -1029,14 +1160,16 @@ async function executeStress(deps: PipelineDeps, matchId: string, runId: string)
 
   if (rest.length) {
     let findings: StressFinding[] = [];
+    let providerError: string | null = null;
     try {
       findings = await deps.research.stress({
         evidence,
         conclusion: lean,
         tests: rest.map((r) => ({ code: String(r["test_code"]), name: String(r["test_name"]) })),
       });
-    } catch {
+    } catch (error) {
       findings = [];
+      providerError = errorDetail(error);
     }
     const byCode = new Map(findings.map((f) => [f.test_code, f]));
     for (const row of rest) {
@@ -1048,6 +1181,14 @@ async function executeStress(deps: PipelineDeps, matchId: string, runId: string)
         range_after: f?.range_after ?? null,
         outcome: f?.outcome ?? "UNSTABLE",
         status: f ? "COMPLETE" : "UNAVAILABLE",
+        unavailable_reason: f?.unavailable_reason ? unavailableReason(f.unavailable_reason) : (f ? null : providerReason(providerError)),
+        unavailable_detail: f?.unavailable_reason ?? null,
+        provider_error: providerError,
+        missing_inputs: f?.missing_inputs ?? [],
+        sources: f?.sources ?? [],
+        source_attempts: [],
+        reconstruction_attempted: false,
+        retrieved_at: deps.now().toISOString(),
       });
     }
   }

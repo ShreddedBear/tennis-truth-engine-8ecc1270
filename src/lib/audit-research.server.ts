@@ -232,7 +232,7 @@ Execute each ${label} against that evidence. One row per rule_code.
 Rules:
 ${rules.map((r) => `- ${r.code} | ${r.name}${r.body ? ` | ${r.body.slice(0, 500)}` : ""} | severity ${r.severity}`).join("\n")}
 Use outcome UNAVAILABLE only when the evidence needed to execute the rule is genuinely absent.`,
-      `{"rules":[{"rule_code":string,"p1_finding":string|null,"p2_finding":string|null,"outcome":"PASS"|"WARN"|"FAIL"|"UNAVAILABLE","severity":"STANDARD"|"CRITICAL"|null,"decision_effect":string|null,"contradiction_severity":"NONE"|"MINOR"|"MATERIAL"|"CRITICAL"|null,"supporting_evidence":string|null,"opposing_evidence":string|null,"final_effect":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
+      `{"rules":[{"rule_code":string,"p1_finding":string|null,"p2_finding":string|null,"outcome":"PASS"|"WARN"|"FAIL"|"UNAVAILABLE","severity":"STANDARD"|"CRITICAL"|null,"decision_effect":string|null,"contradiction_severity":"NONE"|"MINOR"|"MATERIAL"|"CRITICAL"|null,"supporting_evidence":string|null,"opposing_evidence":string|null,"final_effect":string|null,"unavailable_reason":string|null,"missing_inputs":[string],"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
       false,
     );
     return (out.rules ?? []).map((r) => ({ ...r, sources: r.sources ?? [] }));
@@ -246,7 +246,7 @@ ${evidence.metrics.map((m) => `- ${m.name}: P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "
 Classify each pathway for ${player_side}: STRONG (live, evidenced route to the upset), REALISTIC, WEAK, or UNRESOLVED only if the evidence needed is absent (then give unavailable_reason).
 Pathways:
 ${pathways.map((p) => `- ${p.code} | ${p.name}`).join("\n")}`,
-      `{"pathways":[{"pathway_code":string,"player_side":string,"classification":"UNRESOLVED"|"WEAK"|"REALISTIC"|"STRONG","evidence":string|null,"repeatable":boolean,"unavailable_reason":string|null}]}`,
+      `{"pathways":[{"pathway_code":string,"player_side":string,"classification":"UNRESOLVED"|"WEAK"|"REALISTIC"|"STRONG","evidence":string|null,"repeatable":boolean,"unavailable_reason":string|null,"missing_inputs":[string],"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
       false,
     );
     return (out.pathways ?? []).map((p) => ({ ...p, player_side }));
@@ -275,7 +275,7 @@ ${evidence.metrics.map((m) => `- ${m.name} (${m.family ?? "family unknown"}): P1
 Re-derive the conclusion under each removal/re-weighting test and report whether it survives.
 Tests:
 ${tests.map((t) => `- ${t.code} | ${t.name}`).join("\n")}`,
-      `{"tests":[{"test_code":string,"winner_after":string|null,"range_after":string|null,"outcome":"STABLE"|"MOSTLY STABLE"|"UNSTABLE"|"FAILS","note":string|null}]}`,
+      `{"tests":[{"test_code":string,"winner_after":string|null,"range_after":string|null,"outcome":"STABLE"|"MOSTLY STABLE"|"UNSTABLE"|"FAILS","note":string|null,"unavailable_reason":string|null,"missing_inputs":[string],"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
       false,
     );
     return out.tests ?? [];

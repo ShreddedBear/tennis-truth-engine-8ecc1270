@@ -43,6 +43,66 @@ function Select({ value, options, onChange }: { value: string; options: string[]
   );
 }
 
+type ResultRow = any;
+
+function textValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function sourcesValue(value: unknown): Array<Record<string, any>> {
+  return Array.isArray(value) ? (value as Array<Record<string, any>>) : [];
+}
+
+function Provenance({ row }: { row: ResultRow }) {
+  const sources = sourcesValue(row.sources ?? row.source_attempts);
+  const missing = row.missing_inputs ?? row.inputs?.missing;
+  return (
+    <details className="mt-2 rounded-md bg-muted p-2 text-xs">
+      <summary className="cursor-pointer font-semibold">Evidence and provenance</summary>
+      <dl className="mt-2 grid gap-1 md:grid-cols-2">
+        <div><dt className="text-muted-foreground">Exact reason</dt><dd>{textValue(row.unavailable_reason ?? row.reconstruction_reason)}</dd></div>
+        <div><dt className="text-muted-foreground">Provider/API error</dt><dd>{textValue(row.provider_error)}</dd></div>
+        <div><dt className="text-muted-foreground">Missing inputs</dt><dd>{textValue(missing)}</dd></div>
+        <div><dt className="text-muted-foreground">Reconstruction</dt><dd>{row.reconstruction_attempted ? `YES · ${textValue(row.reconstruction_reason)}` : "NO"}</dd></div>
+        <div><dt className="text-muted-foreground">Formula / method</dt><dd>{textValue(row.formula)}</dd></div>
+        <div><dt className="text-muted-foreground">Calculation</dt><dd>{textValue(row.calculation)}</dd></div>
+        <div><dt className="text-muted-foreground">Confidence / quality</dt><dd>{textValue(row.reliability ?? row.confidence)}</dd></div>
+        <div><dt className="text-muted-foreground">Retrieved</dt><dd>{row.retrieved_at ? new Date(row.retrieved_at).toLocaleString() : "—"}</dd></div>
+      </dl>
+      <div className="mt-2">
+        <p className="text-muted-foreground">Sources/providers</p>
+        {sources.length ? sources.map((source, index) => (
+          <p key={index}>{textValue(source["source_name"] ?? source["provider"])}{source["url"] ? ` · ${source["url"]}` : ""}{source["retrieved_at"] ? ` · ${source["retrieved_at"]}` : ""}</p>
+        )) : <p>—</p>}
+      </div>
+    </details>
+  );
+}
+
+function ResultCard({ title, subtitle, row }: { title: string; subtitle?: string; row: ResultRow }) {
+  const status = textValue(row.treatment ?? row.status);
+  return (
+    <article className="rounded-md border border-border p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div><h4 className="font-semibold">{title}</h4>{subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}</div>
+        <span className={status === "UNAVAILABLE" || status === "PARTIAL" || status === "RECONSTRUCTION_FAILED" ? "text-warn" : "text-ok"}>{status}</span>
+      </div>
+      <dl className="mt-2 grid gap-1 text-xs md:grid-cols-3">
+        <div><dt className="text-muted-foreground">Result/value</dt><dd>{textValue(row.value ?? row.output ?? row.outcome ?? row.final_effect)}</dd></div>
+        <div><dt className="text-muted-foreground">Evidence</dt><dd>{textValue(row.evidence ?? row.p1_finding ?? row.p1_risk ?? row.supporting_evidence)}</dd></div>
+        <div><dt className="text-muted-foreground">Player/affected side</dt><dd>{textValue(row.player_side ?? `${row.p1_finding ? "P1 and P2" : "—"}`)}</dd></div>
+      </dl>
+      <Provenance row={row} />
+    </article>
+  );
+}
+
 function Workspace() {
   const { matchId } = Route.useParams();
   const qc = useQueryClient();
@@ -290,12 +350,30 @@ function Workspace() {
   };
 
   const counts = report.counts;
+  const metricRows = (data.metrics ?? []) as ResultRow[];
+  const verificationRows = (data.verification ?? []) as ResultRow[];
+  const disagreementRows = (data.disagreement ?? []) as ResultRow[];
+  const underdogRows = (data.underdog ?? []) as ResultRow[];
+  const stressRows = (data.stress ?? []) as ResultRow[];
+  const reconstructionRows = (data.reconstructions ?? []) as ResultRow[];
+  const unavailableItems: ResultRow[] = [
+    ...metricRows.flatMap((row) => [
+      { ...row, itemName: `${row.metric_name} · ${match.player1_name}`, treatment: row.p1_treatment ?? row.p1_status, unavailable_reason: row.p1_unavailable_reason ?? row.unavailable_reason, provider_error: row.p1_provider_error ?? row.provider_error, retrieved_at: row.p1_retrieved_at ?? row.retrieved_at },
+      { ...row, itemName: `${row.metric_name} · ${match.player2_name}`, treatment: row.p2_treatment ?? row.p2_status, unavailable_reason: row.p2_unavailable_reason ?? row.unavailable_reason, provider_error: row.p2_provider_error ?? row.provider_error, retrieved_at: row.p2_retrieved_at ?? row.retrieved_at },
+    ]),
+    ...verificationRows.map((row) => ({ ...row, itemName: row.rule_name, treatment: row.status })),
+    ...disagreementRows.map((row) => ({ ...row, itemName: row.rule_name, treatment: row.status })),
+    ...underdogRows.map((row) => ({ ...row, itemName: `${row.pathway_name} · ${row.player_side}`, treatment: row.status })),
+    ...stressRows.map((row) => ({ ...row, itemName: row.test_name, treatment: row.status })),
+    ...reconstructionRows.map((row) => ({ ...row, itemName: `${row.metric_code} · ${row.player_side}`, treatment: row.status === "UNAVAILABLE" ? "RECONSTRUCTION_FAILED" : row.status })),
+  ].filter((row) => row.treatment === "UNAVAILABLE" || row.treatment === "PARTIAL" || row.treatment === "RECONSTRUCTION_FAILED");
 
   return (
     <div className="space-y-4">
       <div className="panel p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
+
             <h1 className="text-xl font-semibold">
               {match.player1_name} <span className="text-muted-foreground">vs</span> {match.player2_name}
             </h1>
@@ -448,6 +526,49 @@ function Workspace() {
         )}
       </div>
 
+      <section className="panel space-y-4 p-4">
+        <div>
+          <h2 className="font-semibold">Detailed audit results · current run {run.run_number}</h2>
+          <p className="text-xs text-muted-foreground">Every persisted metric, rule, pathway, stress test, and reconstruction is shown below. Expand a row for source, timestamp, missing inputs, provider errors, and method.</p>
+        </div>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Player 1 metrics · {metricRows.length}</summary>
+          <div className="mt-2 grid gap-2">{metricRows.map((row) => <ResultCard key={`${row.id}-p1`} title={textValue(row.metric_name)} subtitle={`${match.player1_name} · ${textValue(row.metric_code)}`} row={{ ...row, value: row.p1_value, treatment: row.p1_treatment ?? row.p1_status, unavailable_reason: row.p1_unavailable_reason ?? row.unavailable_reason, provider_error: row.p1_provider_error ?? row.provider_error, retrieved_at: row.p1_retrieved_at ?? row.retrieved_at }} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Player 2 metrics · {metricRows.length}</summary>
+          <div className="mt-2 grid gap-2">{metricRows.map((row) => <ResultCard key={`${row.id}-p2`} title={textValue(row.metric_name)} subtitle={`${match.player2_name} · ${textValue(row.metric_code)}`} row={{ ...row, value: row.p2_value, treatment: row.p2_treatment ?? row.p2_status, unavailable_reason: row.p2_unavailable_reason ?? row.unavailable_reason, provider_error: row.p2_provider_error ?? row.p2_provider_error, retrieved_at: row.p2_retrieved_at ?? row.retrieved_at }} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Verification Audit · {verificationRows.length} rules</summary>
+          <div className="mt-2 grid gap-2">{verificationRows.map((row) => <ResultCard key={row.id} title={textValue(row.rule_name)} subtitle={`${textValue(row.rule_code)} · outcome ${textValue(row.outcome)} · severity ${textValue(row.severity)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Disagreement / Trap Audit · {disagreementRows.length} rules</summary>
+          <div className="mt-2 grid gap-2">{disagreementRows.map((row) => <ResultCard key={row.id} title={textValue(row.rule_name)} subtitle={`${textValue(row.rule_code)} · contradiction ${textValue(row.contradiction_severity)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Dangerous Underdog Audit · {underdogRows.length} pathways</summary>
+          <div className="mt-2 grid gap-2">{underdogRows.map((row) => <ResultCard key={row.id} title={textValue(row.pathway_name)} subtitle={`${textValue(row.pathway_code)} · ${textValue(row.player_side)} · classification ${textValue(row.classification)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Stress / Removal Tests · {stressRows.length}</summary>
+          <div className="mt-2 grid gap-2">{stressRows.map((row) => <ResultCard key={row.id} title={textValue(row.test_name)} subtitle={`${textValue(row.test_code)} · before ${textValue(row.winner_before)} · after ${textValue(row.winner_after)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Reconstructions · {reconstructionRows.length} attempts</summary>
+          <div className="mt-2 grid gap-2">{reconstructionRows.map((row) => <ResultCard key={row.id} title={textValue(row.metric_code)} subtitle={`${textValue(row.player_side)} · ${textValue(row.status)}`} row={{ ...row, value: row.output, missing_inputs: row.missing_inputs ?? row.inputs?.missing }} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">UNAVAILABLE DATA · {unavailableItems.length} items</summary>
+          <div className="mt-2 grid gap-2">{unavailableItems.length ? unavailableItems.map((row, index) => <ResultCard key={`${row.id ?? row.itemName}-${index}`} title={textValue(row.itemName)} subtitle={textValue(row.treatment)} row={row} />) : <p className="text-sm text-ok">No unavailable or partial items recorded for this run.</p>}</div>
+        </details>
+        <details>
+          <summary className="cursor-pointer font-semibold">Source conflicts · {data.conflicts?.length ?? 0}</summary>
+          <div className="mt-2 grid gap-2">{(data.conflicts ?? []).map((row: any) => <ResultCard key={row.id} title={textValue(row.data_key)} subtitle={`${textValue(row.resolution_status)} · critical ${textValue(row.critical)}`} row={row} />)}</div>
+        </details>
+      </section>
+
       <Tabs defaultValue="metrics">
         <TabsList className="flex-wrap">
           <TabsTrigger value="metrics">P1 vs P2 Metrics</TabsTrigger>
@@ -471,8 +592,8 @@ function Workspace() {
                 </tr>
               </thead>
               <tbody>
-                {data.metrics?.map((m) => (
-                  <tr key={m.id} className="border-t border-border">
+                {metricRows.map((m) => (
+                  <tr className="border-t border-border">
                     <td className="mono-num px-2 py-1 text-xs">{m.metric_code}</td>
                     <td className="px-2 py-1">{m.metric_name}</td>
                     <td className="px-2 py-1">
@@ -516,8 +637,8 @@ function Workspace() {
                 </tr>
               </thead>
               <tbody>
-                {data.verification?.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
+                {verificationRows.map((r) => (
+                  <tr className="border-t border-border">
                     <td className="mono-num px-2 py-1 text-xs">{r.rule_code}</td>
                     <td className="px-2 py-1">{r.rule_name}</td>
                     <td className="px-2 py-1">
@@ -553,8 +674,8 @@ function Workspace() {
                 </tr>
               </thead>
               <tbody>
-                {data.disagreement?.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
+                {disagreementRows.map((r) => (
+                  <tr className="border-t border-border">
                     <td className="mono-num px-2 py-1 text-xs">{r.rule_code}</td>
                     <td className="px-2 py-1">{r.rule_name}</td>
                     <td className="px-2 py-1">
@@ -591,8 +712,8 @@ function Workspace() {
                 </tr>
               </thead>
               <tbody>
-                {data.underdog?.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
+                {underdogRows.map((r) => (
+                  <tr className="border-t border-border">
                     <td className="px-2 py-1">{r.player_side}</td>
                     <td className="px-2 py-1">{r.pathway_name}</td>
                     <td className="px-2 py-1">
@@ -621,7 +742,7 @@ function Workspace() {
               </tr>
             </thead>
             <tbody>
-              {data.stress?.map((s) => (
+                {stressRows.map((s) => (
                 <tr key={s.id} className="border-t border-border">
                   <td className="mono-num px-2 py-1 text-xs">{s.test_code}</td>
                   <td className="px-2 py-1">{s.test_name}</td>
