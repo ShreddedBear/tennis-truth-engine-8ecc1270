@@ -7,9 +7,8 @@ alter table public.metric_results
     check (p2_treatment in ('DIRECT', 'RECONSTRUCTED', 'PARTIAL', 'UNAVAILABLE', 'EXCLUDED'));
 
 update public.metric_results
-set p1_treatment = coalesce(nullif(treatment, ''), case when p1_status = 'COMPLETE' then 'DIRECT' else p1_status end),
-    p2_treatment = coalesce(nullif(treatment, ''), case when p2_status = 'COMPLETE' then 'DIRECT' else p2_status end)
-where p1_treatment = 'UNAVAILABLE' and p2_treatment = 'UNAVAILABLE';
+set p1_treatment = case when p1_status = 'COMPLETE' then 'DIRECT' else 'UNAVAILABLE' end,
+    p2_treatment = case when p2_status = 'COMPLETE' then 'DIRECT' else 'UNAVAILABLE' end;
 
 alter table public.reconstruction_results
   add column if not exists calculation text,

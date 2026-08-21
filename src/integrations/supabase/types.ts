@@ -14,123 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      audit_coverage: {
-        Row: {
-          audit_run_id: string
-          direct_count: number
-          reconstructed_count: number
-          partial_count: number
-          unavailable_count: number
-          excluded_count: number
-          total_count: number
-          usable_coverage_percent: number
-          execution_completion_percent: number
-          id: string
-          player_side: string
-          recorded_at: string
-          user_id: string
-        }
-        Insert: {
-          audit_run_id: string
-          direct_count?: number
-          reconstructed_count?: number
-          partial_count?: number
-          unavailable_count?: number
-          excluded_count?: number
-          total_count?: number
-          usable_coverage_percent?: number
-          execution_completion_percent?: number
-          id?: string
-          player_side: string
-          recorded_at?: string
-          user_id?: string
-        }
-        Update: {
-          audit_run_id?: string
-          direct_count?: number
-          reconstructed_count?: number
-          partial_count?: number
-          unavailable_count?: number
-          excluded_count?: number
-          total_count?: number
-          usable_coverage_percent?: number
-          execution_completion_percent?: number
-          id?: string
-          player_side?: string
-          recorded_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      metric_coverage_rates: {
-        Row: {
-          id: string
-          metric_code: string
-          player_side: string
-          treatment: string
-          audit_run_id: string
-          usable: boolean
-          recorded_at: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          metric_code: string
-          player_side: string
-          treatment: string
-          audit_run_id: string
-          usable?: boolean
-          recorded_at?: string
-          user_id?: string
-        }
-        Update: {
-          id?: string
-          metric_code?: string
-          player_side?: string
-          treatment?: string
-          audit_run_id?: string
-          usable?: boolean
-          recorded_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      metric_registry: {
-        Row: {
-          id: string
-          metric_code: string
-          metric_name: string
-          lifecycle_status: string
-          tour_eligibility: string[]
-          evidence_family: string | null
-          created_at: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          id?: string
-          metric_code: string
-          metric_name: string
-          lifecycle_status?: string
-          tour_eligibility?: string[]
-          evidence_family?: string | null
-          created_at?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          id?: string
-          metric_code?: string
-          metric_name?: string
-          lifecycle_status?: string
-          tour_eligibility?: string[]
-          evidence_family?: string | null
-          created_at?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       audit_color_ledger: {
         Row: {
           audit_color: string
@@ -190,6 +73,62 @@ export type Database = {
             columns: ["result_grade_id"]
             isOneToOne: false
             referencedRelation: "result_grades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_coverage: {
+        Row: {
+          audit_run_id: string
+          direct_count: number
+          excluded_count: number
+          execution_completion_percent: number
+          id: string
+          partial_count: number
+          player_side: string
+          reconstructed_count: number
+          recorded_at: string
+          total_count: number
+          unavailable_count: number
+          usable_coverage_percent: number
+          user_id: string | null
+        }
+        Insert: {
+          audit_run_id: string
+          direct_count?: number
+          excluded_count?: number
+          execution_completion_percent?: number
+          id?: string
+          partial_count?: number
+          player_side: string
+          reconstructed_count?: number
+          recorded_at?: string
+          total_count?: number
+          unavailable_count?: number
+          usable_coverage_percent?: number
+          user_id?: string | null
+        }
+        Update: {
+          audit_run_id?: string
+          direct_count?: number
+          excluded_count?: number
+          execution_completion_percent?: number
+          id?: string
+          partial_count?: number
+          player_side?: string
+          reconstructed_count?: number
+          recorded_at?: string
+          total_count?: number
+          unavailable_count?: number
+          usable_coverage_percent?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_coverage_audit_run_id_fkey"
+            columns: ["audit_run_id"]
+            isOneToOne: false
+            referencedRelation: "audit_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -753,24 +692,24 @@ export type Database = {
           created_at: string
           final_effect: string | null
           id: string
+          missing_inputs: Json
           opposing_evidence: string | null
           p1_risk: string | null
           p2_risk: string | null
-          rule_code: string
-          rule_id: string | null
-          rule_name: string
-          sources: Json
-          status: string
-          supporting_evidence: string | null
-          unavailable_reason: string | null
-          unavailable_detail: string | null
           provider_error: string | null
-          missing_inputs: Json
-          source_attempts: Json
           reconstruction_attempted: boolean
           reconstruction_reason: string | null
           reconstruction_result: string | null
           retrieved_at: string | null
+          rule_code: string
+          rule_id: string | null
+          rule_name: string
+          source_attempts: Json
+          sources: Json
+          status: string
+          supporting_evidence: string | null
+          unavailable_detail: string | null
+          unavailable_reason: string | null
           user_id: string
         }
         Insert: {
@@ -779,24 +718,24 @@ export type Database = {
           created_at?: string
           final_effect?: string | null
           id?: string
+          missing_inputs?: Json
           opposing_evidence?: string | null
           p1_risk?: string | null
           p2_risk?: string | null
-          rule_code: string
-          rule_id?: string | null
-          rule_name: string
-          sources?: Json
-          status?: string
-          supporting_evidence?: string | null
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
           provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
           retrieved_at?: string | null
+          rule_code: string
+          rule_id?: string | null
+          rule_name: string
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          supporting_evidence?: string | null
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
           user_id?: string
         }
         Update: {
@@ -805,24 +744,24 @@ export type Database = {
           created_at?: string
           final_effect?: string | null
           id?: string
+          missing_inputs?: Json
           opposing_evidence?: string | null
           p1_risk?: string | null
           p2_risk?: string | null
-          rule_code?: string
-          rule_id?: string | null
-          rule_name?: string
-          sources?: Json
-          status?: string
-          supporting_evidence?: string | null
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
           provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
           retrieved_at?: string | null
+          rule_code?: string
+          rule_id?: string | null
+          rule_name?: string
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          supporting_evidence?: string | null
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1254,6 +1193,90 @@ export type Database = {
           },
         ]
       }
+      metric_coverage_rates: {
+        Row: {
+          audit_run_id: string
+          id: string
+          metric_code: string
+          player_side: string
+          recorded_at: string
+          treatment: string
+          usable: boolean
+          user_id: string | null
+        }
+        Insert: {
+          audit_run_id: string
+          id?: string
+          metric_code: string
+          player_side: string
+          recorded_at?: string
+          treatment: string
+          usable?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          audit_run_id?: string
+          id?: string
+          metric_code?: string
+          player_side?: string
+          recorded_at?: string
+          treatment?: string
+          usable?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_coverage_rates_audit_run_id_fkey"
+            columns: ["audit_run_id"]
+            isOneToOne: false
+            referencedRelation: "audit_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_coverage_rates_metric_code_fkey"
+            columns: ["metric_code"]
+            isOneToOne: false
+            referencedRelation: "metric_registry"
+            referencedColumns: ["metric_code"]
+          },
+        ]
+      }
+      metric_registry: {
+        Row: {
+          created_at: string
+          evidence_family: string | null
+          id: string
+          lifecycle_status: string
+          metric_code: string
+          metric_name: string
+          tour_eligibility: string[]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          evidence_family?: string | null
+          id?: string
+          lifecycle_status?: string
+          metric_code: string
+          metric_name: string
+          tour_eligibility?: string[]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          evidence_family?: string | null
+          id?: string
+          lifecycle_status?: string
+          metric_code?: string
+          metric_name?: string
+          tour_eligibility?: string[]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       metric_results: {
         Row: {
           audit_run_id: string
@@ -1265,33 +1288,33 @@ export type Database = {
           matrix_derived: boolean
           metric_code: string
           metric_name: string
+          missing_inputs: Json
+          p1_provider_error: string | null
+          p1_retrieved_at: string | null
           p1_status: string
           p1_treatment: string
           p1_unavailable_reason: string | null
-          p1_provider_error: string | null
-          p1_retrieved_at: string | null
           p1_value: string | null
+          p2_provider_error: string | null
+          p2_retrieved_at: string | null
           p2_status: string
           p2_treatment: string
           p2_unavailable_reason: string | null
-          p2_provider_error: string | null
-          p2_retrieved_at: string | null
           p2_value: string | null
+          provider_error: string | null
+          reconstruction_attempted: boolean
+          reconstruction_reason: string | null
+          reconstruction_result: string | null
           reliability: number | null
+          retrieved_at: string | null
           sample: string | null
+          source_attempts: Json
           sources: Json
           status: string
           surface_adjusted_diff: string | null
           treatment: string | null
-          unavailable_reason: string | null
           unavailable_detail: string | null
-          provider_error: string | null
-          missing_inputs: Json
-          source_attempts: Json
-          reconstruction_attempted: boolean
-          reconstruction_reason: string | null
-          reconstruction_result: string | null
-          retrieved_at: string | null
+          unavailable_reason: string | null
           user_id: string
         }
         Insert: {
@@ -1304,33 +1327,33 @@ export type Database = {
           matrix_derived?: boolean
           metric_code: string
           metric_name: string
+          missing_inputs?: Json
+          p1_provider_error?: string | null
+          p1_retrieved_at?: string | null
           p1_status?: string
           p1_treatment?: string
           p1_unavailable_reason?: string | null
-          p1_provider_error?: string | null
-          p1_retrieved_at?: string | null
           p1_value?: string | null
+          p2_provider_error?: string | null
+          p2_retrieved_at?: string | null
           p2_status?: string
           p2_treatment?: string
           p2_unavailable_reason?: string | null
-          p2_provider_error?: string | null
-          p2_retrieved_at?: string | null
           p2_value?: string | null
+          provider_error?: string | null
+          reconstruction_attempted?: boolean
+          reconstruction_reason?: string | null
+          reconstruction_result?: string | null
           reliability?: number | null
+          retrieved_at?: string | null
           sample?: string | null
+          source_attempts?: Json
           sources?: Json
           status?: string
           surface_adjusted_diff?: string | null
           treatment?: string | null
-          unavailable_reason?: string | null
           unavailable_detail?: string | null
-          provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
-          reconstruction_attempted?: boolean
-          reconstruction_reason?: string | null
-          reconstruction_result?: string | null
-          retrieved_at?: string | null
+          unavailable_reason?: string | null
           user_id?: string
         }
         Update: {
@@ -1343,33 +1366,33 @@ export type Database = {
           matrix_derived?: boolean
           metric_code?: string
           metric_name?: string
+          missing_inputs?: Json
+          p1_provider_error?: string | null
+          p1_retrieved_at?: string | null
           p1_status?: string
           p1_treatment?: string
           p1_unavailable_reason?: string | null
-          p1_provider_error?: string | null
-          p1_retrieved_at?: string | null
           p1_value?: string | null
+          p2_provider_error?: string | null
+          p2_retrieved_at?: string | null
           p2_status?: string
           p2_treatment?: string
           p2_unavailable_reason?: string | null
-          p2_provider_error?: string | null
-          p2_retrieved_at?: string | null
           p2_value?: string | null
+          provider_error?: string | null
+          reconstruction_attempted?: boolean
+          reconstruction_reason?: string | null
+          reconstruction_result?: string | null
           reliability?: number | null
+          retrieved_at?: string | null
           sample?: string | null
+          source_attempts?: Json
           sources?: Json
           status?: string
           surface_adjusted_diff?: string | null
           treatment?: string | null
-          unavailable_reason?: string | null
           unavailable_detail?: string | null
-          provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
-          reconstruction_attempted?: boolean
-          reconstruction_reason?: string | null
-          reconstruction_result?: string | null
-          retrieved_at?: string | null
+          unavailable_reason?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1635,17 +1658,19 @@ export type Database = {
           id: string
           inputs: Json
           metric_code: string
+          missing_inputs: Json
           output: string | null
           player_side: string
-          reliability: number | null
-          source_refs: Json
-          missing_inputs: Json
-          source_attempts: Json
+          provider_error: string | null
           reconstruction_attempted: boolean
           reconstruction_reason: string | null
           reconstruction_result: string | null
+          reliability: number | null
           retrieved_at: string | null
+          source_attempts: Json
+          source_refs: Json
           status: string
+          unavailable_reason: string | null
           user_id: string
         }
         Insert: {
@@ -1659,22 +1684,25 @@ export type Database = {
           id?: string
           inputs?: Json
           metric_code: string
+          missing_inputs?: Json
           output?: string | null
           player_side: string
-          reliability?: number | null
-          source_refs?: Json
-          missing_inputs?: Json
-          source_attempts?: Json
+          provider_error?: string | null
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
+          reliability?: number | null
           retrieved_at?: string | null
+          source_attempts?: Json
+          source_refs?: Json
           status?: string
+          unavailable_reason?: string | null
           user_id?: string
         }
         Update: {
           assumptions?: string | null
           audit_run_id?: string
+          calculation?: string | null
           created_at?: string
           formula?: string | null
           formula_version_id?: string | null
@@ -1682,17 +1710,19 @@ export type Database = {
           id?: string
           inputs?: Json
           metric_code?: string
+          missing_inputs?: Json
           output?: string | null
           player_side?: string
-          reliability?: number | null
-          source_refs?: Json
-          missing_inputs?: Json
-          source_attempts?: Json
+          provider_error?: string | null
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
+          reliability?: number | null
           retrieved_at?: string | null
+          source_attempts?: Json
+          source_refs?: Json
           status?: string
+          unavailable_reason?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1971,7 +2001,6 @@ export type Database = {
         }
         Update: {
           audit_run_id?: string
-          calculation?: string | null
           created_at?: string
           critical?: boolean
           data_key?: string
@@ -2224,73 +2253,73 @@ export type Database = {
           audit_run_id: string
           created_at: string
           id: string
+          missing_inputs: Json
           outcome: string
+          provider_error: string | null
           range_after: string | null
           range_before: string | null
-          status: string
-          sources: Json
-          test_code: string
-          test_name: string
-          user_id: string
-          winner_after: string | null
-          winner_before: string | null
-          unavailable_reason: string | null
-          unavailable_detail: string | null
-          provider_error: string | null
-          missing_inputs: Json
-          source_attempts: Json
           reconstruction_attempted: boolean
           reconstruction_reason: string | null
           reconstruction_result: string | null
           retrieved_at: string | null
+          source_attempts: Json
+          sources: Json
+          status: string
+          test_code: string
+          test_name: string
+          unavailable_detail: string | null
+          unavailable_reason: string | null
+          user_id: string
+          winner_after: string | null
+          winner_before: string | null
         }
         Insert: {
           audit_run_id: string
           created_at?: string
           id?: string
+          missing_inputs?: Json
           outcome?: string
+          provider_error?: string | null
           range_after?: string | null
           range_before?: string | null
-          status?: string
-          sources?: Json
-          test_code: string
-          test_name: string
-          user_id?: string
-          winner_after?: string | null
-          winner_before?: string | null
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
-          provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
           retrieved_at?: string | null
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          test_code: string
+          test_name: string
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
+          user_id?: string
+          winner_after?: string | null
+          winner_before?: string | null
         }
         Update: {
           audit_run_id?: string
           created_at?: string
           id?: string
+          missing_inputs?: Json
           outcome?: string
+          provider_error?: string | null
           range_after?: string | null
           range_before?: string | null
-          status?: string
-          sources?: Json
-          test_code?: string
-          test_name?: string
-          user_id?: string
-          winner_after?: string | null
-          winner_before?: string | null
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
-          provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
           retrieved_at?: string | null
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          test_code?: string
+          test_name?: string
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
+          user_id?: string
+          winner_after?: string | null
+          winner_before?: string | null
         }
         Relationships: [
           {
@@ -2482,22 +2511,22 @@ export type Database = {
           created_at: string
           evidence: string | null
           id: string
+          missing_inputs: Json
           pathway_code: string
           pathway_name: string
           player_side: string
-          repeatable: boolean
-          status: string
-          sources: Json
-          user_id: string
-          unavailable_reason: string | null
-          unavailable_detail: string | null
           provider_error: string | null
-          missing_inputs: Json
-          source_attempts: Json
           reconstruction_attempted: boolean
           reconstruction_reason: string | null
           reconstruction_result: string | null
+          repeatable: boolean
           retrieved_at: string | null
+          source_attempts: Json
+          sources: Json
+          status: string
+          unavailable_detail: string | null
+          unavailable_reason: string | null
+          user_id: string
         }
         Insert: {
           audit_run_id: string
@@ -2505,22 +2534,22 @@ export type Database = {
           created_at?: string
           evidence?: string | null
           id?: string
+          missing_inputs?: Json
           pathway_code: string
           pathway_name: string
           player_side: string
-          repeatable?: boolean
-          status?: string
-          sources?: Json
-          user_id?: string
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
           provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
+          repeatable?: boolean
           retrieved_at?: string | null
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
+          user_id?: string
         }
         Update: {
           audit_run_id?: string
@@ -2528,22 +2557,22 @@ export type Database = {
           created_at?: string
           evidence?: string | null
           id?: string
+          missing_inputs?: Json
           pathway_code?: string
           pathway_name?: string
           player_side?: string
-          repeatable?: boolean
-          status?: string
-          sources?: Json
-          user_id?: string
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
           provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
+          repeatable?: boolean
           retrieved_at?: string | null
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -2582,75 +2611,75 @@ export type Database = {
           created_at: string
           decision_effect: string | null
           id: string
+          missing_inputs: Json
           outcome: string
           p1_finding: string | null
           p2_finding: string | null
-          rule_code: string
-          rule_id: string | null
-          rule_name: string
-          severity: string | null
-          sources: Json
-          status: string
-          user_id: string
-          unavailable_reason: string | null
-          unavailable_detail: string | null
           provider_error: string | null
-          missing_inputs: Json
-          source_attempts: Json
           reconstruction_attempted: boolean
           reconstruction_reason: string | null
           reconstruction_result: string | null
           retrieved_at: string | null
+          rule_code: string
+          rule_id: string | null
+          rule_name: string
+          severity: string | null
+          source_attempts: Json
+          sources: Json
+          status: string
+          unavailable_detail: string | null
+          unavailable_reason: string | null
+          user_id: string
         }
         Insert: {
           audit_run_id: string
           created_at?: string
           decision_effect?: string | null
           id?: string
+          missing_inputs?: Json
           outcome?: string
           p1_finding?: string | null
           p2_finding?: string | null
-          rule_code: string
-          rule_id?: string | null
-          rule_name: string
-          severity?: string | null
-          sources?: Json
-          status?: string
-          user_id?: string
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
           provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
           retrieved_at?: string | null
+          rule_code: string
+          rule_id?: string | null
+          rule_name: string
+          severity?: string | null
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
+          user_id?: string
         }
         Update: {
           audit_run_id?: string
           created_at?: string
           decision_effect?: string | null
           id?: string
+          missing_inputs?: Json
           outcome?: string
           p1_finding?: string | null
           p2_finding?: string | null
-          rule_code?: string
-          rule_id?: string | null
-          rule_name?: string
-          severity?: string | null
-          sources?: Json
-          status?: string
-          user_id?: string
-          unavailable_reason?: string | null
-          unavailable_detail?: string | null
           provider_error?: string | null
-          missing_inputs?: Json
-          source_attempts?: Json
           reconstruction_attempted?: boolean
           reconstruction_reason?: string | null
           reconstruction_result?: string | null
           retrieved_at?: string | null
+          rule_code?: string
+          rule_id?: string | null
+          rule_name?: string
+          severity?: string | null
+          source_attempts?: Json
+          sources?: Json
+          status?: string
+          unavailable_detail?: string | null
+          unavailable_reason?: string | null
+          user_id?: string
         }
         Relationships: [
           {
