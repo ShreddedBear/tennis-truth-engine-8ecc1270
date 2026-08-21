@@ -13,6 +13,8 @@ import type {
   StressFinding,
   UnderdogFinding,
 } from "./audit-pipeline";
+import { STAT_CATALOG, type StatDef } from "./reconstruction/stat-catalog";
+import type { SourcedStat } from "./reconstruction/engine";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
@@ -186,6 +188,23 @@ Omit anything you cannot attribute. Do not estimate. Return it as one markdown d
       true,
     );
     return out.dossier ?? "";
+  },
+
+  async extractStats({ player, dossier, context }) {
+    const catalog = STAT_CATALOG.map((stat: StatDef) => `${stat.key} | ${stat.label} | ${stat.unit}`).join("\n");
+    const out = await ask<{ stats: SourcedStat[] }>(
+      `Normalize the dossier for ${player} in the context ${context || "not established"} into atomic statistics.
+This is extraction only. Copy a number only when the dossier explicitly attributes it to a named source and the figure describes this player, surface and time window. Never calculate, infer, convert, average, substitute a proxy, or fill a missing value. Return no derived percentages or ratios.
+Allowed catalog keys:
+${catalog}
+Dossier:
+${dossier.slice(0, 16000)}`,
+      `{"stats":[{"key":string,"player":string,"value":number,"surface":string|null,"window":string|null,"tour_level":string|null,"sample":number|null,"origin":"DIRECT","sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
+      false,
+    );
+    return (out.stats ?? [])
+      .filter((stat) => stat.player === player && stat.origin === "DIRECT" && Number.isFinite(stat.value) && stat.sources?.length)
+      .map((stat) => ({ ...stat, origin: "DIRECT" as const, sources: stat.sources ?? [] }));
   },
 
   async metrics({ p1, p2, context, dossier, metrics }) {

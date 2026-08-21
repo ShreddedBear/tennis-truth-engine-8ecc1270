@@ -5,6 +5,7 @@ const AUDIT_TOKEN: Record<string, string> = {
   GREEN: "var(--green)",
   YELLOW: "var(--yellow)",
   "RED / PASS": "var(--red)",
+   "INSUFFICIENT EVIDENCE": "var(--yellow)",
   RED: "var(--red)",
   INCOMPLETE: "var(--incomplete)",
 };

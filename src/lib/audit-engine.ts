@@ -28,6 +28,8 @@ export interface EngineInput {
     status: string;
     p1_status: string;
     p2_status: string;
+    p1_treatment?: string | null;
+    p2_treatment?: string | null;
     matrix_derived: boolean;
     evidence_family: string | null;
   }>;
@@ -62,10 +64,27 @@ export interface GateReport {
   auditComplete: boolean;
   matrixFirewallValid: boolean;
   effectiveEvidenceCount: number;
+  coverage: {
+    p1: CoverageReport;
+    p2: CoverageReport;
+    usablePercent: number;
+    thresholdPercent: number;
+  };
   greenLocked: boolean;
   greenLockReasons: string[];
-  color: "DOUBLE GREEN" | "GREEN" | "YELLOW" | "RED / PASS" | "INCOMPLETE";
+  color: "DOUBLE GREEN" | "GREEN" | "YELLOW" | "RED / PASS" | "INSUFFICIENT EVIDENCE" | "INCOMPLETE";
   action: string;
+}
+
+export interface CoverageReport {
+  direct: number;
+  reconstructed: number;
+  partial: number;
+  unavailable: number;
+  excluded: number;
+  total: number;
+  usablePercent: number;
+  statuses: Array<"DIRECT" | "RECONSTRUCTED" | "PARTIAL" | "UNAVAILABLE" | "EXCLUDED">;
 }
 
 const pair = (rows: Countable[]): CountPair => ({
@@ -74,6 +93,30 @@ const pair = (rows: Countable[]): CountPair => ({
 });
 
 const full = (p: CountPair) => p.total > 0 && p.done === p.total;
+const COVERAGE_THRESHOLD = 70;
+
+function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): CoverageReport {
+  const statuses = metrics.map((metric) => {
+    const value = side === "p1" ? (metric.p1_treatment ?? metric.p1_status) : (metric.p2_treatment ?? metric.p2_status);
+    return ["DIRECT", "RECONSTRUCTED", "PARTIAL", "UNAVAILABLE", "EXCLUDED"].includes(value)
+      ? (value as CoverageReport["statuses"][number])
+      : "UNAVAILABLE";
+  });
+  const count = (status: CoverageReport["statuses"][number]) => statuses.filter((value) => value === status).length;
+  const excluded = count("EXCLUDED");
+  const denominator = metrics.length - excluded;
+  const usable = count("DIRECT") + count("RECONSTRUCTED");
+  return {
+    direct: count("DIRECT"),
+    reconstructed: count("RECONSTRUCTED"),
+    partial: count("PARTIAL"),
+    unavailable: count("UNAVAILABLE"),
+    excluded,
+    total: metrics.length,
+    usablePercent: denominator > 0 ? Number(((usable / denominator) * 100).toFixed(1)) : 0,
+    statuses,
+  };
+}
 
 export function evaluate(input: EngineInput): GateReport {
   const { match, run } = input;
@@ -106,6 +149,10 @@ export function evaluate(input: EngineInput): GateReport {
     if (m.evidence_family) families.add(m.evidence_family);
   });
   const effectiveEvidenceCount = families.size;
+  const p1Coverage = coverageFor(input.metrics, "p1");
+  const p2Coverage = coverageFor(input.metrics, "p2");
+  const usableCoveragePercent = Number(Math.min(p1Coverage.usablePercent, p2Coverage.usablePercent).toFixed(1));
+  const lowCoverage = usableCoveragePercent < COVERAGE_THRESHOLD;
 
   const firewallValid =
     !run.matrix_revealed_at ||
@@ -155,6 +202,7 @@ export function evaluate(input: EngineInput): GateReport {
   if (!familyRemovalSurvived) greenLockReasons.push("Strongest-family removal not survived");
   if (!full(underdog)) greenLockReasons.push("Dangerous Underdog audit incomplete");
   if (effectiveEvidenceCount < 3) greenLockReasons.push(`Effective independent evidence families = ${effectiveEvidenceCount} (min 3)`);
+  if (lowCoverage) greenLockReasons.push(`Usable metric coverage = ${usableCoveragePercent}% (min ${COVERAGE_THRESHOLD}%)`);
   if (strongUnderdogPathways >= 2) greenLockReasons.push("Multiple STRONG opposing underdog pathways");
   if (unresolvedCritical) greenLockReasons.push("Unresolved CRITICAL contradiction");
   if (input.matrixWp !== null && input.matrixWp <= 55) greenLockReasons.push("No-edge floor: favorite probability ≤55%");
@@ -162,6 +210,8 @@ export function evaluate(input: EngineInput): GateReport {
   let color: GateReport["color"] = "INCOMPLETE";
   if (!auditComplete) {
     color = "INCOMPLETE";
+  } else if (lowCoverage) {
+    color = "INSUFFICIENT EVIDENCE";
   } else if (unresolvedCritical || strongUnderdogPathways >= 2 || !matrixRemovalSurvived || (input.matrixWp !== null && input.matrixWp <= 55)) {
     color = "RED / PASS";
   } else if (greenLockReasons.length > 0) {
@@ -184,6 +234,8 @@ export function evaluate(input: EngineInput): GateReport {
         ? "MONITOR / REDUCE"
         : color === "RED / PASS"
           ? "PASS"
+          : color === "INSUFFICIENT EVIDENCE"
+            ? "INSUFFICIENT EVIDENCE"
           : "CONTINUE PROCESSING";
 
   return {
@@ -193,6 +245,7 @@ export function evaluate(input: EngineInput): GateReport {
     auditComplete,
     matrixFirewallValid: firewallValid,
     effectiveEvidenceCount,
+    coverage: { p1: p1Coverage, p2: p2Coverage, usablePercent: usableCoveragePercent, thresholdPercent: COVERAGE_THRESHOLD },
     greenLocked: greenLockReasons.length > 0,
     greenLockReasons,
     color,

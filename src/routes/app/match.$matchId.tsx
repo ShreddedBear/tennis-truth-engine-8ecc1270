@@ -399,6 +399,36 @@ function Workspace() {
         <p className={`mt-3 text-sm font-semibold ${report.auditComplete ? "text-ok" : "text-warn"}`}>
           {report.auditComplete ? "AUDIT COMPLETE — NO REQUIRED STEPS MISSING · NO SHORTCUTS" : "AUDIT INCOMPLETE"}
         </p>
+        <div className="mt-3 rounded-md border border-border p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold">Evidence coverage</h3>
+            <span className={report.coverage.usablePercent >= report.coverage.thresholdPercent ? "text-ok" : "text-warn"}>
+              {report.coverage.usablePercent}% usable · execution {report.completionPercent}%
+            </span>
+          </div>
+          <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
+            {[
+              [match.player1_name, report.coverage.p1],
+              [match.player2_name, report.coverage.p2],
+            ].map(([player, coverage]) => {
+              const c = coverage as typeof report.coverage.p1;
+              return (
+                <div key={player as string} className="rounded-md bg-muted p-2">
+                  <div className="flex justify-between font-semibold">
+                    <span>{player as string}</span>
+                    <span>{c.usablePercent}% usable</span>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    DIRECT {c.direct} · RECONSTRUCTED {c.reconstructed} · PARTIAL {c.partial} · UNAVAILABLE {c.unavailable} · EXCLUDED {c.excluded}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          {report.coverage.usablePercent < report.coverage.thresholdPercent && (
+            <p className="mt-2 text-xs text-warn">Low coverage changes the gate to INSUFFICIENT EVIDENCE; it is reported separately from execution completion.</p>
+          )}
+        </div>
         <ul className="mt-2 grid gap-1 text-xs md:grid-cols-2">
           {report.checks.map((c) => (
             <li key={c.key} className={c.pass ? "text-muted-foreground" : "text-blocked"}>

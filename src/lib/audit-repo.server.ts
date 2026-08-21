@@ -171,6 +171,26 @@ export async function makeDeps(): Promise<PipelineDeps> {
       const { data } = await db.from("reconstruction_results").select("status").eq("audit_run_id", runId);
       return (data ?? []) as never;
     },
+    async saveCoverage(runId, rows) {
+      const { error } = await db.from("audit_coverage").upsert(rows.map((row) => ({ ...row, user_id })) as never, {
+        onConflict: "audit_run_id,player_side",
+      });
+      if (error) throw new Error(`Database write failed (audit_coverage): ${error.message}`);
+    },
+    async saveCoverageRates(runId, rows) {
+      const registryRows = [...new Map(rows.map((row) => [String(row["metric_code"]), {
+        metric_code: String(row["metric_code"]),
+        metric_name: String(row["metric_name"] ?? row["metric_code"]),
+        lifecycle_status: "ACTIVE",
+        tour_eligibility: [],
+      }])).values()];
+      const { error: registryError } = await db.from("metric_registry").upsert(registryRows as never, { onConflict: "metric_code" });
+      if (registryError) throw new Error(`Database write failed (metric_registry): ${registryError.message}`);
+      const { error } = await db.from("metric_coverage_rates").upsert(rows.map((row) => ({ ...row, audit_run_id: runId, user_id })) as never, {
+        onConflict: "metric_code,player_side,audit_run_id",
+      });
+      if (error) throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`);
+    },
     async log(entry) {
       await db.from("execution_logs").insert({
         user_id,

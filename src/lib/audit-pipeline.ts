@@ -15,6 +15,8 @@
 
 import { evaluate, bucketFor, winRate, type EngineInput, type GateReport } from "./audit-engine";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
+import { reconstruct, type SourcedStat } from "./reconstruction/engine";
+import { familyOf } from "./reconstruction/stat-catalog";
 
 export const STAGES = [
   "MATCH IDENTITY VERIFICATION",
@@ -127,6 +129,8 @@ export interface Researcher {
   identity(input: { p1: string; p2: string; hints: Record<string, string | null> }): Promise<IdentityFinding>;
   /** Optional grounded pre-pass: a retrieved public statistical dossier for one player. */
   dossier?(input: { player: string; opponent: string; context: string }): Promise<string>;
+  /** Extraction-only normalization of a sourced dossier into catalog statistics. */
+  extractStats?(input: { player: string; dossier: string; context: string }): Promise<SourcedStat[]>;
   metrics(input: {
     p1: string;
     p2: string;
@@ -210,6 +214,7 @@ export interface StageRow {
 
 export type ChildTable =
   | "metric_results"
+  | "reconstruction_results"
   | "verification_results"
   | "disagreement_results"
   | "underdog_results"
@@ -241,7 +246,9 @@ export interface PipelineDeps {
   getDecisionId(runId: string): Promise<string | null>;
   saveDecision(runId: string, existingId: string | null, payload: Record<string, unknown>): Promise<void>;
   getConflicts(runId: string): Promise<Array<{ critical: boolean; resolution_status: string }>>;
-  getReconstructions(runId: string): Promise<Array<{ status: string }>>;
+  getReconstructions(runId: string): Promise<Array<{ status: string; player_side?: string; metric_code?: string }>>;
+  saveCoverage(runId: string, rows: Array<Record<string, unknown>>): Promise<void>;
+  saveCoverageRates(runId: string, rows: Array<Record<string, unknown>>): Promise<void>;
   log(entry: Record<string, unknown>): Promise<void>;
 }
 
@@ -774,7 +781,7 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
       const patch: Record<string, unknown> = {
         [side === "p1" ? "p1_value" : "p2_value"]: value,
         [statusKey]: treatmentToStatus(treatment),
-        treatment,
+        [side === "p1" ? "p1_treatment" : "p2_treatment"]: treatment,
         sources: f?.sources ?? [],
         reliability: f?.reliability ?? null,
         sample: f?.sample ?? null,
@@ -790,6 +797,62 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
           treatmentToStatus(treatment) === "COMPLETE" || otherStatus === "COMPLETE" ? "COMPLETE" : "UNAVAILABLE";
       }
       await deps.update("metric_results", String(row["id"]), patch);
+    }
+  }
+
+  // Pass 2 is separate from metric interpretation: the model extracts only
+  // catalogued atomic figures, then deterministic code applies approved formulas.
+  if (pending.length && deps.research.extractStats) {
+    const player = side === "p1" ? match.player1_name : match.player2_name;
+    const run = await deps.getLatestRun(matchId);
+    const cached = (run as unknown as { independent_inputs?: Record<string, unknown> } | null)?.independent_inputs?.[
+      "dossiers"
+    ] as Record<string, string> | undefined;
+    const raw = await deps.research.extractStats({ player, dossier: cached?.[player] ?? dossier, context: digestContext });
+    const outcome = reconstruct(raw);
+    const reconstructionRows = [
+      ...outcome.derived.map((stat) => ({
+        audit_run_id: runId,
+        metric_code: stat.key,
+        player_side: player,
+        status: "COMPLETE",
+        output: String(stat.value),
+        formula: stat.formula ?? null,
+        inputs: stat.inputs?.map((input) => ({ key: input.key, value: input.value, origin: input.origin, sources: input.sources })) ?? [],
+        calculation: stat.calculation ?? null,
+        source_refs: stat.sources,
+        assumptions: null,
+        reliability: 0.8,
+      })),
+      ...outcome.blocked.map((blocked) => ({
+        audit_run_id: runId,
+        metric_code: blocked.output,
+        player_side: player,
+        status: "UNAVAILABLE",
+        output: null,
+        formula: null,
+        inputs: { missing: blocked.missing },
+        calculation: blocked.reason,
+        source_refs: [],
+        assumptions: blocked.reason,
+        reliability: null,
+      })),
+    ];
+    if (reconstructionRows.length) await deps.insert("reconstruction_results", reconstructionRows as never);
+
+    const statsByFamily = new Map<string, SourcedStat>();
+    for (const stat of [...raw, ...outcome.derived]) {
+      const family = familyOf(stat.key);
+      if (family && !statsByFamily.has(family)) statsByFamily.set(family, stat);
+    }
+    for (const row of rows) {
+      const stat = statsByFamily.get(String(row["metric_code"]).replace(/^M/, "").padStart(3, "0"));
+      if (!stat) continue;
+      await deps.update("metric_results", String(row["id"]), {
+        [side === "p1" ? "p1_value" : "p2_value"]: String(stat.value),
+        [side === "p1" ? "p1_status" : "p2_status"]: "COMPLETE",
+        [side === "p1" ? "p1_treatment" : "p2_treatment"]: stat.origin,
+      });
     }
   }
 
@@ -1125,6 +1188,7 @@ async function finalGate(deps: PipelineDeps, matchId: string, runId: string): Pr
   const report = await buildReport(deps, matchId, runId);
   if (!report) throw new Error("could not build gate report");
   const run = await deps.getLatestRun(matchId);
+  const metrics = await deps.list("metric_results", runId);
   const { version, buckets } = await deps.getCalibration();
   const fields = await deps.getParsedFields(matchId);
   const wpRaw = fields["matrix_wp"];
@@ -1133,6 +1197,43 @@ async function finalGate(deps: PipelineDeps, matchId: string, runId: string): Pr
   const rate = bucket ? winRate(bucket.wins, bucket.graded) : null;
 
   const existingId = await deps.getDecisionId(runId);
+  await deps.saveCoverage(runId, [
+    ...(["P1", "P2"] as const).map((side) => {
+      const coverage = side === "P1" ? report.coverage.p1 : report.coverage.p2;
+      return {
+        audit_run_id: runId,
+        player_side: side,
+        direct_count: coverage.direct,
+        reconstructed_count: coverage.reconstructed,
+        partial_count: coverage.partial,
+        unavailable_count: coverage.unavailable,
+        excluded_count: coverage.excluded,
+        total_count: coverage.total,
+        usable_coverage_percent: coverage.usablePercent,
+        execution_completion_percent: report.completionPercent,
+      };
+    }),
+  ]);
+  await deps.saveCoverageRates(
+    runId,
+    metrics.flatMap((metric) =>
+      ["P1", "P2"].map((side) => {
+        const treatment = String(
+          side === "P1"
+            ? metric["p1_treatment"] ?? metric["p1_status"]
+            : metric["p2_treatment"] ?? metric["p2_status"],
+        );
+        return {
+          audit_run_id: runId,
+          metric_code: String(metric["metric_code"] ?? ""),
+          metric_name: String(metric["metric_name"] ?? metric["metric_code"] ?? ""),
+          player_side: side,
+          treatment,
+          usable: treatment === "DIRECT" || treatment === "RECONSTRUCTED",
+        };
+      }),
+    ),
+  );
   await deps.saveDecision(runId, existingId, {
     audit_run_id: runId,
     final_audit_color: report.color,

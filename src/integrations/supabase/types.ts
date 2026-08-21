@@ -14,6 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_coverage: {
+        Row: {
+          audit_run_id: string
+          direct_count: number
+          reconstructed_count: number
+          partial_count: number
+          unavailable_count: number
+          excluded_count: number
+          total_count: number
+          usable_coverage_percent: number
+          execution_completion_percent: number
+          id: string
+          player_side: string
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          audit_run_id: string
+          direct_count?: number
+          reconstructed_count?: number
+          partial_count?: number
+          unavailable_count?: number
+          excluded_count?: number
+          total_count?: number
+          usable_coverage_percent?: number
+          execution_completion_percent?: number
+          id?: string
+          player_side: string
+          recorded_at?: string
+          user_id?: string
+        }
+        Update: {
+          audit_run_id?: string
+          direct_count?: number
+          reconstructed_count?: number
+          partial_count?: number
+          unavailable_count?: number
+          excluded_count?: number
+          total_count?: number
+          usable_coverage_percent?: number
+          execution_completion_percent?: number
+          id?: string
+          player_side?: string
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      metric_coverage_rates: {
+        Row: {
+          id: string
+          metric_code: string
+          player_side: string
+          treatment: string
+          audit_run_id: string
+          usable: boolean
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          metric_code: string
+          player_side: string
+          treatment: string
+          audit_run_id: string
+          usable?: boolean
+          recorded_at?: string
+          user_id?: string
+        }
+        Update: {
+          id?: string
+          metric_code?: string
+          player_side?: string
+          treatment?: string
+          audit_run_id?: string
+          usable?: boolean
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      metric_registry: {
+        Row: {
+          id: string
+          metric_code: string
+          metric_name: string
+          lifecycle_status: string
+          tour_eligibility: string[]
+          evidence_family: string | null
+          created_at: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          metric_code: string
+          metric_name: string
+          lifecycle_status?: string
+          tour_eligibility?: string[]
+          evidence_family?: string | null
+          created_at?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          metric_code?: string
+          metric_name?: string
+          lifecycle_status?: string
+          tour_eligibility?: string[]
+          evidence_family?: string | null
+          created_at?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_color_ledger: {
         Row: {
           audit_color: string
@@ -1119,8 +1236,10 @@ export type Database = {
           metric_code: string
           metric_name: string
           p1_status: string
+          p1_treatment: string
           p1_value: string | null
           p2_status: string
+          p2_treatment: string
           p2_value: string | null
           reliability: number | null
           sample: string | null
@@ -1141,8 +1260,10 @@ export type Database = {
           metric_code: string
           metric_name: string
           p1_status?: string
+          p1_treatment?: string
           p1_value?: string | null
           p2_status?: string
+          p2_treatment?: string
           p2_value?: string | null
           reliability?: number | null
           sample?: string | null
@@ -1163,8 +1284,10 @@ export type Database = {
           metric_code?: string
           metric_name?: string
           p1_status?: string
+          p1_treatment?: string
           p1_value?: string | null
           p2_status?: string
+          p2_treatment?: string
           p2_value?: string | null
           reliability?: number | null
           sample?: string | null
@@ -1429,6 +1552,7 @@ export type Database = {
         Row: {
           assumptions: string | null
           audit_run_id: string
+          calculation: string | null
           created_at: string
           formula: string | null
           formula_version_id: string | null
@@ -1439,12 +1563,14 @@ export type Database = {
           output: string | null
           player_side: string
           reliability: number | null
+          source_refs: Json
           status: string
           user_id: string
         }
         Insert: {
           assumptions?: string | null
           audit_run_id: string
+          calculation?: string | null
           created_at?: string
           formula?: string | null
           formula_version_id?: string | null
@@ -1455,6 +1581,7 @@ export type Database = {
           output?: string | null
           player_side: string
           reliability?: number | null
+          source_refs?: Json
           status?: string
           user_id?: string
         }
@@ -1471,6 +1598,7 @@ export type Database = {
           output?: string | null
           player_side?: string
           reliability?: number | null
+          source_refs?: Json
           status?: string
           user_id?: string
         }
@@ -1750,6 +1878,7 @@ export type Database = {
         }
         Update: {
           audit_run_id?: string
+          calculation?: string | null
           created_at?: string
           critical?: boolean
           data_key?: string

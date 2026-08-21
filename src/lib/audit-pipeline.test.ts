@@ -236,6 +236,8 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
     async getReconstructions() {
       return tables["metric_results"]!.filter((m) => m["treatment"] === "RECONSTRUCTED").map(() => ({ status: "COMPLETE" }));
     },
+    async saveCoverage() {},
+    async saveCoverageRates() {},
     async log() {},
   };
 
