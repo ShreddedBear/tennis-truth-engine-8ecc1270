@@ -22,8 +22,6 @@ export interface ParsedMatchup {
 }
 
 const VS = /([A-ZÀ-Ý][\p{L}'’.\- ]{1,40}?)\s+(?:vs\.?|v\.|versus|—|–)\s+([A-ZÀ-Ý][\p{L}'’.\- ]{1,40})/u;
-const FLAT_VS = /([A-ZÀ-Ý][\p{L}'’.\- ]{1,60}?)\s+(?:vs\.?|v\.|versus|—|–)\s+([A-ZÀ-Ý][\p{L}'’.\- ]{1,60}?)(?=\s+(?:tournament|event|round|date|surface|best|predicted|matrix|player|$))/giu;
-const LABELLED_PLAYERS = /(?:player\s*1|p1)\s*[:\-]\s*([^|;\n]+?)(?:\s+(?:player\s*2|p2)\s*[:\-]\s*([^|;\n]+))/iu;
 
 const FIELD_PATTERNS: Array<[string, RegExp]> = [
   ["tournament", /(?:tournament|event)\s*[:\-]\s*(.+)/i],
@@ -87,22 +85,7 @@ export function parseSummaryText(pages: string[]): ParsedMatchup[] {
       if (VS.test(l)) anchors.push(i);
     });
 
-    if (anchors.length === 0) {
-      const flat = pageText.replace(/\s+/g, " ").trim();
-      const matches = [...flat.matchAll(FLAT_VS)];
-      for (const match of matches) {
-        const p1 = (match[1] ?? "").trim().replace(/\s+/g, " ");
-        const p2 = (match[2] ?? "").trim().replace(/\s+/g, " ");
-        if (p1 && p2) matchups.push({ player1_name: p1, player2_name: p2, page_number: page, fields: fieldsFromBlock(pageText, page), confidence: 0.7 });
-      }
-      if (!matches.length) {
-        const labelled = pageText.match(LABELLED_PLAYERS);
-        const p1 = labelled?.[1]?.trim().replace(/\s+/g, " ");
-        const p2 = labelled?.[2]?.trim().replace(/\s+/g, " ");
-        if (p1 && p2) matchups.push({ player1_name: p1, player2_name: p2, page_number: page, fields: fieldsFromBlock(pageText, page), confidence: 0.7 });
-      }
-      return;
-    }
+    if (anchors.length === 0) return;
 
     anchors.forEach((anchorIdx, k) => {
       const nextAnchor = anchors[k + 1] ?? lines.length;
