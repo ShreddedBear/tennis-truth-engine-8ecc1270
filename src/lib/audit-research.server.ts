@@ -131,7 +131,7 @@ Return the full object; use null only for a field you genuinely cannot source.`,
       }
       if (retry.sources?.length) merged["sources"] = [...(out.sources ?? []), ...retry.sources];
       if (retry.surface_status && merged["surface"]) merged["surface_status"] = retry.surface_status;
-      out = merged as IdentityFinding;
+      out = merged as unknown as IdentityFinding;
     } catch {
       // keep the first-pass result; the caller reports what is still missing
     }
