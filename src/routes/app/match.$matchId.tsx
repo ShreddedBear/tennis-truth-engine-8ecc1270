@@ -307,7 +307,12 @@ function Workspace() {
           </div>
           <div className="flex items-center gap-2">
             <AuditColorBadge color={data.decision?.final_audit_color ?? report.color} />
-            <Button onClick={runGate}>Run Final Combination Gate</Button>
+            <Button onClick={runAudit} disabled={running}>
+              {running ? "Running audit…" : "Run Audit"}
+            </Button>
+            <Button variant="secondary" onClick={runGate}>
+              Run Final Combination Gate
+            </Button>
           </div>
         </div>
 
