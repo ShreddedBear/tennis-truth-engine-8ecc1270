@@ -322,8 +322,11 @@ function UploadPage() {
     let runs = 0;
     for (const matchId of auditedMatchIds) {
       try {
-        const result = await executePipeline({ data: { matchId } });
-        if (!result.ok) throw new Error(result.failures[0]?.message ?? "Pipeline failed to start");
+        for (let chunk = 0; chunk < 20; chunk += 1) {
+          const result = await executePipeline({ data: { matchId } });
+          if (!result.ok) throw new Error(result.failures[0]?.message ?? "Pipeline failed to start");
+          if (result.complete || !result.nextStage) break;
+        }
         runs++;
       } catch (e) {
         toast.error(`Audit run failed: ${(e as Error).message}`);

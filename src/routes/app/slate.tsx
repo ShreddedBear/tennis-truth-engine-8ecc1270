@@ -48,9 +48,12 @@ function Slate() {
   const execute = useServerFn(runAuditPipeline);
   const start = useMutation({
     mutationFn: async (matchId: string) => {
-      const res = await execute({ data: { matchId } });
-      if (!res.ok) throw new Error(res.failures[0]?.message ?? "Pipeline failed");
-      return res;
+      for (let chunk = 0; chunk < 20; chunk += 1) {
+        const res = await execute({ data: { matchId } });
+        if (!res.ok) throw new Error(res.failures[0]?.message ?? "Pipeline failed");
+        if (res.complete || !res.nextStage) return res;
+      }
+      throw new Error("Audit is still running. Resume it to continue from the last completed stage.");
     },
     onSuccess: () => {
       toast.success("Audit execution started — open the workspace for stage diagnostics");
