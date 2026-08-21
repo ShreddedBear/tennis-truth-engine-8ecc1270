@@ -1,0 +1,171 @@
+// Independent research provider for the audit pipeline.
+// Talks to the Lovable AI Gateway with web-grounded search where the model
+// supports it. Nothing here decides completion or colour — it only returns
+// findings, and it is required to return UNAVAILABLE rather than invent data.
+
+import type {
+  ConclusionFinding,
+  EvidenceDigest,
+  IdentityFinding,
+  MetricFinding,
+  Researcher,
+  RuleFinding,
+  StressFinding,
+  UnderdogFinding,
+} from "./audit-pipeline";
+
+const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const MODEL = "google/gemini-3-flash-preview";
+
+const HOUSE_RULES = `You are the independent research branch of a tennis match audit.
+HARD RULES:
+- Never invent, estimate or "reasonably assume" a number, date or fact. If you cannot attribute a value to a real, named public tennis source, mark it UNAVAILABLE and say why.
+- Only pre-match, publicly available information may be used.
+- You are NEVER given, and must never guess, the proprietary "Matrix" model prediction. Reason only from the independent evidence supplied.
+- Always answer with strict JSON matching the requested shape. No prose outside the JSON.`;
+
+async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Promise<T> {
+  const apiKey = process.env["LOVABLE_API_KEY"];
+  if (!apiKey) throw new Error("Research provider is not configured: missing LOVABLE_API_KEY.");
+
+  const body: Record<string, unknown> = {
+    model: MODEL,
+    messages: [
+      { role: "system", content: `${HOUSE_RULES}\nRespond as: ${shapeHint}` },
+      { role: "user", content: prompt },
+    ],
+    response_format: { type: "json_object" },
+  };
+  if (grounded) body["tools"] = [{ type: "google_search" }];
+
+  let res = await fetch(GATEWAY, {
+    method: "POST",
+    headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok && grounded && (res.status === 400 || res.status === 422)) {
+    // Provider rejected the search tool — retry ungrounded rather than fail the stage.
+    delete body["tools"];
+    res = await fetch(GATEWAY, {
+      method: "POST",
+      headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 429) throw new Error("Research provider rate limited (429) — retry Run Audit shortly.");
+    if (res.status === 402) throw new Error("Research provider credits exhausted (402).");
+    if (res.status === 401 || res.status === 403) throw new Error("Research provider rejected the API key (auth).");
+    throw new Error(`Research provider failed (${res.status}): ${text.slice(0, 300)}`);
+  }
+
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = json.choices?.[0]?.message?.content ?? "";
+  try {
+    return JSON.parse(content) as T;
+  } catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error("Research provider returned an unparseable response (no JSON object).");
+    return JSON.parse(m[0]) as T;
+  }
+}
+
+export const aiResearcher: Researcher = {
+  async identity({ p1, p2, hints }) {
+    const out = await ask<IdentityFinding>(
+      `Resolve this professional tennis matchup independently against public tennis sources (ATP/WTA/ITF official, Tennis Abstract, Ultimate Tennis Statistics, Tennis Explorer).
+Players exactly as printed on the uploaded summary — do not substitute anyone else:
+  Player 1: ${p1}
+  Player 2: ${p2}
+Context hints from the upload (may be incomplete or wrong): ${JSON.stringify(hints)}
+Tasks:
+ 1. Confirm each player exists as a real tour player and give the canonical full name. status VERIFIED only if you can attribute it to a named source.
+ 2. Independently establish tournament, event_level, round, scheduled_date (YYYY-MM-DD), surface, indoor (true/false), best_of. Do NOT return null just because a hint was missing — attempt to establish it. Return null only after a genuine attempt with no source.
+ 3. List every source used with url and retrieval note; list conflicting values.`,
+      `{"player1_canonical":string|null,"player2_canonical":string|null,"player1_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","player2_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","tournament":string|null,"event_level":string|null,"round":string|null,"scheduled_date":string|null,"surface":string|null,"indoor":boolean|null,"best_of":number|null,"surface_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","unresolved_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}],"conflicts":[{"field":string,"values":[string],"note":string|null}]}`,
+      true,
+    );
+    return {
+      ...out,
+      sources: out.sources ?? [],
+      conflicts: out.conflicts ?? [],
+    };
+  },
+
+  async metrics({ p1, p2, context, metrics }) {
+    const out = await ask<{ metrics: MetricFinding[] }>(
+      `Match: ${p1} vs ${p2}. Context: ${context || "context not yet established"}.
+For EVERY metric below, research both players symmetrically and return one row per metric_code.
+Treatment per player: DIRECT (found at a named source), RECONSTRUCTED (computed from named source components — state the components in the value), PARTIAL (only a proxy/partial figure), UNAVAILABLE (attempted, nothing admissible), EXCLUDED (post-match or inadmissible).
+Metrics:
+${metrics.map((m) => `- ${m.code} | ${m.name}${m.body ? ` | definition: ${m.body.slice(0, 400)}` : ""}`).join("\n")}`,
+      `{"metrics":[{"metric_code":string,"p1_value":string|null,"p2_value":string|null,"p1_treatment":"DIRECT"|"RECONSTRUCTED"|"PARTIAL"|"UNAVAILABLE"|"EXCLUDED","p2_treatment":"DIRECT"|"RECONSTRUCTED"|"PARTIAL"|"UNAVAILABLE"|"EXCLUDED","differential":string|null,"evidence_family":string|null,"reliability":number|null,"sample":string|null,"unavailable_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
+      true,
+    );
+    return (out.metrics ?? []).map((m) => ({ ...m, sources: m.sources ?? [] }));
+  },
+
+  async rules({ kind, evidence, rules }) {
+    const label = kind === "VERIFICATION" ? "verification audit rule" : "disagreement / trap audit rule";
+    const out = await ask<{ rules: RuleFinding[] }>(
+      `Independent evidence for ${evidence.p1} vs ${evidence.p2} (${evidence.context || "context unestablished"}):
+${evidence.metrics.map((m) => `- ${m.code} ${m.name}: P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "—"}`).join("\n") || "(no metric values retrieved)"}
+
+Execute each ${label} against that evidence. One row per rule_code.
+Rules:
+${rules.map((r) => `- ${r.code} | ${r.name}${r.body ? ` | ${r.body.slice(0, 500)}` : ""} | severity ${r.severity}`).join("\n")}
+Use outcome UNAVAILABLE only when the evidence needed to execute the rule is genuinely absent.`,
+      `{"rules":[{"rule_code":string,"p1_finding":string|null,"p2_finding":string|null,"outcome":"PASS"|"WARN"|"FAIL"|"UNAVAILABLE","severity":"STANDARD"|"CRITICAL"|null,"decision_effect":string|null,"contradiction_severity":"NONE"|"MINOR"|"MATERIAL"|"CRITICAL"|null,"supporting_evidence":string|null,"opposing_evidence":string|null,"final_effect":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
+      false,
+    );
+    return (out.rules ?? []).map((r) => ({ ...r, sources: r.sources ?? [] }));
+  },
+
+  async underdog({ evidence, pathways, player_side, opponent }) {
+    const out = await ask<{ pathways: UnderdogFinding[] }>(
+      `Dangerous-underdog analysis for ${player_side} against ${opponent} (${evidence.context || "context unestablished"}).
+Evidence:
+${evidence.metrics.map((m) => `- ${m.name}: P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "—"}`).join("\n") || "(no metric values retrieved)"}
+Classify each pathway for ${player_side}: STRONG (live, evidenced route to the upset), REALISTIC, WEAK, or UNRESOLVED only if the evidence needed is absent (then give unavailable_reason).
+Pathways:
+${pathways.map((p) => `- ${p.code} | ${p.name}`).join("\n")}`,
+      `{"pathways":[{"pathway_code":string,"player_side":string,"classification":"UNRESOLVED"|"WEAK"|"REALISTIC"|"STRONG","evidence":string|null,"repeatable":boolean,"unavailable_reason":string|null}]}`,
+      false,
+    );
+    return (out.pathways ?? []).map((p) => ({ ...p, player_side }));
+  },
+
+  async conclusion({ evidence, verificationSummary, disagreementSummary, underdogSummary }) {
+    return ask<ConclusionFinding>(
+      `Commit the INDEPENDENT conclusion for ${evidence.p1} vs ${evidence.p2} (${evidence.context || "context unestablished"}).
+You have no access to any model/Matrix prediction and must not speculate about one.
+Metric evidence:
+${evidence.metrics.map((m) => `- ${m.name}: P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "—"}`).join("\n") || "(no metric values retrieved)"}
+Verification concerns:\n${verificationSummary || "(none flagged)"}
+Trap / disagreement concerns:\n${disagreementSummary || "(none flagged)"}
+Underdog pathways:\n${underdogSummary || "(none material)"}
+Return the winner as the exact player name, plus an honest win-probability range (low/high, 0-100). If the independent evidence is too thin to name a winner, return winner null and insufficient_reason.`,
+      `{"winner":string|null,"low":number|null,"high":number|null,"rationale":string|null,"insufficient_reason":string|null}`,
+      false,
+    );
+  },
+
+  async stress({ evidence, conclusion, tests }) {
+    const out = await ask<{ tests: StressFinding[] }>(
+      `Independent conclusion under test: winner ${conclusion.winner ?? "none"} range ${conclusion.low ?? "?"}-${conclusion.high ?? "?"}.
+Evidence:
+${evidence.metrics.map((m) => `- ${m.name} (${m.family ?? "family unknown"}): P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "—"}`).join("\n") || "(no metric values retrieved)"}
+Re-derive the conclusion under each removal/re-weighting test and report whether it survives.
+Tests:
+${tests.map((t) => `- ${t.code} | ${t.name}`).join("\n")}`,
+      `{"tests":[{"test_code":string,"winner_after":string|null,"range_after":string|null,"outcome":"STABLE"|"MOSTLY STABLE"|"UNSTABLE"|"FAILS","note":string|null}]}`,
+      false,
+    );
+    return out.tests ?? [];
+  },
+};
+
+export type { EvidenceDigest, IdentityFinding, MetricFinding };
