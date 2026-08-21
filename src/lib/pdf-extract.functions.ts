@@ -37,7 +37,7 @@ export const extractMatchupsFromPdf = createServerFn({ method: "POST" })
     try {
       res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: { "content-type": "application/json", "Lovable-API-Key": apiKey },
         signal: controller.signal,
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
@@ -74,13 +74,16 @@ export const extractMatchupsFromPdf = createServerFn({ method: "POST" })
 
     const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = json.choices?.[0]?.message?.content ?? "{}";
+    if (!content.trim()) throw new Error("PDF reader returned an empty response — press Analyze again.");
     let parsed: { matchups?: AiMatchup[] };
     try {
       parsed = JSON.parse(content) as { matchups?: AiMatchup[] };
     } catch {
       const m = content.match(/\{[\s\S]*\}/);
-      parsed = m ? (JSON.parse(m[0]) as { matchups?: AiMatchup[] }) : {};
+      if (!m) throw new Error("PDF reader returned an invalid result — press Analyze again.");
+      parsed = JSON.parse(m[0]) as { matchups?: AiMatchup[] };
     }
     const matchups = (parsed.matchups ?? []).filter((m) => m.player1_name && m.player2_name);
+    if (!matchups.length) throw new Error("PDF reader found no player matchup names. Try a clearer PDF or image.");
     return { matchups };
   });
