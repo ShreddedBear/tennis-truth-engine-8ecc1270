@@ -282,6 +282,7 @@ function providerReason(error: unknown): string {
   if (message.includes("timeout") || message.includes("timed out")) return "PROVIDER_TIMEOUT";
   if (message.includes("401") || message.includes("403") || message.includes("auth") || message.includes("api key")) return "PROVIDER_AUTH_FAILED";
   if (message.includes("429") || message.includes("rate limit")) return "API_RATE_LIMIT";
+  if (message.includes("402") || message.includes("credit") || message.includes("quota")) return "PROVIDER_CREDITS";
   if (message.includes("player") && message.includes("not found")) return "PLAYER_NOT_FOUND";
   if (message.includes("match") && message.includes("not found")) return "MATCH_NOT_FOUND";
   if (message.includes("surface")) return "SURFACE_DATA_NOT_FOUND";

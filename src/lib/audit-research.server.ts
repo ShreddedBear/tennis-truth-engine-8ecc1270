@@ -18,6 +18,7 @@ import type { SourcedStat } from "./reconstruction/engine";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
+const PROVIDER_TIMEOUT_MS = 30_000;
 
 const HOUSE_RULES = `You are the independent research branch of a tennis match audit.
 HARD RULES:
@@ -26,10 +27,26 @@ HARD RULES:
 - You are NEVER given, and must never guess, the proprietary "Matrix" model prediction. Reason only from the independent evidence supplied.
 - Always answer with strict JSON matching the requested shape. No prose outside the JSON.`;
 
-async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Promise<T> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("Research provider is not configured: missing LOVABLE_API_KEY.");
+interface ProviderAttempt {
+  name: string;
+  url: string;
+  key: string;
+  auth: "lovable" | "bearer";
+}
 
+function providers(): ProviderAttempt[] {
+  const configured: ProviderAttempt[] = [];
+  const lovableKey = process.env["LOVABLE_API_KEY"];
+  if (lovableKey) configured.push({ name: "Lovable AI", url: GATEWAY, key: lovableKey, auth: "lovable" });
+  const fallbackKey = process.env["RESEARCH_FALLBACK_API_KEY"] ?? process.env["OPENAI_API_KEY"];
+  const fallbackUrl = process.env["RESEARCH_FALLBACK_URL"] ?? process.env["OPENAI_BASE_URL"];
+  if (fallbackKey && fallbackUrl) {
+    configured.push({ name: "Configured fallback provider", url: fallbackUrl.replace(/\/$/, "") + "/chat/completions", key: fallbackKey, auth: "bearer" });
+  }
+  return configured;
+}
+
+async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Promise<T> {
   const body: Record<string, unknown> = {
     model: MODEL,
     messages: [
@@ -39,44 +56,55 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
     response_format: { type: "json_object" },
   };
   if (grounded) body["tools"] = [{ type: "google_search" }];
-
-  let res = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { "content-type": "application/json", "Lovable-API-Key": apiKey },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok && grounded && (res.status === 400 || res.status === 422)) {
-    // Provider rejected the search tool — retry ungrounded rather than fail the stage.
-    delete body["tools"];
-    res = await fetch(GATEWAY, {
-      method: "POST",
-      headers: { "content-type": "application/json", "Lovable-API-Key": apiKey },
-      body: JSON.stringify(body),
-    });
+  const attempts = providers();
+  if (!attempts.length) throw new Error("Research providers are not configured: set LOVABLE_API_KEY or a fallback provider.");
+  const errors: string[] = [];
+  for (const provider of attempts) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+    try {
+      let res = await fetch(provider.url, {
+        method: "POST",
+        headers: provider.auth === "lovable"
+          ? { "content-type": "application/json", "Lovable-API-Key": provider.key }
+          : { "content-type": "application/json", Authorization: `Bearer ${provider.key}` },
+        signal: controller.signal,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok && grounded && (res.status === 400 || res.status === 422)) {
+        const retryBody = { ...body };
+        delete retryBody["tools"];
+        res = await fetch(provider.url, {
+          method: "POST",
+          headers: provider.auth === "lovable"
+            ? { "content-type": "application/json", "Lovable-API-Key": provider.key }
+            : { "content-type": "application/json", Authorization: `Bearer ${provider.key}` },
+          signal: controller.signal,
+          body: JSON.stringify(retryBody),
+        });
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        errors.push(`${provider.name} ${res.status}: ${text.slice(0, 300)}`);
+        continue;
+      }
+      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const content = json.choices?.[0]?.message?.content ?? "";
+      const unwrap = (v: unknown): T => (Array.isArray(v) ? ((v[0] ?? {}) as T) : (v as T));
+      try {
+        return unwrap(JSON.parse(content));
+      } catch {
+        const m = content.match(/[[{][\s\S]*[\]}]/);
+        if (!m) throw new Error("PARSING_FAILED: provider returned no JSON object.");
+        return unwrap(JSON.parse(m[0]));
+      }
+    } catch (error) {
+      errors.push(`${provider.name}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
-
-  if (!res.ok) {
-    const text = await res.text();
-    if (res.status === 429)
-      throw new Error("Research provider rate limited (429) — retry Run Audit shortly.");
-    if (res.status === 402) throw new Error("Research provider credits exhausted (402).");
-    if (res.status === 401 || res.status === 403)
-      throw new Error("Research provider rejected the API key (auth).");
-    throw new Error(`Research provider failed (${res.status}): ${text.slice(0, 300)}`);
-  }
-
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = json.choices?.[0]?.message?.content ?? "";
-  // Some grounded responses wrap the object in a single-element array.
-  const unwrap = (v: unknown): T => (Array.isArray(v) ? ((v[0] ?? {}) as T) : (v as T));
-  try {
-    return unwrap(JSON.parse(content));
-  } catch {
-    const m = content.match(/[[{][\s\S]*[\]}]/);
-    if (!m) throw new Error("Research provider returned an unparseable response (no JSON object).");
-    return unwrap(JSON.parse(m[0]));
-  }
+  throw new Error(`All research providers failed: ${errors.join(" | ")}`);
 }
 
 const IDENTITY_SHAPE = `{"player1_canonical":string|null,"player2_canonical":string|null,"player1_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","player2_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","tournament":string|null,"event_level":string|null,"round":string|null,"scheduled_date":string|null,"surface":string|null,"indoor":boolean|null,"best_of":number|null,"surface_status":"VERIFIED"|"UNVERIFIED"|"CONFLICT","unresolved_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}],"conflicts":[{"field":string,"values":[string],"note":string|null}]}`;

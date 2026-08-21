@@ -245,6 +245,39 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
 }
 
 describe("Run Audit pipeline", () => {
+  it("keeps every required denominator when all research providers fail", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const failure = async () => {
+      throw new Error("Research provider credits exhausted (402)");
+    };
+    deps.research = {
+      ...researcher,
+      identity: failure,
+      metrics: failure,
+      rules: failure,
+      underdog: failure,
+      conclusion: failure,
+      stress: failure,
+    };
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(result.complete).toBe(true);
+    expect(result.report?.color).toBe("INSUFFICIENT EVIDENCE");
+    expect(result.report?.counts.metrics.total).toBe(DEF_COUNTS.METRICS);
+    expect(result.report?.counts.verification.total).toBe(DEF_COUNTS.VERIFICATION);
+    expect(result.report?.counts.disagreement.total).toBe(DEF_COUNTS.DISAGREEMENT);
+    expect(result.report?.counts.underdog.total).toBe(UNDERDOG_PATHWAYS.length * 2);
+    expect(result.report?.counts.stress.total).toBe(STRESS_TESTS.length);
+    expect(result.report?.counts.p1.total).toBe(DEF_COUNTS.METRICS);
+    expect(result.report?.counts.p2.total).toBe(DEF_COUNTS.METRICS);
+    expect(tables["metric_results"]!.every((row) => ["UNAVAILABLE", "EXCLUDED"].includes(String(row["p1_status"]))))
+      .toBe(true);
+    expect(tables["metric_results"]!.every((row) => ["UNAVAILABLE", "EXCLUDED"].includes(String(row["p2_status"]))))
+      .toBe(true);
+    expect(Array.from(stages.values()).every((row) => row["status"] === "COMPLETE")).toBe(true);
+  }, 60_000);
+
   it("executes every stage and leaves no section at 0/0", async () => {
     const { deps, tables, stages } = makeMemoryDeps();
 
