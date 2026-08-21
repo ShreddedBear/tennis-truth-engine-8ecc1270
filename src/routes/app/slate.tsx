@@ -53,7 +53,9 @@ function Slate() {
         if (!res.ok) throw new Error(res.failures[0]?.message ?? "Pipeline failed");
         if (res.complete || !res.nextStage) return res;
       }
-      throw new Error("Audit is still running. Resume it to continue from the last completed stage.");
+      throw new Error(
+        "Audit is still running. Resume it to continue from the last completed stage.",
+      );
     },
     onSuccess: () => {
       toast.success("Audit execution started — open the workspace for stage diagnostics");
