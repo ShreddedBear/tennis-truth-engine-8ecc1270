@@ -7,6 +7,7 @@ import { extractPdfText } from "@/lib/pdf-text";
 import { extractMatchupsFromPdf, type AiMatchup } from "@/lib/pdf-extract.functions";
 import { canonicalKey, parseSummaryText, type ParsedMatchup } from "@/lib/summary-parser";
 import { createAuditRun, log } from "@/lib/audit-runs";
+import { resolveMatchContext } from "@/lib/match-context.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -69,6 +70,8 @@ function aiToParsed(m: AiMatchup): ParsedMatchup {
   };
 }
 
+const REVIEW_FIELDS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"];
+
 function UploadPage() {
   const navigate = useNavigate();
   const [files, setFiles] = useState<File[]>([]);
@@ -76,6 +79,7 @@ function UploadPage() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const visionExtract = useServerFn(extractMatchupsFromPdf);
+  const resolveContext = useServerFn(resolveMatchContext);
 
   const enrich = async (list: Staged[]) => {
     const total = list.reduce((a, f) => a + f.matchups.length, 0);
@@ -291,8 +295,6 @@ function UploadPage() {
     toast.success(`${created} new matches, ${versions} summary versions, ${runs} audit runs started`);
     navigate({ to: "/app/slate" });
   };
-
-  const REVIEW_FIELDS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"];
 
   return (
     <div className="space-y-4">
