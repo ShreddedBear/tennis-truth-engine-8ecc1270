@@ -77,6 +77,39 @@ function UploadPage() {
   const [progress, setProgress] = useState<string | null>(null);
   const visionExtract = useServerFn(extractMatchupsFromPdf);
 
+  const enrich = async (list: Staged[]) => {
+    const total = list.reduce((a, f) => a + f.matchups.length, 0);
+    let done = 0;
+    for (const file of list) {
+      for (const m of file.matchups) {
+        done++;
+        setProgress(`Looking up match details online (${done}/${total}): ${m.player1_name} vs ${m.player2_name}…`);
+        const hints: Record<string, string | null> = {};
+        for (const key of REVIEW_FIELDS) hints[key] = m.fields.find((f) => f.field_key === key)?.normalized_value ?? null;
+        const missing = REVIEW_FIELDS.filter((k) => !hints[k]);
+        if (!missing.length) continue;
+        try {
+          const res = await resolveContext({ data: { p1: m.player1_name, p2: m.player2_name, hints } });
+          if (!res.ok) continue;
+          for (const key of missing) {
+            const value = res.fields[key];
+            if (!value) continue;
+            m.fields.push({
+              field_key: key,
+              raw_value: null,
+              normalized_value: String(value),
+              extraction_status: "RECONSTRUCTED",
+              confidence: 0.8,
+              page_number: m.page_number,
+            });
+          }
+        } catch {
+          // leave the field blank for manual review rather than guessing
+        }
+      }
+    }
+  };
+
   const analyze = async () => {
     if (!files.length) return;
     setBusy(true);
@@ -106,11 +139,13 @@ function UploadPage() {
       if (matchups.length === 0) toast.warning(`${file.name}: no matchups detected — review required`);
       next.push({ filename: file.name, pages, matchups, source });
     }
+    await enrich(next);
     setStaged((s) => [...s, ...next]);
     setFiles([]);
     setProgress(null);
     setBusy(false);
   };
+
 
 
   const editField = (fi: number, mi: number, key: string, value: string) => {
