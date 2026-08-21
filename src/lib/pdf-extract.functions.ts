@@ -20,6 +20,8 @@ Read EVERY page, including pages that are only images/screenshots.
 Return strict JSON: {"matchups":[{"page_number":1,"player1_name":"","player2_name":"","tournament":null,"event_level":null,"round":null,"scheduled_date":null,"surface":null,"best_of":null,"matrix_predicted_winner":null,"matrix_wp":null,"other_fields":{}}]}
 Rules: never invent a value — use null when it is not visible. Put any other readable labelled values (odds, win probability, ranking, form, market) in other_fields as string values. player1_name and player2_name must be full player names as printed.`;
 
+const EXTRACTION_TIMEOUT_MS = 90_000;
+
 export const extractMatchupsFromPdf = createServerFn({ method: "POST" })
   .inputValidator((data: { filename: string; base64: string }) => {
     if (!data?.base64) throw new Error("No PDF data supplied");
@@ -29,26 +31,39 @@ export const extractMatchupsFromPdf = createServerFn({ method: "POST" })
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) throw new Error("AI extraction is not configured (missing API key).");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: PROMPT },
-              {
-                type: "file",
-                file: { filename: data.filename || "summary.pdf", file_data: `data:application/pdf;base64,${data.base64}` },
-              },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), EXTRACTION_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: PROMPT },
+                {
+                  type: "file",
+                  file: { filename: data.filename || "summary.pdf", file_data: `data:application/pdf;base64,${data.base64}` },
+                },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("PDF extraction timed out after 90 seconds — try a smaller PDF or press Analyze again.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!res.ok) {
       const body = await res.text();

@@ -138,38 +138,43 @@ function UploadPage() {
   const analyze = async () => {
     if (!files.length) return;
     setBusy(true);
-    const next: Staged[] = [];
-    for (const file of files) {
-      setProgress(`Reading ${file.name}…`);
-      let pages: string[] = [];
-      let matchups: ParsedMatchup[] = [];
-      let source: Staged["source"] = "TEXT";
-      try {
-        pages = (await extractPdfText(file)).pages;
-        matchups = parseSummaryText(pages);
-      } catch {
-        pages = [];
-      }
-      if (matchups.length === 0) {
-        setProgress(`${file.name}: no readable text — running image/vision extraction…`);
+    try {
+      const next: Staged[] = [];
+      for (const file of files) {
+        setProgress(`Reading ${file.name}…`);
+        let pages: string[] = [];
+        let matchups: ParsedMatchup[] = [];
+        let source: Staged["source"] = "TEXT";
         try {
-          const base64 = await toBase64(file);
-          const { matchups: ai } = await visionExtract({ data: { filename: file.name, base64 } });
-          matchups = ai.map(aiToParsed);
-          source = "VISION";
-        } catch (e) {
-          toast.error(`${file.name}: ${(e as Error).message}`);
+          pages = (await extractPdfText(file)).pages;
+          matchups = parseSummaryText(pages);
+        } catch {
+          pages = [];
         }
+        if (matchups.length === 0) {
+          setProgress(`${file.name}: no readable text — running image/vision extraction…`);
+          try {
+            const base64 = await toBase64(file);
+            const { matchups: ai } = await visionExtract({ data: { filename: file.name, base64 } });
+            matchups = ai.map(aiToParsed);
+            source = "VISION";
+          } catch (e) {
+            toast.error(`${file.name}: ${(e as Error).message}`);
+          }
+        }
+        if (matchups.length === 0)
+          toast.warning(`${file.name}: no matchups detected — review required`);
+        next.push({ filename: file.name, pages, matchups, source });
       }
-      if (matchups.length === 0)
-        toast.warning(`${file.name}: no matchups detected — review required`);
-      next.push({ filename: file.name, pages, matchups, source });
+      await enrich(next);
+      setStaged((s) => [...s, ...next]);
+      setFiles([]);
+    } catch (e) {
+      toast.error(`Analysis failed: ${(e as Error).message}`);
+    } finally {
+      setProgress(null);
+      setBusy(false);
     }
-    await enrich(next);
-    setStaged((s) => [...s, ...next]);
-    setFiles([]);
-    setProgress(null);
-    setBusy(false);
   };
 
   const editField = (fi: number, mi: number, key: string, value: string) => {
