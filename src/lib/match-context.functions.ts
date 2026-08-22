@@ -15,8 +15,11 @@ function suspicious(key:string,value:string|null|undefined){
   if(key==="best_of"&&!/^[35]$/.test(v))return true;
   if(key==="tournament"){
     if(/[\$%()[\]{}<>]/.test(v))return true;
-    if(/\b(?:perf|nta|vo n|volume|vol)\b/i.test(v))return true;
-    if(/cincinn/i.test(v)&&!/(cincinnati open|atp cincinnati|wta cincinnati|cincinnati masters)/i.test(v))return true;
+    if(/\b(?:perf|pere|nta|vo n|volume|vol)\b/i.test(v))return true;
+    if(/cincinn/i.test(v)){
+      const canonical = /^(?:cincinnati open|atp cincinnati|wta cincinnati|cincinnati masters)$/i.test(v.trim());
+      if(!canonical)return true;
+    }
   }
   return false;
 }
