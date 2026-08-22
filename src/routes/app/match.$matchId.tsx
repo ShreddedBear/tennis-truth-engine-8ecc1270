@@ -11,6 +11,7 @@ import { MATRIX_FIELDS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuditColorBadge, BucketBadge, StateText } from "@/components/StatusBadge";
+import { EvidenceGapReport } from "@/components/EvidenceGapReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/match/$matchId")({
@@ -525,6 +526,8 @@ function Workspace() {
           </div>
         )}
       </div>
+
+      <EvidenceGapReport metrics={metricRows} player1={match.player1_name} player2={match.player2_name} />
 
       <section className="panel space-y-4 p-4">
         <div>
