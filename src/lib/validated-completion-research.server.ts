@@ -42,11 +42,11 @@ function validSide(value:string|null,required:keyof typeof groups|null){if(!valu
 
 const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
   "034":[
-    {name:"scoreline vs point dominance",terms:["scoreline vs point dominance","point dominance","total points won"]},
-    {name:"scoreline vs expected games",terms:["scoreline vs expected games","expected games"]},
-    {name:"scoreline vs break opportunities",terms:["scoreline vs break opportunities","break opportunities","break points generated"]},
-    {name:"scoreline vs dominance ratio",terms:["scoreline vs dominance ratio","dominance ratio"]},
-    {name:"clutch-performance dependency",terms:["clutch performance dependency","clutch dependency","key points","score state"]},
+    {name:"scoreline vs point dominance",terms:["scoreline vs point dominance","scoreline compared with point dominance","scoreline compared to point dominance"]},
+    {name:"scoreline vs expected games",terms:["scoreline vs expected games","scoreline compared with expected games","scoreline compared to expected games"]},
+    {name:"scoreline vs break opportunities",terms:["scoreline vs break opportunities","scoreline compared with break opportunities","scoreline compared to break opportunities"]},
+    {name:"scoreline vs dominance ratio",terms:["scoreline vs dominance ratio","scoreline compared with dominance ratio","scoreline compared to dominance ratio"]},
+    {name:"clutch-performance dependency",terms:["clutch performance dependency","clutch dependency","key point dependency","key points dependency"]},
   ],
   "036":[
     {name:"loss favorite status",terms:["loss favorite status","favorite status","pre match favorite","pre match odds"]},
@@ -66,20 +66,20 @@ const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
     {name:"bad-loss severity index",terms:["bad loss severity index","bad loss severity"]},
   ],
   "038":[
-    {name:"hold residual vs opponent norm",terms:["hold residual","hold vs opponent norm"]},
-    {name:"break residual vs opponent norm",terms:["break residual","break vs opponent norm"]},
-    {name:"total-points residual vs opponent norm",terms:["total points residual","points residual"]},
-    {name:"games residual vs opponent norm",terms:["games residual"]},
-    {name:"sets residual vs opponent norm",terms:["sets residual"]},
-    {name:"dominance-ratio residual vs opponent norm",terms:["dominance ratio residual"]},
-    {name:"serve-points residual vs opponent norm",terms:["serve points residual","service points residual"]},
-    {name:"return-points residual vs opponent norm",terms:["return points residual"]},
+    {name:"hold residual vs opponent norm",terms:["hold residual vs opponent norm","hold residual versus opponent norm","hold compared to opponent norm"]},
+    {name:"break residual vs opponent norm",terms:["break residual vs opponent norm","break residual versus opponent norm","break compared to opponent norm"]},
+    {name:"total-points residual vs opponent norm",terms:["total points residual vs opponent norm","total points residual versus opponent norm","total points compared to opponent norm"]},
+    {name:"games residual vs opponent norm",terms:["games residual vs opponent norm","games residual versus opponent norm","games compared to opponent norm"]},
+    {name:"sets residual vs opponent norm",terms:["sets residual vs opponent norm","sets residual versus opponent norm","sets compared to opponent norm"]},
+    {name:"dominance-ratio residual vs opponent norm",terms:["dominance ratio residual vs opponent norm","dominance ratio residual versus opponent norm","dominance ratio compared to opponent norm"]},
+    {name:"serve-points residual vs opponent norm",terms:["serve points residual vs opponent norm","service points residual vs opponent norm","serve points compared to opponent norm"]},
+    {name:"return-points residual vs opponent norm",terms:["return points residual vs opponent norm","return points residual versus opponent norm","return points compared to opponent norm"]},
   ],
   "039":[
     {name:"match-level actual performance",terms:["actual performance","match level performance"]},
-    {name:"pre-match expected performance",terms:["pre match expected performance","expected performance"]},
+    {name:"pre-match expected performance",terms:["pre match expected performance","frozen pre match expectation","expectation frozen before match"]},
     {name:"match-level surprise residual",terms:["performance surprise","actual minus expected","surprise residual"]},
-    {name:"rolling last-10 surprise",terms:["rolling performance surprise","last 10","last ten"]},
+    {name:"rolling last-10 surprise",terms:["rolling performance surprise","last 10 surprise","last ten surprise"]},
   ],
   "040":[
     {name:"serve velocity trend",terms:["serve velocity trend","serve speed trend"]},
