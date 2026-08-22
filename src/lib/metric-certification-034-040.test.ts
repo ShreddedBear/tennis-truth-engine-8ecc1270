@@ -47,7 +47,8 @@ const MASTER_MARKERS: Record<string, string[]> = {
     "39. Performance Surprise Rating",
     "Match-Level Performance Surprise",
     "Rolling Performance Surprise (Last 10)",
-    "pre-match expected performance",
+    "pre-match",
+    "expected performance, calculated per match",
   ],
   "040": [
     "40. Hidden Decline Detector",
