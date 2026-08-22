@@ -18,14 +18,17 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
       const p1Done = stages.find((s) => s.stage === "P1 METRIC EXECUTION")?.status === "COMPLETE";
       const p2Done = stages.find((s) => s.stage === "P2 METRIC EXECUTION")?.status === "COMPLETE";
       if (!p1Done || !p2Done) return { changed: false, reopenedGate: false };
-      const { applySafeMetaDerivedMetrics } = await import("./meta-derived-evidence.server");
-      const changed = await applySafeMetaDerivedMetrics(deps, runId);
+      const { applySafeMetaDerivedMetrics, applySafeStressDerivedMetrics } = await import("./meta-derived-evidence.server");
+      const metricMetaChanged = await applySafeMetaDerivedMetrics(deps, runId);
+      const stressDone = stages.find((s) => s.stage === "STRESS / REMOVAL TESTS")?.status === "COMPLETE";
+      const stressMetaChanged = stressDone ? await applySafeStressDerivedMetrics(deps, runId) : false;
+      const changed = metricMetaChanged || stressMetaChanged;
       if (!changed) return { changed: false, reopenedGate: false };
       const finalGate = stages.find((s) => s.stage === "FINAL COMBINATION GATE");
       if (finalGate?.status === "COMPLETE") {
         await deps.setStage(runId, data.matchId, "FINAL COMBINATION GATE", { status: "PENDING", done_count: 0, total_count: 1, error_code: null, error_message: null, finished_at: null });
         await deps.updateRun(runId, { status: "RUNNING" });
-        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation." }, matrix_visible: false });
+        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation.", metric_meta_changed: metricMetaChanged, stress_meta_changed: stressMetaChanged }, matrix_visible: false });
         return { changed: true, reopenedGate: true };
       }
       return { changed: true, reopenedGate: false };
@@ -65,7 +68,7 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
             await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"ZERO EVIDENCE RECOVERY",status:"RUNNING",output:{reason:"Reopened low-coverage metric statuses while preserving NOT NULL treatment columns.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION},matrix_visible:false});
           }
         }
-        // Existing completed metric sweeps can be upgraded without rerunning tennis research.
+        // Existing completed metric/stress sweeps can be upgraded without rerunning tennis research.
         await applyMetaIfReady(latest.id);
       }
       // Keep each browser-triggered server invocation short enough to return
