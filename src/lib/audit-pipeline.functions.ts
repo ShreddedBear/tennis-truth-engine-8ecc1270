@@ -2,7 +2,7 @@
 // Module scope must stay free of runtime helpers (server-fn splitting).
 import { createServerFn } from "@tanstack/react-start";
 
-const ZERO_EVIDENCE_RECOVERY_VERSION = "2026-08-22-v2-runtime-index";
+const ZERO_EVIDENCE_RECOVERY_VERSION = "2026-08-22-v3-treatment-safe";
 
 export const runAuditPipeline = createServerFn({ method: "POST" })
   .inputValidator((data: { matchId: string; budgetMs?: number }) => {
@@ -30,19 +30,21 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
           const totalSides=metrics.length*2, usablePercent=totalSides?100*usableSides/totalSides:0;
           const runMeta=latest as unknown as {independent_inputs?:Record<string,unknown>};
           const alreadyRecovered=runMeta.independent_inputs?.["zero_evidence_recovery_version"]===ZERO_EVIDENCE_RECOVERY_VERSION;
-          // Re-open legacy low-coverage runs (<10%), including the 1.2% Cincinnati
-          // runs, because they predate the Cloudflare-safe bundled evidence index.
           if (usablePercent < 10 && !alreadyRecovered) {
             for (const row of metrics) {
               const patch:Record<string,unknown>={status:"NOT STARTED",reconstruction_attempted:false};
-              if(!usableTreatment(row["p1_treatment"])){patch["p1_status"]="NOT STARTED";patch["p1_treatment"]=null;patch["p1_unavailable_reason"]=null;patch["p1_provider_error"]=null;}
-              if(!usableTreatment(row["p2_treatment"])){patch["p2_status"]="NOT STARTED";patch["p2_treatment"]=null;patch["p2_unavailable_reason"]=null;patch["p2_provider_error"]=null;}
+              // p1_treatment/p2_treatment are NOT NULL in the database. Keep the
+              // truthful terminal label UNAVAILABLE while status is reset to
+              // NOT STARTED; executeMetrics will replace the treatment when real
+              // evidence is found. Never write null into these columns.
+              if(!usableTreatment(row["p1_treatment"])){patch["p1_status"]="NOT STARTED";patch["p1_treatment"]="UNAVAILABLE";patch["p1_unavailable_reason"]=null;patch["p1_provider_error"]=null;}
+              if(!usableTreatment(row["p2_treatment"])){patch["p2_status"]="NOT STARTED";patch["p2_treatment"]="UNAVAILABLE";patch["p2_unavailable_reason"]=null;patch["p2_provider_error"]=null;}
               await deps.update("metric_results",String(row["id"]),patch);
             }
             const restartFrom=STAGES.indexOf("P1 METRIC EXECUTION");
             for(const stage of STAGES.slice(restartFrom))await deps.setStage(latest.id,data.matchId,stage,{status:"PENDING",done_count:0,total_count:stage==="P1 METRIC EXECUTION"||stage==="P2 METRIC EXECUTION"?metrics.length:0,error_code:null,error_message:null,finished_at:null});
             await deps.updateRun(latest.id,{status:"RUNNING",independent_decision_committed_at:null,matrix_revealed_at:null,independent_winner:null,independent_low:null,independent_high:null,effective_evidence_count:0,independent_inputs:{...(runMeta.independent_inputs??{}),zero_evidence_recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION}});
-            await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"ZERO EVIDENCE RECOVERY",status:"RUNNING",output:{reason:"Reopened low-coverage metric treatments after Cloudflare-safe bundled historical evidence integration.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION},matrix_visible:false});
+            await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"ZERO EVIDENCE RECOVERY",status:"RUNNING",output:{reason:"Reopened low-coverage metric statuses while preserving NOT NULL treatment columns.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION},matrix_visible:false});
           }
         }
       }
