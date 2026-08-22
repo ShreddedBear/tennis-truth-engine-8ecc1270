@@ -1,7 +1,7 @@
 // ============================================================================
 // CANONICAL ATOMIC STATISTIC CATALOG
 // ============================================================================
-export type Unit = "PERCENT" | "COUNT" | "RATIO" | "RATING" | "MINUTES" | "YEARS" | "KILOMETERS" | "HOURS" | "FLAG" | "BAND";
+export type Unit = "PERCENT" | "COUNT" | "RATIO" | "RATING" | "MINUTES" | "YEARS" | "KILOMETERS" | "HOURS" | "FLAG" | "BAND" | "CELSIUS" | "KPH" | "METERS";
 export interface StatDef { key:string; label:string; unit:Unit; family:string; min:number; max:number; }
 const P=(key:string,label:string,family:string):StatDef=>({key,label,unit:"PERCENT",family,min:0,max:100});
 const C=(key:string,label:string,family:string,max=100000):StatDef=>({key,label,unit:"COUNT",family,min:0,max});
@@ -17,6 +17,7 @@ C("longest_observed_layoff_days","Longest observed layoff (days)","013",5000),C(
 C("wins","Wins (window)","014",2000),C("losses","Losses (window)","014",2000),C("matches_played","Matches played (window)","014",4000),P("win_pct","Win %","014"),{key:"ranking",label:"Ranking",unit:"COUNT",family:"014",min:1,max:3000},{key:"peak_ranking",label:"Peak ranking",unit:"COUNT",family:"014",min:1,max:3000},{key:"ranking_gap_to_peak",label:"Ranking gap to peak",unit:"COUNT",family:"014",min:-3000,max:3000},
 C("same_tournament_matches","Prior matches at same tournament","015",500),P("same_tournament_win_pct","Same-tournament win %","015"),C("same_round_matches","Prior matches in same round","015",1000),P("same_round_win_pct","Same-round win %","015"),C("same_level_matches","Prior matches at same event level","015",3000),P("same_level_win_pct","Same-event-level win %","015"),
 {key:"match_surface_hard",label:"Verified match surface: hard",unit:"FLAG",family:"016",min:0,max:1},{key:"match_surface_clay",label:"Verified match surface: clay",unit:"FLAG",family:"016",min:0,max:1},{key:"match_surface_grass",label:"Verified match surface: grass",unit:"FLAG",family:"016",min:0,max:1},{key:"match_surface_carpet",label:"Verified match surface: carpet",unit:"FLAG",family:"016",min:0,max:1},{key:"match_indoor",label:"Verified indoor flag",unit:"FLAG",family:"016",min:0,max:1},{key:"verified_court_speed_index",label:"Verified court-speed index",unit:"RATIO",family:"016",min:0,max:100},{key:"verified_court_speed_band",label:"Verified court-speed band (1 very slow - 5 very fast)",unit:"BAND",family:"016",min:1,max:5},
+{key:"match_temperature_c",label:"Verified match temperature",unit:"CELSIUS",family:"017",min:-30,max:60},P("match_humidity_pct","Verified match humidity","017"),{key:"match_wind_kph",label:"Verified match wind speed",unit:"KPH",family:"017",min:0,max:250},{key:"match_altitude_m",label:"Verified match altitude/elevation",unit:"METERS",family:"017",min:-500,max:9000},{key:"match_roof_closed",label:"Verified roof closed flag",unit:"FLAG",family:"017",min:0,max:1},
 C("common_opponent_wins","Wins vs common opponents","080",500),C("common_opponent_losses","Losses vs common opponents","080",500),P("common_opponent_win_pct","Common-opponent win %","080")];
 export const STAT_BY_KEY=new Map(STAT_CATALOG.map(s=>[s.key,s]));
 export function familyOf(key:string):string|null{return STAT_BY_KEY.get(key)?.family??null;}
