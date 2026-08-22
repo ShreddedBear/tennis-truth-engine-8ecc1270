@@ -12,6 +12,7 @@ import {
   ScrollText,
   Upload,
 } from "lucide-react";
+import { APP_BUILD_INFO } from "@/generated/app-build-info";
 
 const NAV = [
   { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,14 +29,18 @@ const NAV = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const shortCommit = APP_BUILD_INFO.commit ? APP_BUILD_INFO.commit.slice(0, 8) : "unknown";
 
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-header text-header-foreground">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3">
           <div>
             <p className="text-sm font-semibold tracking-wide uppercase">Tennis Matrix — Independent Verification & Audit</p>
             <p className="text-xs opacity-70">The Matrix may be compared to the audit. It may not determine the audit.</p>
+          </div>
+          <div className="shrink-0 rounded-md border border-white/25 px-2 py-1 text-[10px] font-semibold tracking-wide">
+            RUNNING {shortCommit}
           </div>
         </div>
       </header>
