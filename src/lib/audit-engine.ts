@@ -32,6 +32,7 @@ export interface EngineInput {
     p2_treatment?: string | null;
     matrix_derived: boolean;
     evidence_family: string | null;
+    metric_name?: string | null;
   }>;
   verification: Array<{ status: string; outcome: string; severity: string | null }>;
   disagreement: Array<{ status: string; contradiction_severity: string | null }>;
@@ -118,6 +119,15 @@ function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): Covera
   };
 }
 
+function explicitEvidenceFamily(metric: EngineInput["metrics"][number]) {
+  const family = String(metric.evidence_family ?? "").trim();
+  const defaultName = String(metric.metric_name ?? "").trim();
+  // Definition instantiation initially stores metric_name in evidence_family as
+  // a placeholder. That does not prove independence. Only explicit lineage set
+  // by a researcher/reconstructor may enter the independent-family count.
+  return family && family !== defaultName ? family : null;
+}
+
 export function evaluate(input: EngineInput): GateReport {
   const { match, run } = input;
 
@@ -143,8 +153,8 @@ export function evaluate(input: EngineInput): GateReport {
     done: input.conflicts.filter((c) => c.critical && c.resolution_status.startsWith("RESOLVED")).length,
   };
 
-  // Effective independent evidence: collapse correlated families,
-  // and never count Matrix-derived signals.
+  // Effective independent evidence: collapse correlated families, never count
+  // Matrix-derived signals, and ignore placeholder metric-name families.
   const families = new Set<string>();
   input.metrics.forEach((m) => {
     if (m.matrix_derived) return;
@@ -152,7 +162,8 @@ export function evaluate(input: EngineInput): GateReport {
     if (!processed) return;
     const usableTreatment = (t: string | null | undefined) => ["DIRECT", "RECONSTRUCTED", "PARTIAL"].includes(String(t ?? ""));
     if (!usableTreatment(m.p1_treatment) && !usableTreatment(m.p2_treatment)) return;
-    if (m.evidence_family) families.add(m.evidence_family);
+    const family = explicitEvidenceFamily(m);
+    if (family) families.add(family);
   });
   const effectiveEvidenceCount = families.size;
   const p1Coverage = coverageFor(input.metrics, "p1");
