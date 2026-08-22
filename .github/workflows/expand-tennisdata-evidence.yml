@@ -1,0 +1,67 @@
+name: Expand Tennis-Data Evidence
+on:
+  push:
+    paths:
+      - '.github/workflows/expand-tennisdata-evidence.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add score/history derived evidence
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p=Path('src/lib/tennis-data-history.server.ts')
+          s=p.read_text()
+          old='''let setsPlayed=0,setsWon=0,straightWins=0,deciding=0,decidingWins=0;for(const m of chosen){const isW=won(m,player),ss=sets(m.score);if(!ss.length)continue;for(const [a,b] of ss){setsPlayed++;setsWon+=isW?(a>b?1:0):(a<b?1:0);}if(isW&&ss.every(([a,b])=>a>b))straightWins++;if(ss.length>=3){deciding++;if(isW)decidingWins++;}}'''
+          new='''let setsPlayed=0,setsWon=0,straightWins=0,deciding=0,decidingWins=0,firstSetWins=0,firstSetWinMatchWins=0;for(const m of chosen){const isW=won(m,player),ss=sets(m.score);if(!ss.length)continue;for(const [a,b] of ss){setsPlayed++;setsWon+=isW?(a>b?1:0):(a<b?1:0);}if(isW&&ss.every(([a,b])=>a>b))straightWins++;if(ss.length>=3){deciding++;if(isW)decidingWins++;}const [fa,fb]=ss[0];const playerWonFirst=isW?fa>fb:fa<fb;if(playerWonFirst){firstSetWins++;if(isW)firstSetWinMatchWins++;}}'''
+          if old not in s: raise SystemExit('set loop anchor not found')
+          s=s.replace(old,new)
+          anchor='''if(deciding)out.push(stat(player,"deciding_sets_played",deciding,deciding,url,s),stat(player,"deciding_sets_won",decidingWins,deciding,url,s),stat(player,"deciding_set_win_pct",100*decidingWins/deciding,deciding,url,s));'''
+          extra='''if(firstSetWins)out.push(stat(player,"first_set_win_to_match_conversion_pct",100*firstSetWinMatchWins/firstSetWins,firstSetWins,url,s),stat(player,"one_set_up_collapse_rate_pct",100*(firstSetWins-firstSetWinMatchWins)/firstSetWins,firstSetWins,url,s));'''
+          if extra not in s:
+              if anchor not in s: raise SystemExit('deciding anchor not found')
+              s=s.replace(anchor,anchor+extra)
+          anchor2='''const latestRank=[...rows].reverse().map(m=>won(m,player)?n(m.winnerRank):n(m.loserRank)).find((x):x is number=>x!==null);'''
+          extra2='''const seq=rows.map(m=>won(m,player));if(seq.length){const last=seq[seq.length-1],sign=last?1:-1;let streak=0;for(let i=seq.length-1;i>=0&&seq[i]===last;i--)streak++;out.push(stat(player,"current_streak_signed",sign*streak,seq.length,url,s));let best=0,run=0;for(const w of seq){if(w){run++;best=Math.max(best,run);}else run=0;}out.push(stat(player,"longest_win_streak_observed",best,seq.length,url,s));}const cutDate=cut(context);if(cutDate){const year=cutDate.slice(0,4),season=rows.filter(m=>m.date.startsWith(year));out.push(stat(player,"season_matches_before_lock",season.length,season.length,url,s));const previousYear=String(Number(year)-1),offseasonRows=rows.filter(m=>m.date.startsWith(previousYear)||m.date.startsWith(year));const before=offseasonRows.filter(m=>m.date<cutDate);if(before.length>=2){const dates=before.map(m=>Date.parse(`${m.date}T00:00:00Z`)).filter(Number.isFinite).sort((a,b)=>a-b);let maxGap=0;for(let i=1;i<dates.length;i++)maxGap=Math.max(maxGap,(dates[i]-dates[i-1])/86400000);out.push(stat(player,"longest_observed_rest_gap_days",maxGap,before.length,url,s));}}'''
+          if extra2 not in s:
+              if anchor2 not in s: raise SystemExit('ranking anchor not found')
+              s=s.replace(anchor2,extra2+anchor2)
+          p.write_text(s)
+
+          p=Path('src/lib/completion-sweep-research.server.ts')
+          s=p.read_text()
+          old='''  "020":["same_level_matches","same_level_win_pct"],
+  "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
+  "030":["same_tournament_matches","same_tournament_win_pct"],
+};'''
+          new='''  "020":["same_level_matches","same_level_win_pct"],
+  "027":["first_set_win_to_match_conversion_pct","one_set_up_collapse_rate_pct","deciding_set_win_pct"],
+  "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
+  "030":["same_tournament_matches","same_tournament_win_pct"],
+  "037":["straight_set_win_pct","deciding_set_win_pct","win_pct","surface_win_pct"],
+  "068":["current_streak_signed","longest_win_streak_observed"],
+  "077":["season_matches_before_lock","matches_last_28_days","days_since_last_match","longest_observed_rest_gap_days"],
+};'''
+          if old not in s: raise SystemExit('historical keys anchor not found')
+          s=s.replace(old,new)
+          # Broad families supported by only a subset of their definition should be PARTIAL.
+          old2='''    p1_treatment:p1Value?"RECONSTRUCTED":"UNAVAILABLE",
+    p2_treatment:p2Value?"RECONSTRUCTED":"UNAVAILABLE",'''
+          new2='''    p1_treatment:p1Value?(["027","037","077"].includes(familyCode(metric.code))?"PARTIAL":"RECONSTRUCTED"):"UNAVAILABLE",
+    p2_treatment:p2Value?(["027","037","077"].includes(familyCode(metric.code))?"PARTIAL":"RECONSTRUCTED"):"UNAVAILABLE",'''
+          if old2 not in s: raise SystemExit('treatment anchor not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/tennis-data-history.server.ts src/lib/completion-sweep-research.server.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "Recover more honest historical evidence"
+          git push
