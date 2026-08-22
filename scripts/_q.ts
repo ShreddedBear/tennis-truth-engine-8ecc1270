@@ -1,7 +1,7 @@
-import {supabaseAdmin as db} from "@/integrations/supabase/client.server";
-const {data,error}=await db.from("matches").select("*").order("created_at",{ascending:false}).limit(3);
-console.log(error, JSON.stringify(data?.[0],null,1));
-const {data:u}=await db.from("summary_uploads").select("*").order("created_at",{ascending:false}).limit(3);
-console.log(JSON.stringify(u,null,1)?.slice(0,600));
-const {count}=await db.from("matches").select("*",{count:"exact",head:true});
-console.log("matches",count);
+import {makeDeps} from "@/lib/audit-repo.server";
+import {runPipeline} from "@/lib/audit-pipeline";
+const id="3a7d6305-ef2b-4e47-8f91-d9825413382a";
+const deps=await makeDeps();
+const r=await runPipeline(deps,id,{budgetMs:200000});
+console.log(r.runId,r.complete,r.nextStage);
+console.log(r.stages.map(s=>`${s.stage}: ${s.status} ${s.detail}`).join("\n"));
