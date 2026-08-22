@@ -836,7 +836,10 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
       .join("\n\n");
   }
 
+  let timedOut = false;
+  let treatedInPass = 0;
   for (let i = 0; i < pending.length; i += METRIC_BATCH) {
+    if (Date.now() > ctx.deadline) { timedOut = true; break; }
     const batch = pending.slice(i, i + METRIC_BATCH);
     let findings: MetricFinding[] = [];
     let providerError: string | null = null;
@@ -897,12 +900,17 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
           treatmentToStatus(treatment) === "COMPLETE" || otherStatus === "COMPLETE" ? "COMPLETE" : "UNAVAILABLE";
       }
       await deps.update("metric_results", String(row["id"]), patch);
+      treatedInPass++;
     }
+    await ctx.progress(
+      rows.length - pending.length + treatedInPass,
+      rows.length,
+    );
   }
 
   // Pass 2 is separate from metric interpretation: the model extracts only
   // catalogued atomic figures, then deterministic code applies approved formulas.
-  if (pending.length && deps.research.extractStats) {
+  if (!timedOut && pending.length && deps.research.extractStats) {
     const player = side === "p1" ? match.player1_name : match.player2_name;
     const run = await deps.getLatestRun(matchId);
     const cached = (run as unknown as { independent_inputs?: Record<string, unknown> } | null)?.independent_inputs?.[
@@ -1001,6 +1009,7 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
 
   const after = await deps.list("metric_results", runId);
   const done = after.filter((r) => ["COMPLETE", "UNAVAILABLE", "EXCLUDED"].includes(String(r[statusKey]))).length;
+  if (timedOut) return { status: "PARTIAL", done, total: after.length, message: `${done}/${after.length} metrics treated so far for ${side.toUpperCase()}.` };
   return done === after.length
     ? { status: "COMPLETE", done, total: after.length }
     : { status: "BLOCKED", done, total: after.length, errorCode: "METRIC_EXECUTION_INCOMPLETE", message: `${after.length - done} metrics still untreated for ${side.toUpperCase()}.` };
@@ -1023,7 +1032,10 @@ async function executeRules(deps: PipelineDeps, matchId: string, runId: string, 
   const defByCode = new Map(defs.map((d) => [d.rule_code, d]));
 
   const pending = rows.filter((r) => !["COMPLETE", "UNAVAILABLE", "EXCLUDED"].includes(String(r["status"])));
+  let ruleTimedOut = false;
+  let ruleDoneInPass = 0;
   for (let i = 0; i < pending.length; i += RULE_BATCH) {
+    if (Date.now() > ctx.deadline) { ruleTimedOut = true; break; }
     const batch = pending.slice(i, i + RULE_BATCH);
     let findings: RuleFinding[] = [];
     let providerError: string | null = null;
