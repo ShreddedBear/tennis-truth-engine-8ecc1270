@@ -33,7 +33,34 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async getConflicts(runId){const{data}=await db.from("source_conflicts").select("critical, resolution_status").eq("audit_run_id",runId);return(data??[])as never;},
     async getReconstructions(runId){const{data}=await db.from("reconstruction_results").select("status").eq("audit_run_id",runId);return(data??[])as never;},
     async saveCoverage(runId,rows){const mapped=rows.map(row=>({audit_run_id:row["audit_run_id"]??runId,player_side:row["player_side"],direct_count:row["direct_count"]??row["direct"]??0,reconstructed_count:row["reconstructed_count"]??row["reconstructed"]??0,partial_count:row["partial_count"]??row["partial"]??0,unavailable_count:row["unavailable_count"]??row["unavailable"]??0,excluded_count:row["excluded_count"]??row["excluded"]??0,total_count:row["total_count"]??row["total"]??0,usable_coverage_percent:row["usable_coverage_percent"]??row["usablePercent"]??0,execution_completion_percent:row["execution_completion_percent"]??row["executionPercent"]??0,recorded_at:row["recorded_at"]??new Date().toISOString(),user_id}));const{error}=await db.from("audit_coverage").upsert(mapped as never,{onConflict:"audit_run_id,player_side"});if(error)throw new Error(`Database write failed (audit_coverage): ${error.message}`);},
-    async saveCoverageRates(runId, rows) { const registryRows=[...new Map(rows.map(row=>[String(row["metric_code"]),{metric_code:String(row["metric_code"]),metric_name:String(row["metric_name"]??row["metric_code"]),lifecycle_status:"ACTIVE",tour_eligibility:[]}])).values()]; const{error:registryError}=await db.from("metric_registry").upsert(registryRows as never,{onConflict:"metric_code"});if(registryError)throw new Error(`Database write failed (metric_registry): ${registryError.message}`); const now=new Date().toISOString(); const coverageRows=rows.map(row=>({metric_code:row["metric_code"],player_side:row["player_side"],treatment:row["treatment"],usable:row["usable"],recorded_at:row["recorded_at"]??now,audit_run_id:runId,user_id})); const{error}=await db.from("metric_coverage_rates").upsert(coverageRows as never,{onConflict:"metric_code,player_side,audit_run_id"});if(error)throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`); },
+    async saveCoverageRates(runId, rows) {
+      // finalGate historically passed aggregate P1/P2 coverage rows here. This
+      // table is per metric, so derive the authoritative rows from metric_results
+      // whenever the caller does not provide a real metric_code. Never write a
+      // NULL/synthetic metric code just to satisfy the constraint.
+      let sourceRows = rows.filter(row => typeof row["metric_code"] === "string" && String(row["metric_code"]).trim() !== "");
+      if (!sourceRows.length) {
+        const { data: metrics, error: metricError } = await db.from("metric_results").select("metric_code, metric_name, p1_treatment, p2_treatment").eq("audit_run_id", runId);
+        if (metricError) throw new Error(`Database read failed (metric_results coverage): ${metricError.message}`);
+        const usable = (t: unknown) => ["DIRECT","RECONSTRUCTED","PARTIAL"].includes(String(t ?? ""));
+        sourceRows = (metrics ?? []).flatMap(metric => {
+          const code = String(metric.metric_code ?? "").trim();
+          if (!code) return [];
+          return [
+            { metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P1", treatment: metric.p1_treatment ?? "UNAVAILABLE", usable: usable(metric.p1_treatment) },
+            { metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P2", treatment: metric.p2_treatment ?? "UNAVAILABLE", usable: usable(metric.p2_treatment) },
+          ];
+        });
+      }
+      if (!sourceRows.length) return;
+      const registryRows=[...new Map(sourceRows.map(row=>[String(row["metric_code"]),{metric_code:String(row["metric_code"]),metric_name:String(row["metric_name"]??row["metric_code"]),lifecycle_status:"ACTIVE",tour_eligibility:[]}])).values()];
+      const{error:registryError}=await db.from("metric_registry").upsert(registryRows as never,{onConflict:"metric_code"});
+      if(registryError)throw new Error(`Database write failed (metric_registry): ${registryError.message}`);
+      const now=new Date().toISOString();
+      const coverageRows=sourceRows.map(row=>({metric_code:String(row["metric_code"]),player_side:row["player_side"],treatment:row["treatment"]??"UNAVAILABLE",usable:Boolean(row["usable"]),recorded_at:row["recorded_at"]??now,audit_run_id:runId,user_id}));
+      const{error}=await db.from("metric_coverage_rates").upsert(coverageRows as never,{onConflict:"metric_code,player_side,audit_run_id"});
+      if(error)throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`);
+    },
     async log(entry){await db.from("execution_logs").insert({user_id,audit_run_id:(entry["audit_run_id"]as string)??null,match_id:(entry["match_id"]as string)??null,stage:String(entry["stage"]),status:String(entry["status"]),output:(entry["output"]??null)as never,matrix_visible:Boolean(entry["matrix_visible"])}as never);},
   };
 }
