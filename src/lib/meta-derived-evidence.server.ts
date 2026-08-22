@@ -105,8 +105,11 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
   const rows = await deps.list("metric_results", runId);
   const base = rows.filter((row) => !META_SET.has(codeOf(row)) && row["matrix_derived"] !== true);
   const targets = new Map(rows.map((row) => [codeOf(row), row]));
-  const p1 = valuesFor(sideStats(base, "p1"), base.length);
-  const p2 = valuesFor(sideStats(base, "p2"), base.length);
+  const p1Stats = sideStats(base, "p1");
+  const p2Stats = sideStats(base, "p2");
+  const p1 = valuesFor(p1Stats, base.length);
+  const p2 = valuesFor(p2Stats, base.length);
+  const combinedSources = uniqueSources([...p1Stats.usable, ...p2Stats.usable]);
   let changed = false;
 
   for (const code of META_CODES) {
@@ -122,9 +125,9 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
     if (same) continue;
 
     const now = deps.now().toISOString();
-    const sources = uniqueSources([...p1[code].value ? sideStats(base, "p1").usable : [], ...p2[code].value ? sideStats(base, "p2").usable : []]);
     const partial = a.treatment === "PARTIAL" || b.treatment === "PARTIAL";
     const missing = [...new Set([...a.missing, ...b.missing])];
+    const reliabilityValues = [a.reliability, b.reliability].filter((x): x is number => x !== null);
     await deps.update("metric_results", String(row["id"]), {
       p1_value: a.value,
       p2_value: b.value,
@@ -134,18 +137,18 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
       p2_status: b.treatment === "UNAVAILABLE" ? "UNAVAILABLE" : "COMPLETE",
       status: a.treatment === "UNAVAILABLE" && b.treatment === "UNAVAILABLE" ? "UNAVAILABLE" : "COMPLETE",
       evidence_family: null,
-      reliability: Math.min(...[a.reliability, b.reliability].filter((x): x is number => x !== null), 100),
+      reliability: reliabilityValues.length ? Math.min(...reliabilityValues) : null,
       sample: String(base.length),
-      sources,
-      source_attempts: sources,
+      sources: combinedSources,
+      source_attempts: combinedSources,
       reconstruction_attempted: true,
       reconstruction_reason: "Deterministically derived from persisted pre-Matrix metric treatments, sources, samples and reliability metadata.",
       reconstruction_result: `P1: ${a.value ?? "UNAVAILABLE"} | P2: ${b.value ?? "UNAVAILABLE"}`,
       retrieved_at: now,
       p1_retrieved_at: now,
       p2_retrieved_at: now,
-      p1_unavailable_reason: a.treatment === "UNAVAILABLE" ? "MISSING_REQUIRED_INPUT" : a.treatment === "PARTIAL" ? "MISSING_REQUIRED_INPUT" : null,
-      p2_unavailable_reason: b.treatment === "UNAVAILABLE" ? "MISSING_REQUIRED_INPUT" : b.treatment === "PARTIAL" ? "MISSING_REQUIRED_INPUT" : null,
+      p1_unavailable_reason: a.treatment === "UNAVAILABLE" || a.treatment === "PARTIAL" ? "MISSING_REQUIRED_INPUT" : null,
+      p2_unavailable_reason: b.treatment === "UNAVAILABLE" || b.treatment === "PARTIAL" ? "MISSING_REQUIRED_INPUT" : null,
       unavailable_reason: partial || a.treatment === "UNAVAILABLE" || b.treatment === "UNAVAILABLE" ? "MISSING_REQUIRED_INPUT" : null,
       unavailable_detail: missing.length ? `Meta-derived coverage is intentionally partial; missing ${missing.join("; ")}.` : null,
       missing_inputs: missing,
