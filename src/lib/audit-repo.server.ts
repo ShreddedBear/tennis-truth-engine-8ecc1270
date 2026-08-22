@@ -1,7 +1,7 @@
 // Supabase-backed implementation of the audit pipeline data contract.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LOCAL_WORKSPACE_ID } from "./constants";
-import { aiResearcher } from "./audit-research.server";
+import { hybridResearcher } from "./hybrid-audit-research.server";
 import { STAGES, type ChildTable, type PipelineDeps, type RunRow, type Stage } from "./audit-pipeline";
 
 const OWNER = LOCAL_WORKSPACE_ID;
@@ -16,7 +16,7 @@ export async function makeDeps(): Promise<PipelineDeps> {
 
   return {
     now: () => new Date(),
-    research: aiResearcher,
+    research: hybridResearcher,
 
     async getMatch(matchId) {
       const { data } = await db.from("matches").select("*").eq("id", matchId).maybeSingle();
