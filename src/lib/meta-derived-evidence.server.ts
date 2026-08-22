@@ -2,6 +2,7 @@ import type { PipelineDeps, SourceRef, Treatment } from "./audit-pipeline";
 
 const META_CODES = ["048", "049", "056", "057"] as const;
 const META_SET = new Set<string>(META_CODES);
+const STRESS_META_CODES = ["050", "058"] as const;
 const USABLE = new Set<Treatment>(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 
 function codeOf(row: Record<string, unknown>) {
@@ -113,7 +114,7 @@ function valuesFor(stats: ReturnType<typeof sideStats>, total: number): Record<(
  */
 export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: string) {
   const rows = await deps.list("metric_results", runId);
-  const base = rows.filter((row) => !META_SET.has(codeOf(row)) && row["matrix_derived"] !== true);
+  const base = rows.filter((row) => !META_SET.has(codeOf(row)) && !STRESS_META_CODES.includes(codeOf(row) as (typeof STRESS_META_CODES)[number]) && row["matrix_derived"] !== true);
   const targets = new Map(rows.map((row) => [codeOf(row), row]));
   const p1Stats = sideStats(base, "p1");
   const p2Stats = sideStats(base, "p2");
@@ -170,5 +171,70 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
   // Correct the run-level independent evidence count using only explicit
   // non-placeholder evidence families. META_DERIVED rows never contribute.
   await deps.updateRun(runId, { effective_evidence_count: matchFamilies.size });
+  return changed;
+}
+
+/**
+ * 050 and 058 are match-level robustness/scenario families. They are populated
+ * only from stress tests that actually completed. The same match-level summary
+ * appears on both player sides, and remains PARTIAL because the stored test set
+ * does not represent every possible perturbation in the broad master metrics.
+ */
+export async function applySafeStressDerivedMetrics(deps: PipelineDeps, runId: string) {
+  const [metrics, stress] = await Promise.all([deps.list("metric_results", runId), deps.list("stress_results", runId)]);
+  const completed = stress.filter((row) => String(row["status"]) === "COMPLETE");
+  const targets = new Map(metrics.map((row) => [codeOf(row), row]));
+  if (!completed.length) {
+    let changed = false;
+    for (const code of STRESS_META_CODES) {
+      const row = targets.get(code); if (!row) continue;
+      if (String(row["p1_treatment"] ?? "") === "UNAVAILABLE" && String(row["p2_treatment"] ?? "") === "UNAVAILABLE" && row["p1_value"] == null && row["p2_value"] == null && row["evidence_family"] === null) continue;
+      await deps.update("metric_results", String(row["id"]), {
+        p1_value: null, p2_value: null, p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE",
+        p1_status: "UNAVAILABLE", p2_status: "UNAVAILABLE", status: "UNAVAILABLE", evidence_family: null,
+        reliability: null, sample: "0", sources: [], source_attempts: [], reconstruction_attempted: true,
+        reconstruction_reason: "No completed stress/removal result was available to support this meta-derived family.",
+        reconstruction_result: null, unavailable_reason: "MISSING_REQUIRED_INPUT", p1_unavailable_reason: "MISSING_REQUIRED_INPUT",
+        p2_unavailable_reason: "MISSING_REQUIRED_INPUT", unavailable_detail: "No completed stress/removal results.",
+        missing_inputs: ["completed stress/removal tests"], retrieved_at: deps.now().toISOString(),
+      });
+      changed = true;
+    }
+    return changed;
+  }
+
+  const countOutcome = (name: string) => completed.filter((row) => String(row["outcome"] ?? "").toUpperCase() === name).length;
+  const stable = countOutcome("STABLE"), mostly = countOutcome("MOSTLY STABLE"), unstable = countOutcome("UNSTABLE"), fails = countOutcome("FAILS");
+  const matrixRemoval = completed.filter((row) => ["ST01", "ST02"].includes(String(row["test_code"])));
+  const matrixRemovalSurvived = matrixRemoval.length === 2 && matrixRemoval.every((row) => ["STABLE", "MOSTLY STABLE"].includes(String(row["outcome"])));
+  const familyRemoval = completed.find((row) => String(row["test_code"]) === "ST03");
+  const familyRemovalSurvived = !!familyRemoval && String(familyRemoval["outcome"]) !== "FAILS";
+  const stableRate = completed.length ? (100 * (stable + mostly)) / completed.length : 0;
+  const sources = uniqueSources(completed);
+  const summary050 = `completed_tests=${completed.length}/${stress.length}; stable=${stable}; mostly_stable=${mostly}; unstable=${unstable}; fails=${fails}; matrix_removal_survived=${matrixRemovalSurvived}; strongest_family_removal_survived=${familyRemovalSurvived}`;
+  const summary058 = `scenario_tests_completed=${completed.length}/${stress.length}; stable_or_mostly_pct=${stableRate.toFixed(1)}; stable=${stable}; mostly_stable=${mostly}; unstable=${unstable}; fails=${fails}`;
+  const summaries: Record<(typeof STRESS_META_CODES)[number], string> = { "050": summary050, "058": summary058 };
+  let changed = false;
+
+  for (const code of STRESS_META_CODES) {
+    const row = targets.get(code); if (!row) continue;
+    const value = summaries[code];
+    const same = row["p1_value"] === value && row["p2_value"] === value && String(row["p1_treatment"]) === "PARTIAL" && String(row["p2_treatment"]) === "PARTIAL" && row["evidence_family"] === null;
+    if (same) continue;
+    const now = deps.now().toISOString();
+    const missing = code === "050"
+      ? ["full leave-one-input-out and parameter perturbation universe beyond the persisted stress suite"]
+      : ["full probability-distribution sensitivity and every scenario defined by the broad metric family"];
+    await deps.update("metric_results", String(row["id"]), {
+      p1_value: value, p2_value: value, p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+      p1_status: "COMPLETE", p2_status: "COMPLETE", status: "COMPLETE", evidence_family: null,
+      reliability: 80, sample: String(completed.length), sources, source_attempts: sources, reconstruction_attempted: true,
+      reconstruction_reason: "Deterministically summarized from persisted completed Stress / Removal Test outcomes.",
+      reconstruction_result: value, retrieved_at: now, p1_retrieved_at: now, p2_retrieved_at: now,
+      unavailable_reason: "MISSING_REQUIRED_INPUT", p1_unavailable_reason: "MISSING_REQUIRED_INPUT", p2_unavailable_reason: "MISSING_REQUIRED_INPUT",
+      unavailable_detail: `Partial robustness coverage; missing ${missing.join("; ")}.`, missing_inputs: missing,
+    });
+    changed = true;
+  }
   return changed;
 }
