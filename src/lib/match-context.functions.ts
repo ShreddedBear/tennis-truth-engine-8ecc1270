@@ -6,8 +6,9 @@
 import { createServerFn } from "@tanstack/react-start";
 
 const KEYS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"] as const;
-const ONLINE_ENRICHMENT_BUDGET_MS = 2500;
+const ONLINE_ENRICHMENT_BUDGET_MS = 4000;
 type Fields = Record<string, string | null>;
+type Tour = "ATP" | "WTA";
 
 function norm(v:string|null|undefined){return String(v??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
 function nameTokens(v:string){return norm(v).split(" ").filter(Boolean);}
@@ -36,6 +37,24 @@ function mergePreferVerified(base:Fields,extra:Fields):Fields{
   return out;
 }
 function missing(fields:Fields){return KEYS.filter(key=>!fields[key]||suspicious(key,fields[key]));}
+function tourFromLevel(level:string|null|undefined):Tour|null{
+  const n=norm(level);
+  if(!n)return null;
+  if(/\bwta\b/.test(n))return"WTA";
+  if(/\batp\b|masters 1000|challenger/.test(n))return"ATP";
+  return null;
+}
+function playerTourFromHistory(rows:Array<{player1_name:string;player2_name:string;event_level:string|null}>,player:string):Tour|null{
+  const tours=new Set<Tour>();
+  for(const row of rows){if(!samePlayer(player,row.player1_name)&&!samePlayer(player,row.player2_name))continue;const tour=tourFromLevel(row.event_level);if(tour)tours.add(tour);}
+  return tours.size===1?[...tours][0]!:null;
+}
+function deterministicEventLevel(tournament:string|null|undefined,tour:Tour|null):string|null{
+  if(!tour)return null;
+  const n=norm(tournament);
+  if(/cincinnati/.test(n))return tour==="WTA"?"WTA 1000":"Masters 1000";
+  return null;
+}
 
 async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{fields:Fields;sources:string[]}> {
   try {
@@ -43,25 +62,34 @@ async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{field
     const { data } = await supabaseAdmin.from("matches")
       .select("player1_name,player2_name,tournament_name,event_level,round,scheduled_date,surface,best_of,updated_at")
       .order("updated_at",{ascending:false})
-      .limit(500);
-    const pairRows=(data??[]).filter(r=>samePair(p1,p2,r.player1_name,r.player2_name));
-    if(!pairRows.length)return{fields:{},sources:[]};
+      .limit(1000);
+    const rows=(data??[]) as Array<{player1_name:string;player2_name:string;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;best_of:number|null;updated_at:string|null}>;
+    const pairRows=rows.filter(r=>samePair(p1,p2,r.player1_name,r.player2_name));
     const tournamentHint=hints.tournament;
     const contextual=pairRows.filter(r=>compatible(r.tournament_name,tournamentHint));
     const pool=contextual.length?contextual:pairRows;
-    const best=pool[0];
-    if(!best)return{fields:{},sources:[]};
-    return {
-      fields:{
-        tournament:best.tournament_name??null,
-        event_level:best.event_level??null,
-        round:best.round??null,
-        scheduled_date:best.scheduled_date??null,
-        surface:best.surface??null,
-        best_of:best.best_of===null||best.best_of===undefined?null:String(best.best_of),
-      },
-      sources:["Persisted exact player-pair match context"],
+    const best=pool[0]??null;
+
+    // An exact prior pair is strongest. If no exact pair exists, player history
+    // may still independently establish that BOTH players belong to the same tour.
+    // That is enough to derive event level for tournaments whose ATP/WTA level is fixed.
+    const p1Tour=playerTourFromHistory(rows,p1),p2Tour=playerTourFromHistory(rows,p2);
+    const historyTour:Tour|null=p1Tour&&p2Tour&&p1Tour===p2Tour?p1Tour:null;
+    const tournament=best?.tournament_name??tournamentHint??null;
+    const derivedLevel=deterministicEventLevel(tournament,historyTour);
+
+    const fields:Fields={
+      tournament:best?.tournament_name??null,
+      event_level:best?.event_level??derivedLevel,
+      round:best?.round??null,
+      scheduled_date:best?.scheduled_date??null,
+      surface:best?.surface??null,
+      best_of:best?.best_of===null||best?.best_of===undefined?null:String(best.best_of),
     };
+    const sources:string[]=[];
+    if(best)sources.push("Persisted exact player-pair match context");
+    if(derivedLevel&&!best?.event_level)sources.push("Persisted player-tour history + deterministic tournament level");
+    return{fields,sources};
   } catch {
     return{fields:{},sources:[]};
   }
