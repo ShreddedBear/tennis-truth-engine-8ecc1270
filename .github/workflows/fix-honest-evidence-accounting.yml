@@ -1,0 +1,105 @@
+name: Fix Honest Evidence Accounting
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-honest-evidence-accounting.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch evidence accounting and deterministic historical routing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # 1) Fix gate accounting: processed metrics are determined from both side
+          # statuses; PARTIAL is usable; evidence families require processed sides
+          # plus at least one actually usable treatment.
+          p = Path('src/lib/audit-engine.ts')
+          s = p.read_text()
+          old = '''  const metrics = pair(input.metrics);'''
+          new = '''  const metrics: CountPair = {
+    done: input.metrics.filter((m) => DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status)).length,
+    total: input.metrics.length,
+  };'''
+          if old not in s:
+              raise SystemExit('audit-engine metrics accounting target not found')
+          s = s.replace(old, new, 1)
+
+          old = '''  const usable = count("DIRECT") + count("RECONSTRUCTED");'''
+          new = '''  const usable = count("DIRECT") + count("RECONSTRUCTED") + count("PARTIAL");'''
+          if old not in s:
+              raise SystemExit('audit-engine coverage target not found')
+          s = s.replace(old, new, 1)
+
+          old = '''  input.metrics.forEach((m) => {
+    if (m.matrix_derived) return;
+    if (m.status !== "COMPLETE") return;
+    if (m.evidence_family) families.add(m.evidence_family);
+  });'''
+          new = '''  input.metrics.forEach((m) => {
+    if (m.matrix_derived) return;
+    const processed = DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status);
+    if (!processed) return;
+    const usableTreatment = (t: string | null | undefined) => ["DIRECT", "RECONSTRUCTED", "PARTIAL"].includes(String(t ?? ""));
+    if (!usableTreatment(m.p1_treatment) && !usableTreatment(m.p2_treatment)) return;
+    if (m.evidence_family) families.add(m.evidence_family);
+  });'''
+          if old not in s:
+              raise SystemExit('audit-engine family accounting target not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          # 2) Route deterministic historical statistics only to semantically
+          # compatible metric families. Never synthesize unavailable inputs.
+          p = Path('src/lib/completion-sweep-research.server.ts')
+          s = p.read_text()
+          old = '''  "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
+  "015":["same_tournament_matches","same_tournament_win_pct","same_round_matches","same_round_win_pct","same_level_matches","same_level_win_pct"],
+};'''
+          new = '''  "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
+  "020":["same_level_matches","same_level_win_pct"],
+  "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
+  "030":["same_tournament_matches","same_tournament_win_pct"],
+};'''
+          if old not in s:
+              raise SystemExit('historical mapping target not found')
+          s = s.replace(old, new, 1)
+
+          # The previous style fallback was incorrectly attached to code 018,
+          # which is Momentum & Closing Metrics. Remove that injection rather
+          # than counting semantically unrelated style evidence.
+          old = '''      byCode.set(key,prefer(byCode.get(key),styleFinding(input,metric))!);'''
+          new = '''      // Do not attach style evidence to an unrelated metric code. Style-specific
+      // evidence remains available to the dedicated pathway/research layers.'''
+          if old not in s:
+              raise SystemExit('style fallback call target not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Build
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bun install
+          bun run build
+      - name: Commit fixes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/audit-engine.ts src/lib/completion-sweep-research.server.ts
+          if git diff --cached --quiet; then
+            echo 'No change needed'
+            exit 0
+          fi
+          git commit -m 'Fix honest execution and evidence accounting'
+          git push
