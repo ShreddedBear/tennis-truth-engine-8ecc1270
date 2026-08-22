@@ -150,7 +150,7 @@ const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
     {name:"break opportunities trend",terms:["break opportunities trend","break points generated trend"]},
     {name:"hold vulnerability trend",terms:["hold vulnerability trend","danger score trend","service game danger"]},
     {name:"double-fault trend",terms:["double fault trend"]},
-    {name:"match duration trend",terms:["match duration trend","duration trend"]},
+    {name:"match duration trend",terms:["match duration trend"]},
     {name:"three-set dependency trend",terms:["three set dependency trend","three set trend","go the distance"]},
   ],
 };
