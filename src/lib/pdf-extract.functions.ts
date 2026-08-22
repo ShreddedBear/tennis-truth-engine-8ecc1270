@@ -15,6 +15,57 @@ export interface AiMatchup {
   other_fields: Record<string, string> | null;
 }
 
+export interface ServerExtractedPdf {
+  pages: string[];
+  text: string;
+}
+
+/**
+ * Extract embedded PDF text on the server, never in the browser.
+ * This deliberately keeps PDF.js out of iOS/Safari, where the browser-side
+ * runtime has produced opaque WebKit errors such as "undefined is not a function".
+ * Image-only PDFs return empty page text and continue to the existing OCR path.
+ */
+export const extractPdfTextServer = createServerFn({ method: "POST" })
+  .inputValidator((data: { filename: string; base64: string }) => {
+    if (!data?.base64) throw new Error("No PDF data supplied");
+    return data;
+  })
+  .handler(async ({ data }): Promise<ServerExtractedPdf> => {
+    try {
+      const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+      const bytes = new Uint8Array(Buffer.from(data.base64, "base64"));
+      const doc = await pdfjs.getDocument({ data: bytes }).promise;
+      const pages: string[] = [];
+
+      for (let i = 1; i <= doc.numPages; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
+        const items = content.items as Array<{ str?: string; transform?: number[] }>;
+        let lastY: number | null = null;
+        let line = "";
+        const lines: string[] = [];
+
+        for (const item of items) {
+          const y = item.transform?.[5] ?? null;
+          if (lastY !== null && y !== null && Math.abs(y - lastY) > 2) {
+            if (line.trim()) lines.push(line.trim());
+            line = "";
+          }
+          line += `${item.str ?? ""} `;
+          lastY = y;
+        }
+        if (line.trim()) lines.push(line.trim());
+        pages.push(lines.join("\n"));
+      }
+
+      return { pages, text: pages.join("\n\f\n") };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Server PDF text extraction failed for ${data.filename || "uploaded PDF"}: ${message}`);
+    }
+  });
+
 const PROMPT = `This PDF contains tennis match summaries or screenshots (one or more matchups per page).
 Read EVERY page, including pages that are only images/screenshots.
 Return strict JSON: {"matchups":[{"page_number":1,"player1_name":"","player2_name":"","tournament":null,"event_level":null,"round":null,"scheduled_date":null,"surface":null,"best_of":null,"matrix_predicted_winner":null,"matrix_wp":null,"other_fields":{}}]}
