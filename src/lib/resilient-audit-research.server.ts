@@ -6,52 +6,59 @@ function providerFailure(error: unknown) {
   return /402|credit|quota|429|rate limit|timeout|provider|api key|auth|fetch|not configured|all research providers failed/.test(m);
 }
 
-function availableMetricCount(evidence: Parameters<Researcher["rules"]>[0]["evidence"]) {
-  return evidence.metrics.filter((m) => m.p1 !== null || m.p2 !== null).length;
+function usableMetrics(evidence: Parameters<Researcher["rules"]>[0]["evidence"]) {
+  return evidence.metrics.filter((m) => m.p1 !== null || m.p2 !== null);
 }
 
+/**
+ * A provider outage must never turn partial metric availability into PASS.
+ * Rules that require semantic/falsification reasoning stay explicitly unavailable
+ * unless the real rule researcher executes them. This preserves honest coverage.
+ */
 function localRules(input: Parameters<Researcher["rules"]>[0]): RuleFinding[] {
-  const usable = availableMetricCount(input.evidence);
+  const usable = usableMetrics(input.evidence);
   return input.rules.map((rule) => ({
     rule_code: rule.code,
-    p1_finding: usable ? `Executed from ${usable} independently sourced/reconstructed metric families.` : null,
-    p2_finding: usable ? `Executed from ${usable} independently sourced/reconstructed metric families.` : null,
-    outcome: usable ? "PASS" : "UNAVAILABLE",
+    p1_finding: null,
+    p2_finding: null,
+    outcome: "UNAVAILABLE",
     severity: rule.severity === "CRITICAL" ? "CRITICAL" : "STANDARD",
-    decision_effect: usable ? "No provider-only assertion added; rule evaluated only from stored independent evidence." : null,
+    decision_effect: null,
     contradiction_severity: "NONE",
-    supporting_evidence: usable ? input.evidence.metrics.filter((m) => m.p1 !== null || m.p2 !== null).slice(0, 8).map((m) => `${m.code}: P1 ${m.p1 ?? "—"} | P2 ${m.p2 ?? "—"}`).join("; ") : null,
+    supporting_evidence: usable.length ? `Independent evidence preserved (${usable.length} usable metric rows), but this rule was not semantically executed.` : null,
     opposing_evidence: null,
-    final_effect: usable ? "LOCAL_EVIDENCE_EXECUTED" : null,
-    unavailable_reason: usable ? null : "MISSING_REQUIRED_INPUT",
-    missing_inputs: usable ? [] : ["independent metric evidence"],
+    final_effect: null,
+    unavailable_reason: "RESEARCH_PROVIDER_UNAVAILABLE",
+    missing_inputs: ["semantic rule execution"],
     sources: [],
   }));
 }
 
+/** No invented WEAK classification: an unexecuted pathway is unresolved. */
 function localUnderdog(input: Parameters<Researcher["underdog"]>[0]): UnderdogFinding[] {
   const usable = input.evidence.metrics.filter((m) => m.p1 !== null || m.p2 !== null);
   return input.pathways.map((p) => ({
     pathway_code: p.code,
     player_side: input.player_side,
-    classification: usable.length ? "WEAK" : "UNRESOLVED",
-    evidence: usable.length ? `Provider unavailable; pathway checked against ${usable.length} stored independent metric families with no unsupported upgrade to REALISTIC/STRONG.` : null,
+    classification: "UNRESOLVED",
+    evidence: usable.length ? `${usable.length} independent metric rows were preserved, but pathway-specific reasoning was not executed.` : null,
     repeatable: false,
-    unavailable_reason: usable.length ? null : "MISSING_REQUIRED_INPUT",
-    missing_inputs: usable.length ? [] : ["independent metric evidence"],
+    unavailable_reason: "RESEARCH_PROVIDER_UNAVAILABLE",
+    missing_inputs: ["pathway-specific semantic execution"],
     sources: [],
   }));
 }
 
+/** Stress tests cannot be called stable merely because an earlier winner exists. */
 function localStress(input: Parameters<Researcher["stress"]>[0]): StressFinding[] {
   return input.tests.map((t) => ({
     test_code: t.code,
-    winner_after: input.conclusion.winner,
-    range_after: input.conclusion.low !== null && input.conclusion.high !== null ? `${input.conclusion.low}-${input.conclusion.high}` : null,
-    outcome: input.conclusion.winner ? "MOSTLY STABLE" : "UNSTABLE",
-    note: "Provider-independent fallback: preserved only the committed independent evidence conclusion; no synthetic evidence introduced.",
-    unavailable_reason: input.conclusion.winner ? null : "MISSING_REQUIRED_INPUT",
-    missing_inputs: input.conclusion.winner ? [] : ["independent conclusion"],
+    winner_after: null,
+    range_after: null,
+    outcome: "UNAVAILABLE",
+    note: "Stress test not executed because the semantic research provider was unavailable; no stability result was fabricated.",
+    unavailable_reason: "RESEARCH_PROVIDER_UNAVAILABLE",
+    missing_inputs: ["stress-test execution"],
     sources: [],
   }));
 }
@@ -59,9 +66,13 @@ function localStress(input: Parameters<Researcher["stress"]>[0]): StressFinding[
 function localConclusion(input: Parameters<Researcher["conclusion"]>[0]): ConclusionFinding {
   const metrics = input.evidence.metrics.filter((m) => m.p1 !== null && m.p2 !== null);
   if (!metrics.length) return { winner: null, low: null, high: null, rationale: null, insufficient_reason: "No symmetric independent metric evidence was available." };
-  // Do not fabricate a numeric winner from unparsed text. A provider outage must
-  // reduce confidence, not invent a pick. The audit can still complete honestly.
-  return { winner: null, low: null, high: null, rationale: `Provider unavailable; ${metrics.length} symmetric independent metric families were preserved for audit evidence.`, insufficient_reason: "Automated conclusion unavailable without a trustworthy deterministic scorer." };
+  return {
+    winner: null,
+    low: null,
+    high: null,
+    rationale: `${metrics.length} symmetric independent metric rows were preserved, but no deterministic conclusion scorer is available for provider-outage mode.`,
+    insufficient_reason: "RESEARCH_PROVIDER_UNAVAILABLE",
+  };
 }
 
 export const resilientResearcher: Researcher = {
