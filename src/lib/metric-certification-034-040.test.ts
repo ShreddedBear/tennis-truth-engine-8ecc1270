@@ -11,14 +11,14 @@ const MASTER_MARKERS: Record<string, string[]> = {
   "034": ["34. Scoreline Deception Index","Scoreline vs Point Dominance","Scoreline vs Expected Games","Scoreline vs Break Opportunities","Scoreline vs Dominance Ratio","Clutch-Performance Dependency"],
   "036": ["36. Loss Autopsy Metrics","Loss Favorite Status","Loss Opponent Quality","Loss Surface","Loss Point Differential","Loss Break Differential","Loss Serve Deterioration","Loss Return Deterioration","Lost After Leading","Lost Set 1","Loss in Deciding Set","Loss in Tiebreak","Loss Physical Problem","Loss Match Length","Competitive vs Blowout Loss","Bad-Loss Severity Index"],
   "038": ["38. Opponent-Adjusted Residual Performance","Hold Residual vs Opponent Norm","Break Residual vs Opponent Norm","Total-Points Residual vs Opponent Norm","Games Residual vs Opponent Norm","Sets Residual vs Opponent Norm","Dominance-Ratio Residual vs Opponent Norm","Serve-Points Residual vs Opponent Norm","Return-Points Residual vs Opponent Norm"],
-  "039": ["39. Performance Surprise Rating","Match-Level Performance Surprise","Rolling Performance Surprise (Last 10)","pre-match","expected performance, calculated per match"],
+  "039": ["39. Performance Surprise Rating","Match-Level Performance Surprise","Rolling Performance Surprise (Last 10)","pre-match expected performance, calculated per match"],
   "040": ["40. Hidden Decline Detector","Serve Velocity Trend","Ace Rate Trend","First-Serve Points Won Trend","Second-Serve Points Won Trend","Return Points Won Trend","Break Opportunities Trend","Hold Vulnerability Trend","Double-Fault Trend","Match Duration Trend","Three-Set Dependency Trend"],
 };
 
 describe("sequential certification guardrails for 034/036/038/039/040", () => {
   it("pins every authoritative master component", () => {
-    const master = readFileSync("public/seed/metrics.txt", "utf8");
-    for (const [code, markers] of Object.entries(MASTER_MARKERS)) for (const marker of markers) expect(master, `${code} missing master marker: ${marker}`).toContain(marker);
+    const master = readFileSync("public/seed/metrics.txt", "utf8").replace(/\s+/g, " ");
+    for (const [code, markers] of Object.entries(MASTER_MARKERS)) for (const marker of markers) expect(master, `${code} missing master marker: ${marker}`).toContain(marker.replace(/\s+/g, " "));
   });
 
   it("requires the exact raw-input families without evidence inflation", () => {
