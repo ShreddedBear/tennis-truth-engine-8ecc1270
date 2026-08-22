@@ -18,6 +18,10 @@ const groups={
   availability:["availability","injury","withdraw","retire","medical","layoff","days_since_last_match","return_after_layoff"],
   point:["point","game","break_state","score_state","first_break","rebreak","consolidation","serve_out","tiebreak"],
   rally:["rally","shot","forehand","backhand","net","drop_shot","direction","serve_plus_1","return_neutralization"],
+  level:["same_level","tour_level","level_transition","challenger","itf","atp","wta"],
+  environment:["surface","court_speed","indoor","outdoor","temperature","humidity","wind","altitude","roof","weather"],
+  scheduling:["days_since_last_match","matches_last_14","matches_last_28","rest","travel","timezone","same_round","round","qualifying","recovery"],
+  tournament:["same_tournament","tournament_specific","court_speed","venue","environment"],
 };
 function keys(value:string|null){return (value??"").split(/[;=]/).map(x=>norm(x)).filter(Boolean);}
 function containsAny(value:string|null,terms:string[]){const v=norm(value??"");return terms.some(t=>v.includes(norm(t)));}
@@ -29,6 +33,10 @@ function semanticRequirement(name:string,body:string|null):keyof typeof groups|n
   if(/availability|injury|withdrawal|fitness/.test(t))return"availability";
   if(/point by point|score state|point to game/.test(t))return"point";
   if(/shot|rally/.test(t))return"rally";
+  if(/level\/tour transition|tour-level transition|opponent elo differential/.test(t))return"level";
+  if(/surface & environmental context|surface-transition|altitude|court-speed|weather sensitivity|data-source agreement/.test(t))return"environment";
+  if(/scheduling\/context|days since last|travel-to-rest|recovery hours|schedule density|qualifier adaptation/.test(t))return"scheduling";
+  if(/tournament-specific strength|exact tournament|venue familiarity/.test(t))return"tournament";
   return null;
 }
 function validSide(value:string|null,required:keyof typeof groups|null){if(!value)return false;if(!required)return true;return containsAny(value,groups[required]);}
