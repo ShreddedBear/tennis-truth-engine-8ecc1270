@@ -30,14 +30,20 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
         }
       }
       const stressDone = stages.find((s) => s.stage === "STRESS / REMOVAL TESTS")?.status === "COMPLETE";
-      const stressMetaChanged = stressDone ? await applySafeStressDerivedMetrics(deps, runId) : false;
-      const changed = metricMetaChanged || pathwayMetaChanged || stressMetaChanged;
+      let stressMetaChanged = false;
+      let finalAdvancedChanged = false;
+      if (stressDone) {
+        stressMetaChanged = await applySafeStressDerivedMetrics(deps, runId);
+        const { applyFinalAdvancedMetric } = await import("./final-advanced-meta.server");
+        finalAdvancedChanged = await applyFinalAdvancedMetric(deps, runId);
+      }
+      const changed = metricMetaChanged || pathwayMetaChanged || stressMetaChanged || finalAdvancedChanged;
       if (!changed) return { changed: false, reopenedGate: false };
       const finalGate = stages.find((s) => s.stage === "FINAL COMBINATION GATE");
       if (finalGate?.status === "COMPLETE") {
         await deps.setStage(runId, data.matchId, "FINAL COMBINATION GATE", { status: "PENDING", done_count: 0, total_count: 1, error_code: null, error_message: null, finished_at: null });
         await deps.updateRun(runId, { status: "RUNNING" });
-        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation.", metric_meta_changed: metricMetaChanged, pathway_meta_changed: pathwayMetaChanged, stress_meta_changed: stressMetaChanged }, matrix_visible: false });
+        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation.", metric_meta_changed: metricMetaChanged, pathway_meta_changed: pathwayMetaChanged, stress_meta_changed: stressMetaChanged, final_advanced_changed: finalAdvancedChanged }, matrix_visible: false });
         return { changed: true, reopenedGate: true };
       }
       return { changed: true, reopenedGate: false };
