@@ -41,7 +41,7 @@ const rows: Array<[string,string,string,RecoveryClass]> = [
 ["031","Extended Opponent-Network Metrics","shared-opponent network, rankings/Elo, scores, games/sets and opponent strength","RECONSTRUCTABLE"],
 ["032","Point-to-Game Conversion Efficiency","service/return points, games, breaks and deuce/score-state data","SOURCE_REQUIRED"],
 ["033","Break Quality Differential","break-point sequence plus return pressure and opponent-error detail","SPECIALIZED_DATA"],
-["034","Scoreline Deception Index","score, points, expected games, break opportunities and dominance ratio","SOURCE_REQUIRED"],
+["034","Scoreline Deception Index","final scoreline, total points won, expected-games model inputs/output, break opportunities, master Dominance Ratio inputs/output, and point-by-point score-state evidence for clutch dependency","SPECIALIZED_DATA"],
 ["035","False-Form Detector","observed results plus expected performance from underlying statistics","RECONSTRUCTABLE"],
 ["036","Loss Autopsy Metrics","recent loss scores, opponent quality, market status, points/breaks and physical context","SOURCE_REQUIRED"],
 ["037","Win Autopsy Metrics","recent win scores, opponent quality, dominance and retirement context","RECONSTRUCTABLE"],
