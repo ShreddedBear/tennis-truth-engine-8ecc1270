@@ -23,6 +23,15 @@ function uniqueSources(rows: Array<Record<string, unknown>>) {
   return out;
 }
 
+function explicitFamily(row: Record<string, unknown>) {
+  const family = String(row["evidence_family"] ?? "").trim();
+  const defaultName = String(row["metric_name"] ?? "").trim();
+  // Instantiation initially sets evidence_family = metric_name. That is a label,
+  // not proof that the metric is independent. Only count a family after a
+  // researcher/reconstructor has replaced the placeholder with explicit lineage.
+  return family && family !== defaultName ? family : null;
+}
+
 function sideStats(rows: Array<Record<string, unknown>>, side: "p1" | "p2") {
   const treatmentKey = side === "p1" ? "p1_treatment" : "p2_treatment";
   const valueKey = side === "p1" ? "p1_value" : "p2_value";
@@ -32,7 +41,7 @@ function sideStats(rows: Array<Record<string, unknown>>, side: "p1" | "p2") {
     return USABLE.has(treatment) && row[valueKey] !== null && row[valueKey] !== undefined && row[valueKey] !== "";
   });
   const unavailable = rows.filter((row) => String(row[treatmentKey] ?? "") === "UNAVAILABLE").length;
-  const families = usable.map((row) => String(row["evidence_family"] ?? "")).filter(Boolean);
+  const families = usable.map(explicitFamily).filter((x): x is string => !!x);
   const familyCounts = new Map<string, number>();
   for (const family of families) familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
   const maxFamilyCount = Math.max(0, ...familyCounts.values());
@@ -44,9 +53,10 @@ function sideStats(rows: Array<Record<string, unknown>>, side: "p1" | "p2") {
   return {
     usable,
     unavailable,
+    explicitFamilies: new Set(families),
     distinctFamilies: familyCounts.size,
-    repeatedFamilyRows: Math.max(0, usable.length - familyCounts.size),
-    maxFamilyShare: usable.length ? (100 * maxFamilyCount) / usable.length : 0,
+    repeatedFamilyRows: Math.max(0, families.length - familyCounts.size),
+    maxFamilyShare: families.length ? (100 * maxFamilyCount) / families.length : 0,
     avgReliability,
     samplesReported,
     sourceConfirmed,
@@ -71,8 +81,8 @@ function valuesFor(stats: ReturnType<typeof sideStats>, total: number): Record<(
       reliability: 95,
       missing: [],
     },
-    "049": noUsable
-      ? { value: null, treatment: "UNAVAILABLE", reliability: null, missing: ["at least one usable sourced evidence family"] }
+    "049": stats.distinctFamilies === 0
+      ? { value: null, treatment: "UNAVAILABLE", reliability: null, missing: ["at least one explicitly assigned evidence family"] }
       : {
           value: `distinct_families=${stats.distinctFamilies}; max_family_share_pct=${stats.maxFamilyShare.toFixed(1)}; unique_source_refs=${stats.sources.length}; repeated_family_rows=${stats.repeatedFamilyRows}`,
           treatment: "PARTIAL",
@@ -80,7 +90,7 @@ function valuesFor(stats: ReturnType<typeof sideStats>, total: number): Record<(
           missing: ["formal correlation/covariance map between evidence families"],
         },
     "056": {
-      value: `usable=${stats.usable.length}/${total}; unavailable=${stats.unavailable}; source_confirmed=${stats.sourceConfirmed}; sample_reported=${stats.samplesReported}; avg_reliability=${stats.avgReliability === null ? "NA" : stats.avgReliability.toFixed(1)}`,
+      value: `usable=${stats.usable.length}/${total}; unavailable=${stats.unavailable}; source_confirmed=${stats.sourceConfirmed}; sample_reported=${stats.samplesReported}; explicit_families=${stats.distinctFamilies}; avg_reliability=${stats.avgReliability === null ? "NA" : stats.avgReliability.toFixed(1)}`,
       treatment: "PARTIAL",
       reliability: 80,
       missing: ["full source-specific quality audit for every submetric"],
@@ -88,7 +98,7 @@ function valuesFor(stats: ReturnType<typeof sideStats>, total: number): Record<(
     "057": noUsable
       ? { value: null, treatment: "UNAVAILABLE", reliability: null, missing: ["at least one usable sourced metric"] }
       : {
-          value: `source_confirmed=${stats.sourceConfirmed}/${stats.usable.length}; retrieved_timestamp_present=${stats.retrievedPresent}/${stats.usable.length}; evidence_families=${stats.distinctFamilies}; avg_reliability=${stats.avgReliability === null ? "NA" : stats.avgReliability.toFixed(1)}`,
+          value: `source_confirmed=${stats.sourceConfirmed}/${stats.usable.length}; retrieved_timestamp_present=${stats.retrievedPresent}/${stats.usable.length}; explicit_evidence_families=${stats.distinctFamilies}; avg_reliability=${stats.avgReliability === null ? "NA" : stats.avgReliability.toFixed(1)}`,
           treatment: "PARTIAL",
           reliability: 75,
           missing: ["underlying source-event freshness where only retrieval time exists", "complete surface-relevance score for every evidence family"],
@@ -110,6 +120,7 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
   const p1 = valuesFor(p1Stats, base.length);
   const p2 = valuesFor(p2Stats, base.length);
   const combinedSources = uniqueSources([...p1Stats.usable, ...p2Stats.usable]);
+  const matchFamilies = new Set([...p1Stats.explicitFamilies, ...p2Stats.explicitFamilies]);
   let changed = false;
 
   for (const code of META_CODES) {
@@ -142,7 +153,7 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
       sources: combinedSources,
       source_attempts: combinedSources,
       reconstruction_attempted: true,
-      reconstruction_reason: "Deterministically derived from persisted pre-Matrix metric treatments, sources, samples and reliability metadata.",
+      reconstruction_reason: "Deterministically derived from persisted pre-Matrix metric treatments, explicit evidence lineage, sources, samples and reliability metadata.",
       reconstruction_result: `P1: ${a.value ?? "UNAVAILABLE"} | P2: ${b.value ?? "UNAVAILABLE"}`,
       retrieved_at: now,
       p1_retrieved_at: now,
@@ -155,5 +166,9 @@ export async function applySafeMetaDerivedMetrics(deps: PipelineDeps, runId: str
     });
     changed = true;
   }
+
+  // Correct the run-level independent evidence count using only explicit
+  // non-placeholder evidence families. META_DERIVED rows never contribute.
+  await deps.updateRun(runId, { effective_evidence_count: matchFamilies.size });
   return changed;
 }
