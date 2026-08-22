@@ -7,8 +7,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: Test and Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -20,9 +28,8 @@ jobs:
         with:
           bun-version: latest
 
-      # Diagnostic CI: package.json has moved ahead of the checked-in Bun lockfile.
-      # Allow Bun to resolve the existing dependency declarations so the workflow
-      # can reach the actual application build. This does not commit lockfile changes.
+      # package.json can move ahead of the checked-in Bun lockfile during active audit work.
+      # Resolve declared dependencies so CI reaches the regression suite and application build.
       - name: Install dependencies
         run: bun install
 
