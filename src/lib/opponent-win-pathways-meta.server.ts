@@ -19,11 +19,41 @@ function uniqueSources(rows: Array<Record<string, unknown>>) {
   return out;
 }
 
+// Metric 042 has a specific pathway list. Dangerous Underdog contains extra
+// audit-only pathways (market info, style mismatch, surface transition, etc.)
+// that must NOT be imported into this metric.
+const METRIC_042_CODES = new Set([
+  "SERVE_THROUGH",
+  "RETURN_PRESSURE",
+  "TIEBREAK",
+  "LONG_RALLY",
+  "SHORT_RALLY",
+  "FAV_COLLAPSE",
+  "DECIDING_SET",
+  "SECOND_SERVE",
+  "MOVEMENT",
+  "FATIGUE",
+]);
+
+function pathwayFamily(code: string) {
+  if (code === "SERVE_THROUGH") return "SERVE_DOMINANCE";
+  if (code === "RETURN_PRESSURE") return "RETURN_PRESSURE";
+  if (code === "TIEBREAK") return "TIEBREAK";
+  if (code === "LONG_RALLY") return "LONG_RALLY";
+  if (code === "SHORT_RALLY") return "SHORT_RALLY";
+  if (code === "FAV_COLLAPSE") return "FAVORITE_COLLAPSE";
+  if (code === "DECIDING_SET") return "THREE_SET_BATTLE";
+  if (code === "SECOND_SERVE") return "SECOND_SERVE_EXPLOITATION";
+  if (code === "MOVEMENT" || code === "FATIGUE") return "PHYSICAL_ADVANTAGE";
+  return null;
+}
+
 /**
  * Metric 042 asks for opponent win-pathway probabilities. The persisted
  * Dangerous Underdog audit currently stores pathway classifications
  * (WEAK/REALISTIC/STRONG), not calibrated probabilities. We therefore expose
- * the verified pathway structure as PARTIAL and never manufacture a probability.
+ * only the pathway structure that belongs to metric 042 as PARTIAL and never
+ * manufacture a probability.
  *
  * P1's cell describes P1's opponent (player2); P2's cell describes P2's
  * opponent (player1). This explicit naming avoids row-order/P1-P2 cross-wiring.
@@ -41,25 +71,49 @@ export async function applyOpponentWinPathwaysMetric(
   const target = metrics.find((row) => codeOf(row) === "042");
   if (!target) return false;
 
-  const completed = pathways.filter(
-    (row) =>
+  const completed = pathways.filter((row) => {
+    const code = String(row["pathway_code"] ?? "");
+    return (
       String(row["status"] ?? "") === "COMPLETE" &&
-      ["WEAK", "REALISTIC", "STRONG"].includes(String(row["classification"] ?? "")),
-  );
+      METRIC_042_CODES.has(code) &&
+      ["WEAK", "REALISTIC", "STRONG"].includes(String(row["classification"] ?? ""))
+    );
+  });
   if (!completed.length) return false;
 
   const summarizeOpponent = (opponent: string) => {
     const rows = completed.filter((row) => String(row["player_side"] ?? "") === opponent);
     if (!rows.length) return null;
-    return rows
-      .map((row) => `${String(row["pathway_code"] ?? "")}:${String(row["classification"] ?? "")}`)
-      .join("; ");
+
+    const classifications = rows
+      .map((row) => {
+        const code = String(row["pathway_code"] ?? "");
+        const family = pathwayFamily(code);
+        return family ? `${family}:${String(row["classification"] ?? "")}` : null;
+      })
+      .filter((x): x is string => !!x);
+
+    const realisticFamilies = new Set(
+      rows
+        .filter((row) => ["REALISTIC", "STRONG"].includes(String(row["classification"] ?? "")))
+        .map((row) => pathwayFamily(String(row["pathway_code"] ?? "")))
+        .filter((x): x is string => !!x),
+    );
+
+    return {
+      text: classifications.join("; "),
+      realisticCount: realisticFamilies.size,
+    };
   };
 
   const p1Summary = summarizeOpponent(player2);
   const p2Summary = summarizeOpponent(player1);
-  const p1Value = p1Summary ? `opponent=${player2}; pathway_classifications=${p1Summary}` : null;
-  const p2Value = p2Summary ? `opponent=${player1}; pathway_classifications=${p2Summary}` : null;
+  const p1Value = p1Summary
+    ? `opponent=${player2}; pathway_classifications=${p1Summary.text}; realistic_pathways_count=${p1Summary.realisticCount}`
+    : null;
+  const p2Value = p2Summary
+    ? `opponent=${player1}; pathway_classifications=${p2Summary.text}; realistic_pathways_count=${p2Summary.realisticCount}`
+    : null;
   if (!p1Value && !p2Value) return false;
 
   const p1Treatment = p1Value ? "PARTIAL" : "UNAVAILABLE";
@@ -92,7 +146,7 @@ export async function applyOpponentWinPathwaysMetric(
     source_attempts: sources,
     reconstruction_attempted: true,
     reconstruction_reason:
-      "Derived from completed Dangerous Underdog pathway classifications for the opposing player; calibrated pathway probabilities are not stored.",
+      "Derived only from completed Dangerous Underdog classifications that correspond to metric 042's defined pathways. Extra audit-only pathway categories are excluded; calibrated probabilities are not stored.",
     reconstruction_result: `P1: ${p1Value ?? "UNAVAILABLE"} | P2: ${p2Value ?? "UNAVAILABLE"}`,
     retrieved_at: now,
     p1_retrieved_at: now,
@@ -101,8 +155,8 @@ export async function applyOpponentWinPathwaysMetric(
     p2_unavailable_reason: p2Value ? "MISSING_REQUIRED_INPUT" : "NO_SOURCE_FOUND",
     unavailable_reason: "MISSING_REQUIRED_INPUT",
     unavailable_detail:
-      "PARTIAL only: pathway classifications are supported, but metric 042 calls for calibrated opponent-win-pathway probabilities; none are fabricated.",
-    missing_inputs: ["calibrated probability for each opponent win pathway"],
+      "PARTIAL only: pathway classifications and realistic-pathway count are supported, but metric 042 calls for calibrated pathway probabilities; none are fabricated.",
+    missing_inputs: ["calibrated probability for each metric-042 opponent win pathway"],
   });
   return true;
 }
