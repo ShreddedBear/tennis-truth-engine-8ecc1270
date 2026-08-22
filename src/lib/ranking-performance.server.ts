@@ -22,5 +22,6 @@ export function getRankingPerformanceStats(player:string,context:string):Sourced
   add("recent_form_strength_signal",form20!==null&&trend!==null?form20+Math.max(-20,Math.min(20,trend/5)):null,by.get("overall_recent20_win_pct")?.sample??0);
   add("surface_performance_strength_signal",surface52!==null&&cur!==null?surface52+(cur-1500)/50:null,by.get("surface_win_pct_52w")?.sample??0);
   add("favorite_fragility_strength_gap",peak!==null&&cur!==null?peak-cur:null,by.get("career_observed_peak_elo")?.sample??0);
+  add("observed_vs_expected_wl_gap_pct",form20!==null&&comp!==null?form20-comp:null,Math.min(by.get("overall_recent20_win_pct")?.sample??0,by.get("comparable_strength_win_pct")?.sample??0));
   return out;
 }
