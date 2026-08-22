@@ -94,7 +94,7 @@ const SUMMARY_KEYS: Record<string, string[]> = {
   "006": ["recent_opponent_avg_elo","best_recent_win_opponent_elo","bad_loss_rate_pct","comparable_strength_win_pct","performance_vs_comparable_strength_pct"],
   "007": ["direct_common_opponents","common_opponent_matches","common_opponent_wins","common_opponent_losses","common_opponent_win_pct","surface_matched_common_opponents","tournament_level_matched_common_opponents","common_opponent_recency_weighted_win_pct","common_opponent_strength_weighted_win_pct","common_opponent_weighted_set_margin","common_opponent_second_degree_strength_pct"],
   "008": ["set1_win_pct","set2_win_pct","set3_deciding_set_win_pct","historical_deciding_set_win_pct","win_after_losing_set1_pct","win_after_winning_set1_pct","second_set_after_losing_set1_win_pct","deciding_matches_played","set_win_pct","sets_played","sets_won"],
-  "009": ["win_after_losing_set1_pct","win_after_winning_set1_pct","tiebreak_win_pct","tiebreaks_played","historical_deciding_set_win_pct","deciding_matches_played","break_points_saved_pct","break_point_conversion_pct","close_match_win_pct"],
+  "009": ["win_after_losing_set1_pct","tiebreak_win_pct","tiebreaks_played"],
   "010": ["historical_straight_set_win_pct","straight_set_win_pct","straight_set_wins","matches_won","straight_set_rate_comparable_pct"],
   "011": ["performance_variance","floor_ceiling_elo_range","deciding_match_reliance_pct","close_match_win_pct","upset_resistance_pct","recent_elo_delta_mean","recent_elo_delta_variance","recent_elo_best_delta","recent_elo_worst_delta"],
   "012": ["matches_last_7_days","matches_last_14_days","matches_last_28_days","sets_last_14_days","three_setters_last_14_days","rest_days","qualifying_matches_last_14_days","days_since_last_match","recent_inter_match_gap_days","tournament_switches_last10","country_changes_last10","observed_travel_km_last10","avg_observed_travel_km_per_move","long_haul_moves_3000km_plus_last10","observed_timezone_shift_hours_last10","max_observed_timezone_shift_hours_last10"],
@@ -160,7 +160,9 @@ function localMetricRows(p1: string, p2: string, context: string, requested: Arr
       ? "PARTIAL: public match history supports direct shared-opponent records, recency weighting, same-surface filtering, set-margin comparison, opponent-strength weighting and second-degree chains when inputs exist. Exact game-by-game scoreline comparison and tournament-level matching remain source-dependent and are not inferred when absent."
       : f === "008" && (xs || ys)
         ? "PARTIAL: explicit set scores support Set-1/Set-2 win rates, deciding-set rate, records after winning/losing Set 1, and second-set response after losing Set 1. First-break frequency, immediate break-back rate, and set-by-set hold/return improvement require game/point sequence data and are not inferred from set scores."
-        : null;
+        : f === "009" && (xs || ys)
+          ? "PARTIAL: explicit score history supports comeback frequency from a Set-1 deficit and tiebreak record. Break-consolidation, serving-for-set, serving-for-match, combined pressure-point performance, and high-leverage clutch hold/break rates require chronological game/point state and are not replaced with generic break-point or close-match statistics."
+          : null;
     return {
       metric_code:m.code,p1_value:xs?.value??null,p2_value:ys?.value??null,
       // These are broad master families. A subset of historical submetrics is
