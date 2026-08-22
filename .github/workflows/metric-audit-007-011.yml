@@ -18,7 +18,7 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install
-      - name: Metric regression tests
-        run: bunx vitest run src/lib/common-opponent-enhanced.test.ts src/lib/audit-pipeline.test.ts src/lib/audit-research.test.ts src/lib/reconstruction/stat-catalog.test.ts
+      - name: Full regression suite
+        run: bunx vitest run
       - name: Build
         run: bun run build
