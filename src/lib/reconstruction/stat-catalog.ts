@@ -21,4 +21,18 @@ C("same_tournament_matches","Prior matches at same tournament","015",500),P("sam
 P("serve_aggression_proxy","Statistical serve-aggression proxy","018"),P("serve_reliance_proxy","Statistical serve-reliance proxy","018"),P("return_pressure_proxy","Statistical return-pressure proxy","018"),P("balanced_efficiency_proxy","Statistical balanced-efficiency proxy","018"),P("close_match_resilience_proxy","Statistical close-match resilience proxy","018"),{key:"style_serve_vs_return_edge",label:"Serve profile vs opponent return edge",unit:"EDGE",family:"018",min:-100,max:100},{key:"style_return_vs_serve_edge",label:"Return profile vs opponent serve edge",unit:"EDGE",family:"018",min:-100,max:100},{key:"style_balance_edge",label:"Balanced efficiency matchup edge",unit:"EDGE",family:"018",min:-100,max:100},{key:"style_resilience_edge",label:"Close-match resilience edge",unit:"EDGE",family:"018",min:-100,max:100},
 C("common_opponent_wins","Wins vs common opponents","080",500),C("common_opponent_losses","Losses vs common opponents","080",500),P("common_opponent_win_pct","Common-opponent win %","080")];
 export const STAT_BY_KEY=new Map(STAT_CATALOG.map(s=>[s.key,s]));
-export function familyOf(key:string):string|null{return STAT_BY_KEY.get(key)?.family??null;}
+
+// Semantic family overrides for imported/context statistics. The legacy family
+// tags above remain part of the validation catalog, but pass-2 routing must use
+// the actual master metric definitions rather than historical placeholder codes.
+const FAMILY_OVERRIDES:Record<string,string>={
+  same_tournament_matches:"030",same_tournament_win_pct:"030",
+  same_round_matches:"028",same_round_win_pct:"028",
+  same_level_matches:"020",same_level_win_pct:"020",
+  match_surface_hard:"021",match_surface_clay:"021",match_surface_grass:"021",match_surface_carpet:"021",match_indoor:"021",
+  verified_court_speed_index:"021",verified_court_speed_band:"021",
+  match_temperature_c:"021",match_humidity_pct:"021",match_wind_kph:"021",match_altitude_m:"021",match_roof_closed:"021",
+  serve_aggression_proxy:"023",serve_reliance_proxy:"023",return_pressure_proxy:"023",balanced_efficiency_proxy:"023",close_match_resilience_proxy:"023",
+  style_serve_vs_return_edge:"023",style_return_vs_serve_edge:"023",style_balance_edge:"023",style_resilience_edge:"023",
+};
+export function familyOf(key:string):string|null{return FAMILY_OVERRIDES[key]??STAT_BY_KEY.get(key)?.family??null;}
