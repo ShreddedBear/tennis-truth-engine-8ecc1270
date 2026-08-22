@@ -1,4 +1,6 @@
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 function resolveCommitSha() {
@@ -26,10 +28,20 @@ const appBuildInfo = {
   builtAt: new Date().toISOString(),
 };
 
+const devRuntimeIndex = join(process.cwd(), ".tanstack/generated/tennis-runtime-index.ts");
+const bundledRuntimeIndex = join(process.cwd(), "src/generated/tennis-runtime-index.ts");
+const isDevServer = process.argv.includes("dev") || process.env.npm_lifecycle_event === "dev";
+const runtimeIndexPath = isDevServer && existsSync(devRuntimeIndex) ? devRuntimeIndex : bundledRuntimeIndex;
+
 export default defineConfig({
   vite: {
     define: {
       __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
+    },
+    resolve: {
+      alias: {
+        "../generated/tennis-runtime-index": runtimeIndexPath,
+      },
     },
   },
   tanstackStart: {
