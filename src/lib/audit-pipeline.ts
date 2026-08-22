@@ -596,15 +596,18 @@ async function identityAndContext(deps: PipelineDeps, matchId: string, runId: st
       identity_status: verified ? "VERIFIED" : finding.player1_status === "CONFLICT" || finding.player2_status === "CONFLICT" ? "CONFLICT" : "UNVERIFIED",
     });
     const done = [finding.player1_status, finding.player2_status].filter((x) => x === "VERIFIED").length;
-    return verified
-      ? { status: "COMPLETE", done, total: 2 }
-      : {
-          status: "BLOCKED",
-          done,
-          total: 2,
-          errorCode: "IDENTITY_UNRESOLVED",
-          message: finding.unresolved_reason ?? "Player identity could not be resolved against an external tennis source.",
-        };
+    // Identity that cannot be confirmed externally is recorded honestly as
+    // UNVERIFIED, but it must not halt execution: the player names come from
+    // the uploaded summary and downstream research keys off those names.
+    // Evidence quality is expressed by the final gate, not by a dead pipeline.
+    return {
+      status: "COMPLETE",
+      done,
+      total: 2,
+      detail: verified
+        ? {}
+        : { identity_unverified: finding.unresolved_reason ?? "Player identity could not be confirmed against an external tennis source." },
+    };
   }
 
   const patch: Record<string, unknown> = {};
@@ -634,15 +637,19 @@ async function identityAndContext(deps: PipelineDeps, matchId: string, runId: st
   const fields = ["tournament_name", "event_level", "round", "scheduled_date", "surface", "best_of"];
   const done = fields.filter((f) => patch[f] !== undefined && patch[f] !== null).length;
   // Surface is the only context field that gates the audit.
-  return finding.surface
-    ? { status: "COMPLETE", done, total: fields.length, detail: { unresolved: fields.filter((f) => patch[f] === undefined) } }
-    : {
-        status: "BLOCKED",
-        done,
-        total: fields.length,
-        errorCode: "SURFACE_UNRESOLVED",
-        message: finding.unresolved_reason ?? "Surface could not be established from any approved source.",
-      };
+  // Unresolved surface degrades surface-dependent evidence downstream; it does
+  // not stop the audit from executing.
+  return {
+    status: "COMPLETE",
+    done,
+    total: fields.length,
+    detail: finding.surface
+      ? { unresolved: fields.filter((f) => patch[f] === undefined) }
+      : {
+          unresolved: fields.filter((f) => patch[f] === undefined),
+          surface_unverified: finding.unresolved_reason ?? "Surface could not be established from any approved source.",
+        },
+  };
 }
 
 // ------------------------------ 3 instantiation ----------------------------
