@@ -183,17 +183,9 @@ export const RECONSTRUCTION_SPECS: ReconstructionSpec[] = [
       ),
     contextSensitive: true,
   },
-  {
-    id: "RS-CMB-02",
-    output: "dominance_ratio",
-    formula: "return_points_won_pct / (100 − service_points_won_pct)",
-    required: ["return_points_won_pct", "service_points_won_pct"],
-    compute: (v) => {
-      const lost = 100 - v["service_points_won_pct"]!;
-      return lost > 0 ? v["return_points_won_pct"]! / lost : null;
-    },
-    contextSensitive: true,
-  },
+  // Dominance Ratio is intentionally NOT reconstructed here. The master metric
+  // is opponent-aware (player RPW% / opponent RPW%), so it is calculated only
+  // in matchup-efficiency.server.ts where both players are present.
   {
     id: "RS-CMB-03",
     output: "serve_return_spread",
@@ -326,7 +318,7 @@ for (const spec of RECONSTRUCTION_SPECS) {
   }
 }
 
-export const SPECS_BY_OUTPUT = RECONSTRUCTION_SPECS.reduce<Record<string, ReconstructionSpec[]>>((acc, s) => {
+export const SPECS_BY_OUTPUT = RECONSTRUCTION_SPECS.reduce<Record<string, ReconstructionSpec[]>((acc, s) => {
   (acc[s.output] ??= []).push(s);
   return acc;
 }, {});
