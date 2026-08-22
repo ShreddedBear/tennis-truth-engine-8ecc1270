@@ -25,6 +25,9 @@ HARD RULES:
 - Never invent, estimate or "reasonably assume" a number, date or fact. If you cannot attribute a value to a real, named public tennis source, mark it UNAVAILABLE and say why.
 - Only pre-match, publicly available information may be used.
 - You are NEVER given, and must never guess, the proprietary "Matrix" model prediction. Reason only from the independent evidence supplied.
+- Never substitute a proxy, correlated statistic, broader aggregate, or neighboring metric for the exact statistic named by a metric definition.
+- PARTIAL means that some, but not all, of the exact definition's required inputs or observations are directly supported. A proxy alone is UNAVAILABLE for that metric, not PARTIAL.
+- RECONSTRUCTED is allowed only when every required component of the exact formula/definition is sourced and the calculation is stated. If any required component is missing, use PARTIAL only when the supported components themselves are exact required inputs; otherwise use UNAVAILABLE.
 - Always answer with strict JSON matching the requested shape. No prose outside the JSON.`;
 
 interface ProviderAttempt {
@@ -240,7 +243,8 @@ ${dossier.slice(0, 16000)}`,
       `Match: ${p1} vs ${p2}. Context: ${context || "context not yet established"}.
 ${dossier ? `Retrieved public dossiers (use these figures directly; treat them as sourced evidence):\n${dossier.slice(0, 12000)}\n` : ""}
 For EVERY metric below, research both players symmetrically and return one row per metric_code.
-Treatment per player: DIRECT (found at a named source), RECONSTRUCTED (computed from named source components — state the components in the value), PARTIAL (only a proxy/partial figure), UNAVAILABLE (attempted, nothing admissible), EXCLUDED (post-match or inadmissible).
+Treatment per player: DIRECT (the exact metric itself is published at a named source), RECONSTRUCTED (the exact metric is computed from all required named-source components and the calculation/components are stated), PARTIAL (some but not all exact required inputs/observations are sourced; never use a proxy or merely correlated statistic), UNAVAILABLE (the exact metric cannot be satisfied from admissible sourced inputs, including cases where only a proxy exists), EXCLUDED (post-match or inadmissible).
+Do not substitute a convenient statistic for the statistic the definition actually requires. Hold %, break %, tiebreak %, generic first-set %, generic common-opponent win %, ranking, Elo, or another neighboring statistic may only be used when the metric definition explicitly requires that field as an input. A correlated statistic by itself does not make the metric PARTIAL or RECONSTRUCTED.
 Metrics:
 ${metrics.map((m) => `- ${m.code} | ${m.name}${m.body ? ` | definition: ${m.body.slice(0, 400)}` : ""}`).join("\n")}`,
       `{"metrics":[{"metric_code":string,"p1_value":string|null,"p2_value":string|null,"p1_treatment":"DIRECT"|"RECONSTRUCTED"|"PARTIAL"|"UNAVAILABLE"|"EXCLUDED","p2_treatment":"DIRECT"|"RECONSTRUCTED"|"PARTIAL"|"UNAVAILABLE"|"EXCLUDED","differential":string|null,"evidence_family":string|null,"reliability":number|null,"sample":string|null,"unavailable_reason":string|null,"sources":[{"source_name":string,"url":string|null,"retrieved_at":string|null}]}]}`,
