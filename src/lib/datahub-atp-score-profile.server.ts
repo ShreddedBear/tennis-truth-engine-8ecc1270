@@ -69,30 +69,17 @@ function stat(p: string, k: string, v: number, n: number): SourcedStat {
   };
 }
 
-/**
- * DataHub's ATP score export uses compact set tokens such as `62`, `76(7)`
- * and `64`, not only hyphenated `6-2` notation. Parse only explicit game
- * scores. Retirement/status tokens are ignored rather than guessed.
- */
 export function parseDataHubSets(score: string): Array<[number, number]> {
-  return score
-    .split(/\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => {
-      const hyphen = s.match(/^(\d+)-(\d+)/);
-      if (hyphen) {
-        const a = Number(hyphen[1]), b = Number(hyphen[2]);
-        return Number.isFinite(a) && Number.isFinite(b) ? [a, b] as [number, number] : null;
-      }
-      const compact = s.match(/^(\d)(\d)(?:\([^)]*\))?$/);
-      if (compact) {
-        const a = Number(compact[1]), b = Number(compact[2]);
-        return [a, b] as [number, number];
-      }
-      return null;
-    })
-    .filter((x): x is [number, number] => !!x);
+  return score.split(/\s+/).map((s) => s.trim()).filter(Boolean).map((s) => {
+    const hyphen = s.match(/^(\d+)-(\d+)/);
+    if (hyphen) {
+      const a = Number(hyphen[1]), b = Number(hyphen[2]);
+      return Number.isFinite(a) && Number.isFinite(b) ? [a, b] as [number, number] : null;
+    }
+    const compact = s.match(/^(\d)(\d)(?:\([^)]*\))?$/);
+    if (compact) return [Number(compact[1]), Number(compact[2])] as [number, number];
+    return null;
+  }).filter((x): x is [number, number] => !!x);
 }
 
 function n(v: string | undefined) {
@@ -100,10 +87,6 @@ function n(v: string | undefined) {
   return Number.isFinite(x) ? x : null;
 }
 
-/** Exact deciding-match detection from explicit match-set totals.
- * BO3: winner 2 sets, loser 1. BO5: winner 3 sets, loser 2.
- * A 3-0 or 3-1 best-of-five match is NOT a deciding-set match.
- */
 function isDecidingMatch(row: Row) {
   const w = n(row.winner_sets_won), l = n(row.loser_sets_won);
   return (w === 2 && l === 1) || (w === 3 && l === 2);
@@ -122,31 +105,23 @@ export function computeHistoricalScoreProfileStatsFromRows(rows: Row[], player: 
   let secondAfterLoss = 0, secondAfterLossW = 0;
   let tb = 0, tbw = 0;
   let deciding = 0, decidingW = 0;
-  let straightWins = 0, wins = 0;
+  let straightWins = 0, wins = 0, parsedMatches = 0;
 
   for (const m of ms) {
     const isW = norm(m.winner_name ?? "") === pn;
     const ss = parseDataHubSets(m.match_score_tiebreaks ?? "");
     if (!ss.length) continue;
+    parsedMatches++;
     const view = ss.map(([a, b]) => isW ? [a, b] as [number, number] : [b, a] as [number, number]);
 
-    if (view[0]) {
-      s1++;
-      if (view[0][0] > view[0][1]) s1w++;
-    }
-    if (view[1]) {
-      s2++;
-      if (view[1][0] > view[1][1]) s2w++;
-    }
+    if (view[0]) { s1++; if (view[0][0] > view[0][1]) s1w++; }
+    if (view[1]) { s2++; if (view[1][0] > view[1][1]) s2w++; }
 
     if (view[0]) {
       if (view[0][0] < view[0][1]) {
         afterLoss++;
         if (isW) afterLossW++;
-        if (view[1]) {
-          secondAfterLoss++;
-          if (view[1][0] > view[1][1]) secondAfterLossW++;
-        }
+        if (view[1]) { secondAfterLoss++; if (view[1][0] > view[1][1]) secondAfterLossW++; }
       } else if (view[0][0] > view[0][1]) {
         afterWin++;
         if (isW) afterWinW++;
@@ -154,10 +129,7 @@ export function computeHistoricalScoreProfileStatsFromRows(rows: Row[], player: 
     }
 
     for (const [a, b] of view) {
-      if ((a === 7 && b === 6) || (a === 6 && b === 7)) {
-        tb++;
-        if (a > b) tbw++;
-      }
+      if ((a === 7 && b === 6) || (a === 6 && b === 7)) { tb++; if (a > b) tbw++; }
     }
 
     if (isDecidingMatch(m) && view.length) {
@@ -173,9 +145,7 @@ export function computeHistoricalScoreProfileStatsFromRows(rows: Row[], player: 
   }
 
   const out: SourcedStat[] = [];
-  const add = (k: string, a: number, b: number) => {
-    if (b > 0) out.push(stat(player, k, (100 * a) / b, b));
-  };
+  const add = (k: string, a: number, b: number) => { if (b > 0) out.push(stat(player, k, (100 * a) / b, b)); };
 
   add("set1_win_pct", s1w, s1);
   add("set2_win_pct", s2w, s2);
@@ -185,7 +155,10 @@ export function computeHistoricalScoreProfileStatsFromRows(rows: Row[], player: 
   add("tiebreak_win_pct", tbw, tb);
   add("historical_deciding_set_win_pct", decidingW, deciding);
   add("set3_deciding_set_win_pct", decidingW, deciding);
-  add("historical_straight_set_win_pct", straightWins, wins);
+  // Kept for Recent Form's "Straight-Set Control Rate": among wins, how many were straight sets.
+  add("historical_straight_set_control_pct", straightWins, wins);
+  // Metric 010 exact denominator: straight-set match wins / all matches with parseable scores.
+  add("straight_set_match_win_pct", straightWins, parsedMatches);
   if (tb > 0) out.push(stat(player, "tiebreaks_played", tb, tb));
   if (deciding > 0) out.push(stat(player, "deciding_matches_played", deciding, deciding));
   return out;
