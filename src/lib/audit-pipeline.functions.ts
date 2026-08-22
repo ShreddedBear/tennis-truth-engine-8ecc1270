@@ -3,6 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 const ZERO_EVIDENCE_RECOVERY_VERSION = "2026-08-22-v3-treatment-safe";
+const BROWSER_SAFE_BUDGET_MS = 20_000;
 
 export const runAuditPipeline = createServerFn({ method: "POST" })
   .inputValidator((data: { matchId: string; budgetMs?: number }) => {
@@ -48,7 +49,11 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
           }
         }
       }
-      const result=await runPipeline(deps,data.matchId,{budgetMs:data.budgetMs??45_000});
+      // Keep each browser-triggered server invocation short enough to return
+      // before Lovable/Safari drops the transport. runPipeline persists partial
+      // stage progress, so the next invocation resumes the same run instead of
+      // restarting or creating a duplicate run.
+      const result=await runPipeline(deps,data.matchId,{budgetMs:data.budgetMs??BROWSER_SAFE_BUDGET_MS});
       return{ok:true as const,runId:result.runId,complete:result.complete,nextStage:result.nextStage,stages:result.stages,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:result.report?.auditComplete??false};
     } catch(error) {
       return{ok:false as const,runId:null,complete:false,nextStage:null,stages:[] as Array<{stage:string;status:string;detail:string}>,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false};
