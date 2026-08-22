@@ -1,21 +1,31 @@
 // Resolve matchup context for the upload review screen.
 // Priority: bundled licensed/public tennis data first, online research second.
-// This keeps empty fields fillable even when the external research provider is
-// unavailable or out of credits, without silently guessing an exact match.
+// Corrupted OCR is treated as a hint, not as authoritative context.
 import { createServerFn } from "@tanstack/react-start";
 
 const KEYS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"] as const;
 type Fields = Record<string, string | null>;
 
-function mergeMissing(base: Fields, extra: Fields): Fields {
-  const out: Fields = { ...base };
-  for (const key of KEYS) if (!out[key] && extra[key]) out[key] = extra[key];
+function norm(v:string|null|undefined){return String(v??"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+function suspicious(key:string,value:string|null|undefined){
+  const v=String(value??"").trim(),n=norm(v);if(!v)return true;
+  if(/^(unavailable|unknown|n\/a|na|null|none|-)$/.test(n))return true;
+  if(key==="scheduled_date"&&!/^20\d{2}-\d{2}-\d{2}$/.test(v))return true;
+  if(key==="surface"&&!/^(hard|clay|grass|carpet)$/i.test(v))return true;
+  if(key==="best_of"&&!/^[35]$/.test(v))return true;
+  if(key==="tournament"){
+    if(/[\$%()[\]{}<>]/.test(v))return true;
+    if(/\b(?:perf|nta|vo n|volume|vol)\b/i.test(v))return true;
+    if(/cincinn/i.test(v)&&!/(cincinnati open|atp cincinnati|wta cincinnati|cincinnati masters)/i.test(v))return true;
+  }
+  return false;
+}
+function mergePreferVerified(base:Fields,extra:Fields):Fields{
+  const out:Fields={...base};
+  for(const key of KEYS){const candidate=extra[key];if(!candidate)continue;if(!out[key]||suspicious(key,out[key]))out[key]=candidate;}
   return out;
 }
-
-function missing(fields: Fields) {
-  return KEYS.filter((key) => !fields[key]);
-}
+function missing(fields:Fields){return KEYS.filter(key=>!fields[key]||suspicious(key,fields[key]));}
 
 export const resolveMatchContext = createServerFn({ method: "POST" })
   .inputValidator((data: { p1: string; p2: string; hints?: Record<string, string | null> }) => {
@@ -25,16 +35,14 @@ export const resolveMatchContext = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { resolveLocalMatchContext } = await import("./local-match-context.server");
     const local = resolveLocalMatchContext(data.p1, data.p2, data.hints);
-    let fields: Fields = mergeMissing(data.hints, local.fields);
+    let fields: Fields = mergePreferVerified(data.hints, local.fields);
     const sources = [...local.sources];
 
-    // Only spend/use online research for fields the local public dataset could
-    // not confidently resolve. A provider failure no longer erases local data.
     if (missing(fields).length) {
       try {
         const { resolveMatchIdentity } = await import("./audit-research.server");
         const web = await resolveMatchIdentity({ p1: data.p1, p2: data.p2, hints: fields });
-        fields = mergeMissing(fields, {
+        fields = mergePreferVerified(fields, {
           tournament: web.tournament,
           event_level: web.event_level,
           round: web.round,
@@ -44,8 +52,7 @@ export const resolveMatchContext = createServerFn({ method: "POST" })
         });
         sources.push(...web.sources.map((s) => s.source_name).filter(Boolean));
       } catch {
-        // Expected when Lovable/research credits are unavailable. Keep all
-        // confidently reconstructed local values and leave only true gaps blank.
+        // Keep the independently reconstructed local fields; only true gaps remain unresolved.
       }
     }
 
