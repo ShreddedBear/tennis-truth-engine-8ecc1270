@@ -92,7 +92,7 @@ const SUMMARY_KEYS: Record<string, string[]> = {
   "004": ["service_points_won_pct","return_points_won_pct","total_points_won_pct","hold_pct","break_pct","matchup_expected_hold_pct","matchup_expected_break_pct","expected_hold_break_differential","dominance_ratio","combined_point_efficiency"],
   "005": ["last5_win_pct","last10_win_pct","last5_set_win_pct","last10_set_win_pct","current_surface_recent_win_pct","win_pct_60d","win_pct_90d","recent_form_trend","recent_straight_set_control_pct","recent_performance_acceleration","avg_sets_conceded_in_recent_wins","set_margin_mean","overall_recent20_win_pct"],
   "006": ["recent_opponent_avg_elo","best_recent_win_opponent_elo","bad_loss_rate_pct","comparable_strength_win_pct","performance_vs_comparable_strength_pct"],
-  "007": ["surface_matched_common_opponents","common_opponent_recency_weighted_win_pct","common_opponent_strength_weighted_win_pct","common_opponent_weighted_set_margin"],
+  "007": ["direct_common_opponents","common_opponent_matches","common_opponent_wins","common_opponent_losses","common_opponent_win_pct","surface_matched_common_opponents","tournament_level_matched_common_opponents","common_opponent_recency_weighted_win_pct","common_opponent_strength_weighted_win_pct","common_opponent_weighted_set_margin","common_opponent_second_degree_strength_pct"],
   "008": ["set1_win_pct","set2_win_pct","historical_deciding_set_win_pct","win_after_losing_set1_pct","win_after_winning_set1_pct","deciding_matches_played","set_win_pct","sets_played","sets_won"],
   "009": ["win_after_losing_set1_pct","win_after_winning_set1_pct","tiebreak_win_pct","tiebreaks_played","historical_deciding_set_win_pct","deciding_matches_played","break_points_saved_pct","break_point_conversion_pct","close_match_win_pct"],
   "010": ["historical_straight_set_win_pct","straight_set_win_pct","straight_set_wins","matches_won","straight_set_rate_comparable_pct"],
@@ -156,6 +156,9 @@ function localMetricRows(p1: string, p2: string, context: string, requested: Arr
     const historicalDataHub=sources.some((s)=>s.source_name.includes("DataHub ATP"));
     const f=familyCode(m.code);
     const evidenceFamily=xs||ys ? (metricLooksH2H(m)?"PUBLIC_HISTORICAL_H2H":f==="007"?"PUBLIC_COMMON_OPPONENT_NETWORK":f==="020"?"PUBLIC_TOUR_LEVEL_HISTORY":f==="021"?"VERIFIED_SURFACE_ENVIRONMENT":f==="023"?"PUBLIC_MATCHUP_COMPATIBILITY":f==="028"?"PUBLIC_SCHEDULING_CONTEXT":f==="030"?"PUBLIC_TOURNAMENT_HISTORY":historicalDataHub?`HISTORICAL_DATAHUB_FAMILY_${f}`:`PUBLIC_HISTORICAL_DATA_FAMILY_${f}`) : null;
+    const partialReason = f === "007" && (xs || ys)
+      ? "PARTIAL: public match history supports direct shared-opponent records, recency weighting, same-surface filtering, set-margin comparison, opponent-strength weighting and second-degree chains when inputs exist. Exact game-by-game scoreline comparison and tournament-level matching remain source-dependent and are not inferred when absent."
+      : null;
     return {
       metric_code:m.code,p1_value:xs?.value??null,p2_value:ys?.value??null,
       // These are broad master families. A subset of historical submetrics is
@@ -163,7 +166,7 @@ function localMetricRows(p1: string, p2: string, context: string, requested: Arr
       p1_treatment:xs?"PARTIAL":"UNAVAILABLE",p2_treatment:ys?"PARTIAL":"UNAVAILABLE",
       differential:null,evidence_family:evidenceFamily,reliability:xs||ys?(historicalDataHub?70:85):null,
       sample:String(Math.max(xs?.sample??0,ys?.sample??0))||null,
-      unavailable_reason:!xs&&!ys?"Synced public historical data does not support this metric family":null,sources,
+      unavailable_reason:!xs&&!ys?"Synced public historical data does not support this metric family":partialReason,sources,
     } as MetricFinding;
   });
 }
@@ -174,7 +177,10 @@ function mergeMetrics(live: MetricFinding[], local: MetricFinding[]): MetricFind
     const m=by.get(String(l.metric_code)); if(!m)return l;
     const p1=m.p1_treatment!=="UNAVAILABLE"&&m.p1_treatment!=="EXCLUDED"&&m.p1_value!==null;
     const p2=m.p2_treatment!=="UNAVAILABLE"&&m.p2_treatment!=="EXCLUDED"&&m.p2_value!==null;
-    return {...m,p1_value:p1?m.p1_value:l.p1_value,p1_treatment:p1?m.p1_treatment:(l.p1_value!==null?l.p1_treatment:m.p1_treatment),p2_value:p2?m.p2_value:l.p2_value,p2_treatment:p2?m.p2_treatment:(l.p2_value!==null?l.p2_treatment:m.p2_treatment),evidence_family:m.evidence_family??l.evidence_family,reliability:m.reliability??l.reliability,sample:m.sample??l.sample,sources:[...(m.sources??[]),...(l.sources??[])].filter((s,i,a)=>a.findIndex((z)=>z.source_name===s.source_name&&z.url===s.url)===i),unavailable_reason:(p1||p2||l.p1_value!==null||l.p2_value!==null)?null:(m.unavailable_reason??l.unavailable_reason)};
+    const p1Treatment=p1?m.p1_treatment:(l.p1_value!==null?l.p1_treatment:m.p1_treatment);
+    const p2Treatment=p2?m.p2_treatment:(l.p2_value!==null?l.p2_treatment:m.p2_treatment);
+    const partial=p1Treatment==="PARTIAL"||p2Treatment==="PARTIAL";
+    return {...m,p1_value:p1?m.p1_value:l.p1_value,p1_treatment:p1Treatment,p2_value:p2?m.p2_value:l.p2_value,p2_treatment:p2Treatment,evidence_family:m.evidence_family??l.evidence_family,reliability:m.reliability??l.reliability,sample:m.sample??l.sample,sources:[...(m.sources??[]),...(l.sources??[])].filter((s,i,a)=>a.findIndex((z)=>z.source_name===s.source_name&&z.url===s.url)===i),unavailable_reason:partial?(m.unavailable_reason??l.unavailable_reason):((p1||p2||l.p1_value!==null||l.p2_value!==null)?null:(m.unavailable_reason??l.unavailable_reason))};
   });
 }
 
