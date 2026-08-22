@@ -14,29 +14,13 @@ export interface StatDef {
   key: string;
   label: string;
   unit: Unit;
-  /** Audit metric family (rule_code in the METRICS document) this stat serves. */
   family: string;
-  /** Hard validity range; a value outside it is rejected, never clamped. */
   min: number;
   max: number;
 }
 
-const P = (key: string, label: string, family: string): StatDef => ({
-  key,
-  label,
-  unit: "PERCENT",
-  family,
-  min: 0,
-  max: 100,
-});
-const C = (key: string, label: string, family: string, max = 100000): StatDef => ({
-  key,
-  label,
-  unit: "COUNT",
-  family,
-  min: 0,
-  max,
-});
+const P = (key: string, label: string, family: string): StatDef => ({ key, label, unit: "PERCENT", family, min: 0, max: 100 });
+const C = (key: string, label: string, family: string, max = 100000): StatDef => ({ key, label, unit: "COUNT", family, min: 0, max });
 
 export const STAT_CATALOG: StatDef[] = [
   // --- 001 Surface Strength ---
@@ -84,14 +68,7 @@ export const STAT_CATALOG: StatDef[] = [
   P("second_serve_return_points_won_pct", "Second-serve return points won %", "003"),
   P("break_pct", "Break %", "003"),
   P("break_point_conversion_pct", "Break-point conversion %", "003"),
-  {
-    key: "break_points_created_per_return_game",
-    label: "Break points created per return game",
-    unit: "RATIO",
-    family: "003",
-    min: 0,
-    max: 6,
-  },
+  { key: "break_points_created_per_return_game", label: "Break points created per return game", unit: "RATIO", family: "003", min: 0, max: 6 },
 
   // --- 004 Required derived metrics ---
   P("total_points_won_pct", "Total points won %", "004"),
@@ -118,8 +95,17 @@ export const STAT_CATALOG: StatDef[] = [
   C("matches_last_28_days", "Matches in last 28 days", "012", 60),
   { key: "minutes_last_28_days", label: "Court minutes in last 28 days", unit: "MINUTES", family: "012", min: 0, max: 20000 },
   { key: "avg_match_minutes", label: "Average match minutes", unit: "MINUTES", family: "012", min: 20, max: 400 },
+  C("days_since_last_match", "Days since last match", "012", 5000),
+  C("recent_inter_match_gap_days", "Recent inter-match gap (days)", "012", 5000),
 
-  // --- 013/014 Availability, ranking context ---
+  // --- 013 Availability / layoff context ---
+  C("longest_observed_layoff_days", "Longest observed layoff (days)", "013", 5000),
+  C("observed_layoffs_30d_plus", "Observed layoffs 30+ days", "013", 500),
+  C("observed_layoffs_60d_plus", "Observed layoffs 60+ days", "013", 500),
+  C("observed_layoffs_90d_plus", "Observed layoffs 90+ days", "013", 500),
+  P("return_after_layoff_win_pct", "Win % in first matches after 45+ day layoff", "013"),
+
+  // --- 014 Ranking context ---
   C("wins", "Wins (window)", "014", 2000),
   C("losses", "Losses (window)", "014", 2000),
   C("matches_played", "Matches played (window)", "014", 4000),
@@ -135,8 +121,4 @@ export const STAT_CATALOG: StatDef[] = [
 ];
 
 export const STAT_BY_KEY = new Map(STAT_CATALOG.map((s) => [s.key, s]));
-
-/** Audit metric family a derived statistic contributes evidence to. */
-export function familyOf(key: string): string | null {
-  return STAT_BY_KEY.get(key)?.family ?? null;
-}
+export function familyOf(key: string): string | null { return STAT_BY_KEY.get(key)?.family ?? null; }
