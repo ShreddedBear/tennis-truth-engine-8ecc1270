@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { BucketBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
 import { winRate } from "@/lib/audit-engine";
+import { resetOperationalSlate } from "@/lib/reset-slate.functions";
+import { APP_BUILD_INFO } from "@/generated/app-build-info";
 
 export const Route = createFileRoute("/app/dashboard")({
   head: () => ({
@@ -17,6 +22,8 @@ export const Route = createFileRoute("/app/dashboard")({
 });
 
 function Dashboard() {
+  const queryClient = useQueryClient();
+  const resetSlate = useServerFn(resetOperationalSlate);
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -39,7 +46,27 @@ function Dashboard() {
     },
   });
 
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      const confirmed = window.confirm(
+        "Clear the operational slate to 0? This removes uploaded match/slate/audit run data but preserves calibration, rules, and historical evidence.",
+      );
+      if (!confirmed) throw new Error("CANCELLED");
+      return resetSlate({ data: { confirm: "CLEAR SLATE" } });
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries();
+      toast.success(`Slate cleared: ${result.deleted.matches} matches and ${result.deleted.uploads} uploads removed.`);
+    },
+    onError: (error) => {
+      if ((error as Error).message === "CANCELLED") return;
+      toast.error(`Could not clear slate: ${(error as Error).message}`);
+    },
+  });
+
   const colorCount = (c: string) => data?.decisions.filter((d) => d.final_audit_color === c).length ?? 0;
+  const builtAt = APP_BUILD_INFO.builtAt ? new Date(APP_BUILD_INFO.builtAt) : null;
+  const buildLabel = builtAt && !Number.isNaN(builtAt.getTime()) ? builtAt.toLocaleString() : "development build";
 
   const tiles = [
     { label: "Matches on slate", value: data?.matches.length ?? 0 },
@@ -54,7 +81,14 @@ function Dashboard() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Audit dashboard</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-semibold">Audit dashboard</h1>
+          <div className="rounded-md border border-border bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+            <span className="font-semibold text-foreground">UPDATED</span>{" "}
+            <span className="mono-num">{buildLabel}</span>{" · "}
+            <span className="mono-num">commit {APP_BUILD_INFO.commit}</span>
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground">
           Batch status is independent of match status: one blocked match never stops the slate.
         </p>
@@ -67,6 +101,13 @@ function Dashboard() {
             <p className="mt-1 text-xs text-muted-foreground">{t.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="outline" disabled={clearMutation.isPending} onClick={() => clearMutation.mutate()}>
+          {clearMutation.isPending ? "Clearing slate…" : "Clear slate to 0"}
+        </Button>
+        <p className="text-xs text-muted-foreground">Preserves the 183 calibration record, audit definitions, and imported historical evidence.</p>
       </div>
 
       <section className="panel p-4">
