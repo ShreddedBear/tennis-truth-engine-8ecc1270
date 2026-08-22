@@ -21,20 +21,20 @@ function localHistorical(player:string,context:string){
 function sourcesFor(stats:SourcedStat[]){return stats.flatMap(s=>s.sources??[]).filter((s,i,a)=>a.findIndex(x=>x.source_name===s.source_name&&x.url===s.url)===i);}
 function selected(stats:SourcedStat[],keys:string[]){const wanted=new Set(keys);return stats.filter(s=>wanted.has(s.key));}
 
-// Only families that can be supported by the normalized Tennis-Data fields are
-// mapped here. Absence stays UNAVAILABLE; no value is synthesized merely to
-// raise coverage. Broad families with only a subset of supported sub-metrics
-// are explicitly PARTIAL rather than being overstated as fully reconstructed.
+// Only statistics that semantically belong to the master family are mapped
+// here. These historical subsets are PARTIAL because the broad master metric
+// usually contains additional submetrics that this source cannot supply.
 const HISTORICAL_KEYS:Record<string,string[]>={
-  "001":["surface_win_pct","surface_matches","ranking","peak_ranking","ranking_gap_to_peak"],
+  "001":["surface_win_pct","surface_matches"],
   "005":["win_pct","surface_win_pct","set_win_pct","matches_last_28_days","days_since_last_match"],
   "008":["set_win_pct","sets_played","sets_won","deciding_set_win_pct","deciding_sets_played","deciding_sets_won"],
   "009":["deciding_set_win_pct","deciding_sets_played","deciding_sets_won"],
   "010":["straight_set_win_pct","straight_set_wins","matches_won"],
-  "011":["ranking","peak_ranking","ranking_gap_to_peak","deciding_set_win_pct","straight_set_win_pct"],
+  "011":["deciding_set_win_pct","straight_set_win_pct"],
   "012":["matches_last_28_days","days_since_last_match"],
-  "013":["days_since_last_match","ranking","peak_ranking","ranking_gap_to_peak"],
-  "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
+  // 013 Availability is intentionally not reconstructed from ranking/form.
+  // Layoff/injury evidence is handled by the dedicated availability source.
+  "014":["ranking","peak_ranking","ranking_gap_to_peak"],
   "020":["same_level_matches","same_level_win_pct"],
   "027":["first_set_win_to_match_conversion_pct","one_set_up_collapse_rate_pct","deciding_set_closing_pct"],
   "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
@@ -43,7 +43,7 @@ const HISTORICAL_KEYS:Record<string,string[]>={
   "068":["current_streak_signed","longest_win_streak_observed"],
   "077":["season_matches_before_lock","matches_last_28_days","days_since_last_match","longest_observed_rest_gap_days"],
 };
-const PARTIAL_FAMILIES=new Set(["027","037","068","077"]);
+const PARTIAL_FAMILIES=new Set(Object.keys(HISTORICAL_KEYS));
 const CONSERVATIVE_PARTIAL_FAMILIES=new Set(["035","055","068","080"]);
 
 function historicalFinding(input:Parameters<Researcher["metrics"]>[0],metric:{code:string}):MetricFinding|null{
@@ -51,21 +51,21 @@ function historicalFinding(input:Parameters<Researcher["metrics"]>[0],metric:{co
   const p1all=withDeterministicReconstruction(localHistorical(input.p1,input.context));
   const p2all=withDeterministicReconstruction(localHistorical(input.p2,input.context));
   let p1=selected(p1all,keys),p2=selected(p2all,keys);
-  // Metric 027 is Opponent Finishing Ability. The P1 cell therefore describes
-  // P1's opponent (P2), and the P2 cell describes P2's opponent (P1).
+  // Metric 027 is Opponent Finishing Ability. P1 describes P1's opponent (P2),
+  // and P2 describes P2's opponent (P1).
   if(family==="027"){const own=p1;p1=p2;p2=own;}
   const p1Value=summarize(p1),p2Value=summarize(p2);
   if(!p1Value&&!p2Value)return null;
-  const sources=sourcesFor([...p1,...p2]),treatment=PARTIAL_FAMILIES.has(family)?"PARTIAL":"RECONSTRUCTED";
+  const sources=sourcesFor([...p1,...p2]);
   return{
     metric_code:metric.code,
     p1_value:p1Value,
     p2_value:p2Value,
-    p1_treatment:p1Value?treatment:"UNAVAILABLE",
-    p2_treatment:p2Value?treatment:"UNAVAILABLE",
+    p1_treatment:p1Value?"PARTIAL":"UNAVAILABLE",
+    p2_treatment:p2Value?"PARTIAL":"UNAVAILABLE",
     differential:null,
     evidence_family:`TENNIS_DATA_HISTORY_${family}`,
-    reliability:PARTIAL_FAMILIES.has(family)?70:75,
+    reliability:70,
     sample:String(Math.max(...[...p1,...p2].map(s=>s.sample??0),0))||null,
     unavailable_reason:!p1Value||!p2Value?"One player side lacked the sourced historical inputs required for this metric family.":null,
     missing_inputs:!p1Value||!p2Value?["sourced historical inputs for unsupported player side"]:undefined,
@@ -82,7 +82,7 @@ function conservativePartial(metric:{code:string},finding:MetricFinding):MetricF
   return{...finding,p1_treatment:finding.p1_treatment==="RECONSTRUCTED"?"PARTIAL":finding.p1_treatment,p2_treatment:finding.p2_treatment==="RECONSTRUCTED"?"PARTIAL":finding.p2_treatment};
 }
 
-/** Completion sweep: provider evidence + local 2005-present history + deterministic reconstruction + targeted retry. */
+/** Completion sweep: provider evidence + local history + deterministic reconstruction + targeted retry. */
 export const completionSweepResearcher:Researcher={
   ...resilientResearcher,
   async metrics(input){
