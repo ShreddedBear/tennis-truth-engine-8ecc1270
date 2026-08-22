@@ -34,7 +34,9 @@ const HISTORICAL_KEYS:Record<string,string[]>={
   "012":["matches_last_28_days","days_since_last_match"],
   "013":["days_since_last_match","ranking","peak_ranking","ranking_gap_to_peak"],
   "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
-  "015":["same_tournament_matches","same_tournament_win_pct","same_round_matches","same_round_win_pct","same_level_matches","same_level_win_pct"],
+  "020":["same_level_matches","same_level_win_pct"],
+  "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
+  "030":["same_tournament_matches","same_tournament_win_pct"],
 };
 
 function historicalFinding(input:Parameters<Researcher["metrics"]>[0],metric:{code:string}):MetricFinding|null{
@@ -82,7 +84,8 @@ export const completionSweepResearcher:Researcher={
     for(const metric of input.metrics){
       const key=String(metric.code);
       byCode.set(key,prefer(byCode.get(key),historicalFinding(input,metric))!);
-      byCode.set(key,prefer(byCode.get(key),styleFinding(input,metric))!);
+      // Do not attach style evidence to an unrelated metric code. Style-specific
+      // evidence remains available to the dedicated pathway/research layers.
     }
     const retry=input.metrics.filter(metric=>unresolved(byCode.get(String(metric.code))));
     for(const metric of retry){

@@ -105,7 +105,7 @@ function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): Covera
   const count = (status: CoverageReport["statuses"][number]) => statuses.filter((value) => value === status).length;
   const excluded = count("EXCLUDED");
   const denominator = metrics.length - excluded;
-  const usable = count("DIRECT") + count("RECONSTRUCTED");
+  const usable = count("DIRECT") + count("RECONSTRUCTED") + count("PARTIAL");
   return {
     direct: count("DIRECT"),
     reconstructed: count("RECONSTRUCTED"),
@@ -121,7 +121,10 @@ function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): Covera
 export function evaluate(input: EngineInput): GateReport {
   const { match, run } = input;
 
-  const metrics = pair(input.metrics);
+  const metrics: CountPair = {
+    done: input.metrics.filter((m) => DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status)).length,
+    total: input.metrics.length,
+  };
   const p1: CountPair = {
     done: input.metrics.filter((m) => DONE_STATES.includes(m.p1_status)).length,
     total: input.metrics.length,
@@ -145,7 +148,10 @@ export function evaluate(input: EngineInput): GateReport {
   const families = new Set<string>();
   input.metrics.forEach((m) => {
     if (m.matrix_derived) return;
-    if (m.status !== "COMPLETE") return;
+    const processed = DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status);
+    if (!processed) return;
+    const usableTreatment = (t: string | null | undefined) => ["DIRECT", "RECONSTRUCTED", "PARTIAL"].includes(String(t ?? ""));
+    if (!usableTreatment(m.p1_treatment) && !usableTreatment(m.p2_treatment)) return;
     if (m.evidence_family) families.add(m.evidence_family);
   });
   const effectiveEvidenceCount = families.size;
