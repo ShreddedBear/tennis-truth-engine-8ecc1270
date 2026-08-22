@@ -4,6 +4,8 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/build-runtime-tennis-index.mjs",
+    "prebuild:dev": "node scripts/build-runtime-tennis-index.mjs",
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
@@ -79,7 +81,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
-    "eslint-plugin-prettier": "^5.2.6",
+    "eslint-plugin-prettier": "^3.7.3",
     "eslint-plugin-react-hooks": "^6.0.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
