@@ -169,3 +169,5 @@ describe("sequential certification guardrails for 041/043/044/045/046", () => {
     expect(rows.find(row => row.side === "P2")?.classification).toBe("SUPPORTED");
   });
 });
+
+// CI verification marker: this comment intentionally changes no test behavior.
