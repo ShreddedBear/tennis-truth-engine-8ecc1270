@@ -1,9 +1,12 @@
 // Resolve matchup context for the upload review screen.
-// Priority: bundled licensed/public tennis data first, online research second.
+// Priority: bundled licensed/public tennis data first, optional online research second.
 // Corrupted OCR is treated as a hint, not as authoritative context.
+// IMPORTANT: upload review must stay responsive. Online enrichment is best-effort
+// and may never hold the PDF review screen longer than a short fixed budget.
 import { createServerFn } from "@tanstack/react-start";
 
 const KEYS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"] as const;
+const ONLINE_ENRICHMENT_BUDGET_MS = 2500;
 type Fields = Record<string, string | null>;
 
 function norm(v:string|null|undefined){return String(v??"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
@@ -44,16 +47,22 @@ export const resolveMatchContext = createServerFn({ method: "POST" })
     if (missing(fields).length) {
       try {
         const { resolveMatchIdentity } = await import("./audit-research.server");
-        const web = await resolveMatchIdentity({ p1: data.p1, p2: data.p2, hints: fields });
-        fields = mergePreferVerified(fields, {
-          tournament: web.tournament,
-          event_level: web.event_level,
-          round: web.round,
-          scheduled_date: web.scheduled_date,
-          surface: web.surface,
-          best_of: web.best_of === null || web.best_of === undefined ? null : String(web.best_of),
-        });
-        sources.push(...web.sources.map((s) => s.source_name).filter(Boolean));
+        const webPromise = resolveMatchIdentity({ p1: data.p1, p2: data.p2, hints: fields }).catch(() => null);
+        const web = await Promise.race([
+          webPromise,
+          new Promise<null>(resolve => setTimeout(() => resolve(null), ONLINE_ENRICHMENT_BUDGET_MS)),
+        ]);
+        if (web) {
+          fields = mergePreferVerified(fields, {
+            tournament: web.tournament,
+            event_level: web.event_level,
+            round: web.round,
+            scheduled_date: web.scheduled_date,
+            surface: web.surface,
+            best_of: web.best_of === null || web.best_of === undefined ? null : String(web.best_of),
+          });
+          sources.push(...web.sources.map((s) => s.source_name).filter(Boolean));
+        }
       } catch {
         // Keep the independently reconstructed local fields; only true gaps remain unresolved.
       }
