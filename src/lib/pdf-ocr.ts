@@ -2,6 +2,8 @@
 // Tesseract is bundled with the app so OCR does not depend on a remote CDN,
 // Lovable AI credits, or an API key.
 
+import { readPdfFileBytes } from "./pdf-text";
+
 export interface OcrPdfResult {
   pages: string[];
   pageCount: number;
@@ -11,12 +13,15 @@ export async function ocrPdfLocally(
   file: File,
   onProgress?: (message: string) => void,
 ): Promise<OcrPdfResult> {
-  const pdfjs = await import("pdfjs-dist");
-  const workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+  // Match the text-extraction path: use PDF.js' legacy browser build so
+  // iPhone/Safari does not fail on unsupported modern runtime APIs.
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const workerSrc = (await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url")).default;
+  if (workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
-  const buf = await file.arrayBuffer();
-  const doc = await pdfjs.getDocument({ data: buf }).promise;
+  // Do not assume File.arrayBuffer() exists in WebKit upload objects.
+  const data = await readPdfFileBytes(file);
+  const doc = await pdfjs.getDocument({ data }).promise;
   const { createWorker } = await import("tesseract.js");
 
   onProgress?.(`PDF opened: ${doc.numPages} page${doc.numPages === 1 ? "" : "s"}. Starting local OCR…`);
