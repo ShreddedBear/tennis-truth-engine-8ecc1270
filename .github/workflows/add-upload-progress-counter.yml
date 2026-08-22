@@ -1,0 +1,40 @@
+name: Add Upload Completion Counter
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-upload-progress-counter.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch upload progress counter
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/routes/app/upload.tsx')
+          s = p.read_text()
+          old = ''' const enrich=async(list:Staged[])=>{const total=list.reduce((a,f)=>a+f.matchups.length,0);let done=0;for(const file of list)for(const m of file.matchups){done++;setProgress(`Resolving match details (${done}/${total}): ${m.player1_name} vs ${m.player2_name}…`);const hints:Record<string,string|null>={};for(const key of REVIEW_FIELDS)hints[key]=m.fields.find(f=>f.field_key===key)?.normalized_value??null;try{const res=await resolveContext({data:{p1:m.player1_name,p2:m.player2_name,hints}});if(!res.ok){recordError("MATCH CONTEXT RESOLUTION",res.unresolvedReason??"Context resolver returned no usable result",{file:file.filename,match:`${m.player1_name} vs ${m.player2_name}`});continue;}for(const key of REVIEW_FIELDS){const value=res.fields[key];if(!value)continue;const old=hints[key];if(!old||String(old)!==String(value))setResolvedField(m,key,String(value));}}catch(e){recordError("MATCH CONTEXT RESOLUTION",e,{file:file.filename,match:`${m.player1_name} vs ${m.player2_name}`});}}};'''
+          new = ''' const enrich=async(list:Staged[])=>{const total=list.reduce((a,f)=>a+f.matchups.length,0);let done=0;setProgress(`0 of ${total} completed`);for(const file of list)for(const m of file.matchups){setProgress(`${done} of ${total} completed · Processing ${m.player1_name} vs ${m.player2_name}…`);const hints:Record<string,string|null>={};for(const key of REVIEW_FIELDS)hints[key]=m.fields.find(f=>f.field_key===key)?.normalized_value??null;try{const res=await resolveContext({data:{p1:m.player1_name,p2:m.player2_name,hints}});if(!res.ok){recordError("MATCH CONTEXT RESOLUTION",res.unresolvedReason??"Context resolver returned no usable result",{file:file.filename,match:`${m.player1_name} vs ${m.player2_name}`});}else{for(const key of REVIEW_FIELDS){const value=res.fields[key];if(!value)continue;const old=hints[key];if(!old||String(old)!==String(value))setResolvedField(m,key,String(value));}}}catch(e){recordError("MATCH CONTEXT RESOLUTION",e,{file:file.filename,match:`${m.player1_name} vs ${m.player2_name}`});}finally{done++;setProgress(`${done} of ${total} completed`);}}};'''
+          if old not in s:
+              raise SystemExit('Expected enrich function not found; refusing to modify file')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit progress counter
+        run: |
+          if git diff --quiet; then
+            echo 'No change needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/routes/app/upload.tsx
+          git commit -m 'Show completed matchup count during upload analysis'
+          git push
