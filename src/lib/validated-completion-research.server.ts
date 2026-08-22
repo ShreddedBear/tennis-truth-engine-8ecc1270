@@ -40,12 +40,6 @@ function semanticRequirement(name:string,body:string|null):keyof typeof groups|n
 }
 function validSide(value:string|null,required:keyof typeof groups|null){if(!value)return false;if(!required)return true;return containsAny(value,groups[required]);}
 
-// These broad metrics contain multiple mandatory subcomponents. A neighboring
-// atomic statistic is an input at most; it can never stand in for the metric.
-// The live research response is free-form text, so enforce that RECONSTRUCTED
-// contains evidence for every master component and PARTIAL contains at least
-// one exact component. DIRECT is accepted only when a real source is attached,
-// because DIRECT means a source publishes the exact metric itself.
 const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
   "034":[
     {name:"scoreline vs point dominance",terms:["scoreline vs point dominance","point dominance","total points won"]},
@@ -104,15 +98,18 @@ function familyCode(code:string){const m=String(code).match(/(\d{1,3})$/);return
 function componentHits(value:string|null,components:Array<{name:string;terms:string[]}>){return components.filter(c=>containsAny(value,c.terms));}
 function validateCompositeSide(value:string|null,treatment:MetricFinding["p1_treatment"],sources:MetricFinding["sources"],components:Array<{name:string;terms:string[]}>){
   if(treatment==="UNAVAILABLE"||treatment==="EXCLUDED"||!value)return{value,treatment,missing:[] as string[]};
-  if(treatment==="DIRECT")return sources?.length?{value,treatment,missing:[] as string[]}:{value:null,treatment:"UNAVAILABLE" as const,missing:["named source publishing the exact metric"]};
-  const hits=componentHits(value,components),missing=components.filter(c=>!hits.includes(c)).map(c=>c.name);
-  if(treatment==="RECONSTRUCTED"){
-    if(!missing.length&&sources?.length)return{value,treatment,missing};
-    if(hits.length&&sources?.length)return{value,treatment:"PARTIAL" as const,missing};
+  const hits=componentHits(value,components),missing=components.filter(c=>!hits.includes(c)).map(c=>c.name),hasSource=Boolean(sources?.length);
+  if(treatment==="DIRECT"){
+    if(!missing.length&&hasSource)return{value,treatment,missing};
+    if(hits.length&&hasSource)return{value,treatment:"PARTIAL" as const,missing};
     return{value:null,treatment:"UNAVAILABLE" as const,missing:missing.length?missing:components.map(c=>c.name)};
   }
-  // PARTIAL requires at least one exact master component, not a proxy.
-  if(treatment==="PARTIAL")return hits.length&&sources?.length?{value,treatment,missing}:{value:null,treatment:"UNAVAILABLE" as const,missing:components.map(c=>c.name)};
+  if(treatment==="RECONSTRUCTED"){
+    if(!missing.length&&hasSource)return{value,treatment,missing};
+    if(hits.length&&hasSource)return{value,treatment:"PARTIAL" as const,missing};
+    return{value:null,treatment:"UNAVAILABLE" as const,missing:missing.length?missing:components.map(c=>c.name)};
+  }
+  if(treatment==="PARTIAL")return hits.length&&hasSource?{value,treatment,missing}:{value:null,treatment:"UNAVAILABLE" as const,missing:components.map(c=>c.name)};
   return{value:null,treatment:"UNAVAILABLE" as const,missing:components.map(c=>c.name)};
 }
 
