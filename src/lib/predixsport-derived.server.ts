@@ -32,7 +32,10 @@ export function getDerivedHistoricalStats(player:string,context:string):SourcedS
  const deltas=recent.map(r=>{const a=num(r.elo_pre),b=num(r.elo_post);return a!==null&&b!==null?b-a:null;}).filter((x):x is number=>x!==null);if(deltas.length){add("recent_elo_delta_mean",mean(deltas),deltas.length);add("recent_elo_delta_variance",sd(deltas),deltas.length);add("recent_elo_best_delta",Math.max(...deltas),deltas.length);add("recent_elo_worst_delta",Math.min(...deltas),deltas.length);add("floor_ceiling_elo_range",Math.max(...deltas)-Math.min(...deltas),deltas.length);}
  const comparable=recent.filter(r=>{const own=num(r.elo_pre),oe=oppElo(all,r.opponent??"",r.date??"",surf);return own!==null&&oe!==null&&Math.abs(own-oe)<=100;});add("comparable_strength_win_pct",comparable.length?100*comparable.filter(r=>r.won==="1").length/comparable.length:null,comparable.length);
  let weakerOpp=0,weakerLoss=0;for(const r of recent){const own=num(r.elo_pre),oe=oppElo(all,r.opponent??"",r.date??"",surf);if(own!==null&&oe!==null&&own-oe>=100){weakerOpp++;if(r.won==="0")weakerLoss++;}}add("upset_resistance_pct",weakerOpp?100*(1-weakerLoss/weakerOpp):null,weakerOpp);
- const compWins=comparable.filter(r=>r.won==="1");add("straight_set_rate_comparable_pct",compWins.length?100*compWins.filter(r=>num(r.sets_against)===0).length/compWins.length:null,compWins.length);
+ // Metric 010 exact denominator: comparable-opposition straight-set wins / ALL comparable matches.
+ // The previous code divided by comparable wins, which measured control conditional on winning
+ // and did not satisfy the master "straight-set win rate" definition.
+ const comparableStraightWins=comparable.filter(r=>r.won==="1"&&num(r.sets_against)===0).length;add("straight_set_match_win_pct_comparable",comparable.length?100*comparableStraightWins/comparable.length:null,comparable.length);
  if(cut){const end=Date.parse(`${cut}T00:00:00Z`),start=end-14*86400000,q=rows.filter(r=>{const t=Date.parse(`${r.date}T00:00:00Z`);return Number.isFinite(t)&&t>=start&&t<end&&/qual|q[1-3]?/i.test(r.round??"");});add("qualifying_matches_last_14_days",q.length,q.length);}
  return out;
 }
