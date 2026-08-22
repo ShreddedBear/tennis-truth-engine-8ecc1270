@@ -8,60 +8,93 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: tennis-data-history-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download current-season Sackmann ATP/WTA match files
-        run: |
-          set -euo pipefail
-          mkdir -p data/public/sackmann-current
-          curl -L --fail --retry 3 \
-            https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_2026.csv \
-            -o data/public/sackmann-current/atp_matches_2026.csv
-          curl -L --fail --retry 3 \
-            https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_2026.csv \
-            -o data/public/sackmann-current/wta_matches_2026.csv
-          test "$(wc -l < data/public/sackmann-current/atp_matches_2026.csv)" -gt 100
-          test "$(wc -l < data/public/sackmann-current/wta_matches_2026.csv)" -gt 100
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Record actual data-through date
+      - name: Install sync dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas requests beautifulsoup4 openpyxl xlrd
+
+      - name: Sync Tennis-Data ATP/WTA history from 2005
+        run: python scripts/sync-tennis-data-history.py
+
+      - name: Validate normalized history
         run: |
           set -euo pipefail
-          NOW="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          DATA_THROUGH="$(python3 - <<'PY'
-          import csv,glob,datetime
-          best=''
-          for f in glob.glob('data/public/sackmann-current/*_matches_2026.csv'):
-              with open(f,encoding='utf-8-sig',errors='ignore') as h:
-                  for r in csv.DictReader(h):
-                      v=(r.get('tourney_date') or '').strip()
-                      if len(v)==8 and v.isdigit():
-                          d=f'{v[:4]}-{v[4:6]}-{v[6:8]}'
-                          if d>best: best=d
-          print(best)
+          test -f data/public/tennis-data/MANIFEST.json
+          python - <<'PY'
+          import csv, glob, json, sys
+          from pathlib import Path
+
+          root=Path('data/public/tennis-data')
+          manifest=json.loads((root/'MANIFEST.json').read_text())
+          if manifest.get('historical_start')!='2005-01-01':
+              raise SystemExit('Historical cutoff is not 2005-01-01')
+          files=manifest.get('files') or []
+          tours={x.get('tour') for x in files}
+          if not {'ATP','WTA'}.issubset(tours):
+              raise SystemExit(f'Both tours were not synced: {sorted(tours)}')
+          total=0
+          for path in glob.glob('data/public/tennis-data/*/*.csv'):
+              with open(path,encoding='utf-8') as f:
+                  rows=list(csv.DictReader(f))
+              for r in rows:
+                  if not r.get('date') or r['date']<'2005-01-01':
+                      raise SystemExit(f'Invalid/pre-2005 row in {path}')
+                  if not r.get('winner') or not r.get('loser'):
+                      raise SystemExit(f'Missing player identity in {path}')
+              total += len(rows)
+          if total < 1000:
+              raise SystemExit(f'Implausibly small normalized history: {total}')
+          print(f'Validated {total} normalized ATP/WTA match rows before cross-source dedupe.')
           PY
-          )"
-          cat > data/public/sackmann-current/FRESHNESS.json <<EOF
-          {"source":"Jeff Sackmann ATP/WTA current-season match data","last_sync_utc":"$NOW","data_through":"${DATA_THROUGH:-null}","mode":"DYNAMIC","current_days":7,"stale_days":30}
-          EOF
-          cat > data/public/sackmann-current/SOURCE.md <<'EOF'
-          # Jeff Sackmann current-season ATP/WTA match data
-          Sources:
-          - https://github.com/JeffSackmann/tennis_atp
-          - https://github.com/JeffSackmann/tennis_wta
-          License: CC BY-NC-SA 4.0 as published by the upstream dataset.
-          Use: current-season historical match, ranking-at-match, surface, event-level, age and match-stat evidence where explicitly present. Missing values are never guessed.
-          EOF
+
+      - name: Record freshness
+        run: |
+          python - <<'PY'
+          import csv, glob, json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          best=''
+          for path in glob.glob('data/public/tennis-data/*/*.csv'):
+              with open(path,encoding='utf-8') as f:
+                  for r in csv.DictReader(f):
+                      d=(r.get('date') or '').strip()
+                      if d>best: best=d
+          payload={
+              'source':'Tennis-Data ATP/WTA normalized history',
+              'last_sync_utc':datetime.now(timezone.utc).isoformat(),
+              'data_through':best or None,
+              'historical_start':'2005-01-01',
+              'dedupe_required_before_aggregation':True,
+              'mode':'DYNAMIC'
+          }
+          Path('data/public/tennis-data/FRESHNESS.json').write_text(json.dumps(payload,indent=2)+'\n')
+          PY
 
       - name: Commit refresh
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/public/sackmann-current
-          if git diff --cached --quiet; then echo "No current tennis data changes."; exit 0; fi
-          git commit -m "Sync current ATP/WTA match evidence"
+          git add data/public/tennis-data
+          if git diff --cached --quiet; then
+            echo "No tennis history changes."
+            exit 0
+          fi
+          git commit -m "Sync Tennis-Data ATP/WTA evidence"
           git push origin HEAD:main
