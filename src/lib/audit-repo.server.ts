@@ -1,7 +1,7 @@
 // Supabase-backed implementation of the audit pipeline data contract.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LOCAL_WORKSPACE_ID } from "./constants";
-import { resilientResearcher } from "./resilient-audit-research.server";
+import { completionSweepResearcher } from "./completion-sweep-research.server";
 import { STAGES, type ChildTable, type PipelineDeps, type RunRow, type Stage } from "./audit-pipeline";
 
 const OWNER = LOCAL_WORKSPACE_ID;
@@ -10,7 +10,7 @@ async function ownerId(): Promise<string> { return OWNER; }
 export async function makeDeps(): Promise<PipelineDeps> {
   const user_id = await ownerId(); const db = supabaseAdmin;
   return {
-    now: () => new Date(), research: resilientResearcher,
+    now: () => new Date(), research: completionSweepResearcher,
     async getMatch(matchId) { const { data } = await db.from("matches").select("*").eq("id", matchId).maybeSingle(); return (data as never) ?? null; },
     async updateMatch(matchId, patch) { const { error } = await db.from("matches").update(patch as never).eq("id", matchId); if (error) throw new Error(`Database update failed (matches): ${error.message}`); },
     async getParsedFields(matchId) { const { data: sv } = await db.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(); if (!sv) return {}; const { data } = await db.from("parsed_summary_fields").select("field_key, normalized_value, raw_value").eq("summary_version_id", sv.id); const out: Record<string,string> = {}; for (const row of data ?? []) { const v=row.normalized_value??row.raw_value; if(v) out[row.field_key]=v; } return out; },
