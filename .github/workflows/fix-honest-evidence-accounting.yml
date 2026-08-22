@@ -27,9 +27,9 @@ jobs:
           s = p.read_text()
           old = '''  const metrics = pair(input.metrics);'''
           new = '''  const metrics: CountPair = {
-    done: input.metrics.filter((m) => DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status)).length,
-    total: input.metrics.length,
-  };'''
+              done: input.metrics.filter((m) => DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status)).length,
+              total: input.metrics.length,
+            };'''
           if old not in s:
               raise SystemExit('audit-engine metrics accounting target not found')
           s = s.replace(old, new, 1)
@@ -41,18 +41,18 @@ jobs:
           s = s.replace(old, new, 1)
 
           old = '''  input.metrics.forEach((m) => {
-    if (m.matrix_derived) return;
-    if (m.status !== "COMPLETE") return;
-    if (m.evidence_family) families.add(m.evidence_family);
-  });'''
+              if (m.matrix_derived) return;
+              if (m.status !== "COMPLETE") return;
+              if (m.evidence_family) families.add(m.evidence_family);
+            });'''
           new = '''  input.metrics.forEach((m) => {
-    if (m.matrix_derived) return;
-    const processed = DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status);
-    if (!processed) return;
-    const usableTreatment = (t: string | null | undefined) => ["DIRECT", "RECONSTRUCTED", "PARTIAL"].includes(String(t ?? ""));
-    if (!usableTreatment(m.p1_treatment) && !usableTreatment(m.p2_treatment)) return;
-    if (m.evidence_family) families.add(m.evidence_family);
-  });'''
+              if (m.matrix_derived) return;
+              const processed = DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status);
+              if (!processed) return;
+              const usableTreatment = (t: string | null | undefined) => ["DIRECT", "RECONSTRUCTED", "PARTIAL"].includes(String(t ?? ""));
+              if (!usableTreatment(m.p1_treatment) && !usableTreatment(m.p2_treatment)) return;
+              if (m.evidence_family) families.add(m.evidence_family);
+            });'''
           if old not in s:
               raise SystemExit('audit-engine family accounting target not found')
           s = s.replace(old, new, 1)
@@ -63,13 +63,13 @@ jobs:
           p = Path('src/lib/completion-sweep-research.server.ts')
           s = p.read_text()
           old = '''  "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
-  "015":["same_tournament_matches","same_tournament_win_pct","same_round_matches","same_round_win_pct","same_level_matches","same_level_win_pct"],
-};'''
+            "015":["same_tournament_matches","same_tournament_win_pct","same_round_matches","same_round_win_pct","same_level_matches","same_level_win_pct"],
+          };'''
           new = '''  "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
-  "020":["same_level_matches","same_level_win_pct"],
-  "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
-  "030":["same_tournament_matches","same_tournament_win_pct"],
-};'''
+            "020":["same_level_matches","same_level_win_pct"],
+            "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
+            "030":["same_tournament_matches","same_tournament_win_pct"],
+          };'''
           if old not in s:
               raise SystemExit('historical mapping target not found')
           s = s.replace(old, new, 1)
@@ -79,7 +79,7 @@ jobs:
           # than counting semantically unrelated style evidence.
           old = '''      byCode.set(key,prefer(byCode.get(key),styleFinding(input,metric))!);'''
           new = '''      // Do not attach style evidence to an unrelated metric code. Style-specific
-      // evidence remains available to the dedicated pathway/research layers.'''
+                // evidence remains available to the dedicated pathway/research layers.'''
           if old not in s:
               raise SystemExit('style fallback call target not found')
           s = s.replace(old, new, 1)
