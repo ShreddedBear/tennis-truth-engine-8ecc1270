@@ -83,8 +83,6 @@ function summaryMeta(map: Map<string, SourcedStat>, keys: string[]) {
   return { sample: samples.length ? Math.min(...samples) : null, sources };
 }
 
-// Every key below is intentionally tied to the master metric definition. Do not
-// put a convenient statistic into an unrelated family merely to increase coverage.
 const SUMMARY_KEYS: Record<string, string[]> = {
   "001": ["surface_elo","current_surface_elo","peak_surface_elo","observed_peak_surface_elo","surface_win_pct","surface_matches","surface_elo_trend","surface_elo_change_last10","peak_vs_current_elo_gap","surface_elo_below_peak","surface_win_pct_52w","surface_matches_52w"],
   "002": ["service_points_won_pct","first_serve_in_pct","first_serve_points_won_pct","second_serve_points_won_pct","ace_rate_pct","double_fault_rate_pct","break_points_saved_pct","hold_pct","service_games_held"],
@@ -95,12 +93,10 @@ const SUMMARY_KEYS: Record<string, string[]> = {
   "007": ["direct_common_opponents","common_opponent_matches","common_opponent_wins","common_opponent_losses","common_opponent_win_pct","surface_matched_common_opponents","tournament_level_matched_common_opponents","common_opponent_recency_weighted_win_pct","common_opponent_strength_weighted_win_pct","common_opponent_weighted_set_margin","common_opponent_second_degree_strength_pct"],
   "008": ["set1_win_pct","set2_win_pct","set3_deciding_set_win_pct","historical_deciding_set_win_pct","win_after_losing_set1_pct","win_after_winning_set1_pct","second_set_after_losing_set1_win_pct","deciding_matches_played","set_win_pct","sets_played","sets_won"],
   "009": ["win_after_losing_set1_pct","tiebreak_win_pct","tiebreaks_played"],
-  "010": ["historical_straight_set_win_pct","straight_set_win_pct","straight_set_wins","matches_won","straight_set_rate_comparable_pct"],
+  "010": ["straight_set_match_win_pct","straight_set_match_win_pct_comparable"],
   "011": ["performance_variance","floor_ceiling_elo_range","deciding_match_reliance_pct","close_match_win_pct","upset_resistance_pct","recent_elo_delta_mean","recent_elo_delta_variance","recent_elo_best_delta","recent_elo_worst_delta"],
   "012": ["matches_last_7_days","matches_last_14_days","matches_last_28_days","sets_last_14_days","three_setters_last_14_days","rest_days","qualifying_matches_last_14_days","days_since_last_match","recent_inter_match_gap_days","tournament_switches_last10","country_changes_last10","observed_travel_km_last10","avg_observed_travel_km_per_move","long_haul_moves_3000km_plus_last10","observed_timezone_shift_hours_last10","max_observed_timezone_shift_hours_last10"],
   "013": ["longest_observed_layoff_days","observed_layoffs_30d_plus","observed_layoffs_60d_plus","observed_layoffs_90d_plus","return_after_layoff_win_pct"],
-  // 014 Ranking Context intentionally has no local fallback. The repository's
-  // ranking-performance module explicitly forbids treating Elo as ATP/WTA rank.
   "020": ["same_level_matches","same_level_win_pct"],
   "021": ["match_surface_hard","match_surface_clay","match_surface_grass","match_surface_carpet","match_indoor","verified_court_speed_index","verified_court_speed_band","match_temperature_c","match_humidity_pct","match_wind_kph","match_altitude_m","match_roof_closed"],
   "023": ["serve_vs_opponent_return_edge","return_vs_opponent_serve_edge","serve_aggression_proxy","serve_reliance_proxy","return_pressure_proxy","balanced_efficiency_proxy","close_match_resilience_proxy","style_serve_vs_return_edge","style_return_vs_serve_edge","style_balance_edge","style_resilience_edge"],
@@ -162,11 +158,11 @@ function localMetricRows(p1: string, p2: string, context: string, requested: Arr
         ? "PARTIAL: explicit set scores support Set-1/Set-2 win rates, deciding-set rate, records after winning/losing Set 1, and second-set response after losing Set 1. First-break frequency, immediate break-back rate, and set-by-set hold/return improvement require game/point sequence data and are not inferred from set scores."
         : f === "009" && (xs || ys)
           ? "PARTIAL: explicit score history supports comeback frequency from a Set-1 deficit and tiebreak record. Break-consolidation, serving-for-set, serving-for-match, combined pressure-point performance, and high-leverage clutch hold/break rates require chronological game/point state and are not replaced with generic break-point or close-match statistics."
-          : null;
+          : f === "010" && (xs || ys)
+            ? "PARTIAL: public score history supports straight-set match win rate and an Elo-comparable-opposition straight-set match win rate with the correct all-match denominator. A Monte Carlo straight-set probability for both players requires a legitimate independent simulation model and is not taken from Matrix outputs or invented from historical rates."
+            : null;
     return {
       metric_code:m.code,p1_value:xs?.value??null,p2_value:ys?.value??null,
-      // These are broad master families. A subset of historical submetrics is
-      // useful evidence, but it is not the entire family.
       p1_treatment:xs?"PARTIAL":"UNAVAILABLE",p2_treatment:ys?"PARTIAL":"UNAVAILABLE",
       differential:null,evidence_family:evidenceFamily,reliability:xs||ys?(historicalDataHub?70:85):null,
       sample:String(Math.max(xs?.sample??0,ys?.sample??0))||null,
