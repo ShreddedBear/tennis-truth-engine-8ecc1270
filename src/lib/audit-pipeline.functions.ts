@@ -13,6 +13,23 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const [{ makeDeps }, pipeline] = await Promise.all([import("./audit-repo.server"), import("./audit-pipeline")]);
     const { runPipeline, STAGES } = pipeline; const deps = await makeDeps();
+    const applyMetaIfReady = async (runId: string) => {
+      const stages = await deps.getStages(runId);
+      const p1Done = stages.find((s) => s.stage === "P1 METRIC EXECUTION")?.status === "COMPLETE";
+      const p2Done = stages.find((s) => s.stage === "P2 METRIC EXECUTION")?.status === "COMPLETE";
+      if (!p1Done || !p2Done) return { changed: false, reopenedGate: false };
+      const { applySafeMetaDerivedMetrics } = await import("./meta-derived-evidence.server");
+      const changed = await applySafeMetaDerivedMetrics(deps, runId);
+      if (!changed) return { changed: false, reopenedGate: false };
+      const finalGate = stages.find((s) => s.stage === "FINAL COMBINATION GATE");
+      if (finalGate?.status === "COMPLETE") {
+        await deps.setStage(runId, data.matchId, "FINAL COMBINATION GATE", { status: "PENDING", done_count: 0, total_count: 1, error_code: null, error_message: null, finished_at: null });
+        await deps.updateRun(runId, { status: "RUNNING" });
+        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation." }, matrix_visible: false });
+        return { changed: true, reopenedGate: true };
+      }
+      return { changed: true, reopenedGate: false };
+    };
     try {
       const latest = await deps.getLatestRun(data.matchId);
       if (latest) {
@@ -48,13 +65,16 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
             await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"ZERO EVIDENCE RECOVERY",status:"RUNNING",output:{reason:"Reopened low-coverage metric statuses while preserving NOT NULL treatment columns.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION},matrix_visible:false});
           }
         }
+        // Existing completed metric sweeps can be upgraded without rerunning tennis research.
+        await applyMetaIfReady(latest.id);
       }
       // Keep each browser-triggered server invocation short enough to return
       // before Lovable/Safari drops the transport. runPipeline persists partial
       // stage progress, so the next invocation resumes the same run instead of
       // restarting or creating a duplicate run.
       const result=await runPipeline(deps,data.matchId,{budgetMs:data.budgetMs??BROWSER_SAFE_BUDGET_MS});
-      return{ok:true as const,runId:result.runId,complete:result.complete,nextStage:result.nextStage,stages:result.stages,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:result.report?.auditComplete??false};
+      const meta = await applyMetaIfReady(result.runId);
+      return{ok:true as const,runId:result.runId,complete:meta.reopenedGate?false:result.complete,nextStage:meta.reopenedGate?"FINAL COMBINATION GATE":result.nextStage,stages:result.stages,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:meta.reopenedGate?false:(result.report?.auditComplete??false)};
     } catch(error) {
       return{ok:false as const,runId:null,complete:false,nextStage:null,stages:[] as Array<{stage:string;status:string;detail:string}>,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false};
     }
