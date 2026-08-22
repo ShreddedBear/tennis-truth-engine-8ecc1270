@@ -3,6 +3,8 @@ name: Sequential Metric Audit 007-011
 on:
   push:
     branches: [metric-audit-007-011]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
