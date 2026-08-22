@@ -5,6 +5,7 @@ import type { SourcedStat } from "./reconstruction/engine";
 import { aiResearcher } from "./audit-research.server";
 import { getPredixDatasetEvidence, predixDatasetDossier, statsFromPredixDatasetDossier } from "./predixsport-dataset.server";
 import { getRecentReconstruction } from "./predixsport-recent.server";
+import { getDerivedHistoricalStats } from "./predixsport-derived.server";
 import { getCommonOpponentEvidence } from "./predixsport-common.server";
 import { resolveLocalMatchContext } from "./local-match-context.server";
 
@@ -22,19 +23,20 @@ function familyCode(code:string){const m=String(code).match(/(\d{1,3})$/);return
 function summarize(map:Map<string,SourcedStat>,keys:string[]){const present=keys.map(k=>map.get(k)).filter((x):x is SourcedStat=>!!x);if(!present.length)return null;return present.map(s=>`${s.key}=${Number(s.value).toFixed(2)}`).join("; ");}
 function summaryFor(map:Map<string,SourcedStat>,code:string):{value:string;sample:number|null;sources:SourcedStat["sources"]}|null {
   const get=(k:string)=>map.get(k)?.value,family=familyCode(code);let value:string|null=null;
-  if(family==="001"){const e=get("surface_elo"),p=get("peak_surface_elo"),wp=get("surface_win_pct"),n=get("surface_matches"),trend=get("surface_elo_trend"),gap=get("peak_vs_current_elo_gap");if(e!==undefined||wp!==undefined||trend!==undefined)value=`Surface Elo ${e??"—"}; peak ${p??"—"}; win ${wp!==undefined?Number(wp).toFixed(1)+"%":"—"}; matches ${n??"—"}; trend ${trend??"—"}; peak gap ${gap??"—"}`;}
-  if(family==="005") value=summarize(map,["last5_win_pct","last10_win_pct","last5_set_win_pct","last10_set_win_pct","current_surface_recent_win_pct","win_pct_60d","win_pct_90d","recent_form_trend","recent_straight_set_control_pct"]);
-  if(family==="006") value=summarize(map,["recent_opponent_avg_elo","best_recent_win_opponent_elo","bad_loss_rate_pct"]);
+  if(family==="001") value=summarize(map,["surface_elo","peak_surface_elo","surface_win_pct","surface_matches","surface_elo_trend","peak_vs_current_elo_gap","surface_win_pct_52w","surface_matches_52w"]);
+  if(family==="005") value=summarize(map,["last5_win_pct","last10_win_pct","last5_set_win_pct","last10_set_win_pct","current_surface_recent_win_pct","win_pct_60d","win_pct_90d","recent_form_trend","recent_straight_set_control_pct","recent_performance_acceleration","avg_sets_conceded_in_recent_wins","set_margin_mean"]);
+  if(family==="006") value=summarize(map,["recent_opponent_avg_elo","best_recent_win_opponent_elo","bad_loss_rate_pct","comparable_strength_win_pct"]);
   if(family==="008"){const wp=get("set_win_pct"),n=get("sets_played"),w=get("sets_won");if(wp!==undefined)value=`Set win ${Number(wp).toFixed(1)}%; sets ${w??"—"}/${n??"—"}`;}
   if(family==="009"){const wp=get("deciding_set_win_pct"),n=get("deciding_sets_played"),w=get("deciding_sets_won");if(wp!==undefined)value=`Deciding-set win ${Number(wp).toFixed(1)}%; ${w??"—"}/${n??"—"}`;}
-  if(family==="010"){const wp=get("straight_set_win_pct"),w=get("straight_set_wins"),mw=get("matches_won");if(wp!==undefined)value=`Straight-set win rate ${Number(wp).toFixed(1)}%; straight wins ${w??"—"}; match wins ${mw??"—"}`;}
-  if(family==="012") value=summarize(map,["matches_last_7_days","matches_last_14_days","matches_last_28_days","sets_last_14_days","three_setters_last_14_days","rest_days"]);
+  if(family==="010") value=summarize(map,["straight_set_win_pct","straight_set_wins","matches_won","straight_set_rate_comparable_pct"]);
+  if(family==="011") value=summarize(map,["performance_variance","floor_ceiling_elo_range","deciding_match_reliance_pct","close_match_win_pct","upset_resistance_pct","recent_elo_delta_mean","recent_elo_delta_variance","recent_elo_best_delta","recent_elo_worst_delta"]);
+  if(family==="012") value=summarize(map,["matches_last_7_days","matches_last_14_days","matches_last_28_days","sets_last_14_days","three_setters_last_14_days","rest_days","qualifying_matches_last_14_days"]);
   if(family==="014"){const w=get("wins"),l=get("losses"),wp=get("win_pct");if(w!==undefined||l!==undefined)value=`Historical record ${w??"—"}-${l??"—"}; win ${wp!==undefined?Number(wp).toFixed(1)+"%":"—"}`;}
   if(!value)return null;const first=[...map.values()][0];return{value,sample:first?.sample??null,sources:first?.sources??[]};
 }
 function localMetricRows(p1:string,p2:string,context:string,requested:Array<{code:string;name:string;body:string|null}>):MetricFinding[]{
   const a=getPredixDatasetEvidence(p1,context),b=getPredixDatasetEvidence(p2,context);
-  const astats=[...(a?.stats??[]),...getRecentReconstruction(p1,context)],bstats=[...(b?.stats??[]),...getRecentReconstruction(p2,context)];
+  const astats=[...(a?.stats??[]),...getRecentReconstruction(p1,context),...getDerivedHistoricalStats(p1,context)],bstats=[...(b?.stats??[]),...getRecentReconstruction(p2,context),...getDerivedHistoricalStats(p2,context)];
   const amap=new Map(astats.map(s=>[s.key,s])),bmap=new Map(bstats.map(s=>[s.key,s]));const common=getCommonOpponentEvidence(p1,p2,context);
   return requested.map(m=>{let xs=summaryFor(amap,m.code),ys=summaryFor(bmap,m.code);if(familyCode(m.code)==="007"&&common){const src=[common.source];xs={value:`${common.commonCount} common opponents; ${common.p1Wins}-${common.p1Losses}; win ${common.p1WinPct?.toFixed(1)??"—"}%`,sample:common.commonCount,sources:src};ys={value:`${common.commonCount} common opponents; ${common.p2Wins}-${common.p2Losses}; win ${common.p2WinPct?.toFixed(1)??"—"}%`,sample:common.commonCount,sources:src};}
     const sources=[...(xs?.sources??[]),...(ys?.sources??[])].filter((s,i,arr)=>arr.findIndex(z=>z.source_name===s.source_name&&z.url===s.url)===i);
@@ -45,7 +47,7 @@ function mergeMetrics(live:MetricFinding[],local:MetricFinding[]):MetricFinding[
 export const hybridResearcher:Researcher={
   async identity(input){const local=localIdentity(input);try{return mergeIdentity(local,await aiResearcher.identity(input));}catch(e){if(!isProviderFailure(e))throw e;return local;}},
   async dossier({player,opponent,context}){const local=predixDatasetDossier(player,context);try{const live=await aiResearcher.dossier?.({player,opponent,context})??"";return[local,live].filter(Boolean).join("\n");}catch(e){if(!isProviderFailure(e))throw e;return local;}},
-  async extractStats({player,dossier,context}){const local=[...statsFromPredixDatasetDossier(dossier,player),...getRecentReconstruction(player,context)];try{const live=await aiResearcher.extractStats?.({player,dossier,context})??[];const seen=new Set(live.map(s=>`${s.key}|${s.surface??""}|${s.window??""}`));return[...live,...local.filter(s=>!seen.has(`${s.key}|${s.surface??""}|${s.window??""}`))];}catch(e){if(!isProviderFailure(e))throw e;return local;}},
+  async extractStats({player,dossier,context}){const local=[...statsFromPredixDatasetDossier(dossier,player),...getRecentReconstruction(player,context),...getDerivedHistoricalStats(player,context)];try{const live=await aiResearcher.extractStats?.({player,dossier,context})??[];const seen=new Set(live.map(s=>`${s.key}|${s.surface??""}|${s.window??""}`));return[...live,...local.filter(s=>!seen.has(`${s.key}|${s.surface??""}|${s.window??""}`))];}catch(e){if(!isProviderFailure(e))throw e;return local;}},
   async metrics(input){const local=localMetricRows(input.p1,input.p2,input.context,input.metrics);try{return mergeMetrics(await aiResearcher.metrics(input),local);}catch(e){if(!isProviderFailure(e))throw e;return local;}},
   rules:(input)=>aiResearcher.rules(input),underdog:(input)=>aiResearcher.underdog(input),conclusion:(input)=>aiResearcher.conclusion(input),stress:(input)=>aiResearcher.stress(input),
 };
