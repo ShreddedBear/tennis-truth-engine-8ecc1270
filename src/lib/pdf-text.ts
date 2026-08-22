@@ -8,7 +8,7 @@ export interface ExtractedPdf {
 /**
  * Read an uploaded File without depending on File.arrayBuffer().
  * Some iOS/WebKit upload objects expose File/Blob but do not implement
- * arrayBuffer().
+ * arrayBuffer(). This is still used by the local OCR fallback.
  */
 export function readPdfFileBytes(file: File): Promise<Uint8Array> {
   if (typeof file.arrayBuffer === "function") {
@@ -16,7 +16,7 @@ export function readPdfFileBytes(file: File): Promise<Uint8Array> {
   }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read uploaded PDF"));
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read uploaded PDF bytes"));
     reader.onload = () => {
       if (!(reader.result instanceof ArrayBuffer)) {
         reject(new Error("Uploaded PDF did not produce binary data"));
@@ -28,22 +28,50 @@ export function readPdfFileBytes(file: File): Promise<Uint8Array> {
   });
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  // Convert in chunks so large PDFs do not overflow Safari's argument/string limits.
-  const chunkSize = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
-  }
-  return btoa(binary);
+/**
+ * Safari-safe Base64 conversion. Use FileReader's native Data URL path rather
+ * than rebuilding a binary string with String.fromCharCode(...)/btoa.
+ */
+export function readPdfFileBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read uploaded PDF as Base64"));
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Uploaded PDF did not produce a Data URL"));
+        return;
+      }
+      const comma = result.indexOf(",");
+      if (comma < 0 || comma === result.length - 1) {
+        reject(new Error("Uploaded PDF produced an invalid Data URL"));
+        return;
+      }
+      resolve(result.slice(comma + 1));
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
- * Browser wrapper only reads and uploads the bytes. PDF.js parsing happens on
- * the server so iOS/Safari never executes the PDF.js runtime.
+ * Browser wrapper only reads/uploads the file. PDF.js parsing happens on the
+ * server so iOS/Safari never executes PDF.js during normal text extraction.
  */
 export async function extractPdfText(file: File): Promise<ExtractedPdf> {
-  const bytes = await readPdfFileBytes(file);
-  const base64 = bytesToBase64(bytes);
-  return extractPdfTextServer({ data: { filename: file.name || "uploaded.pdf", base64 } });
+  let base64: string;
+  try {
+    base64 = await readPdfFileBase64(file);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`PDF browser read failed: ${message}`);
+  }
+
+  try {
+    return await extractPdfTextServer({
+      data: { filename: file.name || "uploaded.pdf", base64 },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`PDF server handoff failed: ${message}`);
+  }
 }
