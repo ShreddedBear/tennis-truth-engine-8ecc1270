@@ -27,11 +27,17 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
           deps.list("disagreement_results", latest.id),
           deps.getStages(latest.id),
         ]);
-        const structurallyEmpty = metrics.length === 0 || verification.length === 0 || disagreement.length === 0;
         const definitionStage = stages.find((s) => s.stage === "DEFINITION INSTANTIATION");
-        const falselyTerminal = latest.status === "COMPLETE" || latest.status === "BLOCKED";
-        const badDefinitionCompletion = definitionStage?.status === "COMPLETE" && (definitionStage.total_count ?? 0) === 0;
+        // Only a run that CLAIMED to have instantiated definitions but has none is
+        // poisoned. A run blocked/paused before instantiation is simply unfinished
+        // and MUST be resumed — invalidating it would restart from run 1 forever.
+        const definitionsClaimed = definitionStage?.status === "COMPLETE";
+        const structurallyEmpty =
+          definitionsClaimed && (metrics.length === 0 || verification.length === 0 || disagreement.length === 0);
+        const falselyTerminal = latest.status === "COMPLETE";
+        const badDefinitionCompletion = definitionsClaimed && (definitionStage?.total_count ?? 0) === 0;
         if (falselyTerminal && (structurallyEmpty || badDefinitionCompletion)) {
+
           await deps.updateRun(latest.id, {
             status: "INVALIDATED — RERUN REQUIRED",
           });
