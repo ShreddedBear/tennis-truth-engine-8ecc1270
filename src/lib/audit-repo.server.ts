@@ -1,18 +1,16 @@
 // Supabase-backed implementation of the audit pipeline data contract.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LOCAL_WORKSPACE_ID } from "./constants";
-import { hybridResearcher } from "./hybrid-audit-research.server";
+import { resilientResearcher } from "./resilient-audit-research.server";
 import { STAGES, type ChildTable, type PipelineDeps, type RunRow, type Stage } from "./audit-pipeline";
 
 const OWNER = LOCAL_WORKSPACE_ID;
-
 async function ownerId(): Promise<string> { return OWNER; }
 
 export async function makeDeps(): Promise<PipelineDeps> {
-  const user_id = await ownerId();
-  const db = supabaseAdmin;
+  const user_id = await ownerId(); const db = supabaseAdmin;
   return {
-    now: () => new Date(), research: hybridResearcher,
+    now: () => new Date(), research: resilientResearcher,
     async getMatch(matchId) { const { data } = await db.from("matches").select("*").eq("id", matchId).maybeSingle(); return (data as never) ?? null; },
     async updateMatch(matchId, patch) { const { error } = await db.from("matches").update(patch as never).eq("id", matchId); if (error) throw new Error(`Database update failed (matches): ${error.message}`); },
     async getParsedFields(matchId) { const { data: sv } = await db.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(); if (!sv) return {}; const { data } = await db.from("parsed_summary_fields").select("field_key, normalized_value, raw_value").eq("summary_version_id", sv.id); const out: Record<string,string> = {}; for (const row of data ?? []) { const v=row.normalized_value??row.raw_value; if(v) out[row.field_key]=v; } return out; },
@@ -35,13 +33,7 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async getConflicts(runId){const{data}=await db.from("source_conflicts").select("critical, resolution_status").eq("audit_run_id",runId);return(data??[])as never;},
     async getReconstructions(runId){const{data}=await db.from("reconstruction_results").select("status").eq("audit_run_id",runId);return(data??[])as never;},
     async saveCoverage(runId,rows){const{error}=await db.from("audit_coverage").upsert(rows.map(row=>({...row,user_id}))as never,{onConflict:"audit_run_id,player_side"});if(error)throw new Error(`Database write failed (audit_coverage): ${error.message}`);},
-    async saveCoverageRates(runId, rows) {
-      const registryRows=[...new Map(rows.map(row=>[String(row["metric_code"]),{metric_code:String(row["metric_code"]),metric_name:String(row["metric_name"]??row["metric_code"]),lifecycle_status:"ACTIVE",tour_eligibility:[]}])).values()];
-      const{error:registryError}=await db.from("metric_registry").upsert(registryRows as never,{onConflict:"metric_code"});if(registryError)throw new Error(`Database write failed (metric_registry): ${registryError.message}`);
-      const now=new Date().toISOString();
-      const coverageRows=rows.map(row=>({metric_code:row["metric_code"],player_side:row["player_side"],treatment:row["treatment"],usable:row["usable"],recorded_at:row["recorded_at"]??now,audit_run_id:runId,user_id}));
-      const{error}=await db.from("metric_coverage_rates").upsert(coverageRows as never,{onConflict:"metric_code,player_side,audit_run_id"});if(error)throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`);
-    },
+    async saveCoverageRates(runId, rows) { const registryRows=[...new Map(rows.map(row=>[String(row["metric_code"]),{metric_code:String(row["metric_code"]),metric_name:String(row["metric_name"]??row["metric_code"]),lifecycle_status:"ACTIVE",tour_eligibility:[]}])).values()]; const{error:registryError}=await db.from("metric_registry").upsert(registryRows as never,{onConflict:"metric_code"});if(registryError)throw new Error(`Database write failed (metric_registry): ${registryError.message}`); const now=new Date().toISOString(); const coverageRows=rows.map(row=>({metric_code:row["metric_code"],player_side:row["player_side"],treatment:row["treatment"],usable:row["usable"],recorded_at:row["recorded_at"]??now,audit_run_id:runId,user_id})); const{error}=await db.from("metric_coverage_rates").upsert(coverageRows as never,{onConflict:"metric_code,player_side,audit_run_id"});if(error)throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`); },
     async log(entry){await db.from("execution_logs").insert({user_id,audit_run_id:(entry["audit_run_id"]as string)??null,match_id:(entry["match_id"]as string)??null,stage:String(entry["stage"]),status:String(entry["status"]),output:(entry["output"]??null)as never,matrix_visible:Boolean(entry["matrix_visible"])}as never);},
   };
 }
