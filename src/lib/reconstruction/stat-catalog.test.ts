@@ -20,6 +20,18 @@ describe("canonical imported-stat family routing", () => {
     }
   });
 
+  it("keeps imported ATP serve/return aliases in their own metric families", () => {
+    expect(familyOf("service_games_held")).toBe("002");
+    expect(familyOf("return_games_played")).toBe("003");
+  });
+
+  it("keeps imported score-profile aliases in set/straight-set families", () => {
+    for (const key of ["set1_win_pct", "set2_win_pct", "win_after_losing_set1_pct", "win_after_winning_set1_pct", "historical_deciding_set_win_pct", "deciding_matches_played"]) {
+      expect(familyOf(key)).toBe("008");
+    }
+    expect(familyOf("historical_straight_set_win_pct")).toBe("010");
+  });
+
   it("prevents imported context/style data from populating 015-018", () => {
     for (const key of [
       "same_tournament_win_pct",
