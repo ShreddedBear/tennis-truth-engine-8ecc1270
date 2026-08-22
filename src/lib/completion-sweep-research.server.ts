@@ -3,6 +3,7 @@ import { reconstruct, sanitizeEvidence, type SourcedStat } from "./reconstructio
 import { resilientResearcher } from "./resilient-audit-research.server";
 import { getStyleMatchupStats, getStyleProfileStats } from "./style-matchup.server";
 import { getTennisDataHistoricalStats } from "./tennis-data-history.server";
+import { getExtendedTennisDataStats } from "./tennis-data-extended.server";
 
 function familyCode(code: string) {
   const m = String(code).match(/(\d{1,3})$/);
@@ -15,15 +16,15 @@ function dedupe(stats:SourcedStat[]){const m=new Map<string,SourcedStat>();for(c
 function withDeterministicReconstruction(stats:SourcedStat[]){const direct=sanitizeEvidence(stats);const outcome=reconstruct(direct);return dedupe([...direct,...outcome.derived]);}
 
 function localHistorical(player:string,context:string){
-  try{return getTennisDataHistoricalStats(player,context);}catch{return [];}
+  try{return dedupe([...getTennisDataHistoricalStats(player,context),...getExtendedTennisDataStats(player,context)]);}catch{return [];}
 }
 function sourcesFor(stats:SourcedStat[]){return stats.flatMap(s=>s.sources??[]).filter((s,i,a)=>a.findIndex(x=>x.source_name===s.source_name&&x.url===s.url)===i);}
 function selected(stats:SourcedStat[],keys:string[]){const wanted=new Set(keys);return stats.filter(s=>wanted.has(s.key));}
 
 // Only families that can be supported by the normalized Tennis-Data fields are
 // mapped here. Absence stays UNAVAILABLE; no value is synthesized merely to
-// raise coverage. Additional specialist sources continue through the resilient
-// researcher and deterministic reconstruction engine.
+// raise coverage. Broad families with only a subset of supported sub-metrics
+// are explicitly PARTIAL rather than being overstated as fully reconstructed.
 const HISTORICAL_KEYS:Record<string,string[]>={
   "001":["surface_win_pct","surface_matches","ranking","peak_ranking","ranking_gap_to_peak"],
   "005":["win_pct","surface_win_pct","set_win_pct","matches_last_28_days","days_since_last_match"],
@@ -35,40 +36,36 @@ const HISTORICAL_KEYS:Record<string,string[]>={
   "013":["days_since_last_match","ranking","peak_ranking","ranking_gap_to_peak"],
   "014":["wins","losses","matches_played","win_pct","surface_wins","surface_losses","surface_matches","surface_win_pct"],
   "020":["same_level_matches","same_level_win_pct"],
+  "027":["first_set_win_to_match_conversion_pct","one_set_up_collapse_rate_pct","deciding_set_closing_pct"],
   "028":["matches_last_28_days","days_since_last_match","same_round_matches","same_round_win_pct"],
   "030":["same_tournament_matches","same_tournament_win_pct"],
+  "037":["straight_set_win_pct","deciding_set_win_pct","win_pct","surface_win_pct","recent_win_opponent_rank_mean"],
+  "068":["current_streak_signed","longest_win_streak_observed"],
+  "077":["season_matches_before_lock","matches_last_28_days","days_since_last_match","longest_observed_rest_gap_days"],
 };
+const PARTIAL_FAMILIES=new Set(["027","037","077"]);
 
 function historicalFinding(input:Parameters<Researcher["metrics"]>[0],metric:{code:string}):MetricFinding|null{
-  const keys=HISTORICAL_KEYS[familyCode(metric.code)];if(!keys)return null;
+  const family=familyCode(metric.code),keys=HISTORICAL_KEYS[family];if(!keys)return null;
   const p1all=withDeterministicReconstruction(localHistorical(input.p1,input.context));
   const p2all=withDeterministicReconstruction(localHistorical(input.p2,input.context));
   const p1=selected(p1all,keys),p2=selected(p2all,keys),p1Value=summarize(p1),p2Value=summarize(p2);
   if(!p1Value&&!p2Value)return null;
-  const sources=sourcesFor([...p1,...p2]);
+  const sources=sourcesFor([...p1,...p2]),treatment=PARTIAL_FAMILIES.has(family)?"PARTIAL":"RECONSTRUCTED";
   return{
     metric_code:metric.code,
     p1_value:p1Value,
     p2_value:p2Value,
-    p1_treatment:p1Value?"RECONSTRUCTED":"UNAVAILABLE",
-    p2_treatment:p2Value?"RECONSTRUCTED":"UNAVAILABLE",
+    p1_treatment:p1Value?treatment:"UNAVAILABLE",
+    p2_treatment:p2Value?treatment:"UNAVAILABLE",
     differential:null,
-    evidence_family:`TENNIS_DATA_HISTORY_${familyCode(metric.code)}`,
-    reliability:75,
+    evidence_family:`TENNIS_DATA_HISTORY_${family}`,
+    reliability:PARTIAL_FAMILIES.has(family)?70:75,
     sample:String(Math.max(...[...p1,...p2].map(s=>s.sample??0),0))||null,
     unavailable_reason:!p1Value||!p2Value?"One player side lacked the sourced historical inputs required for this metric family.":null,
     missing_inputs:!p1Value||!p2Value?["sourced historical inputs for unsupported player side"]:undefined,
     sources,
   };
-}
-
-function styleFinding(input: Parameters<Researcher["metrics"]>[0], metric: { code: string }): MetricFinding | null {
-  if (familyCode(metric.code) !== "018") return null;
-  const p1=withDeterministicReconstruction([...localHistorical(input.p1,input.context),...getStyleProfileStats(input.p1,input.context),...getStyleMatchupStats(input.p1,input.p2,input.context)]);
-  const p2=withDeterministicReconstruction([...localHistorical(input.p2,input.context),...getStyleProfileStats(input.p2,input.context),...getStyleMatchupStats(input.p2,input.p1,input.context)]);
-  const p1Value=summarize(p1),p2Value=summarize(p2); if(!p1Value&&!p2Value)return null;
-  const sources=sourcesFor([...p1,...p2]);
-  return{metric_code:metric.code,p1_value:p1Value,p2_value:p2Value,p1_treatment:p1Value?"RECONSTRUCTED":"UNAVAILABLE",p2_treatment:p2Value?"RECONSTRUCTED":"UNAVAILABLE",differential:null,evidence_family:"STATISTICAL_STYLE_MATCHUP",reliability:70,sample:String(Math.max(...[...p1,...p2].map(s=>s.sample??0),0))||null,unavailable_reason:!p1Value||!p2Value?"Required serve/return or score-profile inputs were not present.":null,sources};
 }
 
 function prefer(a:MetricFinding|undefined,b:MetricFinding|null):MetricFinding|undefined{
@@ -84,8 +81,7 @@ export const completionSweepResearcher:Researcher={
     for(const metric of input.metrics){
       const key=String(metric.code);
       byCode.set(key,prefer(byCode.get(key),historicalFinding(input,metric))!);
-      // Do not attach style evidence to an unrelated metric code. Style-specific
-      // evidence remains available to the dedicated pathway/research layers.
+      // Style evidence is intentionally not attached to unrelated metric codes.
     }
     const retry=input.metrics.filter(metric=>unresolved(byCode.get(String(metric.code))));
     for(const metric of retry){
