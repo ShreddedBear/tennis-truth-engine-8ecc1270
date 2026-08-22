@@ -20,13 +20,14 @@ function uniqueSources(rows: Array<Record<string, unknown>>) {
 }
 
 /**
- * Metric 061 contains two broad advanced tests:
+ * Metric 061 contains three broad advanced tests:
  *  - counterfactual winner testing by removing each input one at a time;
- *  - realistic opponent-upgrade testing of key metrics.
+ *  - realistic opponent-upgrade testing of key metrics;
+ *  - historical twin-match search across the full defined similarity vector.
  *
- * The persisted stress suite currently gives us only a real strongest-family
- * removal test (ST03) plus other scenario perturbations. That is useful but does
- * not satisfy the full definition, so this row is deliberately PARTIAL.
+ * The persisted stress suite currently gives us a real strongest-family removal
+ * test (ST03) plus related scenario perturbations. That supports only a subset of
+ * the definition, so this row is deliberately PARTIAL.
  */
 export async function applyFinalAdvancedMetric(deps: PipelineDeps, runId: string) {
   const [metrics, stress] = await Promise.all([
@@ -40,7 +41,9 @@ export async function applyFinalAdvancedMetric(deps: PipelineDeps, runId: string
   const strongestFamily = completed.find((row) => String(row["test_code"] ?? "") === "ST03");
   if (!strongestFamily) return false;
 
-  const related = completed.filter((row) => ["ST03", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10"].includes(String(row["test_code"] ?? "")));
+  const related = completed.filter((row) =>
+    ["ST03", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10"].includes(String(row["test_code"] ?? "")),
+  );
   const detail = related
     .map((row) => `${String(row["test_code"] ?? "")}:${String(row["outcome"] ?? "")}`)
     .join("; ");
@@ -59,6 +62,7 @@ export async function applyFinalAdvancedMetric(deps: PipelineDeps, runId: string
   const missing = [
     "leave-one-input-out winner rerun for every individual input metric",
     "realistic opponent-upgrade rerun for Elo, return, serve and recent-form inputs",
+    "historical twin-match search using the full metric-061 similarity vector",
   ];
   await deps.update("metric_results", String(target["id"]), {
     p1_value: value,
@@ -75,7 +79,7 @@ export async function applyFinalAdvancedMetric(deps: PipelineDeps, runId: string
     source_attempts: sources,
     reconstruction_attempted: true,
     reconstruction_reason:
-      "Derived from the persisted strongest-independent-family removal result and related completed scenario tests. Full metric-061 counterfactual and opponent-upgrade suite is not yet implemented.",
+      "Derived from the persisted strongest-independent-family removal result and related completed scenario tests. Full metric-061 counterfactual, opponent-upgrade, and historical-twin suite is not yet implemented.",
     reconstruction_result: value,
     retrieved_at: now,
     p1_retrieved_at: now,
