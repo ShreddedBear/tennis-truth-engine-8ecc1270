@@ -482,7 +482,9 @@ async function ensureRun(deps: PipelineDeps, match: MatchRow): Promise<RunRow> {
 }
 
 interface StageOutcome {
-  status: "COMPLETE" | "BLOCKED" | "FAILED";
+  // PARTIAL: real work was persisted but the time budget ran out. The stage
+  // stays RUNNING and the caller resumes it on the next invocation.
+  status: "COMPLETE" | "BLOCKED" | "FAILED" | "PARTIAL";
   done: number;
   total: number;
   message?: string;
@@ -490,7 +492,12 @@ interface StageOutcome {
   detail?: Record<string, unknown>;
 }
 
-async function executeStage(deps: PipelineDeps, stage: Stage, matchId: string, runId: string): Promise<StageOutcome> {
+interface StageCtx {
+  deadline: number;
+  progress: (done: number, total: number) => Promise<void>;
+}
+
+async function executeStage(deps: PipelineDeps, stage: Stage, matchId: string, runId: string, ctx: StageCtx): Promise<StageOutcome> {
   switch (stage) {
     case "MATCH IDENTITY VERIFICATION":
     case "MATCH CONTEXT RESOLUTION":
@@ -499,11 +506,11 @@ async function executeStage(deps: PipelineDeps, stage: Stage, matchId: string, r
       return instantiate(deps, matchId, runId);
     case "P1 METRIC EXECUTION":
     case "P2 METRIC EXECUTION":
-      return executeMetrics(deps, matchId, runId, stage === "P1 METRIC EXECUTION" ? "p1" : "p2");
+      return executeMetrics(deps, matchId, runId, stage === "P1 METRIC EXECUTION" ? "p1" : "p2", ctx);
     case "VERIFICATION AUDIT":
-      return executeRules(deps, matchId, runId, "VERIFICATION");
+      return executeRules(deps, matchId, runId, "VERIFICATION", ctx);
     case "DISAGREEMENT / TRAP AUDIT":
-      return executeRules(deps, matchId, runId, "DISAGREEMENT");
+      return executeRules(deps, matchId, runId, "DISAGREEMENT", ctx);
     case "DANGEROUS UNDERDOG AUDIT":
       return executeUnderdog(deps, matchId, runId);
     case "STRESS / REMOVAL TESTS":
@@ -782,7 +789,7 @@ async function instantiate(deps: PipelineDeps, matchId: string, runId: string): 
 
 // ------------------------------ 4 metric execution -------------------------
 
-async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string, side: "p1" | "p2"): Promise<StageOutcome> {
+async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string, side: "p1" | "p2", ctx: StageCtx): Promise<StageOutcome> {
   const match = await deps.getMatch(matchId);
   if (!match) throw new Error("match disappeared");
   const rows = await deps.list("metric_results", runId);
@@ -1001,7 +1008,7 @@ async function executeMetrics(deps: PipelineDeps, matchId: string, runId: string
 
 // -------------------------- 5 + 6 verification / trap ----------------------
 
-async function executeRules(deps: PipelineDeps, matchId: string, runId: string, kind: "VERIFICATION" | "DISAGREEMENT"): Promise<StageOutcome> {
+async function executeRules(deps: PipelineDeps, matchId: string, runId: string, kind: "VERIFICATION" | "DISAGREEMENT", ctx: StageCtx): Promise<StageOutcome> {
   const table: ChildTable = kind === "VERIFICATION" ? "verification_results" : "disagreement_results";
   const match = await deps.getMatch(matchId);
   if (!match) throw new Error("match disappeared");
