@@ -38,8 +38,8 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async saveCoverageRates(runId, rows) {
       const registryRows=[...new Map(rows.map(row=>[String(row["metric_code"]),{metric_code:String(row["metric_code"]),metric_name:String(row["metric_name"]??row["metric_code"]),lifecycle_status:"ACTIVE",tour_eligibility:[]}])).values()];
       const{error:registryError}=await db.from("metric_registry").upsert(registryRows as never,{onConflict:"metric_code"});if(registryError)throw new Error(`Database write failed (metric_registry): ${registryError.message}`);
-      // metric_name belongs in metric_registry, not metric_coverage_rates.
-      const coverageRows=rows.map(row=>({metric_code:row["metric_code"],player_side:row["player_side"],treatment:row["treatment"],usable:row["usable"],recorded_at:row["recorded_at"],audit_run_id:runId,user_id}));
+      const now=new Date().toISOString();
+      const coverageRows=rows.map(row=>({metric_code:row["metric_code"],player_side:row["player_side"],treatment:row["treatment"],usable:row["usable"],recorded_at:row["recorded_at"]??now,audit_run_id:runId,user_id}));
       const{error}=await db.from("metric_coverage_rates").upsert(coverageRows as never,{onConflict:"metric_code,player_side,audit_run_id"});if(error)throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`);
     },
     async log(entry){await db.from("execution_logs").insert({user_id,audit_run_id:(entry["audit_run_id"]as string)??null,match_id:(entry["match_id"]as string)??null,stage:String(entry["stage"]),status:String(entry["status"]),output:(entry["output"]??null)as never,matrix_visible:Boolean(entry["matrix_visible"])}as never);},
