@@ -3,7 +3,7 @@ name: Sync PredixSport Tennis Data
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 6 * * 1"
+    - cron: "17 6 * * *"
 
 permissions:
   contents: write
@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: integrate-local-tennis-data
 
       - name: Download PredixSport CC BY 4.0 dataset
         run: |
@@ -29,34 +27,47 @@ jobs:
       - name: Keep ATP and WTA CSV histories
         run: |
           set -euo pipefail
-          find .tmp/predixsport/extracted -type f -iname '*.csv' -print
           while IFS= read -r file; do
             base="$(basename "$file")"
             lower="$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')"
-            if [[ "$lower" == *atp* ]]; then
-              cp "$file" "data/public/predixsport/atp/$base"
-            elif [[ "$lower" == *wta* ]]; then
-              cp "$file" "data/public/predixsport/wta/$base"
-            fi
+            if [[ "$lower" == *atp* ]]; then cp "$file" "data/public/predixsport/atp/$base"; fi
+            if [[ "$lower" == *wta* ]]; then cp "$file" "data/public/predixsport/wta/$base"; fi
           done < <(find .tmp/predixsport/extracted -type f -iname '*.csv')
-
           test "$(find data/public/predixsport/atp -type f -name '*.csv' | wc -l)" -gt 0
           test "$(find data/public/predixsport/wta -type f -name '*.csv' | wc -l)" -gt 0
 
-      - name: Record source and license
+      - name: Record provenance and freshness
         run: |
+          set -euo pipefail
+          NOW="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > data/public/predixsport/LAST_SYNC_UTC.txt
+          DATA_THROUGH="$(python3 - <<'PY'
+          import csv,glob,re
+          best=''
+          for f in glob.glob('data/public/predixsport/**/*.csv',recursive=True):
+              try:
+                  with open(f,encoding='utf-8-sig',errors='ignore') as h:
+                      for r in csv.DictReader(h):
+                          for k,v in r.items():
+                              if k and 'date' in k.lower() and v:
+                                  m=re.search(r'(20\d{2})[-/]?(\d{2})[-/]?(\d{2})',str(v))
+                                  if m:
+                                      d='-'.join(m.groups())
+                                      if d>best: best=d
+              except Exception: pass
+          print(best)
+          PY
+          )"
+          cat > data/public/predixsport/FRESHNESS.json <<EOF
+          {"source":"PredixSport public tennis ratings (CC BY 4.0)","last_sync_utc":"$NOW","data_through":"${DATA_THROUGH:-null}","mode":"DYNAMIC","current_days":7,"stale_days":30}
+          EOF
           cat > data/public/predixsport/SOURCE.md <<'EOF'
           # PredixSport tennis rating histories
-
           Source: https://www.kaggle.com/datasets/predixsport/sports-elo-ratings
-
           Methodology/license statement: https://www.predixsport.com/methodology
-
-          License: CC BY 4.0. PredixSport states the Elo rating histories are open data and may be reused with attribution/linking.
-
-          Intended audit use: historical ATP/WTA Elo, Glicko-2, surface-rating and form evidence only when fields are explicitly present in the downloaded files. No missing value may be guessed or fabricated.
+          License: CC BY 4.0.
+          Audit use: historical/current ATP/WTA rating and match evidence only when explicitly present. Freshness is tracked separately in FRESHNESS.json. Missing values are never guessed.
           EOF
-          date -u +'%Y-%m-%dT%H:%M:%SZ' > data/public/predixsport/LAST_SYNC_UTC.txt
 
       - name: Commit refreshed public data
         run: |
@@ -64,9 +75,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/public/predixsport
-          if git diff --cached --quiet; then
-            echo "No PredixSport data changes."
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo "No PredixSport data changes."; exit 0; fi
           git commit -m "Sync PredixSport ATP/WTA public rating histories"
-          git push origin HEAD:integrate-local-tennis-data
+          git push origin HEAD:main
