@@ -20,15 +20,24 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
       if (!p1Done || !p2Done) return { changed: false, reopenedGate: false };
       const { applySafeMetaDerivedMetrics, applySafeStressDerivedMetrics } = await import("./meta-derived-evidence.server");
       const metricMetaChanged = await applySafeMetaDerivedMetrics(deps, runId);
+      const underdogDone = stages.find((s) => s.stage === "DANGEROUS UNDERDOG AUDIT")?.status === "COMPLETE";
+      let pathwayMetaChanged = false;
+      if (underdogDone) {
+        const match = await deps.getMatch(data.matchId);
+        if (match) {
+          const { applyOpponentWinPathwaysMetric } = await import("./opponent-win-pathways-meta.server");
+          pathwayMetaChanged = await applyOpponentWinPathwaysMetric(deps, runId, match.player1_name, match.player2_name);
+        }
+      }
       const stressDone = stages.find((s) => s.stage === "STRESS / REMOVAL TESTS")?.status === "COMPLETE";
       const stressMetaChanged = stressDone ? await applySafeStressDerivedMetrics(deps, runId) : false;
-      const changed = metricMetaChanged || stressMetaChanged;
+      const changed = metricMetaChanged || pathwayMetaChanged || stressMetaChanged;
       if (!changed) return { changed: false, reopenedGate: false };
       const finalGate = stages.find((s) => s.stage === "FINAL COMBINATION GATE");
       if (finalGate?.status === "COMPLETE") {
         await deps.setStage(runId, data.matchId, "FINAL COMBINATION GATE", { status: "PENDING", done_count: 0, total_count: 1, error_code: null, error_message: null, finished_at: null });
         await deps.updateRun(runId, { status: "RUNNING" });
-        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation.", metric_meta_changed: metricMetaChanged, stress_meta_changed: stressMetaChanged }, matrix_visible: false });
+        await deps.log({ audit_run_id: runId, match_id: data.matchId, stage: "META-DERIVED EVIDENCE REFRESH", status: "COMPLETE", output: { reason: "Safe meta-derived metric rows changed; Final Combination Gate reopened for coverage recalculation.", metric_meta_changed: metricMetaChanged, pathway_meta_changed: pathwayMetaChanged, stress_meta_changed: stressMetaChanged }, matrix_visible: false });
         return { changed: true, reopenedGate: true };
       }
       return { changed: true, reopenedGate: false };
@@ -68,7 +77,7 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
             await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"ZERO EVIDENCE RECOVERY",status:"RUNNING",output:{reason:"Reopened low-coverage metric statuses while preserving NOT NULL treatment columns.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION},matrix_visible:false});
           }
         }
-        // Existing completed metric/stress sweeps can be upgraded without rerunning tennis research.
+        // Existing completed metric/underdog/stress sweeps can be upgraded without rerunning tennis research.
         await applyMetaIfReady(latest.id);
       }
       // Keep each browser-triggered server invocation short enough to return
