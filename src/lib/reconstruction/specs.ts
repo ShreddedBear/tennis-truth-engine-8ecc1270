@@ -318,7 +318,7 @@ for (const spec of RECONSTRUCTION_SPECS) {
   }
 }
 
-export const SPECS_BY_OUTPUT = RECONSTRUCTION_SPECS.reduce<Record<string, ReconstructionSpec[]>((acc, s) => {
+export const SPECS_BY_OUTPUT = RECONSTRUCTION_SPECS.reduce<Record<string, ReconstructionSpec[]>>((acc, s) => {
   (acc[s.output] ??= []).push(s);
   return acc;
 }, {});
