@@ -9,9 +9,9 @@ export interface ExtractedPdf {
  * Some iOS/WebKit upload objects expose File/Blob but do not implement
  * arrayBuffer(), which previously caused "undefined is not a function".
  */
-function readFileBytes(file: File): Promise<Uint8Array> {
+export function readPdfFileBytes(file: File): Promise<Uint8Array> {
   if (typeof file.arrayBuffer === "function") {
-    return file.arrayBuffer().then(buf => new Uint8Array(buf));
+    return file.arrayBuffer().then((buf) => new Uint8Array(buf));
   }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -28,12 +28,15 @@ function readFileBytes(file: File): Promise<Uint8Array> {
 }
 
 export async function extractPdfText(file: File): Promise<ExtractedPdf> {
-  const pdfjs = await import("pdfjs-dist");
-  const workerModule = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+  // Use PDF.js' legacy browser build for iOS/WebKit compatibility. The modern
+  // build can rely on newer JS APIs that some Safari/Lovable preview contexts
+  // do not expose and surface only as "undefined is not a function".
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const workerModule = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
   const workerSrc = workerModule.default;
   if (workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
-  const data = await readFileBytes(file);
+  const data = await readPdfFileBytes(file);
   const doc = await pdfjs.getDocument({ data }).promise;
   const pages: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
