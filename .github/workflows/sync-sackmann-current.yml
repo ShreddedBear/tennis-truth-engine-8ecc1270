@@ -1,0 +1,67 @@
+name: Sync Current ATP WTA Match Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download current-season Sackmann ATP/WTA match files
+        run: |
+          set -euo pipefail
+          mkdir -p data/public/sackmann-current
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_2026.csv \
+            -o data/public/sackmann-current/atp_matches_2026.csv
+          curl -L --fail --retry 3 \
+            https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_2026.csv \
+            -o data/public/sackmann-current/wta_matches_2026.csv
+          test "$(wc -l < data/public/sackmann-current/atp_matches_2026.csv)" -gt 100
+          test "$(wc -l < data/public/sackmann-current/wta_matches_2026.csv)" -gt 100
+
+      - name: Record actual data-through date
+        run: |
+          set -euo pipefail
+          NOW="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          DATA_THROUGH="$(python3 - <<'PY'
+          import csv,glob,datetime
+          best=''
+          for f in glob.glob('data/public/sackmann-current/*_matches_2026.csv'):
+              with open(f,encoding='utf-8-sig',errors='ignore') as h:
+                  for r in csv.DictReader(h):
+                      v=(r.get('tourney_date') or '').strip()
+                      if len(v)==8 and v.isdigit():
+                          d=f'{v[:4]}-{v[4:6]}-{v[6:8]}'
+                          if d>best: best=d
+          print(best)
+          PY
+          )"
+          cat > data/public/sackmann-current/FRESHNESS.json <<EOF
+          {"source":"Jeff Sackmann ATP/WTA current-season match data","last_sync_utc":"$NOW","data_through":"${DATA_THROUGH:-null}","mode":"DYNAMIC","current_days":7,"stale_days":30}
+          EOF
+          cat > data/public/sackmann-current/SOURCE.md <<'EOF'
+          # Jeff Sackmann current-season ATP/WTA match data
+          Sources:
+          - https://github.com/JeffSackmann/tennis_atp
+          - https://github.com/JeffSackmann/tennis_wta
+          License: CC BY-NC-SA 4.0 as published by the upstream dataset.
+          Use: current-season historical match, ranking-at-match, surface, event-level, age and match-stat evidence where explicitly present. Missing values are never guessed.
+          EOF
+
+      - name: Commit refresh
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/public/sackmann-current
+          if git diff --cached --quiet; then echo "No current tennis data changes."; exit 0; fi
+          git commit -m "Sync current ATP/WTA match evidence"
+          git push origin HEAD:main
