@@ -145,7 +145,7 @@ describe("sequential certification guardrails for 041/043/044/045/046", () => {
     expect(master).toContain("Elo-style rating conditioned specifically on deciding-set play");
     expect(master).toContain("Elo-style rating conditioned specifically on matches with multiple");
     expect(master).toContain("Elo-style rating conditioned specifically on facing big-serving opponents");
-    expect(master).toContain("Elo-style rating conditioned specifically on facing strong-returning opponents");
+    expect(master).toMatch(/Elo-style rating conditioned specifically on facing strong-returning\s+opponents\./);
   });
 
   it("keeps provenance/sample/treatment persistence side-specific", () => {
