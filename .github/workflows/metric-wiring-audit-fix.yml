@@ -1,0 +1,49 @@
+name: Metric Wiring Audit Fix
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/metric-wiring-audit-fix.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch strict metric wiring
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p=Path('src/lib/hybrid-audit-research.server.ts')
+          s=p.read_text()
+          old='if(f==="015")value=summarize(map,["same_tournament_matches","same_tournament_win_pct","same_round_matches","same_round_win_pct","same_level_matches","same_level_win_pct","tournament_switches_last10","country_changes_last10","observed_travel_km_last10","observed_timezone_shift_hours_last10"]);if(f==="016")value=summarize(map,["match_surface_hard","match_surface_clay","match_surface_grass","match_surface_carpet","match_indoor","verified_court_speed_index","verified_court_speed_band"]);if(f==="017")value=summarize(map,["match_temperature_c","match_humidity_pct","match_wind_kph","match_altitude_m","match_roof_closed"]);'
+          new='if(f==="020")value=summarize(map,["same_level_matches","same_level_win_pct"]);if(f==="021")value=summarize(map,["match_surface_hard","match_surface_clay","match_surface_grass","match_surface_carpet","match_indoor","verified_court_speed_index","verified_court_speed_band","match_temperature_c","match_humidity_pct","match_wind_kph","match_altitude_m","match_roof_closed"]);if(f==="028")value=summarize(map,["matches_last_14_days","matches_last_28_days","days_since_last_match","recent_inter_match_gap_days","tournament_switches_last10","country_changes_last10","observed_travel_km_last10","avg_observed_travel_km_per_move","long_haul_moves_3000km_plus_last10","observed_timezone_shift_hours_last10","max_observed_timezone_shift_hours_last10","same_round_matches","same_round_win_pct"]);if(f==="030")value=summarize(map,["same_tournament_matches","same_tournament_win_pct","verified_court_speed_index","verified_court_speed_band"]);'
+          if old not in s: raise SystemExit('hybrid summary mapping target not found')
+          s=s.replace(old,new)
+          old2='familyCode(m.code)==="015"?"PUBLIC_TOURNAMENT_TRAVEL_CONTEXT":familyCode(m.code)==="016"?"VERIFIED_COURT_ENVIRONMENT":familyCode(m.code)==="017"?"VERIFIED_WEATHER_ENVIRONMENT":historicalDataHub?'
+          new2='familyCode(m.code)==="020"?"PUBLIC_TOUR_LEVEL_HISTORY":familyCode(m.code)==="021"?"VERIFIED_SURFACE_ENVIRONMENT":familyCode(m.code)==="028"?"PUBLIC_SCHEDULING_CONTEXT":familyCode(m.code)==="030"?"PUBLIC_TOURNAMENT_HISTORY":historicalDataHub?'
+          if old2 not in s: raise SystemExit('hybrid evidence family target not found')
+          s=s.replace(old2,new2)
+          p.write_text(s)
+
+          p=Path('src/lib/validated-completion-research.server.ts')
+          s=p.read_text()
+          old='''  rally:["rally","shot","forehand","backhand","net","drop_shot","direction","serve_plus_1","return_neutralization"],\n};'''
+          new='''  rally:["rally","shot","forehand","backhand","net","drop_shot","direction","serve_plus_1","return_neutralization"],\n  level:["same_level","tour_level","level_transition","challenger","itf","atp","wta"],\n  environment:["surface","court_speed","indoor","outdoor","temperature","humidity","wind","altitude","roof","weather"],\n  scheduling:["days_since_last_match","matches_last_14","matches_last_28","rest","travel","timezone","same_round","round","qualifying","recovery"],\n  tournament:["same_tournament","tournament_specific","court_speed","venue","environment"],\n};'''
+          if old not in s: raise SystemExit('validated groups target not found')
+          s=s.replace(old,new)
+          old2='''  if(/shot|rally/.test(t))return"rally";\n  return null;'''
+          new2='''  if(/shot|rally/.test(t))return"rally";\n  if(/level\\/tour transition|tour-level transition|opponent elo differential/.test(t))return"level";\n  if(/surface & environmental context|surface-transition|altitude|court-speed|weather sensitivity|data-source agreement/.test(t))return"environment";\n  if(/scheduling\\/context|days since last|travel-to-rest|recovery hours|schedule density|qualifier adaptation/.test(t))return"scheduling";\n  if(/tournament-specific strength|exact tournament|venue familiarity/.test(t))return"tournament";\n  return null;'''
+          if old2 not in s: raise SystemExit('validated semantic target not found')
+          s=s.replace(old2,new2)
+          p.write_text(s)
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/hybrid-audit-research.server.ts src/lib/validated-completion-research.server.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "Enforce correct metric-to-evidence wiring"
+          git push
