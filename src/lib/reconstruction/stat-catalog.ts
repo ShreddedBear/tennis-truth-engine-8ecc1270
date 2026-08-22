@@ -20,7 +20,22 @@ C("same_tournament_matches","Prior matches at same tournament","015",500),P("sam
 {key:"match_temperature_c",label:"Verified match temperature",unit:"CELSIUS",family:"017",min:-30,max:60},P("match_humidity_pct","Verified match humidity","017"),{key:"match_wind_kph",label:"Verified match wind speed",unit:"KPH",family:"017",min:0,max:250},{key:"match_altitude_m",label:"Verified match altitude/elevation",unit:"METERS",family:"017",min:-500,max:9000},{key:"match_roof_closed",label:"Verified roof closed flag",unit:"FLAG",family:"017",min:0,max:1},
 P("serve_aggression_proxy","Statistical serve-aggression proxy","018"),P("serve_reliance_proxy","Statistical serve-reliance proxy","018"),P("return_pressure_proxy","Statistical return-pressure proxy","018"),P("balanced_efficiency_proxy","Statistical balanced-efficiency proxy","018"),P("close_match_resilience_proxy","Statistical close-match resilience proxy","018"),{key:"style_serve_vs_return_edge",label:"Serve profile vs opponent return edge",unit:"EDGE",family:"018",min:-100,max:100},{key:"style_return_vs_serve_edge",label:"Return profile vs opponent serve edge",unit:"EDGE",family:"018",min:-100,max:100},{key:"style_balance_edge",label:"Balanced efficiency matchup edge",unit:"EDGE",family:"018",min:-100,max:100},{key:"style_resilience_edge",label:"Close-match resilience edge",unit:"EDGE",family:"018",min:-100,max:100},
 C("common_opponent_wins","Wins vs common opponents","080",500),C("common_opponent_losses","Losses vs common opponents","080",500),P("common_opponent_win_pct","Common-opponent win %","080")];
-export const STAT_BY_KEY=new Map(STAT_CATALOG.map(s=>[s.key,s]));
+
+// Valid imported aliases emitted by source adapters. Registering them here keeps
+// deterministic pass-2 provenance instead of discarding them as unknown stats.
+const IMPORTED_ALIAS_STATS:StatDef[]=[
+  C("service_games_held","Observed service games held","002",20000),
+  C("return_games_played","Observed return games played","003",20000),
+  P("set1_win_pct","Set-1 win %","008"),
+  P("set2_win_pct","Set-2 win %","008"),
+  P("win_after_losing_set1_pct","Match win % after losing set 1","008"),
+  P("win_after_winning_set1_pct","Match win % after winning set 1","008"),
+  P("historical_deciding_set_win_pct","Historical deciding-set win %","008"),
+  C("deciding_matches_played","Observed deciding matches played","008",2000),
+  P("historical_straight_set_win_pct","Historical straight-set win %","010"),
+];
+
+export const STAT_BY_KEY=new Map([...STAT_CATALOG,...IMPORTED_ALIAS_STATS].map(s=>[s.key,s]));
 
 // Semantic family overrides for imported/context statistics. The legacy family
 // tags above remain part of the validation catalog, but pass-2 routing must use
