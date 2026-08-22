@@ -1,0 +1,74 @@
+name: Fix Canonical Wiring And Add 042
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-canonical-wiring-and-add-042.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch canonical family routing and add safe 042 meta derivation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          # 1) Canonical pass-2 family overrides. Keep legacy catalog entries for
+          # range validation, but familyOf() must route each atomic stat to the
+          # actual master metric family.
+          p=Path('src/lib/reconstruction/stat-catalog.ts')
+          s=p.read_text()
+          old='export const STAT_BY_KEY=new Map(STAT_CATALOG.map(s=>[s.key,s]));\nexport function familyOf(key:string):string|null{return STAT_BY_KEY.get(key)?.family??null;}'
+          new='''export const STAT_BY_KEY=new Map(STAT_CATALOG.map(s=>[s.key,s]));
+const FAMILY_OVERRIDES:Record<string,string>={
+  same_tournament_matches:"030",same_tournament_win_pct:"030",
+  same_round_matches:"028",same_round_win_pct:"028",
+  same_level_matches:"020",same_level_win_pct:"020",
+  match_surface_hard:"021",match_surface_clay:"021",match_surface_grass:"021",match_surface_carpet:"021",match_indoor:"021",
+  verified_court_speed_index:"021",verified_court_speed_band:"021",
+  match_temperature_c:"021",match_humidity_pct:"021",match_wind_kph:"021",match_altitude_m:"021",match_roof_closed:"021",
+  serve_aggression_proxy:"023",serve_reliance_proxy:"023",return_pressure_proxy:"023",balanced_efficiency_proxy:"023",close_match_resilience_proxy:"023",
+  style_serve_vs_return_edge:"023",style_return_vs_serve_edge:"023",style_balance_edge:"023",style_resilience_edge:"023",
+};
+export function familyOf(key:string):string|null{return FAMILY_OVERRIDES[key]??STAT_BY_KEY.get(key)?.family??null;}'''
+          if old not in s: raise SystemExit('stat catalog tail anchor not found')
+          p.write_text(s.replace(old,new,1))
+
+          # 2) Regression test for the semantic family firewall.
+          t=Path('src/lib/reconstruction/stat-catalog.test.ts')
+          t.write_text('''import { describe, expect, it } from "vitest";\nimport { familyOf } from "./stat-catalog";\n\ndescribe("canonical imported-stat family routing",()=>{\n  it("routes tournament context to the correct metric families",()=>{\n    expect(familyOf("same_tournament_win_pct")).toBe("030");\n    expect(familyOf("same_round_win_pct")).toBe("028");\n    expect(familyOf("same_level_win_pct")).toBe("020");\n  });\n  it("does not route environment into point/shot metrics",()=>{\n    expect(familyOf("match_surface_hard")).toBe("021");\n    expect(familyOf("verified_court_speed_index")).toBe("021");\n    expect(familyOf("match_temperature_c")).toBe("021");\n    expect(familyOf("match_wind_kph")).toBe("021");\n  });\n  it("routes statistical style proxies to matchup-adjusted metrics",()=>{\n    expect(familyOf("serve_aggression_proxy")).toBe("023");\n    expect(familyOf("style_serve_vs_return_edge")).toBe("023");\n    expect(familyOf("style_resilience_edge")).toBe("023");\n  });\n  it("keeps true market/point/shot/momentum families free of these imported proxies",()=>{\n    for(const key of ["same_tournament_win_pct","same_round_win_pct","same_level_win_pct","match_surface_hard","match_temperature_c","serve_aggression_proxy","style_serve_vs_return_edge"]){\n      expect(["015","016","017","018"]).not.toContain(familyOf(key));\n    }\n  });\n});\n''')
+
+          # 3) Add 042 as an honest PARTIAL meta-derived metric from the already
+          # persisted Dangerous Underdog pathway audit. It reports classifications,
+          # not fake probabilities, because the stored pathway rows do not contain
+          # calibrated probabilities.
+          p=Path('src/lib/meta-derived-evidence.server.ts')
+          s=p.read_text()
+          if 'applyOpponentWinPathwaysMetric' not in s:
+            s += '''\n\nexport async function applyOpponentWinPathwaysMetric(deps: PipelineDeps, runId: string) {\n  const metrics=await deps.list("metric_results",runId);\n  const target=metrics.find((row)=>codeOf(row)==="042");\n  if(!target)return false;\n  const pathways=await deps.list("underdog_results",runId);\n  if(!pathways.length)return false;\n  const completed=pathways.filter((row)=>String(row["status"]??"")==="COMPLETE"&&["WEAK","REALISTIC","STRONG"].includes(String(row["classification"]??"")));\n  if(!completed.length)return false;\n  const match=await deps.getMatch(String((await deps.getLatestRun(String(target["match_id"]??"")))?.match_id??""));\n  const bySide=(side:string)=>completed.filter((row)=>String(row["player_side"]??"")===side);\n  const summarize=(rows:Array<Record<string,unknown>>)=>rows.map((row)=>`${String(row["pathway_code"]??"")}:${String(row["classification"]??"")}`).join("; ");\n  const latest=await deps.getLatestRun(String((await deps.getLatestRun(String(target["match_id"]??"")))?.match_id??""));\n  // player names are not stored on metric rows; derive them from pathway side labels.\n  const sides=[...new Set(completed.map((row)=>String(row["player_side"]??"")).filter(Boolean))];\n  const p1Side=sides[0]??"",p2Side=sides[1]??"";\n  const p1Rows=bySide(p1Side),p2Rows=bySide(p2Side);\n  const p1Value=p1Rows.length?`opponent_win_pathway_classifications=${summarize(p2Rows.length?p2Rows:p1Rows)}`:null;\n  const p2Value=p2Rows.length?`opponent_win_pathway_classifications=${summarize(p1Rows.length?p1Rows:p2Rows)}`:null;\n  if(!p1Value&&!p2Value)return false;\n  const currentSame=String(target["p1_value"]??"")===String(p1Value??"")&&String(target["p2_value"]??"")===String(p2Value??"")&&String(target["p1_treatment"]??"")==="PARTIAL"&&String(target["p2_treatment"]??"")==="PARTIAL";\n  if(currentSame)return false;\n  const now=deps.now().toISOString();\n  await deps.update("metric_results",String(target["id"]),{p1_value:p1Value,p2_value:p2Value,p1_treatment:p1Value?"PARTIAL":"UNAVAILABLE",p2_treatment:p2Value?"PARTIAL":"UNAVAILABLE",p1_status:p1Value?"COMPLETE":"UNAVAILABLE",p2_status:p2Value?"COMPLETE":"UNAVAILABLE",status:p1Value||p2Value?"COMPLETE":"UNAVAILABLE",evidence_family:null,reliability:70,sample:String(completed.length),sources:[],source_attempts:[],reconstruction_attempted:true,reconstruction_reason:"Derived from completed Dangerous Underdog pathway classifications. Classification evidence is available, but calibrated pathway probabilities required by metric 042 are not stored; therefore treatment remains PARTIAL.",reconstruction_result:`P1: ${p1Value??"UNAVAILABLE"} | P2: ${p2Value??"UNAVAILABLE"}`,retrieved_at:now,p1_retrieved_at:now,p2_retrieved_at:now,p1_unavailable_reason:p1Value?"MISSING_REQUIRED_INPUT":"NO_SOURCE_FOUND",p2_unavailable_reason:p2Value?"MISSING_REQUIRED_INPUT":"NO_SOURCE_FOUND",unavailable_reason:"MISSING_REQUIRED_INPUT",unavailable_detail:"PARTIAL only: pathway classifications are persisted, but metric 042 calls for pathway probabilities; no calibrated probabilities are fabricated.",missing_inputs:["calibrated probability for each opponent win pathway"]});\n  return true;\n}\n'''
+          p.write_text(s)
+
+          # 4) Wire 042 after Dangerous Underdog is complete. Do not wire 047 or
+          # 061 here: current persisted inputs do not support their full required
+          # confidence-interval and counterfactual/opponent-upgrade calculations.
+          p=Path('src/lib/audit-pipeline.functions.ts')
+          s=p.read_text()
+          old='''      const { applyStressDerivedMetrics } = await import("./stress-derived-evidence.server");\n      const changed = await applyStressDerivedMetrics(deps, runId);'''
+          new='''      const { applyStressDerivedMetrics } = await import("./stress-derived-evidence.server");\n      const { applyOpponentWinPathwaysMetric } = await import("./meta-derived-evidence.server");\n      const stressChanged = await applyStressDerivedMetrics(deps, runId);\n      const underdogDone = stages.find((s) => s.stage === "DANGEROUS UNDERDOG AUDIT")?.status === "COMPLETE";\n      const pathwayChanged = underdogDone ? await applyOpponentWinPathwaysMetric(deps, runId) : false;\n      const changed = stressChanged || pathwayChanged;'''
+          if old not in s: raise SystemExit('stress/meta integration anchor not found')
+          p.write_text(s.replace(old,new,1))
+
+      - name: Run targeted tests and build
+        run: |
+          npx vitest run src/lib/reconstruction/stat-catalog.test.ts
+          npm run build
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/reconstruction/stat-catalog.ts src/lib/reconstruction/stat-catalog.test.ts src/lib/meta-derived-evidence.server.ts src/lib/audit-pipeline.functions.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix canonical imported-data wiring and add partial opponent pathways"
+          git push
