@@ -23,7 +23,6 @@ const groups={
   scheduling:["days_since_last_match","matches_last_14","matches_last_28","rest","travel","timezone","same_round","round","qualifying","recovery"],
   tournament:["same_tournament","tournament_specific","court_speed","venue","environment"],
 };
-function keys(value:string|null){return (value??"").split(/[;=]/).map(x=>norm(x)).filter(Boolean);}
 function containsAny(value:string|null,terms:string[]){const v=norm(value??"");return terms.some(t=>v.includes(norm(t)));}
 function semanticRequirement(name:string,body:string|null):keyof typeof groups|null{
   const t=norm(`${name} ${body??""}`);
@@ -40,7 +39,98 @@ function semanticRequirement(name:string,body:string|null):keyof typeof groups|n
   return null;
 }
 function validSide(value:string|null,required:keyof typeof groups|null){if(!value)return false;if(!required)return true;return containsAny(value,groups[required]);}
-function validateMetric(metric:{code:string;name:string;body:string|null},finding:MetricFinding):MetricFinding{
+
+// These broad metrics contain multiple mandatory subcomponents. A neighboring
+// atomic statistic is an input at most; it can never stand in for the metric.
+// The live research response is free-form text, so enforce that RECONSTRUCTED
+// contains evidence for every master component and PARTIAL contains at least
+// one exact component. DIRECT is accepted only when a real source is attached,
+// because DIRECT means a source publishes the exact metric itself.
+const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
+  "034":[
+    {name:"scoreline vs point dominance",terms:["scoreline vs point dominance","point dominance","total points won"]},
+    {name:"scoreline vs expected games",terms:["scoreline vs expected games","expected games"]},
+    {name:"scoreline vs break opportunities",terms:["scoreline vs break opportunities","break opportunities","break points generated"]},
+    {name:"scoreline vs dominance ratio",terms:["scoreline vs dominance ratio","dominance ratio"]},
+    {name:"clutch-performance dependency",terms:["clutch performance dependency","clutch dependency","key points","score state"]},
+  ],
+  "036":[
+    {name:"loss favorite status",terms:["loss favorite status","favorite status","pre match favorite","pre match odds"]},
+    {name:"loss opponent quality",terms:["loss opponent quality","opponent quality","opponent elo","opponent ranking"]},
+    {name:"loss surface",terms:["loss surface","surface"]},
+    {name:"loss point differential",terms:["loss point differential","point differential","points won differential"]},
+    {name:"loss break differential",terms:["loss break differential","break differential","break point differential"]},
+    {name:"loss serve deterioration",terms:["loss serve deterioration","serve deterioration","serve decline"]},
+    {name:"loss return deterioration",terms:["loss return deterioration","return deterioration","return decline"]},
+    {name:"lost after leading",terms:["lost after leading","lead state","led then lost"]},
+    {name:"lost set 1",terms:["lost set 1","lost first set","set 1 loss"]},
+    {name:"loss in deciding set",terms:["loss in deciding set","deciding set","final set"]},
+    {name:"loss in tiebreak",terms:["loss in tiebreak","tiebreak"]},
+    {name:"loss physical problem",terms:["loss physical problem","physical problem","injury","medical timeout"]},
+    {name:"loss match length",terms:["loss match length","match length","duration"]},
+    {name:"competitive vs blowout loss",terms:["competitive vs blowout","competitive loss","blowout loss"]},
+    {name:"bad-loss severity index",terms:["bad loss severity index","bad loss severity"]},
+  ],
+  "038":[
+    {name:"hold residual vs opponent norm",terms:["hold residual","hold vs opponent norm"]},
+    {name:"break residual vs opponent norm",terms:["break residual","break vs opponent norm"]},
+    {name:"total-points residual vs opponent norm",terms:["total points residual","points residual"]},
+    {name:"games residual vs opponent norm",terms:["games residual"]},
+    {name:"sets residual vs opponent norm",terms:["sets residual"]},
+    {name:"dominance-ratio residual vs opponent norm",terms:["dominance ratio residual"]},
+    {name:"serve-points residual vs opponent norm",terms:["serve points residual","service points residual"]},
+    {name:"return-points residual vs opponent norm",terms:["return points residual"]},
+  ],
+  "039":[
+    {name:"match-level actual performance",terms:["actual performance","match level performance"]},
+    {name:"pre-match expected performance",terms:["pre match expected performance","expected performance"]},
+    {name:"match-level surprise residual",terms:["performance surprise","actual minus expected","surprise residual"]},
+    {name:"rolling last-10 surprise",terms:["rolling performance surprise","last 10","last ten"]},
+  ],
+  "040":[
+    {name:"serve velocity trend",terms:["serve velocity trend","serve speed trend"]},
+    {name:"ace rate trend",terms:["ace rate trend"]},
+    {name:"first-serve points won trend",terms:["first serve points won trend"]},
+    {name:"second-serve points won trend",terms:["second serve points won trend"]},
+    {name:"return points won trend",terms:["return points won trend"]},
+    {name:"break opportunities trend",terms:["break opportunities trend","break points generated trend"]},
+    {name:"hold vulnerability trend",terms:["hold vulnerability trend","danger score trend","service game danger"]},
+    {name:"double-fault trend",terms:["double fault trend"]},
+    {name:"match duration trend",terms:["match duration trend"]},
+    {name:"three-set dependency trend",terms:["three set dependency trend","three set trend","go the distance"]},
+  ],
+};
+function familyCode(code:string){const m=String(code).match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(code).padStart(3,"0");}
+function componentHits(value:string|null,components:Array<{name:string;terms:string[]}>){return components.filter(c=>containsAny(value,c.terms));}
+function validateCompositeSide(value:string|null,treatment:MetricFinding["p1_treatment"],sources:MetricFinding["sources"],components:Array<{name:string;terms:string[]}>){
+  if(treatment==="UNAVAILABLE"||treatment==="EXCLUDED"||!value)return{value,treatment,missing:[] as string[]};
+  if(treatment==="DIRECT")return sources?.length?{value,treatment,missing:[] as string[]}:{value:null,treatment:"UNAVAILABLE" as const,missing:["named source publishing the exact metric"]};
+  const hits=componentHits(value,components),missing=components.filter(c=>!hits.includes(c)).map(c=>c.name);
+  if(treatment==="RECONSTRUCTED"){
+    if(!missing.length&&sources?.length)return{value,treatment,missing};
+    if(hits.length&&sources?.length)return{value,treatment:"PARTIAL" as const,missing};
+    return{value:null,treatment:"UNAVAILABLE" as const,missing:missing.length?missing:components.map(c=>c.name)};
+  }
+  // PARTIAL requires at least one exact master component, not a proxy.
+  if(treatment==="PARTIAL")return hits.length&&sources?.length?{value,treatment,missing}:{value:null,treatment:"UNAVAILABLE" as const,missing:components.map(c=>c.name)};
+  return{value:null,treatment:"UNAVAILABLE" as const,missing:components.map(c=>c.name)};
+}
+
+export function validateMetric(metric:{code:string;name:string;body:string|null},finding:MetricFinding):MetricFinding{
+  const composite=COMPOSITE_COMPONENTS[familyCode(metric.code)];
+  if(composite){
+    const p1=validateCompositeSide(finding.p1_value,finding.p1_treatment,finding.sources,composite),p2=validateCompositeSide(finding.p2_value,finding.p2_treatment,finding.sources,composite);
+    const missing=[...new Set([...(p1.missing??[]),...(p2.missing??[])])];
+    return{
+      ...finding,
+      p1_value:p1.value,
+      p2_value:p2.value,
+      p1_treatment:p1.treatment,
+      p2_treatment:p2.treatment,
+      unavailable_reason:(p1.treatment==="UNAVAILABLE"||p2.treatment==="UNAVAILABLE"||p1.treatment==="PARTIAL"||p2.treatment==="PARTIAL")&&missing.length?`Exact-component guard: unsupported components remain missing (${missing.join(", ")}). No proxy substitution permitted.`:finding.unavailable_reason,
+      missing_inputs:missing.length?[...(finding.missing_inputs??[]),...missing]:finding.missing_inputs,
+    };
+  }
   const req=semanticRequirement(metric.name,metric.body);
   if(!req)return finding;
   const p1ok=validSide(finding.p1_value,req),p2ok=validSide(finding.p2_value,req);
