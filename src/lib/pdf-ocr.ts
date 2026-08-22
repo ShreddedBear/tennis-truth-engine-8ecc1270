@@ -1,33 +1,10 @@
 // Free browser-side OCR fallback for screenshot/image-only PDFs.
-// Uses the existing pdfjs dependency to render each page, then loads Tesseract.js
-// directly in the browser. No Lovable/AI credits or API key are required.
+// Tesseract is bundled with the app so OCR does not depend on a remote CDN,
+// Lovable AI credits, or an API key.
 
 export interface OcrPdfResult {
   pages: string[];
   pageCount: number;
-}
-
-type TesseractModule = {
-  createWorker: (
-    langs?: string | string[],
-    oem?: number,
-    options?: { logger?: (m: { status?: string; progress?: number }) => void },
-  ) => Promise<{
-    recognize: (image: HTMLCanvasElement) => Promise<{ data: { text?: string } }>;
-    terminate: () => Promise<void>;
-  }>;
-};
-
-async function loadTesseract(): Promise<TesseractModule> {
-  // Keep OCR out of the app bundle. This runtime import is intentionally remote
-  // so the fallback can work without changing the package lock or consuming
-  // Lovable credits. jsDelivr serves the published tesseract.js ESM build.
-  const dynamicImport = new Function("url", "return import(url)") as (
-    url: string,
-  ) => Promise<TesseractModule>;
-  return dynamicImport(
-    "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.esm.min.js",
-  );
 }
 
 export async function ocrPdfLocally(
@@ -40,9 +17,11 @@ export async function ocrPdfLocally(
 
   const buf = await file.arrayBuffer();
   const doc = await pdfjs.getDocument({ data: buf }).promise;
-  const Tesseract = await loadTesseract();
-  const worker = await Tesseract.createWorker("eng", 1, {
-    logger: (m) => {
+  const { createWorker } = await import("tesseract.js");
+
+  onProgress?.(`PDF opened: ${doc.numPages} page${doc.numPages === 1 ? "" : "s"}. Starting local OCR…`);
+  const worker = await createWorker("eng", 1, {
+    logger: (m: { status?: string; progress?: number }) => {
       if (!onProgress || !m.status) return;
       const pct = typeof m.progress === "number" ? ` ${Math.round(m.progress * 100)}%` : "";
       onProgress(`Local OCR: ${m.status}${pct}`);
@@ -54,8 +33,6 @@ export async function ocrPdfLocally(
     for (let i = 1; i <= doc.numPages; i++) {
       onProgress?.(`Reading image-only page ${i}/${doc.numPages} locally…`);
       const page = await doc.getPage(i);
-      // About 2x display resolution: high enough for phone screenshots while
-      // avoiding enormous canvas memory use on iOS.
       const viewport = page.getViewport({ scale: 2 });
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(viewport.width);
@@ -72,5 +49,7 @@ export async function ocrPdfLocally(
     await worker.terminate();
   }
 
+  // Always return one entry per physical PDF page, even if OCR found no text.
+  while (pages.length < doc.numPages) pages.push("");
   return { pages, pageCount: doc.numPages };
 }
