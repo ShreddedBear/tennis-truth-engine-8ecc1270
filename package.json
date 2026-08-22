@@ -4,9 +4,9 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "predev": "node scripts/build-runtime-tennis-index.mjs && node scripts/build-app-info.mjs",
-    "prebuild": "node scripts/build-runtime-tennis-index.mjs && node scripts/build-app-info.mjs",
-    "prebuild:dev": "node scripts/build-runtime-tennis-index.mjs && node scripts/build-app-info.mjs",
+    "predev": "node scripts/build-runtime-tennis-index.mjs",
+    "prebuild": "node scripts/build-runtime-tennis-index.mjs",
+    "prebuild:dev": "node scripts/build-runtime-tennis-index.mjs",
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
