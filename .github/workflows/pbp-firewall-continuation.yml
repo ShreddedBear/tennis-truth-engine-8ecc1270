@@ -1,0 +1,135 @@
+name: PBP Firewall Continuation
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_batches:
+        description: Maximum year/tour batches to process this run
+        required: false
+        default: '4'
+      through_year:
+        description: Last year to process (defaults to current UTC year)
+        required: false
+        default: ''
+      force_recheck:
+        description: Re-run completed batches (audit outputs only; never force mappings)
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 */2 * * *'
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: '1'
+  PBP_MAX_BATCHES: ${{ inputs.max_batches || '4' }}
+  PBP_THROUGH_YEAR: ${{ inputs.through_year || '' }}
+  PBP_FORCE_RECHECK: ${{ inputs.force_recheck || 'false' }}
+
+concurrency:
+  group: pbp-firewall-continuation
+  cancel-in-progress: false
+
+jobs:
+  continue-pbp-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install verifier dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas openpyxl xlrd requests
+
+      - name: Safety check scope and firewall scripts
+        run: |
+          test -f scripts/pbp-firewall-queue.py
+          test -f scripts/verify-sackmann-pbp-v2.py
+          test -f scripts/verify-challenger-pbp.py
+          python -m py_compile \
+            scripts/pbp-firewall-queue.py \
+            scripts/verify-sackmann-pbp-v2.py \
+            scripts/verify-challenger-pbp.py
+
+      - name: Continue from last recoverable checkpoint
+        id: queue
+        run: |
+          set -o pipefail
+          python scripts/pbp-firewall-queue.py \
+            --max-batches "${PBP_MAX_BATCHES}" \
+            ${PBP_THROUGH_YEAR:+--through-year "${PBP_THROUGH_YEAR}"} \
+            $([ "${PBP_FORCE_RECHECK}" = "true" ] && echo --force-recheck) \
+            | tee /tmp/pbp-firewall-run.log
+
+          COMPLETE=$(grep -E '^QUEUE_COMPLETE=' /tmp/pbp-firewall-run.log | tail -1 | cut -d= -f2 || true)
+          echo "complete=${COMPLETE:-false}" >> "$GITHUB_OUTPUT"
+
+      - name: Run global contamination firewall
+        run: |
+          python scripts/pbp-firewall-queue.py --audit-only
+
+      - name: Commit checkpoints and audit evidence
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            data/audit/verified-pbp \
+            data/audit/pbp-firewall-queue \
+            data/public/tennismylife-challenger 2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "No new checkpointed PBP work to commit."
+            exit 0
+          fi
+
+          git commit -m "Continue verified PBP firewall queue"
+
+          # Another workflow/user may have pushed while this job ran. Rebase once,
+          # preserving the newest main and preventing duplicate append behavior.
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Upload run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pbp-firewall-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            /tmp/pbp-firewall-run.log
+            data/audit/pbp-firewall-queue/
+            data/audit/verified-pbp/
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## PBP Firewall Continuation"
+            echo
+            if [ -f data/audit/pbp-firewall-queue/summary.md ]; then
+              cat data/audit/pbp-firewall-queue/summary.md
+            else
+              echo "No queue summary was produced."
+            fi
+            echo
+            if [ "${{ steps.queue.outputs.complete }}" = "true" ]; then
+              echo "**Eligible fixed-year queue is complete.** Future scheduled runs are no-ops unless new eligible work appears."
+            else
+              echo "**Queue remains active.** The next scheduled run resumes from the checkpoint."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
