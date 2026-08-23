@@ -57,6 +57,33 @@ describe("trusted internal evidence adapter", () => {
     expect(finding.missing_inputs).toContain("P2 actual side-specific SAMPLE denominator");
   });
 
+  it("preserves an exact fixed-window zero-event observation without inventing a denominator", () => {
+    const side = normalizeTrustedSide("P1", P1, {
+      player: P1,
+      value: "matches_last_7_days=0.00; matches_last_14_days=0.00; rest_days=122.00",
+      treatment: "PARTIAL",
+      sample: 0,
+      sources: [predix],
+    });
+    expect(side.treatment).toBe("PARTIAL");
+    expect(side.value).toContain("SAMPLE=FIXED_WINDOW_ZERO_EVENT");
+    expect(side.value).toContain("matches_last_7_days=0.00");
+    expect(side.missing).toEqual([]);
+  });
+
+  it("still rejects generic sample zero when it is not a fixed-window zero-event observation", () => {
+    const side = normalizeTrustedSide("P1", P1, {
+      player: P1,
+      value: "surface_elo=1900.00",
+      treatment: "PARTIAL",
+      sample: 0,
+      sources: [predix],
+    });
+    expect(side.value).toBeNull();
+    expect(side.treatment).toBe("UNAVAILABLE");
+    expect(side.missing).toEqual(["P1 actual side-specific SAMPLE denominator"]);
+  });
+
   it("downgrades a reconstructed value that has no approved formula provenance", () => {
     const without = normalizeTrustedSide("P1", P1, { player: P1, value: "dominance_ratio=1.21", treatment: "RECONSTRUCTED", sample: 40, sources: [datahub] });
     expect(without.treatment).toBe("PARTIAL");
