@@ -15,10 +15,14 @@ function row(code:string,p1:string|null,p2:string|null,sourceList=sources):Metri
 describe("072-076 side-specific provenance and orientation",()=>{
   it("is preserved in the actual production researcher chain",()=>{
     const repo=readFileSync("src/lib/audit-repo.server.ts","utf8");
+    const warehouse=readFileSync("src/lib/warehouse-first-researcher.server.ts","utf8");
     const finalLayer=readFileSync("src/lib/metric-wiring-078-081.server.ts","utf8");
     const completion=readFileSync("src/lib/completion-sweep-research.server.ts","utf8");
-    expect(repo).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
-    expect(repo).toContain("research: finalMetricWiringResearcher");
+    expect(repo).toContain('import { warehouseFirstResearcher } from "./warehouse-first-researcher.server"');
+    expect(repo).toContain("research: warehouseFirstResearcher");
+    expect(warehouse).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
+    expect(warehouse).toContain("...finalMetricWiringResearcher");
+    expect(warehouse).toContain("await finalMetricWiringResearcher.metrics");
     expect(finalLayer).toContain('import { metricWiring072076Researcher } from "./metric-wiring-072-076.server"');
     expect(finalLayer).toContain("...metricWiring072076Researcher");
     expect(finalLayer).toContain("await metricWiring072076Researcher.metrics");

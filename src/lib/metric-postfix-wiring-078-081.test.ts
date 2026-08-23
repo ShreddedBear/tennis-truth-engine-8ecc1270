@@ -22,10 +22,14 @@ function base(code: string) {
 }
 
 describe("post-fix exact runtime wiring for 078/079/081", () => {
-  it("is actually wired into the production repository dependency", () => {
+  it("is actually wired into the production repository dependency through warehouse-first fallback", () => {
     const repo = readFileSync("src/lib/audit-repo.server.ts", "utf8");
-    expect(repo).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
-    expect(repo).toContain("research: finalMetricWiringResearcher");
+    const warehouse = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
+    expect(repo).toContain('import { warehouseFirstResearcher } from "./warehouse-first-researcher.server"');
+    expect(repo).toContain("research: warehouseFirstResearcher");
+    expect(warehouse).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
+    expect(warehouse).toContain("...finalMetricWiringResearcher");
+    expect(warehouse).toContain("await finalMetricWiringResearcher.metrics");
   });
 
   it("accepts exact 078 public evidence only with correct player/source/sample orientation", () => {

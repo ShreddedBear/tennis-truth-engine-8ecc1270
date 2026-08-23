@@ -1,7 +1,7 @@
 // Supabase-backed implementation of the audit pipeline data contract.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LOCAL_WORKSPACE_ID } from "./constants";
-import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
+import { warehouseFirstResearcher } from "./warehouse-first-researcher.server";
 import { STAGES, type ChildTable, type PipelineDeps, type RunRow, type Stage } from "./audit-pipeline";
 
 const OWNER = LOCAL_WORKSPACE_ID;
@@ -10,7 +10,7 @@ async function ownerId(): Promise<string> { return OWNER; }
 export async function makeDeps(): Promise<PipelineDeps> {
   const user_id = await ownerId(); const db = supabaseAdmin;
   return {
-    now: () => new Date(), research: finalMetricWiringResearcher,
+    now: () => new Date(), research: warehouseFirstResearcher,
     async getMatch(matchId) { const { data } = await db.from("matches").select("*").eq("id", matchId).maybeSingle(); return (data as never) ?? null; },
     async updateMatch(matchId, patch) { const { error } = await db.from("matches").update(patch as never).eq("id", matchId); if (error) throw new Error(`Database update failed (matches): ${error.message}`); },
     async getParsedFields(matchId) { const { data: sv } = await db.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(); if (!sv) return {}; const { data } = await db.from("parsed_summary_fields").select("field_key, normalized_value, raw_value").eq("summary_version_id", sv.id); const out: Record<string,string> = {}; for (const row of data ?? []) { const v=row.normalized_value??row.raw_value; if(v) out[row.field_key]=v; } return out; },
@@ -34,10 +34,6 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async getReconstructions(runId){const{data}=await db.from("reconstruction_results").select("status").eq("audit_run_id",runId);return(data??[])as never;},
     async saveCoverage(runId,rows){const mapped=rows.map(row=>({audit_run_id:row["audit_run_id"]??runId,player_side:row["player_side"],direct_count:row["direct_count"]??row["direct"]??0,reconstructed_count:row["reconstructed_count"]??row["reconstructed"]??0,partial_count:row["partial_count"]??row["partial"]??0,unavailable_count:row["unavailable_count"]??row["unavailable"]??0,excluded_count:row["excluded_count"]??row["excluded"]??0,total_count:row["total_count"]??row["total"]??0,usable_coverage_percent:row["usable_coverage_percent"]??row["usablePercent"]??0,execution_completion_percent:row["execution_completion_percent"]??row["executionPercent"]??0,recorded_at:row["recorded_at"]??new Date().toISOString(),user_id}));const{error}=await db.from("audit_coverage").upsert(mapped as never,{onConflict:"audit_run_id,player_side"});if(error)throw new Error(`Database write failed (audit_coverage): ${error.message}`);},
     async saveCoverageRates(runId, rows) {
-      // finalGate historically passed aggregate P1/P2 coverage rows here. This
-      // table is per metric, so derive the authoritative rows from metric_results
-      // whenever the caller does not provide a real metric_code. Never write a
-      // NULL/synthetic metric code just to satisfy the constraint.
       let sourceRows = rows.filter(row => typeof row["metric_code"] === "string" && String(row["metric_code"]).trim() !== "");
       if (!sourceRows.length) {
         const { data: metrics, error: metricError } = await db.from("metric_results").select("metric_code, metric_name, p1_treatment, p2_treatment").eq("audit_run_id", runId);
