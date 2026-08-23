@@ -85,10 +85,10 @@ const rows: Array<[string,string,string,RecoveryClass]> = [
 ["075","Match Format / Rules Context","official event rules, best-of format and deciding-set rules","PUBLIC_CONTEXT"],
 ["076","Scheduling Micro-Context","official order of play, court assignment and documented practice access","PUBLIC_CONTEXT"],
 ["077","Season-Long Fatigue Context","season schedule, team events, off-season rest and previous-major workload","RECONSTRUCTABLE"],
-["078","Sponsorship / Off-Court Pressure","credible media/sponsor obligation reporting","PUBLIC_CONTEXT"],
-["079","Additional Differentiating Metrics","mixed game/point logs, official entry/schedule/context and specialized behavioral fields","SOURCE_REQUIRED"],
+["078","Sponsorship / Off-Court Pressure","credible reporting of home-market commercial appearances, sponsor obligations or media obligations during the tournament week, with timing sufficient to establish recovery/preparation impact","PUBLIC_CONTEXT"],
+["079","Additional Differentiating Metrics","exact game/point/event logs for coaching visits, post-coaching games, shot-clock violations by set, racket changes, hydration/medical breaks, first point/game, changeovers, odd/even serve games, return position and serve patterns; plus official schedule/entry/walkover/altitude/surface-switch records and credible disciplinary, coach-history or scouting-report evidence for the named submetrics","SOURCE_REQUIRED"],
 ["080","Common-Opponent & Opponent-Caliber Metrics","shared-opponent results plus opponent ranking/Elo quality","RECONSTRUCTABLE"],
-["081","Further Differentiating Metrics","mixed official schedule/result history plus niche public contextual reporting","PUBLIC_CONTEXT"],
+["081","Further Differentiating Metrics","official schedule/result/event-history evidence for ceremonies, featured-court exposure, rain/overnight resumptions, opponent substitutions, weekday/weekend splits, consecutive-day play, prior withdrawals, electronic-line-calling exposure, major-week split and prior-year round; plus credible reporting for backstage conflict, training-base relocation, support-staff turnover, travel friction and home-climate context","PUBLIC_CONTEXT"],
 ];
 
 export const EVIDENCE_REQUIREMENTS = Object.fromEntries(rows.map(([code,name,requiredData,recovery]) => [code,{code,name,requiredData,recovery}])) as Record<string,EvidenceRequirement>;
