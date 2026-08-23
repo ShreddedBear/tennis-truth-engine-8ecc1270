@@ -58,6 +58,12 @@ const COMPONENTS: Record<string, Component[]> = {
   ],
 };
 
+const FORMULA_SUBJECT: Record<string, RegExp> = {
+  "079": /coaching|shot clock|violation|racket change|late night|early next day|hydration|medical timeout|first point|first game|opening game|changeover|odd game|even game|return position|serve placement|serve direction|serve pattern|scouting report|altitude|elevation|surface switch|layoff|absence|wildcard|protected ranking|qualifying|entry status|seed|draw|walkover|fine|suspension|coach opponent|coach history|lead|deficit|shot selection/i,
+  "081": /ceremony|start delay|court assignment|center court|featured court|rain delay|resumption|overnight suspension|opponent substitution|lucky loser|alternate|weekday|weekend|consecutive day|training base|withdrawal|electronic line calling|major week|grand slam week|prior year round|stringer|physio|support staff|visa|transit|missed connection|travel friction|home climate|event climate|temperature|humidity|dryness/i,
+};
+const FORMULA_DENOMINATOR = /matches?|games?|sets?|points?|events?|opportunities|days?|rounds?|exposures?|visits?|resumptions?|withdrawals?|appearances?|observations?/i;
+
 function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
@@ -83,15 +89,21 @@ function sourceMatches(value: string | null, sources: MetricFinding["sources"], 
   }));
 }
 function allowedFormula(code: string, value: string | null) {
-  if (!value) return false;
+  if (!value || code === "078") return false;
   const formula = tag(value, "FORMULA");
-  if (!formula) return false;
-  const forbidden = code === "078"
-    ? /elo|serve|return|ranking|market|odds|weather|surface/i
-    : code === "079"
-      ? /surface elo|market odds|sportsbook|sponsor pressure/i
-      : /surface elo|serve profile|return profile|market odds|sportsbook|sponsor pressure/i;
-  return !forbidden.test(formula);
+  const rawInputs = tag(value, "INPUTS");
+  if (!formula || !rawInputs) return false;
+  const inputs = rawInputs.split("|").map((x) => x.trim()).filter(Boolean);
+  const subject = FORMULA_SUBJECT[code];
+  if (!inputs.length || !subject) return false;
+  if (!inputs.some((input) => subject.test(input))) return false;
+  if (inputs.some((input) => !subject.test(input) && !FORMULA_DENOMINATOR.test(input))) return false;
+  const normalizedFormula = norm(formula);
+  if (inputs.some((input) => !normalizedFormula.includes(norm(input)))) return false;
+  const forbidden = code === "079"
+    ? /surface elo|market odds|sportsbook|sponsor pressure|ranking|age|height|handedness|hold pct|break pct/i
+    : /surface elo|serve profile|return profile|market odds|sportsbook|sponsor pressure|ranking|age|height|handedness|ace rate|double fault|hold pct|break pct/i;
+  return !forbidden.test(formula) && !forbidden.test(rawInputs);
 }
 function validateSide(code: string, value: string | null, treatment: MetricFinding["p1_treatment"], sources: MetricFinding["sources"], player: string) {
   if (!value || treatment === "UNAVAILABLE" || treatment === "EXCLUDED") return { value: null, treatment: treatment === "EXCLUDED" ? "EXCLUDED" as const : "UNAVAILABLE" as const, missing: [] as string[] };
@@ -102,7 +114,7 @@ function validateSide(code: string, value: string | null, treatment: MetricFindi
   const components = COMPONENTS[code] ?? [];
   const hits = components.filter((component) => hasAny(value, component.terms));
   if (!hits.length) missing.push("exact master-definition component");
-  if (treatment === "RECONSTRUCTED" && !allowedFormula(code, value)) missing.push("explicit formula using only permitted inputs");
+  if (treatment === "RECONSTRUCTED" && !allowedFormula(code, value)) missing.push("explicit formula with enumerated exact permitted INPUTS");
   if (code === "078" && treatment === "RECONSTRUCTED") missing.push("078 factual context cannot be reconstructed from performance proxies");
   if (!hits.length || missing.some((x) => /PLAYER|SOURCE|SAMPLE|formula|cannot be reconstructed/.test(x))) return { value: null, treatment: "UNAVAILABLE" as const, missing };
   if (hits.length < components.length && treatment === "DIRECT") return { value, treatment: "PARTIAL" as const, missing: [...missing, ...components.filter((c) => !hits.includes(c)).map((c) => c.name)] };
@@ -132,7 +144,7 @@ export function enforceMetricWiring078081(finding: MetricFinding, players: { p1:
 
 function instruction(code: string, p1: string, p2: string) {
   if (!TARGET.has(code)) return "";
-  return `\nSTRICT FINAL-METRIC WIRING RULE FOR ${code}: Only exact components in this metric's authoritative definition are admissible. No neighboring statistic, generic context, social chatter, row-order identity, or proxy may satisfy it. Every usable side value MUST include PLAYER=<exact player>; SOURCE=<actual source_name present in sources>; SAMPLE=<actual denominator/window, or UNAVAILABLE when the source has no denominator>. P1 must use PLAYER=${p1}; P2 must use PLAYER=${p2}. RECONSTRUCTED requires FORMULA=<explicit calculation> using only exact permitted inputs. Metric 078 is factual public context and must not be RECONSTRUCTED from performance data. PARTIAL is allowed only when one or more exact named subcomponents are sourced; otherwise UNAVAILABLE.`;
+  return `\nSTRICT FINAL-METRIC WIRING RULE FOR ${code}: Only exact components in this metric's authoritative definition are admissible. No neighboring statistic, generic context, social chatter, row-order identity, or proxy may satisfy it. Every usable side value MUST include PLAYER=<exact player>; SOURCE=<actual source_name present in sources>; SAMPLE=<actual denominator/window, or UNAVAILABLE when the source has no denominator>. P1 must use PLAYER=${p1}; P2 must use PLAYER=${p2}. RECONSTRUCTED requires INPUTS=<exact raw input 1>|<exact raw input 2>; FORMULA=<explicit calculation using those exact INPUTS>. Every INPUTS item must be a raw field required by the named submetric and must appear in FORMULA; unrelated inputs invalidate reconstruction. Metric 078 is factual public context and must not be RECONSTRUCTED from performance data. PARTIAL is allowed only when one or more exact named subcomponents are sourced; otherwise UNAVAILABLE.`;
 }
 
 export const finalMetricWiringResearcher: Researcher = {
