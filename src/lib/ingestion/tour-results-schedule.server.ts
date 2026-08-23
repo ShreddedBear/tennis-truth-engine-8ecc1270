@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertObservationFamily } from "../metric-source-family-policy";
 
 const db = supabaseAdmin as any;
 
@@ -170,6 +171,10 @@ async function fetchStructured(url: string) {
 }
 
 async function writeRows(rows: Observation[]) {
+  // Hard gate: this adapter is allowed to create RESULTS_SCHEDULE observations only.
+  // If a future parser accidentally labels one as ranking/market/etc., fail before DB write.
+  for (const row of rows) assertObservationFamily(row, "RESULTS_SCHEDULE");
+
   let written = 0;
   for (let i = 0; i < rows.length; i += 500) {
     const chunk = rows.slice(i, i + 500);
