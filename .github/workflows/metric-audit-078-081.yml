@@ -5,13 +5,19 @@ on:
     branches: [main]
     paths:
       - "src/lib/metric-certification-078-081.test.ts"
+      - "src/lib/metric-postfix-wiring-078-081.test.ts"
+      - "src/lib/metric-wiring-078-081.server.ts"
       - "src/lib/evidence-gap.ts"
+      - "src/lib/audit-repo.server.ts"
       - ".github/workflows/metric-audit-078-081.yml"
   pull_request:
     branches: [main]
     paths:
       - "src/lib/metric-certification-078-081.test.ts"
+      - "src/lib/metric-postfix-wiring-078-081.test.ts"
+      - "src/lib/metric-wiring-078-081.server.ts"
       - "src/lib/evidence-gap.ts"
+      - "src/lib/audit-repo.server.ts"
       - ".github/workflows/metric-audit-078-081.yml"
   workflow_dispatch:
 
@@ -35,13 +41,11 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run 078 079 081 regression suite
-        run: bunx vitest run src/lib/metric-certification-078-081.test.ts
+      - name: Run 078 079 081 certification and post-fix suites
+        run: bunx vitest run src/lib/metric-certification-078-081.test.ts src/lib/metric-postfix-wiring-078-081.test.ts
 
       - name: Run repository regression suite
         run: bunx vitest run
 
       - name: Build app
         run: bun run build
-
-# Synchronization change: pushing this update to the open PR forces a fresh pull_request event.
