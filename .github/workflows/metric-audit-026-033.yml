@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - audit/metrics-026-029-031-032-033
+      - audit/postfix-wiring-026-033
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -25,10 +26,10 @@ jobs:
         run: bun install
 
       - name: Run protected metric regression tests
-        run: bunx vitest run src/lib/metric-certification-026-033.test.ts src/lib/metric-exact-component-026-033.test.ts
-
-      - name: Run full regression suite
-        run: bunx vitest run
+        run: bunx vitest run src/lib/metric-certification-026-033.test.ts src/lib/metric-exact-component-026-033.test.ts src/lib/metric-postfix-wiring-026-033.test.ts
 
       - name: Build app
         run: bun run build
+
+      - name: Run full regression suite
+        run: bunx vitest run
