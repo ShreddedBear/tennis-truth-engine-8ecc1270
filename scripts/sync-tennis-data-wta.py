@@ -195,3 +195,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# Initial production sync trigger after the legacy HTTP endpoint was CI-verified.
