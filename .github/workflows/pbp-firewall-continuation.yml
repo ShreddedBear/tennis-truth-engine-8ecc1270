@@ -1,24 +1,24 @@
-name: PBP Firewall Continuation
+name: ATP Challenger PBP Firewall Continuation
 
 on:
   workflow_dispatch:
     inputs:
       max_batches:
-        description: Maximum year/tour batches to process this run
+        description: Maximum Challenger year batches to process this run
         required: false
-        default: '4'
+        default: '10'
       through_year:
-        description: Last year to process (defaults to current UTC year)
+        description: Last Challenger year to process (defaults to current UTC year)
         required: false
         default: ''
       force_recheck:
-        description: Re-run completed batches (audit outputs only; never force mappings)
+        description: Re-run completed Challenger batches without weakening firewalls
         required: false
         type: boolean
         default: false
   push:
     paths:
-      - 'ci-trigger-pbp-firewall.txt'
+      - 'ci-trigger-challenger-pbp-firewall.txt'
   schedule:
     - cron: '17 */2 * * *'
 
@@ -27,16 +27,16 @@ permissions:
 
 env:
   PYTHONUNBUFFERED: '1'
-  PBP_MAX_BATCHES: ${{ inputs.max_batches || '4' }}
-  PBP_THROUGH_YEAR: ${{ inputs.through_year || '' }}
-  PBP_FORCE_RECHECK: ${{ inputs.force_recheck || 'false' }}
+  CHALLENGER_MAX_BATCHES: ${{ inputs.max_batches || '10' }}
+  CHALLENGER_THROUGH_YEAR: ${{ inputs.through_year || '' }}
+  CHALLENGER_FORCE_RECHECK: ${{ inputs.force_recheck || 'false' }}
 
 concurrency:
-  group: pbp-firewall-continuation
+  group: atp-challenger-pbp-firewall-continuation
   cancel-in-progress: false
 
 jobs:
-  continue-pbp-verification:
+  continue-atp-challenger-pbp:
     runs-on: ubuntu-latest
     timeout-minutes: 330
 
@@ -56,89 +56,93 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pandas openpyxl xlrd requests
 
-      - name: Safety check scope and firewall scripts
+      - name: Challenger-only safety gate
+        shell: bash
         run: |
-          test -f scripts/pbp-firewall-queue.py
-          test -f scripts/verify-sackmann-pbp-v2.py
+          set -euo pipefail
+          test -f scripts/challenger-pbp-firewall-queue.py
           test -f scripts/verify-challenger-pbp.py
-          python -m py_compile \
-            scripts/pbp-firewall-queue.py \
-            scripts/verify-sackmann-pbp-v2.py \
-            scripts/verify-challenger-pbp.py
+          python -m py_compile scripts/challenger-pbp-firewall-queue.py scripts/verify-challenger-pbp.py
 
-      - name: Continue from last recoverable checkpoint
+          # Hard fail if this workflow ever references ATP Main or WTA Main verifier execution.
+          if grep -E 'verify-sackmann-pbp|ATP_MAIN|WTA_MAIN' .github/workflows/pbp-firewall-continuation.yml; then
+            echo 'SAFETY FAILURE: Challenger workflow references ATP/WTA Main.' >&2
+            exit 97
+          fi
+
+      - name: Continue Challenger queue from checkpoint
         id: queue
         shell: bash
         run: |
           set -euo pipefail
-
-          args=(--max-batches "${PBP_MAX_BATCHES}")
-          if [[ -n "${PBP_THROUGH_YEAR}" ]]; then
-            args+=(--through-year "${PBP_THROUGH_YEAR}")
+          args=(--max-batches "${CHALLENGER_MAX_BATCHES}")
+          if [[ -n "${CHALLENGER_THROUGH_YEAR}" ]]; then
+            args+=(--through-year "${CHALLENGER_THROUGH_YEAR}")
           fi
-          if [[ "${PBP_FORCE_RECHECK}" == "true" ]]; then
+          if [[ "${CHALLENGER_FORCE_RECHECK}" == "true" ]]; then
             args+=(--force-recheck)
           fi
 
-          python scripts/pbp-firewall-queue.py "${args[@]}" \
-            | tee /tmp/pbp-firewall-run.log
+          python scripts/challenger-pbp-firewall-queue.py "${args[@]}" \
+            | tee /tmp/challenger-pbp-firewall-run.log
 
-          COMPLETE=$(grep -E '^QUEUE_COMPLETE=' /tmp/pbp-firewall-run.log | tail -1 | cut -d= -f2 || true)
+          COMPLETE=$(grep -E '^CHALLENGER_QUEUE_COMPLETE=' /tmp/challenger-pbp-firewall-run.log | tail -1 | cut -d= -f2 || true)
           echo "complete=${COMPLETE:-false}" >> "$GITHUB_OUTPUT"
 
-      - name: Run global contamination firewall
+      - name: Run Challenger global contamination firewall
         run: |
-          python scripts/pbp-firewall-queue.py --audit-only
+          python scripts/challenger-pbp-firewall-queue.py --audit-only
 
-      - name: Commit checkpoints and audit evidence
+      - name: Commit Challenger checkpoints only
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/audit/verified-pbp data/audit/pbp-firewall-queue 2>/dev/null || true
-          if [[ -d data/public/tennismylife-challenger ]]; then
-            git add data/public/tennismylife-challenger
-          fi
+          # CRITICAL: never stage ATP Main or WTA Main PBP outputs from this workflow.
+          git add data/audit/verified-pbp/atp_challenger 2>/dev/null || true
+          git add data/audit/challenger-pbp-firewall-queue 2>/dev/null || true
 
           if git diff --cached --quiet; then
-            echo "No new checkpointed PBP work to commit."
+            echo "No new Challenger checkpoint work to commit."
             exit 0
           fi
 
-          git commit -m "Continue verified PBP firewall queue"
+          git commit -m "Continue ATP Challenger verified PBP firewall queue"
           git pull --rebase origin main
           git push origin HEAD:main
 
-      - name: Upload run evidence
+      - name: Upload Challenger run evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pbp-firewall-${{ github.run_id }}
+          name: challenger-pbp-firewall-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 30
           path: |
-            /tmp/pbp-firewall-run.log
-            data/audit/pbp-firewall-queue/
-            data/audit/verified-pbp/
+            /tmp/challenger-pbp-firewall-run.log
+            data/audit/challenger-pbp-firewall-queue/
+            data/audit/verified-pbp/atp_challenger/
 
-      - name: Job summary
+      - name: Challenger status updates
         if: always()
         shell: bash
         run: |
           {
-            echo "## PBP Firewall Continuation"
+            echo "## ATP Challenger PBP Firewall"
             echo
-            if [[ -f data/audit/pbp-firewall-queue/summary.md ]]; then
-              cat data/audit/pbp-firewall-queue/summary.md
+            echo "**This Action is ATP Challenger ONLY. It does not run, stage, or modify ATP Main or WTA Main PBP work.**"
+            echo
+            if [[ -f data/audit/challenger-pbp-firewall-queue/summary.md ]]; then
+              cat data/audit/challenger-pbp-firewall-queue/summary.md
             else
-              echo "No queue summary was produced."
+              echo "No Challenger queue summary was produced."
             fi
             echo
             if [[ "${{ steps.queue.outputs.complete }}" == "true" ]]; then
-              echo "**Eligible fixed-year queue is complete.** Future scheduled runs are no-ops unless new eligible work appears."
+              echo "**Requested Challenger queue is complete.**"
             else
-              echo "**Queue remains active.** The next scheduled run resumes from the checkpoint."
+              echo "**Challenger queue remains active and will resume on the next scheduled run.**"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
