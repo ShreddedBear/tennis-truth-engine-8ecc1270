@@ -1,0 +1,85 @@
+name: BSD WTA Main PBP Historical Scan
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bsd-wta-main-pbp-history.yml'
+      - 'scripts/bsd-wta-main-pbp-history.py'
+      - 'scripts/advance-bsd-wta-main-pbp-history.py'
+      - 'data/audit/bsd-wta-main-pbp-history/queue.json'
+  schedule:
+    - cron: '41 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bsd-wta-main-pbp-history
+  cancel-in-progress: false
+
+jobs:
+  scan-next-year:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Confirm BSD token exists without exposing it
+        run: |
+          test -n "$BSD_TENNIS_API_KEY" || { echo 'BSD_TENNIS_API_KEY missing'; exit 1; }
+          echo 'BSD token available.'
+
+      - name: Determine next year going backward
+        id: next
+        run: |
+          mkdir -p data/audit/bsd-wta-main-pbp-history
+          NEXT="$(python3 scripts/advance-bsd-wta-main-pbp-history.py --next | tail -n1)"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Next year: $NEXT"
+
+      - name: Scan strict WTA Main BSD PBP for year
+        if: steps.next.outputs.next != 'COMPLETE'
+        run: |
+          python3 scripts/bsd-wta-main-pbp-history.py --year "${{ steps.next.outputs.next }}"
+          python3 scripts/advance-bsd-wta-main-pbp-history.py
+
+      - name: Persist checkpoint and queue next year
+        if: steps.next.outputs.next != 'COMPLETE'
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          root=Path('data/audit/bsd-wta-main-pbp-history')
+          p=json.loads((root/'progress.json').read_text())
+          (root/'queue.json').write_text(json.dumps({
+            'queued_at_utc':datetime.now(timezone.utc).isoformat(),
+            'next_year':p.get('next_year'),
+            'scan_complete':p.get('scan_complete',False),
+            'historical_boundary_confirmed':p.get('historical_boundary_confirmed',False)
+          },indent=2)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-wta-main-pbp-history
+          if git diff --cached --quiet; then
+            echo 'No checkpoint changes.'
+          else
+            git commit -m "Persist BSD WTA Main PBP history: ${{ steps.next.outputs.next }}"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Show progress
+        if: always()
+        run: |
+          if [ -f data/audit/bsd-wta-main-pbp-history/progress.md ]; then cat data/audit/bsd-wta-main-pbp-history/progress.md; fi
+          if [ "${{ steps.next.outputs.next }}" != 'COMPLETE' ]; then
+            FILE="data/audit/bsd-wta-main-pbp-history/${{ steps.next.outputs.next }}/UPDATE.md"
+            if [ -f "$FILE" ]; then cat "$FILE"; fi
+          fi
