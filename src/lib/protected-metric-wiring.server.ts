@@ -4,9 +4,9 @@ import { validatedCompletionResearcher } from "./validated-completion-research.s
 
 type Component = { name: string; terms: string[]; reconstructedOnly?: boolean };
 
-const POST_FIX_CODES = new Set(["060", "062", "063", "064", "065"]);
-const PUBLIC_CONTEXT_CODES = new Set(["062", "063", "064", "065"]);
-const NON_RECONSTRUCTABLE_CONTEXT_CODES = new Set(["063", "065"]);
+const POST_FIX_CODES = new Set(["060", "062", "063", "064", "065", "066", "067", "069", "070", "071"]);
+const PUBLIC_CONTEXT_CODES = new Set(["062", "063", "064", "065", "066", "069", "070", "071"]);
+const NON_RECONSTRUCTABLE_CONTEXT_CODES = new Set(["063", "065", "069", "070"]);
 
 const PROTECTED_COMPONENTS: Record<string, Component[]> = {
   "041": [
@@ -137,6 +137,30 @@ const PROTECTED_COMPONENTS: Record<string, Component[]> = {
     { name: "off-season/pre-season training reports", terms: ["off season training reports", "off-season training reports", "pre season training reports", "pre-season training reports", "fitness camp", "body composition"] },
     { name: "illness reports", terms: ["illness reports", "documented illness", "flu", "stomach bug"] },
   ],
+  "066": [
+    { name: "racket/string setup changes", terms: ["racket string setup changes", "racket/string setup changes", "string tension change", "racket model change", "grip size change"] },
+    { name: "shoe/traction changes", terms: ["shoe traction changes", "shoe/traction changes", "new shoe sponsor", "new shoe model", "traction change"] },
+    { name: "string-tension weather adjustment", terms: ["string tension weather adjustment", "string-tension weather adjustment", "adjusts string tension", "altitude string tension", "humidity string tension"] },
+  ],
+  "067": [
+    { name: "code-violation history", terms: ["code violation history", "code-violation history", "racket abuse", "verbal warning"] },
+    { name: "challenge/Hawk-Eye success rate", terms: ["challenge hawk eye success rate", "challenge/hawk-eye success rate", "challenge success rate", "hawk eye success rate"] },
+    { name: "bathroom/medical-break patterns", terms: ["bathroom medical break patterns", "bathroom/medical-break patterns", "bathroom break pattern", "medical break pattern"] },
+    { name: "on-court time-violation rate", terms: ["on court time violation rate", "on-court time-violation rate", "time violation rate", "slow play warning"] },
+  ],
+  "069": [
+    { name: "retirement-tour/farewell-run effects", terms: ["retirement tour farewell run effects", "retirement-tour/farewell-run effects", "farewell run", "publicly nearing retirement"] },
+    { name: "anti-doping testing disruption", terms: ["anti doping testing disruption", "anti-doping testing disruption", "out of competition testing", "out-of-competition testing"] },
+  ],
+  "070": [
+    { name: "sports-psychologist presence", terms: ["sports psychologist presence", "sports-psychologist presence", "mental game coach", "mental-game coach"] },
+    { name: "short-notice draw entry", terms: ["short notice draw entry", "short-notice draw entry", "lucky loser", "late alternate", "late-alternate"] },
+    { name: "walkover-into-round effect", terms: ["walkover into round effect", "walkover-into-round effect", "previous round was a walkover", "previous-round walkover"] },
+  ],
+  "071": [
+    { name: "roof-open vs roof-closed split", terms: ["roof open vs roof closed split", "roof-open vs roof-closed split", "roof open", "roof closed"] },
+    { name: "fixed start-time vs not-before uncertainty", terms: ["fixed start time vs not before uncertainty", "fixed start-time vs not-before uncertainty", "not before", "not-before", "start time uncertainty"] },
+  ],
 };
 
 function familyCode(code: string) {
@@ -185,6 +209,9 @@ function formulaUsesForbiddenInput(code: string, value: string | null) {
     "060": ["sponsorship obligation", "media obligation", "code violation", "sports psychologist"],
     "062": ["serve", "return", "weather", "travel", "fatigue", "odds", "market", "elo", "recent form"],
     "064": ["serve", "return", "weather", "travel", "timezone", "odds", "market", "elo", "ranking"],
+    "066": ["coach", "sponsorship obligation", "media obligation", "market", "odds", "elo", "code violation", "sports psychologist"],
+    "067": ["elo", "ranking", "market", "odds", "weather", "surface elo", "hold pct", "break pct", "recent form"],
+    "071": ["market", "odds", "elo", "ranking", "injury", "fatigue", "travel", "serve profile", "return profile"],
   };
   return (forbidden[code] ?? []).some((term) => t.includes(norm(term)));
 }
