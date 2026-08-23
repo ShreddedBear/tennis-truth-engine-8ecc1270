@@ -1,0 +1,49 @@
+name: Evidence Data Diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/evidence-data-diagnostic.yml
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect bundled tennis data coverage
+        run: |
+          python3 - <<'PY'
+          import csv, os
+          files=[
+            ('ATP','data/public/predixsport/atp/atp_elo_matches.csv'),
+            ('WTA','data/public/predixsport/wta/wta_elo_ratings.csv'),
+          ]
+          targets=['Arthur Fils','Flavio Cobolli','Brandon Nakashima','Frances Tiafoe','Sara Bejlek','Coco Gauff','Iga Swiatek','Jessica Pegula']
+          for tour,path in files:
+            print(f'=== {tour} {path} ===')
+            if not os.path.exists(path):
+              print('MISSING'); continue
+            min_date=max_date=None; rows=0; names=set(); counts={t:0 for t in targets}; last={t:None for t in targets}; first={t:None for t in targets}
+            with open(path,newline='',encoding='utf-8-sig') as f:
+              r=csv.DictReader(f)
+              print('FIELDS:', ','.join(r.fieldnames or []))
+              for row in r:
+                rows+=1
+                date=(row.get('date') or row.get('rating_date') or row.get('as_of_date') or '').strip()
+                if date:
+                  min_date=date if min_date is None or date<min_date else min_date
+                  max_date=date if max_date is None or date>max_date else max_date
+                for k in ('player','name','player_name'):
+                  if row.get(k): names.add(row[k].strip())
+                values=[str(v).strip() for v in row.values() if v is not None]
+                for t in targets:
+                  if t in values:
+                    counts[t]+=1
+                    if date:
+                      first[t]=date if first[t] is None or date<first[t] else first[t]
+                      last[t]=date if last[t] is None or date>last[t] else last[t]
+            print('ROWS',rows,'UNIQUE_NAMES',len(names),'MIN_DATE',min_date,'MAX_DATE',max_date)
+            for t in targets:
+              if counts[t]: print('TARGET',t,'ROWS',counts[t],'FIRST',first[t],'LAST',last[t])
+          PY
