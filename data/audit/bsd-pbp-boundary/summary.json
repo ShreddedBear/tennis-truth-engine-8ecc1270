@@ -1,0 +1,26 @@
+[
+  {
+    "tour": "ATP_MAIN",
+    "earliest_confirmed_pbp_year": 2024,
+    "matches_tested": 15,
+    "successful_pbp": 13,
+    "no_pbp": 2,
+    "confidence": "BOUNDARY_REQUIRES_REVIEW"
+  },
+  {
+    "tour": "WTA_MAIN",
+    "earliest_confirmed_pbp_year": 2024,
+    "matches_tested": 15,
+    "successful_pbp": 15,
+    "no_pbp": 0,
+    "confidence": "BOUNDARY_REQUIRES_REVIEW"
+  },
+  {
+    "tour": "ATP_CHALLENGER",
+    "earliest_confirmed_pbp_year": 2025,
+    "matches_tested": 10,
+    "successful_pbp": 10,
+    "no_pbp": 0,
+    "confidence": "BOUNDARY_REQUIRES_REVIEW"
+  }
+]
