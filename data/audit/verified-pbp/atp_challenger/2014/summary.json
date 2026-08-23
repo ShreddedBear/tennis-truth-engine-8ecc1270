@@ -1,0 +1,35 @@
+{
+  "verifier_version": 1,
+  "tour": "ATP_CHALLENGER",
+  "year": 2014,
+  "batch_status": "PROCESSED",
+  "source_blocked": false,
+  "historical_matches": 4324,
+  "pbp_candidates": 4353,
+  "verified": 3329,
+  "partial": 0,
+  "ambiguous": 5,
+  "conflicts": 0,
+  "no_pbp": 990,
+  "retrieval_failures": 0,
+  "orphan_pbp": 1024,
+  "result_source": "local:data/public/tennismylife-challenger/raw/2014_challenger.csv",
+  "pbp_sources": [
+    "pbp_matches_ch_main_archive.csv",
+    "pbp_matches_ch_main_current.csv"
+  ],
+  "firewall": [
+    "structural_reconstruction",
+    "player_pair_identity",
+    "winner_identity",
+    "tournament_identity",
+    "reconstructed_score_match",
+    "reconstructed_winner_match",
+    "forward_uniqueness",
+    "reverse_uniqueness",
+    "result_match_key_dedup",
+    "pbp_sha256_dedup",
+    "global_cross_year_collision_audit_by_queue_manager"
+  ],
+  "generated_at_utc": "2026-08-23T22:19:34.056857+00:00"
+}

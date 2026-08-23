@@ -1,0 +1,4082 @@
+[
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 2,
+      "date": "2015-01-03",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Axel Michon",
+      "server2": "Christopher O'Connell",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "5bdbdd773ac7c5c638ccceaf8529506b112a5e7b29e26d75bd2b17b15c3bcea6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 3,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Stefano Travaglia",
+      "server2": "Andrew Whittington",
+      "winner": "2",
+      "score": "6-3 7-5",
+      "pbp_sha256": "3cfcd5345828426fcb9fec65028725648fff66116855cfd13a1da7d044eac26a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 4,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Darren K. Polkinghorne",
+      "server2": "Maxime Authom",
+      "winner": "2",
+      "score": "3-6 7-5 6-0",
+      "pbp_sha256": "fa0038641a001f1f3069ad06195818e03137464160cc850c354a4bd7fbdc7251"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 5,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Aldin Setkic",
+      "server2": "Roman Safiullin",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "a58cd6038f85dcdd831c7f9206c20e539924f43f7350da1e8eff355c8f540add"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 6,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Brydan Klein",
+      "server2": "Sanchai Ratiwatana",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "364f1131c8e3dcf0c778e74e0a9e0199905fafe82ed3e3898cf8cdd23973aa41"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 7,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Sonchat Ratiwatana",
+      "server2": "Tristan Lamasine",
+      "winner": "2",
+      "score": "7-6(5) 6-3",
+      "pbp_sha256": "83563761e719b0a6f42d97bb93275dd275f07e852af2b33207c6c1bb466fe712"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 8,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Aldin Setkic",
+      "server2": "Jacob Grills",
+      "winner": "2",
+      "score": "7-6(6) 4-6 6-0",
+      "pbp_sha256": "049a14947f69986460efcb4eed12bce6f57cd4d4b9cb83eb71583ae4d5d53264"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 9,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Andrew Harris",
+      "server2": "Axel Michon",
+      "winner": "1",
+      "score": "4-6 6-1 7-6(5)",
+      "pbp_sha256": "367f19b14a519239bd7bc43f46c8be19a5ab8fd75aa0dda683c182a10fa2fba9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 10,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Tristan Lamasine",
+      "server2": "Maxime Authom",
+      "winner": "2",
+      "score": "6-2 6-3",
+      "pbp_sha256": "b12c8b4fe7530486a8da6332a5fbdf36fcdde2570b5fe9b937c4c97462f845a2"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 14,
+      "date": "2015-01-05",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Andrew Whttington",
+      "server2": "Brydan Klein",
+      "winner": "1",
+      "score": "7-5 6-3",
+      "pbp_sha256": "622076b119ca1b353dee5552b2cc951b26f79638da387fa46dbccd2634a6fd6e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 22,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Radu Albot",
+      "server2": "Aleksandr Nedovesov",
+      "winner": "2",
+      "score": "6-4 7-5",
+      "pbp_sha256": "5621d95635ef85faf11cd94a3da1f2cd0574d6557bd9d40763ecd3e1f7bde206"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 24,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Andrew Whittingham",
+      "server2": "Ze Zhang",
+      "winner": "1",
+      "score": "6-3 6-4",
+      "pbp_sha256": "d8c08a44d91ee2dda80a21c893de071b7c8dc25c3c75ad8129e0c0354a63b8da"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 33,
+      "date": "2015-01-08",
+      "tournament": "ATPChallengerTour-HappyValley",
+      "server1": "Tim Puetz",
+      "server2": "Aleksandr Nedovesov",
+      "winner": "2",
+      "score": "6-2 4-6 7-6(6)",
+      "pbp_sha256": "181d94d31e42dfc38b643bf6746b7e28b2cb401c0da4c28877e9d232d8036678"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 36,
+      "date": "2015-01-03",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Nicolas N'Godrela",
+      "server2": "Guilherme Clezar",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "74745e913d29a85ddf0e2633c66a59ff720dac32d9653904dea5cae828b48da7"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 37,
+      "date": "2015-01-03",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Frank Moser",
+      "server2": "Liang-Chi Huang",
+      "winner": "1",
+      "score": "7-6(5) 7-5",
+      "pbp_sha256": "eab2e20165a8c758c88a8d0adbbd8e0c52d942c1260e252fb49cd78b7aa36112"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 38,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Jared Donaldson",
+      "server2": "Alexander Klintcharov",
+      "winner": "1",
+      "score": "6-1 6-4",
+      "pbp_sha256": "b478ed1d221ebcbd8772e15e34ea1b45b64e56de53b7b1744d07b32fa53e3a0e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 39,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Frank Moser",
+      "server2": "Marco Trungelliti",
+      "winner": "2",
+      "score": "7-6(0) 6-2",
+      "pbp_sha256": "a79911ea096ceac9c9ff9c9c3269dbc558bdd70acc635c633085bfc6021e62e0"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 40,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Toshihide Matsui",
+      "server2": "Bjorn Fratangelo",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "33a21f73e63b29f7af95a45d9f9f151245914b0b622dffd000b6ca74cee57c3f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 41,
+      "date": "2015-01-04",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Gavin Van Peperzeel",
+      "server2": "Guilherme Clezar",
+      "winner": "2",
+      "score": "1-6 6-0 6-0",
+      "pbp_sha256": "091a6a57cc511dd89eb69e9969073b3c70d794775a749203d92109c6afa326b8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 42,
+      "date": "2015-01-05",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Stephane Robert",
+      "server2": "Nicolas Jarry",
+      "winner": "1",
+      "score": "7-6(1) 6-2",
+      "pbp_sha256": "e54b8719aac1d003c3a238e865d5f25354773477d368d94eab231f673716a68b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 43,
+      "date": "2015-01-05",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Guilherme Clezar",
+      "server2": "Yuichi Sugita",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "49b219ce5267421dc4a577cc6903378bc5f16d36ff9a8a3b36d86b559a4bb89e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 44,
+      "date": "2015-01-05",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Marco Trungelliti",
+      "server2": "Jimmy Wang",
+      "winner": "2",
+      "score": "6-4 0-6 6-4",
+      "pbp_sha256": "5d6584a629c4b98136cca97fe27f5d4977bc2f0aa675e3105735e1d4e6a97880"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 45,
+      "date": "2015-01-05",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Johan Sebastien Tatlot",
+      "server2": "Mathias Bourgue",
+      "winner": "1",
+      "score": "6-2 6-4",
+      "pbp_sha256": "de7f570105cd3939967eff5320b7220ac96e161a408d0a3375ec75b5a1360f7e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 46,
+      "date": "2015-01-05",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Adrian Mannarino",
+      "server2": "Enzo Couacaud",
+      "winner": "1",
+      "score": "7-5 7-5",
+      "pbp_sha256": "2ff6ec3f7d3d8a8464c8baa6813fb13668264cf323967b56258b62c42c7edc02"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 47,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Fabiano De Paula",
+      "server2": "Steve Darcis",
+      "winner": "2",
+      "score": "6-7(5) 6-0 6-3",
+      "pbp_sha256": "4eef7fbf809009aa91003951451c7e30594bf49327f39819d72e5c98a223d61d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 48,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Gianni Mina",
+      "server2": "Ti Chen",
+      "winner": "2",
+      "score": "6-2 6-1",
+      "pbp_sha256": "4278ff393a3adec9762619115284da7b185453c93f4428b46f9092b9957fa3d3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 49,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Laurent Lokoli",
+      "server2": "Chase Buchanan",
+      "winner": "2",
+      "score": "6-3 6-2",
+      "pbp_sha256": "4aad14cf4b4420712a8d8d275070e57aca73d800e2d0c63344a1e89bcbc667d6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 50,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Jonathan Eysseric",
+      "server2": "Bjorn Fratangelo",
+      "winner": "2",
+      "score": "6-4 6-0",
+      "pbp_sha256": "776916b1147e07e845f8227650bcd6e4006827669cab58391f1b88fc920c5501"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 51,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "James Mcgee",
+      "server2": "Tennys Sandgren",
+      "winner": "1",
+      "score": "2-6 6-0 6-1",
+      "pbp_sha256": "6cae948ecc3253cfb99b99c540f899100c0d275d3e639791aeec2206f4a5bc10"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 52,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Jared Donaldson",
+      "server2": "Vincent Millot",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "f99283ba9667253f7936c6c63b1d24dcc743a6ac72fdac77ea6849b92ccc0485"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 53,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Horacio Zeballos",
+      "server2": "Gonzalo Lama",
+      "winner": "1",
+      "score": "6-1 6-4",
+      "pbp_sha256": "d9e06bd9c22bedac73dd2b46d921c8c7ad41002cf4098d3f3a8a0a2e742ddeec"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 54,
+      "date": "2015-01-06",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Kenny de Schepper",
+      "server2": "Jarmere Jenkins",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "9541872db092e8f68f8e2f896010ccf6820ba34ce1a36d6289ee02a4b019904e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 55,
+      "date": "2015-01-07",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Adrian Mannarino",
+      "server2": "Bjorn Fratangelo",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "9e24f4d65e2a5bc232ce6e5d71994c658ff0805d6fe8d554d09406978441ae01"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 56,
+      "date": "2015-01-07",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Ti Chen",
+      "server2": "Jimmy Wang",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "846240e77363201d675c3008ee0f236b33a30779b527ca1ba75ed8d0b190e4e5"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 57,
+      "date": "2015-01-07",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "James Mcgee",
+      "server2": "Bradley Klahn",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "5041b71de5f0ebf8a477cd218b96f59ae085d9e7966b268e32f7140596cc9ee8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 58,
+      "date": "2015-01-07",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "David Guez",
+      "server2": "Stephane Robert",
+      "winner": "1",
+      "score": "6-1 7-6(6)",
+      "pbp_sha256": "4f94e5abe5fdc09bd6f23c869f5c532fcf04a6bf0747345b8f1e0de43e2326cd"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 59,
+      "date": "2015-01-07",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Jarmere Jenkins",
+      "server2": "Chase Buchanan",
+      "winner": "2",
+      "score": "6-1 2-6 7-6(4)",
+      "pbp_sha256": "af2b89ba103c2693f212c5fd22630eb90616d964e58f2056f1d25da736eb73f3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 60,
+      "date": "2015-01-07",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Horacio Zeballos",
+      "server2": "Steve Darcis",
+      "winner": "2",
+      "score": "6-2 6-3",
+      "pbp_sha256": "986ca66af2e26821abc5e5e35821728b3a7658721fa922698bc323bbda6e1695"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 61,
+      "date": "2015-01-08",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Bradley Klahn",
+      "server2": "Adrian Mannarino",
+      "winner": "2",
+      "score": "4-6 7-5 6-1",
+      "pbp_sha256": "0337d55286106b621a24a7da1f04ae6187b88447c1c6cd3ea6984f99487f1747"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 62,
+      "date": "2015-01-08",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Guilherme Clezar",
+      "server2": "Jimmy Wang",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "e1b50f211e43f7e29beae2c81cc4c85b41c86a17d38930353648d65f437bcc10"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 63,
+      "date": "2015-01-08",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "David Guez",
+      "server2": "Steve Darcis",
+      "winner": "2",
+      "score": "6-4 3-6 6-2",
+      "pbp_sha256": "05d4ed50cf3a5a9064d3708126ca68488176d498ce26a0e36ef304d1ac51d5a1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 75,
+      "date": "2015-01-13",
+      "tournament": "ATPChallengerTour-Casablanca",
+      "server1": "Younes Rachidi",
+      "server2": "Albert Montanes",
+      "winner": "2",
+      "score": "6-0 6-1",
+      "pbp_sha256": "fd54bb31b16aa312a9200821c8feeff2e8faa3f65ce8e2b496050075b787b024"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 79,
+      "date": "2015-01-14",
+      "tournament": "ATPChallengerTour-Casablanca",
+      "server1": "Franco Skugor",
+      "server2": "Gerard Granollers",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "8e4c65657bd69a1d1bdff29ba6b46934c7aa6f890266aac058a260694118d997"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 102,
+      "date": "2015-01-09",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Steve Darcis",
+      "server2": "Adrian Mannarino",
+      "winner": "1",
+      "score": "6-4 7-5",
+      "pbp_sha256": "f1a8c19d407044ddbca57db4b3e825debe693a6d47227745c66b979b9bc495c3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 103,
+      "date": "2015-01-10",
+      "tournament": "ATPChallengerTour-Noumea",
+      "server1": "Steve Darcis",
+      "server2": "Adrian Menendez-Maceiras",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "ebbb933d1e41b17ea5de1dcb6360a08be5dca51b58a1575a3e77ef193f7ec9b8"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 104,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Gianni Mina",
+      "server2": "Daniel Gimeno-Traver",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "bc9377168d2647cf41873240f8c8bb7e0ecffce02e105a496900de1562cab03d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 105,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Guido Pella",
+      "server2": "Facundo Arguello",
+      "winner": "1",
+      "score": "6-4 6-3",
+      "pbp_sha256": "f1619cc0ef5487fe8709b59d07426f2f54a742b032cd670f28d25fe1c3bf25d6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 106,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Facundo Bagnis",
+      "server2": "Andre Ghem",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "ebe3a7f5f5360a1fa62a27e54deedaee9437e3f3a1fd825844a2f2b40cd02bcc"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 107,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Nicolas Jarry",
+      "server2": "Evgeny Donskoy",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "2b96034c1afc8dd56c78c0cdc83c3df7be363f18b151c895b25382354cc02389"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 108,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Guilherme Clezar",
+      "server2": "Eduardo Struvay",
+      "winner": "2",
+      "score": "3-6 6-3 6-4",
+      "pbp_sha256": "cdae3fda95d74f4fb4a41514786402fbd7ee540d0cdf04a9caf03effe445ec9d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 109,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Pedro Pablo Ruiz Naranjo",
+      "server2": "Victor Estrella",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "e17fefadde73821fe82ab21f6ed8b5f3492a42e97fce8fc4913616885397b8f8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 110,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Gerald Melzer",
+      "server2": "Jose Hernandez",
+      "winner": "1",
+      "score": "5-7 6-4 6-1",
+      "pbp_sha256": "a49cf6795fbc7b35845b47f2c7d2d6f7f582b551acf20d06591b6acf4bcba379"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 111,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Jordi Samper-Montana",
+      "server2": "Kevin Kim",
+      "winner": "1",
+      "score": "6-1 6-3",
+      "pbp_sha256": "1043096852fbd6589b431940c1c8a9fe3b399b3c2ca90cffe5f2db4844938fa8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 112,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Inigo Cervantes-Huegun",
+      "server2": "Roberto Carballes Baena",
+      "winner": "2",
+      "score": "7-5 6-4",
+      "pbp_sha256": "49ec3094553798ea73eda67321c59f2f5823b246ae967da075a24adbf32257b7"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 113,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Martin Cuevas",
+      "server2": "Joao Olavo Souza",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "23e577b747dda904af985c414105d8644607f9ef0db28fc78c2ee5358c0fde6b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 114,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Andreas Haider-Maurer",
+      "server2": "Jason Kubler",
+      "winner": "1",
+      "score": "1-6 6-3 6-3",
+      "pbp_sha256": "2a4381c707e87c9ed1aed8e9a6314446252519ae1a6c345a9ed11e94221aa6f7"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 115,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Gonzalo Lama",
+      "server2": "Paolo Lorenzi",
+      "winner": "2",
+      "score": "6-7(9) 6-4 6-3",
+      "pbp_sha256": "37355e69b478dc308bd6971e63f111fd1eef499d638db34eefc458226b3d46b3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 116,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Fabiano De Paula",
+      "server2": "Alejandro Falla",
+      "winner": "2",
+      "score": "4-6 6-3 6-0",
+      "pbp_sha256": "c2bd5b0fd7aad9e84f01cf18b8f4f0341c084bf27f5b029466fccb18198581a3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 117,
+      "date": "2015-01-28",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Gastao Elias",
+      "server2": "Alejandro Gonzalez",
+      "winner": "1",
+      "score": "6-1 6-4",
+      "pbp_sha256": "0c59f0f84d3a57ae93fa1a515cd3f78eec1ec359ed4269ad383909d1bc020445"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 118,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Victor Estrella",
+      "server2": "Eduardo Struvay",
+      "winner": "1",
+      "score": "6-3 7-6(3)",
+      "pbp_sha256": "a8fcd8c88589ce732a81da25a1d5945c1360ae9e0303c0e00b96c2921344e125"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 119,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Guido Pella",
+      "server2": "Andreas Haider-Maurer",
+      "winner": "2",
+      "score": "6-3 7-5",
+      "pbp_sha256": "31d55bf5d7b5f9f9ebd72c3da06c7ec90015667e451ec3a8e9a3a2d6f0e4f289"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 120,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Facundo Bagnis",
+      "server2": "Albert Montanes",
+      "winner": "1",
+      "score": "6-4 6-3",
+      "pbp_sha256": "743a5b3391630fa78b3187807b701543c7f75ef338d44d6071f660b59cfc8231"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 121,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Paolo Lorenzi",
+      "server2": "Gerald Melzer",
+      "winner": "2",
+      "score": "6-4 3-6 6-3",
+      "pbp_sha256": "aac2916650a7cdfaa80b091ba0ba70930135cd59e38f2467923f7970417ba92e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 122,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Roberto Carballes Baena",
+      "server2": "Gastao Elias",
+      "winner": "2",
+      "score": "7-5 6-2",
+      "pbp_sha256": "25fa301f064b6112699c853b6ad3f99ad6d3e77eb19efac3dc8988d11cbeea82"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 123,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Jordi Samper-Montana",
+      "server2": "Joao Olavo Souza",
+      "winner": "1",
+      "score": "7-6(5) 6-4",
+      "pbp_sha256": "21558b716d56d6ddbb02966efa7bde59a6adaa08a5b44510eb405c01430f958e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 124,
+      "date": "2015-01-29",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Evgeny Donskoy",
+      "server2": "Alejandro Falla",
+      "winner": "2",
+      "score": "6-2 7-6(5)",
+      "pbp_sha256": "79643871cba6d31458e1a699e046bbcd7ad9d03825949132f8c17f45d785279c"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 125,
+      "date": "2015-01-30",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Victor Estrella Burgos",
+      "server2": "Daniel Gimeno-Traver",
+      "winner": "2",
+      "score": "6-0 6-4",
+      "pbp_sha256": "a8ec144431c6f674ffe644536d88f066f5230599227c1b61d614b89501f2b5ff"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 126,
+      "date": "2015-01-30",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Facundo Bagnis",
+      "server2": "Andreas Haider-Maurer",
+      "winner": "1",
+      "score": "1-6 7-5 6-3",
+      "pbp_sha256": "ce2c3af8869432cf7f160bc0bc208ccace5f4423d48e3683c18b7b567832e782"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 127,
+      "date": "2015-01-30",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Gastao Elias",
+      "server2": "Gerald Melzer",
+      "winner": "1",
+      "score": "6-1 3-6 6-2",
+      "pbp_sha256": "d8e60d4467f3e8a28702cf408a782cd97b2dd7f5e459171ec54ee8d2fd6e8308"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 128,
+      "date": "2015-01-30",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Alejandro Falla",
+      "server2": "Jordi Samper-Montana",
+      "winner": "2",
+      "score": "6-2 6-1",
+      "pbp_sha256": "4b602a68a292d123a7945f94683b391c149394edfa13f09afede9d3bc2904ab2"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 129,
+      "date": "2015-01-31",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Facundo Bagnis",
+      "server2": "Daniel Gimeno-Traver",
+      "winner": "2",
+      "score": "6-4 6-7(5) 6-3",
+      "pbp_sha256": "5f4ab8d8d568a6af677bc07e0651796f0d0a74109d9babe3ba752004f14593fe"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 130,
+      "date": "2015-01-31",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Jordi Samper-Montana",
+      "server2": "Gastao Elias",
+      "winner": "2",
+      "score": "6-4 7-6(5)",
+      "pbp_sha256": "2e46ea139f16bc0c27e5fe3f1480b9c9fdce1a9498950e4bfe553bafe1c729ce"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 131,
+      "date": "2015-02-01",
+      "tournament": "ATPChallengerTour-Bucaramanga",
+      "server1": "Daniel Gimeno-Traver",
+      "server2": "Gastao Elias",
+      "winner": "1",
+      "score": "6-3 1-6 7-5",
+      "pbp_sha256": "ee1e811d12a8311f2471d384ef62746dd745c574ed28bb1d26c84d6ecee46264"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 167,
+      "date": "2015-02-03",
+      "tournament": "ATPChallengerTour-Dallas",
+      "server1": "Teimuraz Gabashvili",
+      "server2": "Daniel Nguyen",
+      "winner": "1",
+      "score": "6-4 6-3",
+      "pbp_sha256": "0422dbeeff784f09e756aaa7c1602310e287bc61c7fafbaac98ddce6d872826f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 172,
+      "date": "2015-02-04",
+      "tournament": "ATPChallengerTour-Dallas",
+      "server1": "Jason Jung",
+      "server2": "Teimuraz Gabashvili",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "27bb2d1027676d6e4a499dac9235b4a78f8723968af6f95a81725caff5fb763b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 180,
+      "date": "2015-02-05",
+      "tournament": "ATPChallengerTour-Dallas",
+      "server1": "Guido Andreozzi",
+      "server2": "Teimuraz Gabashvili",
+      "winner": "2",
+      "score": "6-4 6-1",
+      "pbp_sha256": "ad1882f4b70e9ceff0d58b1b33ac83ce4b405bd8affecc1c059ae14a177b47da"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 208,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-HongKong",
+      "server1": "Saketh-Sai Myneni",
+      "server2": "Ricardas Berankis",
+      "winner": "1",
+      "score": "7-6(1) 1-6 6-3",
+      "pbp_sha256": "d2a295827f882382af6bdb7fd4b7d8f53be6456a3c64a08cb139eecdc665d9b6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 210,
+      "date": "2015-01-27",
+      "tournament": "ATPChallengerTour-HongKong",
+      "server1": "Ti Chen",
+      "server2": "Yoshihito Nishioka",
+      "winner": "2",
+      "score": "7-5 4-6 7-6(0)",
+      "pbp_sha256": "13e1ce3c8e6cdff1f3ad807207f0064d90c341a3e242547dcc34ffd490693d15"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 226,
+      "date": "2015-01-30",
+      "tournament": "ATPChallengerTour-HongKong",
+      "server1": "Saketh-Sai Myneni",
+      "server2": "Kyle Edmund",
+      "winner": "2",
+      "score": "7-6(3) 6-1",
+      "pbp_sha256": "dc365eac16e00a368d7da1bc29ceedcb530fa7646a119400ed0d9518e6bfa140"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 262,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Bergamo",
+      "server1": "Adam Pavlasek",
+      "server2": "Daniel Brands",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "414f78d5efaf3e74df3cd0c7cce25ee61d3dc2bd00e8e6b36a8ad095ef958242"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 263,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Bergamo",
+      "server1": "Nils Langer",
+      "server2": "Martin Fischer",
+      "winner": "2",
+      "score": "6-2 6-3",
+      "pbp_sha256": "05c90ef8d4eb2dda9e43cf779d8b262123d872fdc69691af832f96e21ff80cae"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 264,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Bergamo",
+      "server1": "Maxime Teixeira",
+      "server2": "Flavio Cipolla",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "4b57214ec4f242f39f9c4d62b6bb174d10ada2f77c34ef1703c952d17eed1a37"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 265,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Bergamo",
+      "server1": "Tomislav Brkic",
+      "server2": "Mirza Basic",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "ce3a07e371714216f0b23c76e0108b209c1799dd6c9e2bccad990308ff44fb97"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 273,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Bergamo",
+      "server1": "David Guez",
+      "server2": "Farrukh Dusrtov",
+      "winner": "2",
+      "score": "6-2 6-1",
+      "pbp_sha256": "628ae56d910c577bddcebcff13916e6c896c269f949748a32e843d2c35c576db"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 292,
+      "date": "2015-02-13",
+      "tournament": "ATPChallengerTour-Bergamo",
+      "server1": "Illya Marchenko",
+      "server2": "Oleksandr Nedovyesov",
+      "winner": "2",
+      "score": "6-4 3-6 7-6(3)",
+      "pbp_sha256": "bc9b30fcbdab221f6c386f86fd324cefab00881df14d999a4171cbea82b8ed85"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 301,
+      "date": "2015-02-06",
+      "tournament": "ATPChallengerTour-Dallas",
+      "server1": "Teimuraz Gabashvili",
+      "server2": "Rajeev Ram",
+      "winner": "2",
+      "score": "5-7 6-4 6-3",
+      "pbp_sha256": "ebc30a8d44b7dd7a0e61466d1ccd7a842b11899a97614c84d87bae49af7323a1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 303,
+      "date": "2015-02-06",
+      "tournament": "ATPChallengerTour-Glasgow",
+      "server1": "Oleksandr Nedovyesov",
+      "server2": "Daniel Cox",
+      "winner": "1",
+      "score": "1-6 7-6(4) 7-5",
+      "pbp_sha256": "9f172c087c86a99733382d50e054b37f86e41aca6a3a68d08a791df98c6fad85"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 307,
+      "date": "2015-02-07",
+      "tournament": "ATPChallengerTour-Glasgow",
+      "server1": "Oleksandr Nedovyesov",
+      "server2": "Niels Desein",
+      "winner": "2",
+      "score": "6-1 6-1",
+      "pbp_sha256": "755afd00df97f292da14c7b985ed0c3c5795ebe919609897600fe4bb8a2553f6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 310,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Jordan Thompson",
+      "server2": "Yuuya Kibi",
+      "winner": "1",
+      "score": "6-3 3-6 7-5",
+      "pbp_sha256": "e15c629499b4fcb4873f8a27e7a500eab9bd511d5a92e3d52f19d1c95a49823f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 311,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Brydan Klein",
+      "server2": "Sanam Singh",
+      "winner": "1",
+      "score": "7-6(5) 6-7(2) 6-2",
+      "pbp_sha256": "ab6630bf8c9b1cdd438203a3da0d0a075e2765b7aeed8300b85405be8e8f0652"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 312,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Christopher O'Connell",
+      "server2": "Somdev Devvarman",
+      "winner": "1",
+      "score": "6-2 6-1",
+      "pbp_sha256": "959f5fde4eeeba4b5573fd6132bc88d12505d06a6046c09c97abe79eb37a7257"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 313,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Omar Jasika",
+      "server2": "Mitchell Krueger",
+      "winner": "2",
+      "score": "6-3 4-6 6-3",
+      "pbp_sha256": "fe2fe5868a655f38c55ead6f8563b678f3f44110498f8d0e0be2a09e692aaeed"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 314,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Harry Bourchier",
+      "server2": "Hiroki Moriya",
+      "winner": "1",
+      "score": "6-1 7-6(10)",
+      "pbp_sha256": "83fbe70cbb94b815fc96d21fc02d0613a6d4cb7212c40a838d47ff03440be9a0"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 315,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Jose Statham",
+      "server2": "Finn Tearney",
+      "winner": "1",
+      "score": "7-5 6-3",
+      "pbp_sha256": "223e0fd7a2100bf13fef8632fe0e90a2a061b1bb419bf2015a3d47905fff2c20"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 316,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Maverick Banes",
+      "server2": "Benjamin Mitchell",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "ae708ed0138695f7469bdfd055070941513566b3ce6e2ca46f4b7da167afc56b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 317,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Blake Mott",
+      "server2": "Bjorn Fratangelo",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "d33107e0f13ef5a5adc30055ac3b6cc3f4990fa0cf3acd3e60a1400612d824a2"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 318,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Alex Bolt",
+      "server2": "Ze Zhang",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "e628584a4c1662275dd5561306b21e78f3ec2bcaec0693c2db547a759b399da9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 319,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Gavin Van Peperzeel",
+      "server2": "Dayne Kelly",
+      "winner": "2",
+      "score": "6-2 3-6 6-2",
+      "pbp_sha256": "f0c72340efb285c87379151c85e5889c78930bd24ee6b9213babc3e152e97538"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 320,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Marc Polmans",
+      "server2": "Yuichi Sugita",
+      "winner": "2",
+      "score": "6-4 4-6 6-3",
+      "pbp_sha256": "16bc8c8323b28ecd2880686047290cd7a9c736fba9e9828d20ae496c613a7cc8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 321,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Radu Albot",
+      "server2": "Di Wu",
+      "winner": "1",
+      "score": "6-4 6-3",
+      "pbp_sha256": "dc5ffd54ad25fcf05363b06bdab49d2af6426ec645e05c3cd16de69de1dd3faa"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 322,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Andrew Whittington",
+      "server2": "Luke Saville",
+      "winner": "2",
+      "score": "5-7 6-4 6-0",
+      "pbp_sha256": "66b86bc646a84682b9179afea774297ca5b698ad7136324cfe75fed5f70e379b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 323,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Matt Reid",
+      "server2": "Hyeon Chung",
+      "winner": "2",
+      "score": "3-6 7-5 7-5",
+      "pbp_sha256": "714cf4e9fc7bcedded881add7f9f4479381deac0658b5dcdaaf58006fc7d0e38"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 324,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Matthew Ebden",
+      "server2": "Bradley Klahn",
+      "winner": "2",
+      "score": "6-0 6-4",
+      "pbp_sha256": "2d2b36329a439b5df2ae5ff3125ada76e952d4000a40f1addbc7e0084196ded6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 325,
+      "date": "2015-02-11",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Christopher O'Connell",
+      "server2": "Benjamin Mitchell",
+      "winner": "2",
+      "score": "3-6 6-3 6-4",
+      "pbp_sha256": "ca77ce0ffd4d76868e6dc18bc2f96721f66db915f71fdfbab7fbe7485349fac6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 326,
+      "date": "2015-02-11",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Hyeon Chung",
+      "server2": "Mitchell Krueger",
+      "winner": "1",
+      "score": "4-6 6-3 6-4",
+      "pbp_sha256": "7cc36c48d0517c95c76614ded58ab0b12319aa46621ea6a0e071a08f66f5a603"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 327,
+      "date": "2015-02-11",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Harry Bourchier",
+      "server2": "Brydan Klein",
+      "winner": "1",
+      "score": "2-6 7-6(5) 6-4",
+      "pbp_sha256": "dc48a7b3a21a07b482c6389ea1fb4daaaf89576dad9d5b322a92085e0b490290"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 328,
+      "date": "2015-02-11",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Luke Saville",
+      "server2": "Jordan Thompson",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "af6a87a579e0623debcff1cbe8dfc14aa12e86b3df23d5fc204b5ba8107cbf52"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 329,
+      "date": "2015-02-12",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Bradley Klahn",
+      "server2": "Dayne Kelly",
+      "winner": "1",
+      "score": "5-7 6-3 6-2",
+      "pbp_sha256": "a46d78b40a31810e7621e656bc9c71f5fc073e4c34db5e05b3ffc1d9fc059292"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 330,
+      "date": "2015-02-12",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Matthew Barton",
+      "server2": "Ze Zhang",
+      "winner": "2",
+      "score": "6-3 6-7(5) 7-6(5)",
+      "pbp_sha256": "80d06c69766ea59bc91f6e02720f8d66744022ea207df71de678aa93bf29e2a1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 331,
+      "date": "2015-02-12",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Jose Statham",
+      "server2": "Radu Albot",
+      "winner": "1",
+      "score": "6-3 3-6 6-2",
+      "pbp_sha256": "8b36454d185eef3f40a5ff2bac419bd77212597f5787924d148a64b1457d3bac"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 332,
+      "date": "2015-02-13",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Bradley Klahn",
+      "server2": "Bjorn Fratangelo",
+      "winner": "2",
+      "score": "7-6(2) 6-3",
+      "pbp_sha256": "752c272e7f320ecd1580c0706c5526622e969fae25d89a8fbb14fe4018ace724"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 333,
+      "date": "2015-02-13",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Jordan Thompson",
+      "server2": "Benjamin Mitchell",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "f2169e506c2b82e2a8073a1b5bcb84468104edcf35dcc31a8973a68b3ecf3d9f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 334,
+      "date": "2015-02-13",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Jose Statham",
+      "server2": "Ze Zhang",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "1785228a75df0ed1e40cd989bd3eca12e985c3b13e2c6c1175c06d4c474986be"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 335,
+      "date": "2015-02-14",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Hyeon Chung",
+      "server2": "Jordan Thompson",
+      "winner": "1",
+      "score": "5-7 6-3 7-5",
+      "pbp_sha256": "0388653b6ab36051ad8eb213c860fc46fcf9ec1f589792381641891bae67f2bc"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 336,
+      "date": "2015-02-15",
+      "tournament": "ATPChallengerTour-Launceston",
+      "server1": "Hyeon Chung",
+      "server2": "Bjorn Fratangelo",
+      "winner": "2",
+      "score": "4-6 6-2 7-5",
+      "pbp_sha256": "4304e47d5ae6c96346d89c5263ff16d3173dae723f98eca81c001851e541e4bf"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 345,
+      "date": "2015-02-17",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Jose Hernandez",
+      "server2": "Gerald Melzer",
+      "winner": "2",
+      "score": "6-2 7-6(6)",
+      "pbp_sha256": "a3486ea11cdac3939d93199b2bb720f5ea7b906edaf4ba050dac56f14b5a3725"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 350,
+      "date": "2015-02-17",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Henrique Cunha",
+      "server2": "Victor Estrella",
+      "winner": "2",
+      "score": "6-4 2-6 6-2",
+      "pbp_sha256": "cf3230bfc6a0043ab7d72a0d345249855ae68ee362683c47bef67b2d3ac29f50"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 352,
+      "date": "2015-02-18",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Nicolas Barrientos",
+      "server2": "Victor Estrella",
+      "winner": "2",
+      "score": "6-4 1-6 7-6(3)",
+      "pbp_sha256": "788485731090873011c67fc9bd82926daada15854cfd6493ad41ce47f47f1a34"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 353,
+      "date": "2015-02-18",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Dimitar Kutrovsky",
+      "server2": "Gerald Melzer",
+      "winner": "2",
+      "score": "7-6(6) 6-3",
+      "pbp_sha256": "57cdf0aa86c6920918b828ddf8c82e744aa9d7b6f6b4078bf57dc15f3000806a"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 360,
+      "date": "2015-02-19",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Dennis Novikov",
+      "server2": "Victor Estrella",
+      "winner": "2",
+      "score": "6-4 6-7(6) 6-2",
+      "pbp_sha256": "84521079d10def777f0a72a20fb81d8eb8807ec91e669387b9d4c7cb87eaa3f1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 362,
+      "date": "2015-02-16",
+      "tournament": "ATPChallengerTour-NewDelhi",
+      "server1": "Saketh-Sai Myneni",
+      "server2": "Karunuday Singh",
+      "winner": "1",
+      "score": "7-5 6-2",
+      "pbp_sha256": "834deeb4c25bc41c980b0c085c2e6685fa5eec716516837aa8da1480b4f2412f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 372,
+      "date": "2015-02-17",
+      "tournament": "ATPChallengerTour-NewDelhi",
+      "server1": "Sriram Balaji",
+      "server2": "Luke Saville",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "7657c349bc4dfdb4830e869b0b66d472f8e3ab6fcfa067d2bda1857b2e4cb502"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 379,
+      "date": "2015-02-18",
+      "tournament": "ATPChallengerTour-NewDelhi",
+      "server1": "Saketh-Sai Myneni",
+      "server2": "Mohamed Safwat",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "4f3e1fe5998e4d493daed59c01910d0552d4da5db261346de63f7a47c8d1a689"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 384,
+      "date": "2015-02-09",
+      "tournament": "ATPChallengerTour-SantoDomingo",
+      "server1": "Emilio Gomez",
+      "server2": "Jason Murray Kubler",
+      "winner": "1",
+      "score": "7-5 6-2",
+      "pbp_sha256": "9b86d9dfe00b24fd6bfc572b7bc3d44861720391ae8cfd45b17b2629da891c62"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 393,
+      "date": "2015-02-10",
+      "tournament": "ATPChallengerTour-SantoDomingo",
+      "server1": "Gianni Mina",
+      "server2": "Christian Garin",
+      "winner": "2",
+      "score": "7-6(4) 6-3",
+      "pbp_sha256": "41d48beab752f7977ebe0417f1aa9d63c27c312dc95855ca6aac10d7fbe00081"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 396,
+      "date": "2015-02-11",
+      "tournament": "ATPChallengerTour-SantoDomingo",
+      "server1": "Patricio Heras",
+      "server2": "Jose Hernandez",
+      "winner": "1",
+      "score": "7-6(3) 6-4",
+      "pbp_sha256": "881c70df3cab8e52092713b90852faec1d3f0d8e5f5a33fb218962709c459bc9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 405,
+      "date": "2015-02-13",
+      "tournament": "ATPChallengerTour-SantoDomingo",
+      "server1": "Horacio Zeballos",
+      "server2": "Christian Garin",
+      "winner": "2",
+      "score": "1-6 7-6(3) 7-6(5)",
+      "pbp_sha256": "da3d6443ee6dff81871993d6113ffe49107d881316779948fc4f479f6b7e2cd1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 409,
+      "date": "2015-02-14",
+      "tournament": "ATPChallengerTour-SantoDomingo",
+      "server1": "Renzo Olivo",
+      "server2": "Gasto Elias",
+      "winner": "1",
+      "score": "6-7(6) 7-5 6-1",
+      "pbp_sha256": "c185a704bc6459cd2a6e3473a969ab17d1ff568cef36be2e0a5171d1e0a8e70e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 410,
+      "date": "2015-02-14",
+      "tournament": "ATPChallengerTour-SantoDomingo",
+      "server1": "Christian Garin",
+      "server2": "Damir Dzumhur",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "506b5c9b551ba4c435e9d2777ed3820970fddc700ab0960e8a408487a5f97990"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 421,
+      "date": "2015-02-17",
+      "tournament": "ATPChallengerTour-Wroclaw",
+      "server1": "Jan Mertl",
+      "server2": "Oleksandr Nedovyesov",
+      "winner": "1",
+      "score": "6-7(3) 7-6(7) 7-6(1)",
+      "pbp_sha256": "35e7e3e0aca10d08fdac29f1aafd015956b77cdcac18e0e392d47a3d91d015c7"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 435,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Cherbourg",
+      "server1": "Maxime Teixeira",
+      "server2": "Karen Khachanov",
+      "winner": "1",
+      "score": "6-3 6-4",
+      "pbp_sha256": "21f2ac2a8141953eb42c8b5ad0e281834a9138023e406eeca8afd8f7849a0701"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 436,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Cherbourg",
+      "server1": "Vladimir Ivanov",
+      "server2": "Daniel Brands",
+      "winner": "2",
+      "score": "6-3 6-4",
+      "pbp_sha256": "e7ad2f1cadae8a4f5b8b166ca0d88af20669905048982d083f9b47c02ad8aac9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 437,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Cherbourg",
+      "server1": "Federico Gaio",
+      "server2": "Filip Horansky",
+      "winner": "1",
+      "score": "6-2 2-6 6-3",
+      "pbp_sha256": "93caa2c928025b334ece458d386419a3949d10ba0eef565ad568acb95e077d6e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 438,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Cherbourg",
+      "server1": "Denis Matsukevich",
+      "server2": "Sergey Betov",
+      "winner": "2",
+      "score": "7-6(3) 6-3",
+      "pbp_sha256": "faf43471cf561be4bd1d9553eb6d9bf485ae2d99a5c8dd94993ef2d3d389890f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 469,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Kolkata",
+      "server1": "Kaza Vinayak Sharma",
+      "server2": "Kevin Krawietz",
+      "winner": "2",
+      "score": "6-2 7-6(4)",
+      "pbp_sha256": "892bace7e4f734b27b205e66ff041701097bf5a555f7755e4f95c1f3492eb221"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 470,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Kolkata",
+      "server1": "James Duckworth",
+      "server2": "N. Vijay Sundar Prashanth",
+      "winner": "1",
+      "score": "6-3 3-6 6-3",
+      "pbp_sha256": "cce653ef9866f8017237232179bb5aae1a01320441043041eff9b3bc42eaf5b9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 472,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Kolkata",
+      "server1": "Saketh-Sai Myneni",
+      "server2": "Alex Bolt",
+      "winner": "2",
+      "score": "7-5 6-4",
+      "pbp_sha256": "be14d28cb725d24208b9915fa7c03380487c007af7909c3aee5d4f704d87965b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 491,
+      "date": "2015-02-23",
+      "tournament": "ATPChallengerTour-Kyoto",
+      "server1": "Takashi Sato",
+      "server2": "Kento Takeuchi",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "a5835d58b731a72d3b12a03b2b24e3f049bd0eca1c0907ee6944515470cd254b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 494,
+      "date": "2015-02-24",
+      "tournament": "ATPChallengerTour-Kyoto",
+      "server1": "Anton Zaitsev",
+      "server2": "Jordan Thompson",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "f66fea741c7db9088b09ac47089098f979b4fa6446c011b78473dd618caa89d5"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 497,
+      "date": "2015-02-24",
+      "tournament": "ATPChallengerTour-Kyoto",
+      "server1": "Yuuya Kibi",
+      "server2": "Andrew Whittington",
+      "winner": "1",
+      "score": "6-3 7-6(5)",
+      "pbp_sha256": "7c9c58935143425e76f2c1c1bccdc8d6bdb8c99b2b51627b21b71070f47dd774"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 512,
+      "date": "2015-02-28",
+      "tournament": "ATPChallengerTour-Kyoto",
+      "server1": "Michal Przysieny",
+      "server2": "Andriej Kapas",
+      "winner": "1",
+      "score": "7-6(5) 6-4",
+      "pbp_sha256": "ede83ad3742a0a3e98f8765d00c430375244328afb05a4c16ea5d6973fdd1141"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 513,
+      "date": "2015-03-01",
+      "tournament": "ATPChallengerTour-Kyoto",
+      "server1": "Michal Przysieny",
+      "server2": "John Millman",
+      "winner": "1",
+      "score": "6-3 3-6 6-3",
+      "pbp_sha256": "737ca24b61c5c99c24b316c8fbcb8a69ecabfc29da23d13d568c234d5c84d655"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 514,
+      "date": "2015-02-20",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Adrian Menendez-Maceiras",
+      "server2": "Damir Dzumhur",
+      "winner": "2",
+      "score": "6-7(3) 6-3 7-6(5)",
+      "pbp_sha256": "e386ccbce0aad8f381c694e597dc23b89e69eaf2d271fd97bd6bd263782c92df"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 515,
+      "date": "2015-02-20",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Gerald Melzer",
+      "server2": "Victor Estrella",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "adb437c0767ef6a1cddb8610efa7f9391275fa95e297ab701c19d14fa0e85854"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 516,
+      "date": "2015-02-21",
+      "tournament": "ATPChallengerTour-Morelos",
+      "server1": "Damir Dzumhur",
+      "server2": "Victor Estrella",
+      "winner": "2",
+      "score": "7-5 6-4",
+      "pbp_sha256": "9cb7fc73298dfd93b82b113f61aca52589ade290b9a8fdedfd1bbe2751efe130"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 517,
+      "date": "2015-02-20",
+      "tournament": "ATPChallengerTour-NewDelhi",
+      "server1": "Saketh-Sai Myneni",
+      "server2": "Kimmer Coppejans",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "cb891809f8affc5648bbf1595957578386535a209aecdb74ecb3ad886885d0c4"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 524,
+      "date": "2015-03-02",
+      "tournament": "ATPChallengerTour-Quimper",
+      "server1": "Calvin Hemery",
+      "server2": "Julien Obry",
+      "winner": "1",
+      "score": "2-6 6-2 7-6(1)",
+      "pbp_sha256": "6de9af183f68ad518d35a2602fa66628f31b2936bbaf20c078230d7815c67e4c"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 525,
+      "date": "2015-03-02",
+      "tournament": "ATPChallengerTour-Quimper",
+      "server1": "Sebastien Boltz",
+      "server2": "Daniel Brands",
+      "winner": "2",
+      "score": "7-6(6) 7-5",
+      "pbp_sha256": "cfd2d17486b198d4b5543e7a4d5d04e422ccb320e377bb9e2be4102e5bda55d4"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 526,
+      "date": "2015-03-02",
+      "tournament": "ATPChallengerTour-Quimper",
+      "server1": "Andres Artunedo Martinavarro",
+      "server2": "Teri Groll",
+      "winner": "2",
+      "score": "7-6(6) 6-4",
+      "pbp_sha256": "472cfad14b4e39994263f849e8009eb5be891d0ef574fe32b8e9c384204fcade"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 527,
+      "date": "2015-03-02",
+      "tournament": "ATPChallengerTour-Quimper",
+      "server1": "Elie Rousset",
+      "server2": "Edward Corrie",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "7bc1bde7498e6036e56cd4bbbf1d60120e36403f924c63270a6691b241233066"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 533,
+      "date": "2015-03-03",
+      "tournament": "ATPChallengerTour-Quimper",
+      "server1": "Martin Vaisse",
+      "server2": "Andres Artunedo Martinavarr",
+      "winner": "1",
+      "score": "7-6(4) 6-4",
+      "pbp_sha256": "30dc506b8c47c53ff192dcc18be558f7da8231504f6bbbcd331ea294082c0d6d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 540,
+      "date": "2015-03-04",
+      "tournament": "ATPChallengerTour-Quimper",
+      "server1": "Liam Broady",
+      "server2": "Andriej Kapas",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "fda5c59882dbbee17871510b0a5ad2d6e9df247fe5ac1286cd1e211518004f82"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 558,
+      "date": "2015-03-16",
+      "tournament": "ATPChallengerTour-Drummondville",
+      "server1": "John-Patrick Smith",
+      "server2": "Daniel Nguyen",
+      "winner": "1",
+      "score": "6-7(7) 6-4 6-4",
+      "pbp_sha256": "840d57e05921c00cb3b290654753727296ebc6d86846fe6b5797a343d42fe2c8"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 578,
+      "date": "2015-03-09",
+      "tournament": "ATPChallengerTour-Guangzhou",
+      "server1": "Omar Jasika",
+      "server2": "Matwe Middelkoop",
+      "winner": "2",
+      "score": "6-7(7) 6-2 6-3",
+      "pbp_sha256": "7ce023af12906d4d24ac3774507b4bbfd807a572916bae3f500f840806324818"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 579,
+      "date": "2015-03-09",
+      "tournament": "ATPChallengerTour-Guangzhou",
+      "server1": "Wesley Koolhof",
+      "server2": "Yusuke Watanuki",
+      "winner": "2",
+      "score": "6-3 6-2",
+      "pbp_sha256": "963dc0749411a9639ac982f07c1f97518d1095594a5b130794acb4e52a02ffe5"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 580,
+      "date": "2015-03-09",
+      "tournament": "ATPChallengerTour-Guangzhou",
+      "server1": "Liang-Chi Huang",
+      "server2": "Richard Becker",
+      "winner": "2",
+      "score": "6-1 6-1",
+      "pbp_sha256": "b91a8b8c36a826fda731a29e375c7d177302ccc123f70e3e48bfab0115af0627"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 609,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Dominic Thiem",
+      "server2": "Dudi Sela",
+      "winner": "1",
+      "score": "6-3 1-6 6-3",
+      "pbp_sha256": "b725a3de480e8f3dc290ccea709f1e2b381fb5d2f832af34fa36ed32705dbe29"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 610,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Michael Russell",
+      "server2": "Denis Kudla",
+      "winner": "2",
+      "score": "6-4 6-7(1) 6-4",
+      "pbp_sha256": "7f9c9bb90a218fce29db780f152d0abcb9e4d702a59083eeb6be9b19d05cd106"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 611,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Aljaz Bedene",
+      "server2": "Rajeev Ram",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "96de42e36ccc33d41b8a8f1a2b99153397d697d6e8a2e447fd0219aaaba44c36"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 612,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Tim Smyczek",
+      "server2": "Jan-Lennard Struff",
+      "winner": "1",
+      "score": "7-6(3) 6-2",
+      "pbp_sha256": "bb7573f88570d302ec50e4e9b7b01246122d69669f03457821324ac498627e29"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 613,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Dustin Brown",
+      "server2": "Marcos Baghdatis",
+      "winner": "2",
+      "score": "7-6(6) 7-6(0)",
+      "pbp_sha256": "9ab2b0cd51757cf846990737c7f9682b3559184dc6c99f0a398fa7d21b839735"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 614,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Paul-Henri Mathieu",
+      "server2": "Marinko Matosevic",
+      "winner": "1",
+      "score": "7-6(5) 1-6 7-6(5)",
+      "pbp_sha256": "4ac30c10ea93c4b428c546d45c8c047cd8ead004058e8228a62b881bf6d6605b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 615,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Johannes Schretter",
+      "server2": "Damir Dzumhur",
+      "winner": "2",
+      "score": "6-1 6-0",
+      "pbp_sha256": "5f8f8ea7d315a026b646d25d63f56752a97a191381614dfc4139c34854b0f940"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 616,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Bjorn Fratangelo",
+      "server2": "Alexander Zverev",
+      "winner": "2",
+      "score": "6-4 1-6 6-1",
+      "pbp_sha256": "c39869891fc2649d2ae62ca3eb686f2426b6100036fd078a3bd15c509e9ce892"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 617,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Thomaz Bellucci",
+      "server2": "Sergiy Stakhovsky",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "9ef212efcaaa516efa05dc43801bd00de1c3a1b492a0b4dae043a30f7eb4032e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 618,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Farrukh Dustov",
+      "server2": "Benjamin Becker",
+      "winner": "2",
+      "score": "6-3 6-2",
+      "pbp_sha256": "f4dcf2071120056f771eff44b9cf2311a2cf3e31489bdfa195411059b5290fa4"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 619,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Diego Schwartzman",
+      "server2": "Gastao Elias",
+      "winner": "1",
+      "score": "6-3 3-6 6-2",
+      "pbp_sha256": "caec85de535dfa515ba4349c3ee0dc52a50439739c5d20d731ed2ef7af2ca745"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 620,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Kyle Edmund",
+      "server2": "Tobias Kamke",
+      "winner": "1",
+      "score": "6-4 6-4",
+      "pbp_sha256": "2908258d299508b8b329f700a5784591e5309a9a3279c7932214afe93f48dbeb"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 621,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Gilles Muller",
+      "server2": "Pablo Andujar",
+      "winner": "1",
+      "score": "7-6(2) 6-4",
+      "pbp_sha256": "4fe3e97f5754f89d6c7a7c5b2436e16dbb424b7fb0fbe80c6547a4da9fbc5804"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 622,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "James Ward",
+      "server2": "Steve Darcis",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "cb67a912b4bc795e526cbb5d5e95df05858c136af64617a7fc498441dbf5c0a9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 623,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Jerzy Janowicz",
+      "server2": "Edouard Roger-Vasselin",
+      "winner": "1",
+      "score": "7-6(3) 1-6 6-2",
+      "pbp_sha256": "40b2366f3dc8534040636397bd89ee0238b62704cc9b1b7f3a8fea9b13fa0439"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 624,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Jeremy Chardy",
+      "server2": "Marco Cecchinato",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "24b6aaabaad1616d0c4ba60d2e86672fcb7e67107cbbf4d082201c0ebc6a3910"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 625,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Dominic Thiem",
+      "server2": "Aljaz Bedene",
+      "winner": "2",
+      "score": "6-4 3-6 6-2",
+      "pbp_sha256": "7d303dfe713d3ac92d669f5da9b4e4692df961a003fcf4a7ad7b4fbe722c997e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 626,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Benjamin Becker",
+      "server2": "Damir Dzumhur",
+      "winner": "1",
+      "score": "7-5 6-1",
+      "pbp_sha256": "52d7d1ee5090a2792499015675d9ed2b317f0b72578124382e59906f6e892909"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 627,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Tim Smyzczek",
+      "server2": "Sergiy Stakhovsky",
+      "winner": "1",
+      "score": "7-5 0-6 6-3",
+      "pbp_sha256": "363da65a88c37b5fb99cee7adb8f60596f6ee5b92d9906e13b6f9e2a1267df79"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 628,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Kyle Edmund",
+      "server2": "Diego Schwartzman",
+      "winner": "1",
+      "score": "3-6 6-3 6-1",
+      "pbp_sha256": "116f6f7b9b303274a5ed978d166e8dec68732904e9eeab6e6afb992663fc89cf"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 629,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Paul-Henri Mathieu",
+      "server2": "Marcos Baghdatis",
+      "winner": "2",
+      "score": "4-6 7-6(5) 6-1",
+      "pbp_sha256": "491dd2567bcf4f7cdce6e75b465462ecee5372decb50fd2b66414c8b2a5c8ff8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 630,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Denis Kudla",
+      "server2": "Gilles Muller",
+      "winner": "2",
+      "score": "6-4 6-0",
+      "pbp_sha256": "742d5e5ea9d2bb2dbbe53b34720f321a18fb60b5ab3c252d4fe56ebf9a430cd0"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 631,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Jeremy Chardy",
+      "server2": "Steve Darcis",
+      "winner": "2",
+      "score": "6-3 4-6 6-3",
+      "pbp_sha256": "ae701500c10b74771ed680c161b0bc8d3c714b7659b265e0d7ec55a4d8d5be71"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 635,
+      "date": "2015-03-16",
+      "tournament": "ATPChallengerTour-Kazan",
+      "server1": "Andrey Kuznetsov",
+      "server2": "Anton Zaitsev",
+      "winner": "1",
+      "score": "6-2 7-5",
+      "pbp_sha256": "b0d4ec96b718d2e53c31e227c6559f83640542cbdd96fc4599ef473039f677ed"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 648,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Kazan",
+      "server1": "Timur Kiuamov",
+      "server2": "Karen Khachanov",
+      "winner": "2",
+      "score": "6-0 6-2",
+      "pbp_sha256": "16f0a2b83bbb59289476ef3fd748f15acd861147e741a34ad26438f171f23bdf"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 669,
+      "date": "2015-03-10",
+      "tournament": "ATPChallengerTour-Santiago",
+      "server1": "Christian Garin",
+      "server2": "Juan Carlos Saez",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "0c92d97424ff8108130affecba9c9a3e2b4462067a576d6075e79dceb4c8b34f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 679,
+      "date": "2015-03-11",
+      "tournament": "ATPChallengerTour-Santiago",
+      "server1": "Guilherme Clezar",
+      "server2": "Jose Hernandez",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "e62e4fbbc518b700e04a8ed00a8b54f08cdf367cfa7c1b8d71820738819fb7b7"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 694,
+      "date": "2015-03-16",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Yuichi Sugita",
+      "server2": "Xin Gao",
+      "winner": "1",
+      "score": "5-7 6-3 6-3",
+      "pbp_sha256": "639171435f4ce389866dd2123a001cc07eb29939b8caa337ad49d49e03ef430f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 695,
+      "date": "2015-03-16",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Uladzimir Ignatik",
+      "server2": "Nils Langer",
+      "winner": "1",
+      "score": "7-6(5) 7-6(6)",
+      "pbp_sha256": "22fecdfa9c940c6d405457f174991e55f13324276274db9b44001efc9c9a730a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 696,
+      "date": "2015-03-16",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Alexander Kudryavtsev",
+      "server2": "Liang-Chi Huang",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "47ca7ce7c2f1103f87a4dd1206bb8a0d7e8a63b0b912c89d869475db56696c7c"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 697,
+      "date": "2015-03-16",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Andre Ghem",
+      "server2": "Hiroki Moriya",
+      "winner": "1",
+      "score": "6-3 3-6 6-3",
+      "pbp_sha256": "356787f0e2bd8b4564ffdc97d80125d6ccd18ec77f8c7bb87203991c53b00428"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 698,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Aldin Setkic",
+      "server2": "Peter Torebko",
+      "winner": "1",
+      "score": "6-1 6-0",
+      "pbp_sha256": "f585c7acb1f1e902d0a9944d7da991a304b2118df7003440bb3a334bfa3f9ceb"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 699,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Zhe Li",
+      "server2": "Blaz Kavcic",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "fb3accfeded3ffe9bbf95cf15432b16723480d7db7551e6b45fe6e80ccea09bf"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 700,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Tsung-Hua Yang",
+      "server2": "Yasutaka Uchiyama",
+      "winner": "1",
+      "score": "7-6(2) 6-4",
+      "pbp_sha256": "f15896c5857f6085041f4189a8faf875390e6879cf6d038469843296cb9a7958"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 701,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Sanam Singh",
+      "server2": "Roberto Carballes Baena",
+      "winner": "1",
+      "score": "6-3 3-6 6-3",
+      "pbp_sha256": "3c031c44c5dfbd210fa8f784b475c298750f470bb8aa401775f3fcf6b8682711"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 702,
+      "date": "2015-03-17",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Marton Fucsovics",
+      "server2": "Chuhan Wang",
+      "winner": "1",
+      "score": "6-1 6-4",
+      "pbp_sha256": "3ca883c25ec6f7036a20d0535fef3e11cd3ec0cb51cade4ce19c41cdb74b4be5"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 703,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Alexander Kudryavtsev",
+      "server2": "Jordan Thompson",
+      "winner": "1",
+      "score": "3-6 7-6(11) 6-1",
+      "pbp_sha256": "918cd2ac1db63b27c5e314aef00682e56ace1b493b2f8e98e4ae9aca1ccf3f9e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 704,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Uladzimir Ignatik",
+      "server2": "Yuichi Sugita",
+      "winner": "1",
+      "score": "6-4 6-4",
+      "pbp_sha256": "cf73f806fafa25e96ce14231bcaeef8ceed6618c360a11cd01fa210adc968256"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 705,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Di Wu",
+      "server2": "Andre Ghem",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "234c52580bf252d20305d119a97b934260bd07e6d22f0841872363cb348cb1cd"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 706,
+      "date": "2015-03-18",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Daniel Munoz-De La Nava",
+      "server2": "Tsung-Hua Yang",
+      "winner": "1",
+      "score": "6-3 6-0",
+      "pbp_sha256": "2a56aea59b60a990aa2be7385c656061a53437e6e1b6836a11a887477b36d166"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 707,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Blaz Kavcic",
+      "server2": "Richard Becker",
+      "winner": "1",
+      "score": "6-7(4) 6-4 6-4",
+      "pbp_sha256": "bcd41155df704dd2602f09138f261a3fd60740546ec09ec3f722f6515d1052e8"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 708,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Marton Fucsovics",
+      "server2": "Tristan Lamasine",
+      "winner": "2",
+      "score": "7-5 7-6(10)",
+      "pbp_sha256": "938cf9932c63bb9f5d461c119cb5d3d4545ebb135c32be212cbd009f174ad163"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 709,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Ze Zhang",
+      "server2": "Aleksandr Nedovyesov",
+      "winner": "2",
+      "score": "4-6 6-4 6-1",
+      "pbp_sha256": "dc67de47160c63b7ec6b4aeeda45298a73f54ca90ca5570fe3f985a62c95fcc3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 710,
+      "date": "2015-03-19",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Aldin Setkic",
+      "server2": "Sanam Singh",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "65b46c62d1f2ce755e3bab06b089550a33991f24248e908cc05a06af36e15e1a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 718,
+      "date": "2015-03-20",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Jerzy Janowicz",
+      "server2": "Alexander Zverev",
+      "winner": "2",
+      "score": "6-2 7-6(3)",
+      "pbp_sha256": "16e8b7f2b83770e5595eb6502d85b81c89949273c8e93e0455a2a3275040d569"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 719,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Gilles Muller",
+      "server2": "Alexander Zverev",
+      "winner": "1",
+      "score": "6-2 3-6 6-4",
+      "pbp_sha256": "fca04dba46de6a769e2e235ef8dce6956bfaf4d50404de969969efef5bed023d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 720,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Tim Smyczek",
+      "server2": "Benjamin Becker",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "00c2619c51f9f08d6305318d028f71fa4436bc5c986d3d4b3e2f5421d4160c5b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 721,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Kyle Edmund",
+      "server2": "Steve Darcis",
+      "winner": "1",
+      "score": "7-6(5) 6-2",
+      "pbp_sha256": "9528dff6bb661b6ae0bb5b56299aa322cfdbae2ba50bbb19c24ceaf3fce9d29a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 722,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Aljaz Bedene",
+      "server2": "Marcos Baghdatis",
+      "winner": "1",
+      "score": "6-3 7-6(5)",
+      "pbp_sha256": "600b32246667d005d20bfd1831570afb472c62ff94f43c5abd4704440db5a9b1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 723,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Kyle Edmund",
+      "server2": "Aljaz Bedene",
+      "winner": "2",
+      "score": "7-6(1) 6-1",
+      "pbp_sha256": "adea933dcdf13eb9f78e4e200f12ffa7dbbdd35a10debbf128944234d96cfaf1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 724,
+      "date": "2015-03-22",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Gilles Muller",
+      "server2": "Tim Smyczek",
+      "winner": "2",
+      "score": "6-4 7-6(8)",
+      "pbp_sha256": "e4ba47eed44790dbac909f26f12e6f29eced69d553293ecebd19e4813037bce1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 725,
+      "date": "2015-03-22",
+      "tournament": "ATPChallengerTour-Irving",
+      "server1": "Tim Smyczek",
+      "server2": "Aljaz Bedene",
+      "winner": "2",
+      "score": "7-6(3) 3-6 6-3",
+      "pbp_sha256": "a28a2dd63f1fcd9d193b5020798ee52ba12df2fe84b9678fceb32884fe4428ef"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 733,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Fabrice Martin",
+      "server2": "Kyle Edmund",
+      "winner": "2",
+      "score": "6-4 6-7(3) 6-4",
+      "pbp_sha256": "2517cce1918f56581c6c7a471db6578f2a30f50803779dd4bd012deb63eaa4ea"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 734,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Nicolas Mahut",
+      "server2": "Ruben Bemelmans",
+      "winner": "2",
+      "score": "7-6(6) 6-3",
+      "pbp_sha256": "a0599d0f387864bc4b8f6b88ac9ad6c8fcd54c4211eec259b2ec7c05b3b4b795"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 735,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Jan Hernych",
+      "server2": "Wesley Koolhof",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "1acadc806e993277e953dc9ae97a4190d01100597b6b72c4ab8061b74f9973fc"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 736,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Kenny De Schepper",
+      "server2": "Mitchell Krueger",
+      "winner": "1",
+      "score": "6-4 6-1",
+      "pbp_sha256": "9f3a14f9b6f65ca5cb2277e2d6d19c430ce72adbc2208c15c6a955187e795aba"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 737,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Edouard Roger-Vasselin",
+      "server2": "Jules Marie",
+      "winner": "1",
+      "score": "7-6(5) 6-1",
+      "pbp_sha256": "a5db44713eb8fa7fa0028ea9a89e8b02c19920ca9fef6266e65d8cc2653c4bab"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 738,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Norbert Gombos",
+      "server2": "Gregoire Barrere",
+      "winner": "1",
+      "score": "6-3 7-6(3)",
+      "pbp_sha256": "5b279ecb2740186be3a7ea2db35fedd407ceddf4ba2ce4eae00c96cc26df046c"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 739,
+      "date": "2015-03-31",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Calvin Hemery",
+      "server2": "Laurent Rochette",
+      "winner": "2",
+      "score": "7-6(3) 6-1",
+      "pbp_sha256": "5e335528f52eb21ce635201c3070fb1fb8c2955f3f744bed9c0d1c3caac87e86"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 740,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Marcos Baghdatis",
+      "server2": "Darian King",
+      "winner": "1",
+      "score": "7-5 7-6(3)",
+      "pbp_sha256": "5e349adc4de77b016c97ed06045d31d7d8544a52f3a5ecf56471f4309850f246"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 741,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Maximo Gonzalez",
+      "server2": "Bjorn Fratangelo",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "cff5b6e83d9a1ada6a4e5e89d0e77eeb4e5e329200c2234ff7ff3d1c17d4a797"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 742,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Filip Horansky",
+      "server2": "Andre Ghem",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "22ef5f02ac5ed9d7e82ee1dca5ecdcff9e4bb5f4bd2deac5193056e24d0babc9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 743,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "John-Patrick Smith",
+      "server2": "Antal Van der Duim",
+      "winner": "1",
+      "score": "7-6(2) 6-4",
+      "pbp_sha256": "1673e7917a49fd0b09781654e24ed40467e87d30aa2759dc513ff7368caff597"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 744,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Gianni Mina",
+      "server2": "Henrique Cunha",
+      "winner": "2",
+      "score": "3-6 6-3 6-3",
+      "pbp_sha256": "4aa4498fa688267703fb30118c8d771010a7aa5c4c0e4960adc7bf9c316258ea"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 745,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Marco Trungelliti",
+      "server2": "Gastao Elias",
+      "winner": "1",
+      "score": "7-6(10) 6-3",
+      "pbp_sha256": "52beb044be78cba637aefef8bc5b8c173f953bb5b42972e57386b909f83801fc"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 746,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Matwe Middelkoop",
+      "server2": "Benoit Paire",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "b9a9e1ae6f0836406886a996e16ab325102be875fcb7f527cdb70d012fb8c92f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 747,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Omar Jasika",
+      "server2": "Hyeon Chung",
+      "winner": "1",
+      "score": "6-3 2-6 6-4",
+      "pbp_sha256": "1b8054b4aaf752f1f2c62a8db78c62ab82b8e61052d69e3bea9f105a7bc7dcb3"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 748,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Ruben Bemelmans",
+      "server2": "Laurent Rochette",
+      "winner": "1",
+      "score": "7-6(0) 6-3",
+      "pbp_sha256": "50cf41ac100b29eee86b80b698973a074152c05a88aef83cad7b59aadf74730f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 749,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Kenny de Schepper",
+      "server2": "Kyle Edmund",
+      "winner": "2",
+      "score": "6-4 7-5",
+      "pbp_sha256": "1d989470ab8472add46e1a2b7ef191778a83d47b806e5c940e73a60beb460820"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 750,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Maximo Gonzalez",
+      "server2": "Andre Ghem",
+      "winner": "2",
+      "score": "6-0 3-6 7-5",
+      "pbp_sha256": "39e5f6d95eb93fee2ab9f9f94333b7a098a8f9a815e7e58316fb9f8885bd8f2f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 751,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Jan Hernych",
+      "server2": "Benoit Paire",
+      "winner": "2",
+      "score": "4-6 6-2 7-6(9)",
+      "pbp_sha256": "56fbcd0d867c5b01d28b78fae20c7f9f4719e01f0c4226b1a10f410aaf20d305"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 752,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Omar Jasika",
+      "server2": "Marco Trungelliti",
+      "winner": "1",
+      "score": "6-4 6-4",
+      "pbp_sha256": "1c70a28194822726ae5c12d25bca7a6a002a3fe0b660e78ac9a82d8387bff461"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 753,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Norbert Gombos",
+      "server2": "John-Patrick Smith",
+      "winner": "2",
+      "score": "3-6 6-4 6-1",
+      "pbp_sha256": "d32970b8d865dc0066023d6983c7dfc8682f64a1b1aa936e0ec4f89787899bc1"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 754,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Edouard Roger-Vasselin",
+      "server2": "Marcos Baghdatis",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "3c54e541c9a0847cc75c62490fbb25cd8e77ccec81917b34eb9b16cd922c59c9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 755,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Ivo Klec",
+      "server2": "Henrique Cunha",
+      "winner": "2",
+      "score": "7-6(3) 6-2",
+      "pbp_sha256": "d584716caa5af2e19fb13b977ad52ee9185131db5cbc38d78447e4badf03feee"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 756,
+      "date": "2015-03-30",
+      "tournament": "ATPChallengerTour-Raanana",
+      "server1": "Peter Kobelt",
+      "server2": "Karen Khachanov",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "1ab87970d0261065894f7d2c271eed0774d1e40b6f793afa1fc22bc43390a171"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 757,
+      "date": "2015-03-30",
+      "tournament": "ATPChallengerTour-Raanana",
+      "server1": "Matteo Viola",
+      "server2": "Matthew Ebden",
+      "winner": "1",
+      "score": "7-6(5) 7-5",
+      "pbp_sha256": "31a3c002a48fe4d2c613e6783b132b6aba6558a876b8ee34422afacd93a7dfb6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 758,
+      "date": "2015-03-30",
+      "tournament": "ATPChallengerTour-Raanana",
+      "server1": "Andrea Arnaboldi",
+      "server2": "Alexis Musialek",
+      "winner": "1",
+      "score": "7-6(5) 6-4",
+      "pbp_sha256": "4b0331f241184c8ead0ccbe2df45543dcbe8db1b38124f7f3535bbbc3316ea58"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 759,
+      "date": "2015-03-30",
+      "tournament": "ATPChallengerTour-Raanana",
+      "server1": "Miliaan Niesten",
+      "server2": "Karen Khachanov",
+      "winner": "2",
+      "score": "6-3 5-7 6-4",
+      "pbp_sha256": "ec6fea1940e5af9b66c297925d75c72fd78b30489fc0bfe8ab97408012c3f48b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 768,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-Raanana",
+      "server1": "Laslo Djere",
+      "server2": "Aleksandr Nedovesov",
+      "winner": "1",
+      "score": "7-6(4) 3-6 6-4",
+      "pbp_sha256": "851562188b0eb9b7521c225cf03c22d1f13511c46641ea8d867bb365b3d4764c"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 780,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-Raanana",
+      "server1": "Tai Goldengoren",
+      "server2": "Lukas Lacko",
+      "winner": "2",
+      "score": "6-1 6-2",
+      "pbp_sha256": "b424805014bf369989e2a6fa7ad78c6970b5e016f1f6b797eff8bf9f240e58e4"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 785,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-SanLuisPotosi",
+      "server1": "Manuel Sanchez Montemayor",
+      "server2": "Gonzalo Escobar",
+      "winner": "1",
+      "score": "7-6(5) 7-6(5)",
+      "pbp_sha256": "a31ad4eaec06f4800f5741046c4dd5bd75cc4acb2188621693b5ba4238e60afc"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 791,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-SanLuisPotosi",
+      "server1": "Marcelo Arevalo-Gonzalez",
+      "server2": "James Duckworth",
+      "winner": "2",
+      "score": "3-6 6-3 6-2",
+      "pbp_sha256": "52785d30cabcf19dd4547037603c58161efd8538f04cce2d3e08e1c5d186889a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 792,
+      "date": "2015-04-01",
+      "tournament": "ATPChallengerTour-SanLuisPotosi",
+      "server1": "Mauricio Astorga",
+      "server2": "Teimuraz Gabashvili",
+      "winner": "2",
+      "score": "3-6 6-2 6-3",
+      "pbp_sha256": "32d0920ed801f5a6edc7ab4adfd6aa7e7357b4e8ead154c0a9a24e877df5e9f6"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 799,
+      "date": "2015-04-02",
+      "tournament": "ATPChallengerTour-SanLuisPotosi",
+      "server1": "Hans Podlipnik-Castillo",
+      "server2": "Teimuraz Gabashvili",
+      "winner": "2",
+      "score": "6-7(8) 6-3 7-6(5)",
+      "pbp_sha256": "5d9791922b782aa8739f28d0f56c3127fbf2647ea24de7ae0d188d4938fff52f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 804,
+      "date": "2015-03-20",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Uladzimir Ignatik",
+      "server2": "Daniel Munoz-De La Nava",
+      "winner": "2",
+      "score": "7-6(5) 6-1",
+      "pbp_sha256": "46c0ec4603948e7e130235f4852051d398ad51277cabd83c88a100b91db15584"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 805,
+      "date": "2015-03-20",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Tristian Lamasine",
+      "server2": "Blaz Kavcic",
+      "winner": "2",
+      "score": "3-6 6-2 6-1",
+      "pbp_sha256": "4cf6596f0e35e1afb5b538896fe6032acaf4318977c0e23cc5ff7b079375c42a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 806,
+      "date": "2015-03-20",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Andre Ghem",
+      "server2": "Alexander Kudryavtsev",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "45d8e81f82bdb743135aca7f95dd39893091e8fe18563af94f7f34f7efd30ecf"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 807,
+      "date": "2015-03-20",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Oleksandr Nedovesov",
+      "server2": "Sanam Singh",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "439ce8382567c46b0c376cb67c9423dbb1a6d3ab0424ba8038af44a9a93c52ce"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 808,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Andre Ghem",
+      "server2": "Sanam Singh",
+      "winner": "1",
+      "score": "2-6 6-3 6-3",
+      "pbp_sha256": "6481e7592710b397f21255458e641c5feabb81d9145003a219d7b6aadd341059"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 809,
+      "date": "2015-03-21",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Daniel Munoz-De La Nava",
+      "server2": "Blaz Kavcic",
+      "winner": "2",
+      "score": "6-7(6) 7-6(5) 6-4",
+      "pbp_sha256": "a11ed4f8144ba333ed2d333471f89737c99fbae8f653121cc5ad05f1861744a2"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 810,
+      "date": "2015-03-22",
+      "tournament": "ATPChallengerTour-Shenzhen",
+      "server1": "Andre Ghem",
+      "server2": "Blaz Kavcic",
+      "winner": "2",
+      "score": "7-5 6-4",
+      "pbp_sha256": "5893946e76c647d7c1da66ced9427bb6bdd689fe024148469d5102ca8654dd2e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 812,
+      "date": "2015-04-06",
+      "tournament": "ATPChallengerTour-Batman",
+      "server1": "Alexander Lazov",
+      "server2": "Oleksandr Nedovyesov",
+      "winner": "2",
+      "score": "6-4 7-5",
+      "pbp_sha256": "473871602556138bccff111a564733c1b1778544d3b980d93737baf1d73c832a"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 814,
+      "date": "2015-04-06",
+      "tournament": "ATPChallengerTour-Batman",
+      "server1": "Riccardo Ghedin",
+      "server2": "Yaraslau Shyla",
+      "winner": "2",
+      "score": "6-4 6-1",
+      "pbp_sha256": "b197392bd0828d05bafeb08d5cf690d2045cf66e35b232fad61aa4b1e0d62cef"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 827,
+      "date": "2015-04-08",
+      "tournament": "ATPChallengerTour-Batman",
+      "server1": "Hiroki Moriya",
+      "server2": "Yaraslau Shyla",
+      "winner": "1",
+      "score": "6-3 4-6 6-0",
+      "pbp_sha256": "267e09ba7b6f90ef0b68c8fc955aef4ddcd4516472f1745cae7fd4d885729043"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 840,
+      "date": "2015-04-03",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Benoit Paire",
+      "server2": "Kyle Edmund",
+      "winner": "2",
+      "score": "3-6 6-2 6-3",
+      "pbp_sha256": "7ecf94ec2db54813d90f1115c4c39942f922b2242712225adfe5d505ff49497e"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 841,
+      "date": "2015-04-03",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Ruben Bemelmans",
+      "server2": "Andre Ghem",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "3d80c3f53a0b77b7cf981ee21c9e55903c69ec1b150ec1c47ba021979b701c73"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 842,
+      "date": "2015-04-03",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Omar Jasika",
+      "server2": "Edouard Roger-Vasselin",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "ad01301c06a97649dd24b546a279608c3cb64e473d0b0d1a29ac1e9bd9490979"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 843,
+      "date": "2015-04-03",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "John-Patrick Smith",
+      "server2": "Henrique Cunha",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "8d3b803af7887df432464ea109542be86562d737204efecc78a7a21f8fe8096b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 844,
+      "date": "2015-04-04",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Ruben Bemelmans",
+      "server2": "Henrique Cunha",
+      "winner": "1",
+      "score": "6-0 6-2",
+      "pbp_sha256": "23249187f233c1c9c1d0082de9f9942223ff6c9116cab6707e3f0c7e5c19e5bd"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 845,
+      "date": "2015-04-04",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Edouard Roger-Vasselin",
+      "server2": "kyle Edmund",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "6556a2380fb8d863472c4f33599114a297af040aab670bb6826507530e6ebf06"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 846,
+      "date": "2015-04-05",
+      "tournament": "ATPChallengerTour-LeGosier",
+      "server1": "Edouard Roger-Vasselin",
+      "server2": "Ruben Bemelmans",
+      "winner": "2",
+      "score": "7-6(6) 6-3",
+      "pbp_sha256": "d1e511675dad4a02cbbcef65498a18369a14642b6c1aa6092961c59535430e7c"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 852,
+      "date": "2015-04-07",
+      "tournament": "ATPChallengerTour-Leon",
+      "server1": "Adam El Miihdawy",
+      "server2": "Alan Aguilera Nunez",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "7f92571ce9220d5ec83782b85ff3ba8bbf1c524d4073363900c212948d21e4db"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 855,
+      "date": "2015-04-07",
+      "tournament": "ATPChallengerTour-Leon",
+      "server1": "Nicolas Barrientos",
+      "server2": "Michal Przysienzy",
+      "winner": "1",
+      "score": "6-4 6-3",
+      "pbp_sha256": "f5e74175343245d893d3e677f644bb78d9b08405898d6478399692e07f562b90"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 873,
+      "date": "2015-04-13",
+      "tournament": "ATPChallengerTour-Mersin",
+      "server1": "Josef Kovalik",
+      "server2": "Enzo Couacaud",
+      "winner": "1",
+      "score": "5-7 6-3 6-4",
+      "pbp_sha256": "69c6252c9819f081b9e99e59d7d355913297f6acfc2879440ce8f0a6bcfa04aa"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 902,
+      "date": "2015-04-07",
+      "tournament": "ATPChallengerTour-Napoli",
+      "server1": "Ruben Hidalgo Ramirez",
+      "server2": "Benjamon Balleret",
+      "winner": "1",
+      "score": "6-4 6-0",
+      "pbp_sha256": "d7d9a04ee3feab48e40ab56ec75e7a7d0ccd18d7e59c92008f2c26f5e78ecd92"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 933,
+      "date": "2015-04-03",
+      "tournament": "ATPChallengerTour-SanLuisPotosi",
+      "server1": "James Duckworth",
+      "server2": "Adrian Menendez-Maceiras",
+      "winner": "1",
+      "score": "6-1 6-4",
+      "pbp_sha256": "27379b92f270528d81577b34679227e8a256fde629c7ba0f1719151b27e95890"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 938,
+      "date": "2015-04-13",
+      "tournament": "ATPChallengerTour-Sarasota",
+      "server1": "Dennis Novikov",
+      "server2": "Gastao Elias",
+      "winner": "2",
+      "score": "7-6(5) 6-2",
+      "pbp_sha256": "efd2ca3d3ec27d8b24bcff978688e55d5ea300ee1bb6372043b9a3a6ea7cc3fe"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 945,
+      "date": "2015-04-14",
+      "tournament": "ATPChallengerTour-Sarasota",
+      "server1": "Michael Mmoh",
+      "server2": "Francis Tiafoe",
+      "winner": "2",
+      "score": "6-2 7-6(0)",
+      "pbp_sha256": "823b92e5d2c1b44bc65dd41db327e8b91e078a8d4bc0a47da242c27216b6313d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 951,
+      "date": "2015-04-14",
+      "tournament": "ATPChallengerTour-Sarasota",
+      "server1": "Michael Russel",
+      "server2": "Renzo Olivo",
+      "winner": "2",
+      "score": "6-3 6-4",
+      "pbp_sha256": "ee10299702a9689cec19fc6b6331e8df6173c3e500cdec7b844b7d301b740b6b"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 954,
+      "date": "2015-04-15",
+      "tournament": "ATPChallengerTour-Sarasota",
+      "server1": "Horacio Zeballos",
+      "server2": "Jason Kubler",
+      "winner": "2",
+      "score": "7-6(4) 7-6(2)",
+      "pbp_sha256": "77b28f6378b01e5eb6a6e27bf5a4dc3cf6a0c3fabfe571cd6a5583e8876ae6a8"
+    },
+    "status": "PBP_UNUSABLE",
+    "reason": "PBP_STRUCTURAL_INVALID"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 959,
+      "date": "2015-04-16",
+      "tournament": "ATPChallengerTour-Sarasota",
+      "server1": "Francis Tiafoe",
+      "server2": "Bjorn Fratangelo",
+      "winner": "1",
+      "score": "6-3 6-4",
+      "pbp_sha256": "0d3cf0d50b61d3269380954f89ba562c2cebd9633d631c5154df370df5c5c474"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 960,
+      "date": "2015-04-06",
+      "tournament": "ATPChallengerTour-St.Brieuc",
+      "server1": "Marcus Willis",
+      "server2": "Daniel Cox",
+      "winner": "1",
+      "score": "3-6 6-4 6-4",
+      "pbp_sha256": "213db9bc5ed3af7155d98d5b94d3b274909f7cd425e47efbaae030fd497387cf"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 961,
+      "date": "2015-04-06",
+      "tournament": "ATPChallengerTour-St.Brieuc",
+      "server1": "Constant Lestienne",
+      "server2": "Andriej Kapas",
+      "winner": "1",
+      "score": "6-4 6-1",
+      "pbp_sha256": "d5c9d12f8fbf3a446291040ad9ec7dd1ee5a5fb587f7c84cc1b911c13521109f"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 962,
+      "date": "2015-04-06",
+      "tournament": "ATPChallengerTour-St.Brieuc",
+      "server1": "Yannick Jankovits",
+      "server2": "Hugo Nys",
+      "winner": "2",
+      "score": "6-4 6-1",
+      "pbp_sha256": "ee94b2e999ce3c4a828ad47a10ab13b9feafd748ac8e4f499c7ece4fc1074fe9"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  },
+  {
+    "pbp_ref": {
+      "source_file": "pbp_matches_ch_main_current.csv",
+      "source_row": 986,
+      "date": "2015-04-10",
+      "tournament": "ATPChallengerTour-St.Brieuc",
+      "server1": "Constant Lestienne",
+      "server2": "Darren Walsh",
+      "winner": "1",
+      "score": "6-1 6-4",
+      "pbp_sha256": "e3869d130fb5fafd7f56e35d964c327356569c0a789e1385b50e3187dbec1b8d"
+    },
+    "status": "NO_MATCH",
+    "reason": "NO_RESULT_CANDIDATE_PASSED_FIREWALL"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "verifier_version": 1,
+  "tour": "ATP_CHALLENGER",
+  "year": 2023,
+  "batch_status": "BLOCKED",
+  "source_blocked": true,
+  "block_reason": "PBP_SOURCE:FileNotFoundError:NO_MODERN_CHALLENGER_PBP_SOURCE_CONFIGURED",
+  "historical_matches": 5693,
+  "pbp_candidates": 0,
+  "verified": 0,
+  "partial": 0,
+  "ambiguous": 0,
+  "conflicts": 0,
+  "no_pbp": 5693,
+  "retrieval_failures": 1,
+  "result_source": "local:data/public/tennismylife-challenger/raw/2023_challenger.csv",
+  "generated_at_utc": "2026-08-23T22:19:37.202149+00:00"
+}
