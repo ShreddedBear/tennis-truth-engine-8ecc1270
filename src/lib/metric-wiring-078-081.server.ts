@@ -1,5 +1,5 @@
 import type { MetricFinding, Researcher } from "./audit-pipeline";
-import { protectedMetricWiringResearcher } from "./protected-metric-wiring.server";
+import { metricWiring072076Researcher } from "./metric-wiring-072-076.server";
 
 type Component = { name: string; terms: string[] };
 
@@ -104,7 +104,7 @@ function validateSide(code: string, value: string | null, treatment: MetricFindi
   if (!hits.length) missing.push("exact master-definition component");
   if (treatment === "RECONSTRUCTED" && !allowedFormula(code, value)) missing.push("explicit formula using only permitted inputs");
   if (code === "078" && treatment === "RECONSTRUCTED") missing.push("078 factual context cannot be reconstructed from performance proxies");
-  if (missing.some((x) => /PLAYER|SOURCE|SAMPLE|formula|cannot be reconstructed/.test(x))) return { value: null, treatment: "UNAVAILABLE" as const, missing };
+  if (!hits.length || missing.some((x) => /PLAYER|SOURCE|SAMPLE|formula|cannot be reconstructed/.test(x))) return { value: null, treatment: "UNAVAILABLE" as const, missing };
   if (hits.length < components.length && treatment === "DIRECT") return { value, treatment: "PARTIAL" as const, missing: [...missing, ...components.filter((c) => !hits.includes(c)).map((c) => c.name)] };
   return { value, treatment, missing: [...missing, ...components.filter((c) => !hits.includes(c)).map((c) => c.name)] };
 }
@@ -136,10 +136,10 @@ function instruction(code: string, p1: string, p2: string) {
 }
 
 export const finalMetricWiringResearcher: Researcher = {
-  ...protectedMetricWiringResearcher,
+  ...metricWiring072076Researcher,
   async metrics(input) {
     const decorated = input.metrics.map((metric) => ({ ...metric, body: `${metric.body ?? ""}${instruction(codeOf(metric.code), input.p1, input.p2)}` }));
-    const rows = await protectedMetricWiringResearcher.metrics({ ...input, metrics: decorated });
+    const rows = await metricWiring072076Researcher.metrics({ ...input, metrics: decorated });
     const byCode = new Map(rows.map((row) => [String(row.metric_code), row]));
     return input.metrics.map((metric) => enforceMetricWiring078081(byCode.get(String(metric.code)) ?? {
       metric_code: metric.code,
