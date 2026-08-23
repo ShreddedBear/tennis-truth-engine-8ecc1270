@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
+import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -73,8 +74,6 @@ async function saveSide(args: {
   const validUntil = new Date(Date.now() + ttlHours(code) * 3_600_000).toISOString();
   const sourceIds = (sources ?? []).map((source) => source.source_name).filter(Boolean);
 
-  // Delete + insert avoids relying on generated TypeScript database types or
-  // expression-based ON CONFLICT targets while this new migration rolls out.
   await db.from("metric_evidence_store")
     .delete()
     .eq("metric_code", code)
@@ -123,8 +122,12 @@ export const warehouseFirstResearcher: Researcher = {
       return !a || !b || !USABLE.has(a.treatment) || !USABLE.has(b.treatment) || !a.value_text || !b.value_text;
     });
 
-    // Warehouse first. The existing website/AI branch is fallback only.
-    const liveRows = missing.length ? await finalMetricWiringResearcher.metrics({ ...input, metrics: missing }) : [];
+    let liveRows: MetricFinding[] = [];
+    if (missing.length) {
+      const observationPacket = await buildMetricObservationContext({ metrics: missing, p1, p2, asOfDate: date });
+      const context = appendMetricObservationContext(input.context, observationPacket);
+      liveRows = await finalMetricWiringResearcher.metrics({ ...input, context, metrics: missing });
+    }
     const liveByCode = new Map(liveRows.map((row) => [codeOf(row.metric_code), row]));
 
     const output: MetricFinding[] = [];
