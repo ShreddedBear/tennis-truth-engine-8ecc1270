@@ -244,6 +244,19 @@ ${dossier.slice(0, 16000)}`,
 ${dossier ? `Retrieved public dossiers (use these figures directly; treat them as sourced evidence):\n${dossier.slice(0, 12000)}\n` : ""}
 For EVERY metric below, research both players symmetrically and return one row per metric_code.
 Treatment per player: DIRECT (the exact metric itself is published at a named source), RECONSTRUCTED (the exact metric is computed from all required named-source components and the calculation/components are stated), PARTIAL (some but not all exact required inputs/observations are sourced; never use a proxy or merely correlated statistic), UNAVAILABLE (the exact metric cannot be satisfied from admissible sourced inputs, including cases where only a proxy exists), EXCLUDED (post-match or inadmissible).
+
+SIDE-SPECIFIC EVIDENCE CONTRACT — REQUIRED FOR EVERY NON-UNAVAILABLE/NON-EXCLUDED SIDE:
+- p1_value MUST begin exactly with PLAYER=${p1}; p2_value MUST begin exactly with PLAYER=${p2}. Never infer identity from row order.
+- Immediately include SOURCE=<exact source_name> where that exact source_name also appears in this row's sources array and directly supports that player's surviving value. Do not use a source that only supports the opponent or another component.
+- Immediately include SAMPLE=<actual side-specific denominator/window>. Do not copy the other player's sample and do not use a generic shared sample when the side-specific sample is unknown. If the source gives a time window but no numeric denominator, state that exact sourced window as SAMPLE. If neither a denominator nor a defensible source-defined window exists, that side is UNAVAILABLE.
+- After PLAYER/SOURCE/SAMPLE, include only exact master-definition component names and their sourced values/observations. Neighboring/proxy fields remain inadmissible.
+- For RECONSTRUCTED, also include INPUTS=<pipe-separated exact raw input names>; FORMULA=<explicit calculation>. Every listed input must be sourced, permitted by the metric definition, and actually referenced by the formula. If you cannot provide the complete exact inputs and formula, do not label the side RECONSTRUCTED.
+- The row-level sources array MUST contain every source named by either side and must not contain invented sources.
+- The row-level sample field is only a display summary; it never substitutes for the side-specific SAMPLE tag.
+
+Example value format (illustrative structure only, never copy the numbers): PLAYER=Exact Player; SOURCE=Named Public Source; SAMPLE=last 20 matches; Exact Component=...
+Example reconstructed format: PLAYER=Exact Player; SOURCE=Named Public Source; SAMPLE=30 matches; INPUTS=input_a|input_b; FORMULA=input_a-input_b; Exact Component=...
+
 Do not substitute a convenient statistic for the statistic the definition actually requires. Hold %, break %, tiebreak %, generic first-set %, generic common-opponent win %, ranking, Elo, or another neighboring statistic may only be used when the metric definition explicitly requires that field as an input. A correlated statistic by itself does not make the metric PARTIAL or RECONSTRUCTED.
 Metrics:
 ${metrics.map((m) => `- ${m.code} | ${m.name}${m.body ? ` | definition: ${m.body.slice(0, 400)}` : ""}`).join("\n")}`,
