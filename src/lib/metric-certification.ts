@@ -7,6 +7,8 @@ export interface MetricCertificationPolicy {
   exactInputMarkers: RegExp[];
   reconstructionGroups: RegExp[][];
   forbiddenProxyOnly: RegExp[];
+  requireCompleteForFullTreatment?: boolean;
+  allowReconstructed?: boolean;
 }
 
 function codeOf(value: string) {
@@ -94,6 +96,102 @@ export const CERTIFIED_METRIC_POLICIES: Record<string, MetricCertificationPolicy
     reconstructionGroups: [[/set[_ -]?by[_ -]?set|set\s*[123]/i], [/serve/i], [/return/i], [/points?/i], [/physical|movement|medical/i]],
     forbiddenProxyOnly: [/final score only/i, /season average only/i, /\belo\b/i, /\branking\b/i],
   },
+  "072": {
+    code: "072",
+    name: "Matchup Nuance",
+    permittedRawInputs: [
+      "verified one-handed/two-handed backhand type",
+      "opponent dominant shot pattern needed for the backhand matchup interaction",
+      "verified height/reach/wingspan observations for the matchup differential",
+      "documented junior/ITF-era head-to-head meetings and results",
+    ],
+    exactInputMarkers: [/one[- ]handed|two[- ]handed|backhand type|backhand matchup/i, /reach|wingspan|height differential/i, /junior.*(head|meeting|h2h)|ITF.*(head|meeting|h2h)|junior\/ITF/i],
+    reconstructionGroups: [
+      [/one[- ]handed|two[- ]handed|backhand type|backhand matchup/i],
+      [/dominant shot pattern|forehand pattern|backhand pattern|shot pattern/i],
+      [/reach|wingspan|height differential/i],
+      [/junior.*(head|meeting|h2h)|ITF.*(head|meeting|h2h)|junior\/ITF/i],
+    ],
+    forbiddenProxyOnly: [/generic style|style score|\branking\b|\belo\b|career h2h only|height alone/i],
+    requireCompleteForFullTreatment: true,
+    allowReconstructed: false,
+  },
+  "073": {
+    code: "073",
+    name: "Sentiment / Integrity",
+    permittedRawInputs: [
+      "attributable pre-match player public statements/interviews/press conferences",
+      "documented player social-media engagement/activity observations with a reproducible anomaly basis",
+      "named betting-exchange matched-volume data tied to the match",
+    ],
+    exactInputMarkers: [/public statement|interview|press conference|player statement/i, /social[- ]media.*(engagement|activity|anomal)|engagement anomal/i, /betting exchange.*(matched volume|volume spike)|matched[- ]volume/i],
+    reconstructionGroups: [
+      [/public statement|interview|press conference|player statement/i],
+      [/social[- ]media.*(engagement|activity|anomal)|engagement anomal/i],
+      [/betting exchange.*(matched volume|volume spike)|matched[- ]volume/i],
+    ],
+    forbiddenProxyOnly: [/fans? think|fan chatter|rumou?r|generic sentiment|sportsbook odds|line movement|injury speculation|social chatter/i],
+    requireCompleteForFullTreatment: true,
+    allowReconstructed: false,
+  },
+  "074": {
+    code: "074",
+    name: "Biomechanics / Physical Detail",
+    permittedRawInputs: [
+      "charted serve-toss placement observations sufficient to measure consistency",
+      "verified racket head size/string pattern/stiffness plus opponent spin/power interaction evidence",
+      "charted/documented directional movement asymmetry attributable to a past injury",
+      "verified recent grip-size or grip-style changes",
+    ],
+    exactInputMarkers: [/serve toss.*(consisten|variab|placement)|toss placement/i, /racket.*(head size|string pattern|stiffness)|head size|racket specs/i, /movement asymmetry|directional court coverage|favors? .*leg|favors? .*side/i, /grip[- ]size|grip style|grip adjustment/i],
+    reconstructionGroups: [
+      [/serve toss.*(consisten|variab|placement)|toss placement/i],
+      [/racket.*(head size|string pattern|stiffness)|head size|racket specs/i],
+      [/spin|power style|opponent interaction|against this opponent/i],
+      [/movement asymmetry|directional court coverage|favors? .*leg|favors? .*side/i],
+      [/grip[- ]size|grip style|grip adjustment/i],
+    ],
+    forbiddenProxyOnly: [/injury history only|generic injury|height|wingspan|serve speed|ace rate|hold %|generic movement|fitness report/i],
+    requireCompleteForFullTreatment: true,
+    allowReconstructed: false,
+  },
+  "075": {
+    code: "075",
+    name: "Match Format / Rules Context",
+    permittedRawInputs: [
+      "official deciding-set tiebreak rule for the event",
+      "best-of-3/best-of-5 format plus player-specific historical format adjustment evidence",
+      "actual challenge/review count remaining at the relevant in-match stage when admissible",
+    ],
+    exactInputMarkers: [/deciding[- ]set.*(tiebreak|breaker)|10[- ]point breaker|7[- ]point breaker|advantage set/i, /best[- ]of[- ]?[35]|bo[35].*(adjust|split|profile)|format adjustment/i, /challenge.*remaining|review.*remaining|hawk[- ]eye.*remaining/i],
+    reconstructionGroups: [
+      [/deciding[- ]set.*(tiebreak|breaker)|10[- ]point breaker|7[- ]point breaker|advantage set/i],
+      [/best[- ]of[- ]?[35]|bo[35]/i],
+      [/adjust|split|profile|historical/i],
+      [/challenge.*remaining|review.*remaining|hawk[- ]eye.*remaining/i],
+    ],
+    forbiddenProxyOnly: [/event level|surface|roof|order of play|court assignment|practice access|weather|travel|fatigue/i],
+    requireCompleteForFullTreatment: true,
+    allowReconstructed: false,
+  },
+  "076": {
+    code: "076",
+    name: "Scheduling Micro-Context",
+    permittedRawInputs: [
+      "official order-of-play position / first-on / not-before time",
+      "official outer-court versus stadium/show-court assignment",
+      "documented official practice-court access or hitting-time evidence before the match",
+    ],
+    exactInputMarkers: [/match order|order of play|first on court|not before/i, /outer court|stadium court|show court|court assignment/i, /practice[- ]court access|official hitting time|practice access/i],
+    reconstructionGroups: [
+      [/match order|order of play|first on court|not before/i],
+      [/outer court|stadium court|show court|court assignment/i],
+      [/practice[- ]court access|official hitting time|practice access/i],
+    ],
+    forbiddenProxyOnly: [/rest hours|days since last match|travel|time zone|weather|wind|roof|generic fatigue|schedule density/i],
+    requireCompleteForFullTreatment: true,
+    allowReconstructed: false,
+  },
 };
 
 function textOf(finding: MetricFinding, side: "P1" | "P2") {
@@ -129,8 +227,12 @@ function validateSide(
   if (!hasSource(finding)) return { value: null, treatment: "UNAVAILABLE", reason: "Usable evidence lacked persisted named-source provenance." };
   if (proxyOnly(policy, text)) return { value: null, treatment: "UNAVAILABLE", reason: `Only proxy/cross-wired evidence was present for metric ${policy.code}; exact permitted inputs were absent.` };
   if (!hasExactInput(policy, text)) return { value: null, treatment: "UNAVAILABLE", reason: `Value did not expose any exact permitted raw input for metric ${policy.code}.` };
-  if (treatment === "RECONSTRUCTED" && !reconstructionComplete(policy, text)) {
-    return { value, treatment: "PARTIAL", reason: `Reconstruction was incomplete for metric ${policy.code}; exact supported components are retained as PARTIAL, never RECONSTRUCTED.` };
+  const complete = reconstructionComplete(policy, text);
+  if (treatment === "RECONSTRUCTED" && policy.allowReconstructed === false) {
+    return { value, treatment: "PARTIAL", reason: `Metric ${policy.code} has no approved deterministic reconstruction formula; sourced exact components may remain PARTIAL but cannot be promoted to RECONSTRUCTED.` };
+  }
+  if ((treatment === "RECONSTRUCTED" || (policy.requireCompleteForFullTreatment && treatment === "DIRECT")) && !complete) {
+    return { value, treatment: "PARTIAL", reason: `The broad metric ${policy.code} was only partly satisfied; exact supported components are retained as PARTIAL, never promoted to full DIRECT/RECONSTRUCTED treatment.` };
   }
   return { value, treatment, reason: null };
 }
