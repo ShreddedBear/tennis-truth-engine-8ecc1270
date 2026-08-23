@@ -1,5 +1,6 @@
 import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { metricWiring072076Researcher } from "./metric-wiring-072-076.server";
+import { clearPhantomEvidenceMetadata } from "./trusted-internal-evidence";
 
 type Component = { name: string; terms: string[] };
 
@@ -153,7 +154,7 @@ export const finalMetricWiringResearcher: Researcher = {
     const decorated = input.metrics.map((metric) => ({ ...metric, body: `${metric.body ?? ""}${instruction(codeOf(metric.code), input.p1, input.p2)}` }));
     const rows = await metricWiring072076Researcher.metrics({ ...input, metrics: decorated });
     const byCode = new Map(rows.map((row) => [String(row.metric_code), row]));
-    return input.metrics.map((metric) => enforceMetricWiring078081(byCode.get(String(metric.code)) ?? {
+    return input.metrics.map((metric) => clearPhantomEvidenceMetadata(enforceMetricWiring078081(byCode.get(String(metric.code)) ?? {
       metric_code: metric.code,
       p1_value: null,
       p2_value: null,
@@ -166,6 +167,6 @@ export const finalMetricWiringResearcher: Researcher = {
       unavailable_reason: "No sourced result survived the final metric wiring guard.",
       missing_inputs: ["exact sourced metric evidence"],
       sources: [],
-    }, { p1: input.p1, p2: input.p2 }));
+    }, { p1: input.p1, p2: input.p2 })));
   },
 };
