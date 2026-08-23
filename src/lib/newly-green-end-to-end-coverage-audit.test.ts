@@ -46,14 +46,19 @@ describe("newly-green end-to-end coverage audit", () => {
   });
 
   it("wires every non-PBP deterministic calculator into warehouse execution", () => {
-    const normalized = warehouse.replace(/\s+/g, " ");
-    expect(normalized).toContain("deterministicRankingMetric({");
-    expect(normalized).toContain("deterministicRulesContextMetric({");
-    expect(normalized).toContain("deterministicEnvironmentMetric({");
-    expect(normalized).toContain("deterministicMarketMetric({");
-    expect(normalized).toContain("deterministicResultsScheduleMetric({");
+    const compact = warehouse.replace(/\s+/g, "");
+    for (const calculator of [
+      "deterministicRankingMetric({",
+      "deterministicRulesContextMetric({",
+      "deterministicEnvironmentMetric({",
+      "deterministicMarketMetric({",
+      "deterministicResultsScheduleMetric({",
+    ]) {
+      expect(compact).toContain(calculator.replace(/\s+/g, ""));
+    }
 
-    const liveIndex = normalized.indexOf("finalMetricWiringResearcher.metrics({ ...input, context, metrics: missing })");
+    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:missing})";
+    const liveIndex = compact.indexOf(liveCall);
     expect(liveIndex).toBeGreaterThan(-1);
     for (const calculator of [
       "deterministicRankingMetric({",
@@ -62,8 +67,9 @@ describe("newly-green end-to-end coverage audit", () => {
       "deterministicMarketMetric({",
       "deterministicResultsScheduleMetric({",
     ]) {
-      expect(normalized.indexOf(calculator)).toBeGreaterThan(-1);
-      expect(normalized.indexOf(calculator)).toBeLessThan(liveIndex);
+      const calculatorIndex = compact.indexOf(calculator.replace(/\s+/g, ""));
+      expect(calculatorIndex).toBeGreaterThan(-1);
+      expect(calculatorIndex).toBeLessThan(liveIndex);
     }
   });
 
