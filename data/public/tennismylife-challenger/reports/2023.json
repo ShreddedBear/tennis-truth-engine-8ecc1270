@@ -1,0 +1,16 @@
+{
+  "year": 2023,
+  "status": "DOWNLOADED",
+  "source_file": "2023_challenger.csv",
+  "source_url": "https://stats.tennismylife.org/data/2023_challenger.csv",
+  "retrieval_timestamp": "2026-08-23T06:37:21.010456+00:00",
+  "file_sha256": "1c2d38fb76da4a4f88da4944cb089456dc55f354ba7ca4be20a52f40a62dab8d",
+  "rows_downloaded": 5693,
+  "rows_parsed": 5693,
+  "unique_matches": 5693,
+  "exact_duplicates": 0,
+  "probable_duplicates": 0,
+  "conflicting_duplicates": 0,
+  "year_conflicts": 0,
+  "stat_integrity_conflicts": 0
+}

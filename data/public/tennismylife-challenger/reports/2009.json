@@ -1,0 +1,16 @@
+{
+  "year": 2009,
+  "status": "DOWNLOADED",
+  "source_file": "2009_challenger.csv",
+  "source_url": "https://stats.tennismylife.org/data/2009_challenger.csv",
+  "retrieval_timestamp": "2026-08-23T06:37:21.010456+00:00",
+  "file_sha256": "747e40527581535f5864c1f18f7c60abba21a17d0884bd1a1373ba12056ae634",
+  "rows_downloaded": 4774,
+  "rows_parsed": 4774,
+  "unique_matches": 4774,
+  "exact_duplicates": 0,
+  "probable_duplicates": 0,
+  "conflicting_duplicates": 0,
+  "year_conflicts": 0,
+  "stat_integrity_conflicts": 0
+}
