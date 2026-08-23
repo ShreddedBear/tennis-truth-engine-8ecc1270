@@ -1,7 +1,12 @@
 import type { MetricFinding, Researcher } from "./audit-pipeline";
+import { completionSweepResearcher } from "./completion-sweep-research.server";
 import { validatedCompletionResearcher } from "./validated-completion-research.server";
 
 type Component = { name: string; terms: string[]; reconstructedOnly?: boolean };
+
+const POST_FIX_CODES = new Set(["060", "062", "063", "064", "065"]);
+const PUBLIC_CONTEXT_CODES = new Set(["062", "063", "064", "065"]);
+const NON_RECONSTRUCTABLE_CONTEXT_CODES = new Set(["063", "065"]);
 
 const PROTECTED_COMPONENTS: Record<string, Component[]> = {
   "041": [
@@ -51,6 +56,87 @@ const PROTECTED_COMPONENTS: Record<string, Component[]> = {
     { name: "big-server threshold", terms: ["big server threshold", "big-server threshold", "big server definition"], reconstructedOnly: true },
     { name: "strong-returner threshold", terms: ["strong returner threshold", "strong-returner threshold", "strong returner definition"], reconstructedOnly: true },
   ],
+  "060": [
+    { name: "serve-return interaction residual", terms: ["serve return interaction residual", "serve–return interaction residual"] },
+    { name: "opponent-adjusted shot tolerance", terms: ["opponent adjusted shot tolerance", "opponent-adjusted shot tolerance"] },
+    { name: "neutral-point win rate", terms: ["neutral point win rate", "neutral-point win rate"] },
+    { name: "first-strike dependency", terms: ["first strike dependency", "first-strike dependency"] },
+    { name: "serve dependency index", terms: ["serve dependency index"] },
+    { name: "return dependency index", terms: ["return dependency index"] },
+    { name: "primary-weapon reliability", terms: ["primary weapon reliability", "primary-weapon reliability"] },
+    { name: "plan-b effectiveness", terms: ["plan b effectiveness", "plan-b effectiveness"] },
+    { name: "matchup adaptability", terms: ["matchup adaptability"] },
+    { name: "in-match adjustment score", terms: ["in match adjustment score", "in-match adjustment score"] },
+    { name: "opponent adjustment resistance", terms: ["opponent adjustment resistance"] },
+    { name: "scouting exposure penalty", terms: ["scouting exposure penalty"] },
+    { name: "rematch adjustment", terms: ["rematch adjustment"] },
+    { name: "revenge/rematch tactical differential", terms: ["revenge rematch tactical differential", "revenge/rematch tactical differential"] },
+    { name: "lefty-adjusted serve/return differential", terms: ["lefty adjusted serve return differential", "lefty-adjusted serve/return differential"] },
+    { name: "handedness interaction by serve direction", terms: ["handedness interaction by serve direction"] },
+    { name: "ad-court vs deuce-court effectiveness", terms: ["ad court vs deuce court effectiveness", "ad-court vs deuce-court effectiveness"] },
+    { name: "break-point serve-location effectiveness", terms: ["break point serve location effectiveness", "break-point serve-location effectiveness"] },
+    { name: "break-point return-position effectiveness", terms: ["break point return position effectiveness", "break-point return-position effectiveness"] },
+    { name: "set-point performance differential", terms: ["set point performance differential", "set-point performance differential"] },
+    { name: "match-point creation rate", terms: ["match point creation rate", "match-point creation rate"] },
+    { name: "match-point exposure rate", terms: ["match point exposure rate", "match-point exposure rate"] },
+    { name: "multiple-bp survival", terms: ["multiple bp survival", "multiple-bp survival"] },
+    { name: "multiple-bp conversion", terms: ["multiple bp conversion", "multiple-bp conversion"] },
+    { name: "extended-deuce endurance", terms: ["extended deuce endurance", "extended-deuce endurance"] },
+    { name: "long-game aftermath", terms: ["long game aftermath", "long-game aftermath"] },
+    { name: "break-before-changeover effect", terms: ["break before changeover effect", "break-before-changeover effect"] },
+    { name: "end-of-set serve deterioration", terms: ["end of set serve deterioration", "end-of-set serve deterioration"] },
+    { name: "end-of-set return elevation", terms: ["end of set return elevation", "end-of-set return elevation"] },
+    { name: "tiebreak entry quality", terms: ["tiebreak entry quality"] },
+    { name: "tiebreak serve-order adjustment", terms: ["tiebreak serve order adjustment", "tiebreak serve-order adjustment"] },
+    { name: "mini-break recovery rate", terms: ["mini break recovery rate", "mini-break recovery rate"] },
+    { name: "mini-break consolidation rate", terms: ["mini break consolidation rate", "mini-break consolidation rate"] },
+    { name: "tiebreak point-differential quality", terms: ["tiebreak point differential quality", "tiebreak point-differential quality"] },
+    { name: "third-set first-break importance", terms: ["third set first break importance", "third-set first-break importance"] },
+    { name: "decider physical resilience", terms: ["decider physical resilience"] },
+    { name: "long-match resilience", terms: ["long match resilience", "long-match resilience"] },
+    { name: "physical cliff probability", terms: ["physical cliff probability"] },
+    { name: "recovery efficiency", terms: ["recovery efficiency"] },
+    { name: "accumulated workload debt", terms: ["accumulated workload debt"] },
+    { name: "travel recovery efficiency", terms: ["travel recovery efficiency"] },
+    { name: "circadian mismatch", terms: ["circadian mismatch"] },
+    { name: "heat-duration interaction", terms: ["heat duration interaction", "heat-duration interaction"] },
+    { name: "wind serve penalty", terms: ["wind serve penalty"] },
+    { name: "humidity endurance penalty", terms: ["humidity endurance penalty"] },
+    { name: "altitude serve amplification", terms: ["altitude serve amplification"] },
+    { name: "court-speed elasticity", terms: ["court speed elasticity", "court-speed elasticity"] },
+    { name: "surface-speed crossover", terms: ["surface speed crossover", "surface-speed crossover"] },
+    { name: "ball degradation sensitivity", terms: ["ball degradation sensitivity"] },
+    { name: "new-ball serve boost", terms: ["new ball serve boost", "new-ball serve boost"] },
+    { name: "tournament adaptation slope", terms: ["tournament adaptation slope"] },
+    { name: "venue familiarity value", terms: ["venue familiarity value"] },
+    { name: "time-of-day split", terms: ["time of day split", "time-of-day split"] },
+    { name: "round-adjusted pressure", terms: ["round adjusted pressure", "round-adjusted pressure"] },
+    { name: "favorite-pressure elasticity", terms: ["favorite pressure elasticity", "favorite-pressure elasticity"] },
+    { name: "underdog freedom effect", terms: ["underdog freedom effect"] },
+    { name: "price-specific miscalibration", terms: ["price specific miscalibration", "price-specific miscalibration"] },
+    { name: "closing-line value history", terms: ["closing line value history", "closing-line value history"] },
+    { name: "market disagreement dispersion", terms: ["market disagreement dispersion"] },
+    { name: "sharp-vs-recreational book divergence", terms: ["sharp vs recreational book divergence", "sharp-vs-recreational book divergence"] },
+    { name: "late-line acceleration", terms: ["late line acceleration", "late-line acceleration"] },
+  ],
+  "062": [
+    { name: "points-defending pressure", terms: ["points defending pressure", "points-defending pressure", "ranking points defended", "ranking points protecting"] },
+    { name: "seeding/bye implications", terms: ["seeding bye implications", "seeding/bye implications", "seeding implications", "bye implications"] },
+    { name: "prize-money/status milestones", terms: ["prize money status milestones", "prize-money/status milestones", "career high ranking", "top 100 cutoff", "top 50 cutoff", "direct entry cutoff"] },
+  ],
+  "063": [
+    { name: "coaching changes", terms: ["coaching changes", "coach change", "new coach"] },
+    { name: "coaching-box presence", terms: ["coaching box presence", "coaching-box presence", "coach present courtside", "coach courtside"] },
+    { name: "equipment changes", terms: ["equipment changes", "recent racket change", "recent string setup change", "recent shoe sponsor change"] },
+  ],
+  "064": [
+    { name: "qualifying/lucky-loser fatigue", terms: ["qualifying lucky loser fatigue", "qualifying/lucky-loser fatigue", "lucky loser status", "qualifying status", "qualifying workload"] },
+    { name: "draw path difficulty beyond this match", terms: ["draw path difficulty beyond this match", "next round path", "potential later round opponent"] },
+  ],
+  "065": [
+    { name: "off-season/pre-season training reports", terms: ["off season training reports", "off-season training reports", "pre season training reports", "pre-season training reports", "fitness camp", "body composition"] },
+    { name: "illness reports", terms: ["illness reports", "documented illness", "flu", "stomach bug"] },
+  ],
 };
 
 function familyCode(code: string) {
@@ -64,47 +150,159 @@ function containsAny(value: string | null, terms: string[]) {
   const v = norm(value);
   return terms.some((term) => v.includes(norm(term)));
 }
+function tagValue(value: string | null, key: string) {
+  if (!value) return null;
+  const match = value.match(new RegExp(`${key}\\s*=\\s*([^;]+)`, "i"));
+  return match?.[1]?.trim() ?? null;
+}
+function sourceForValue(value: string | null, sources: MetricFinding["sources"], needsPublic: boolean) {
+  const sourceTag = tagValue(value, "SOURCE");
+  if (!sourceTag) return null;
+  return (sources ?? []).find((source) => {
+    if (norm(source.source_name ?? "") !== norm(sourceTag)) return false;
+    if (!needsPublic) return Boolean(String(source.source_name ?? "").trim());
+    const name = norm(source.source_name ?? "");
+    const url = String(source.url ?? "");
+    return /^https?:\/\//i.test(url) && Boolean(name) && !/(model|inference|ai generated|assistant|matrix summary|prediction)/.test(name);
+  }) ?? null;
+}
 function hasUsableSource(sources: MetricFinding["sources"]) {
   return Boolean(sources?.some((s) => Boolean(String(s.source_name ?? "").trim())));
 }
+function hasSupportablePublicSource(sources: MetricFinding["sources"]) {
+  return Boolean(sources?.some((s) => {
+    const name = norm(s.source_name ?? "");
+    const url = String(s.url ?? "");
+    return /^https?:\/\//i.test(url) && Boolean(name) && !/(model|inference|ai generated|assistant|matrix summary|prediction)/.test(name);
+  }));
+}
+function formulaUsesForbiddenInput(code: string, value: string | null) {
+  if (!value) return false;
+  const formula = tagValue(value, "FORMULA");
+  if (!formula) return false;
+  const t = norm(formula);
+  const forbidden: Record<string, string[]> = {
+    "060": ["sponsorship obligation", "media obligation", "code violation", "sports psychologist"],
+    "062": ["serve", "return", "weather", "travel", "fatigue", "odds", "market", "elo", "recent form"],
+    "064": ["serve", "return", "weather", "travel", "timezone", "odds", "market", "elo", "ranking"],
+  };
+  return (forbidden[code] ?? []).some((term) => t.includes(norm(term)));
+}
 
-function validateSide(value: string | null, treatment: MetricFinding["p1_treatment"], sources: MetricFinding["sources"], components: Component[]) {
-  if (treatment === "UNAVAILABLE" || treatment === "EXCLUDED") return { value, treatment, missing: [] as string[] };
-  if (!value || !hasUsableSource(sources)) {
-    return { value: null, treatment: "UNAVAILABLE" as const, missing: components.filter((c) => !c.reconstructedOnly || treatment === "RECONSTRUCTED").map((c) => c.name) };
-  }
+function validateSide(
+  code: string,
+  value: string | null,
+  treatment: MetricFinding["p1_treatment"],
+  sources: MetricFinding["sources"],
+  components: Component[],
+  expectedPlayer?: string,
+) {
+  const strict = POST_FIX_CODES.has(code) && Boolean(expectedPlayer);
+  if (treatment === "UNAVAILABLE" || treatment === "EXCLUDED") return { value: strict ? null : value, treatment, missing: [] as string[] };
+  const needsPublic = PUBLIC_CONTEXT_CODES.has(code);
+  const sourceOk = strict ? Boolean(sourceForValue(value, sources, needsPublic)) : (needsPublic ? hasSupportablePublicSource(sources) : hasUsableSource(sources));
   const required = components.filter((c) => !c.reconstructedOnly || treatment === "RECONSTRUCTED");
+  const metaMissing: string[] = [];
+  if (strict) {
+    if (!value || norm(tagValue(value, "PLAYER")) !== norm(expectedPlayer ?? "")) metaMissing.push(`PLAYER=${expectedPlayer ?? "expected player"}`);
+    if (!tagValue(value, "SOURCE") || !sourceOk) metaMissing.push(needsPublic ? "side-specific SOURCE matching a supportable public URL" : "side-specific SOURCE matching persisted provenance");
+    if (!tagValue(value, "SAMPLE")) metaMissing.push("side-specific SAMPLE");
+    if (treatment === "RECONSTRUCTED" && !tagValue(value, "FORMULA")) metaMissing.push("FORMULA for reconstructed evidence");
+    if (treatment === "RECONSTRUCTED" && NON_RECONSTRUCTABLE_CONTEXT_CODES.has(code)) metaMissing.push("DIRECT public reporting required; this metric is not reconstructable");
+    if (treatment === "RECONSTRUCTED" && formulaUsesForbiddenInput(code, value)) metaMissing.push("FORMULA uses an input outside the authoritative metric definition");
+  }
+  if (!value || !sourceOk) {
+    return { value: null, treatment: "UNAVAILABLE" as const, missing: [...required.map((c) => c.name), ...metaMissing] };
+  }
   const hits = required.filter((c) => containsAny(value, c.terms));
-  const missing = required.filter((c) => !hits.includes(c)).map((c) => c.name);
+  const missing = [...required.filter((c) => !hits.includes(c)).map((c) => c.name), ...metaMissing];
+  if (strict && metaMissing.length) return { value: null, treatment: "UNAVAILABLE" as const, missing };
   if (!missing.length) return { value, treatment, missing };
   if (hits.length) return { value, treatment: "PARTIAL" as const, missing };
   return { value: null, treatment: "UNAVAILABLE" as const, missing };
 }
 
-export function validateProtectedMetricWiring(finding: MetricFinding): MetricFinding {
+function referencedSources(values: Array<string | null>, sources: MetricFinding["sources"], needsPublic: boolean) {
+  const wanted = new Set(values.map((value) => norm(tagValue(value, "SOURCE"))).filter(Boolean));
+  return (sources ?? []).filter((source) => {
+    if (!wanted.has(norm(source.source_name ?? ""))) return false;
+    if (!needsPublic) return true;
+    const name = norm(source.source_name ?? "");
+    const url = String(source.url ?? "");
+    return /^https?:\/\//i.test(url) && Boolean(name) && !/(model|inference|ai generated|assistant|matrix summary|prediction)/.test(name);
+  });
+}
+
+export function validateProtectedMetricWiring(finding: MetricFinding, expected?: { p1: string; p2: string }): MetricFinding {
   const code = familyCode(finding.metric_code);
   const components = PROTECTED_COMPONENTS[code];
   if (!components) return finding;
-  const p1 = validateSide(finding.p1_value, finding.p1_treatment, finding.sources, components);
-  const p2 = validateSide(finding.p2_value, finding.p2_treatment, finding.sources, components);
+  const p1 = validateSide(code, finding.p1_value, finding.p1_treatment, finding.sources, components, expected?.p1);
+  const p2 = validateSide(code, finding.p2_value, finding.p2_treatment, finding.sources, components, expected?.p2);
   const missing = [...new Set([...(p1.missing ?? []), ...(p2.missing ?? [])])];
+  const strict = POST_FIX_CODES.has(code) && Boolean(expected);
+  const sources = strict ? referencedSources([p1.value, p2.value], finding.sources, PUBLIC_CONTEXT_CODES.has(code)) : finding.sources;
+  const p1Sample = strict ? tagValue(p1.value, "SAMPLE") : null;
+  const p2Sample = strict ? tagValue(p2.value, "SAMPLE") : null;
   return {
     ...finding,
     p1_value: p1.value,
     p2_value: p2.value,
     p1_treatment: p1.treatment,
     p2_treatment: p2.treatment,
+    evidence_family: strict ? `EXACT_${code}` : finding.evidence_family,
+    sample: strict ? `P1:${p1Sample ?? "UNAVAILABLE"} | P2:${p2Sample ?? "UNAVAILABLE"}` : finding.sample,
+    sources,
     unavailable_reason: missing.length
-      ? `Protected metric wiring guard: only exact master-definition components are admissible for ${code}; unsupported components remain missing (${missing.join(", ")}).`
+      ? `Protected metric wiring guard: only exact master-definition components are admissible for ${code}; unsupported components remain missing (${missing.join(", ")}). No proxy substitution, side reversal, unrelated provenance, or out-of-definition formula input permitted.`
       : finding.unavailable_reason,
     missing_inputs: missing.length ? [...new Set([...(finding.missing_inputs ?? []), ...missing])] : finding.missing_inputs,
   };
 }
 
+function postFixInstruction(code: string, p1: string, p2: string) {
+  if (!POST_FIX_CODES.has(code)) return "";
+  const contextRule = PUBLIC_CONTEXT_CODES.has(code)
+    ? " SOURCE must be a real public HTTP(S) source that directly supports the tagged component."
+    : " SOURCE must name the actual persisted source supporting the tagged component.";
+  const reconstructionRule = NON_RECONSTRUCTABLE_CONTEXT_CODES.has(code)
+    ? " This metric is factual public context and may not be labeled RECONSTRUCTED; use DIRECT/PARTIAL/UNAVAILABLE as appropriate."
+    : " RECONSTRUCTED additionally requires FORMULA=<explicit calculation using only inputs permitted by the authoritative master definition>.";
+  return `\nSTRICT FIVE-METRIC POST-FIX RULE: no neighboring statistic, generic proxy, row-order identity, or unrelated source may satisfy this metric. Every usable side value MUST use: PLAYER=<exact player name>; SOURCE=<one actual source_name also present in sources>; SAMPLE=<actual denominator/window, or UNAVAILABLE if the source publishes no denominator>; <exact supported master-definition component(s)>. P1 must use PLAYER=${p1}; P2 must use PLAYER=${p2}.${contextRule}${reconstructionRule} If any mapping cannot be proved, return PARTIAL only for exact supported components; otherwise return UNAVAILABLE.`;
+}
+
 export const protectedMetricWiringResearcher: Researcher = {
   ...validatedCompletionResearcher,
   async metrics(input) {
-    const rows = await validatedCompletionResearcher.metrics(input);
-    return rows.map(validateProtectedMetricWiring);
+    const target = input.metrics.filter((metric) => POST_FIX_CODES.has(familyCode(metric.code)));
+    const other = input.metrics.filter((metric) => !POST_FIX_CODES.has(familyCode(metric.code)));
+    const rows: MetricFinding[] = [];
+    if (other.length) rows.push(...await validatedCompletionResearcher.metrics({ ...input, metrics: other }));
+    if (target.length) {
+      const guardedTarget = target.map((metric) => ({
+        ...metric,
+        body: `${metric.body ?? ""}${postFixInstruction(familyCode(metric.code), input.p1, input.p2)}`,
+      }));
+      rows.push(...await completionSweepResearcher.metrics({ ...input, metrics: guardedTarget }));
+    }
+    const byCode = new Map(rows.map((row) => [String(row.metric_code), row]));
+    return input.metrics.map((metric) => {
+      const row = byCode.get(String(metric.code)) ?? {
+        metric_code: metric.code,
+        p1_value: null,
+        p2_value: null,
+        p1_treatment: "UNAVAILABLE" as const,
+        p2_treatment: "UNAVAILABLE" as const,
+        differential: null,
+        evidence_family: null,
+        reliability: null,
+        sample: null,
+        unavailable_reason: "No finding returned for requested metric.",
+        sources: [],
+      };
+      return POST_FIX_CODES.has(familyCode(metric.code))
+        ? validateProtectedMetricWiring(row, { p1: input.p1, p2: input.p2 })
+        : validateProtectedMetricWiring(row);
+    });
   },
 };
