@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
+import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 
@@ -28,6 +29,12 @@ function codeOf(value: unknown) {
 function asOfDate(context: string | null | undefined) {
   const match = String(context ?? "").match(/\b(20\d{2}-\d{2}-\d{2})\b/);
   return match?.[1] ?? new Date().toISOString().slice(0, 10);
+}
+
+function tournamentFromContext(context: string | null | undefined) {
+  const text = String(context ?? "");
+  const match = text.match(/(?:^|[·|\n])\s*tournament\s+([^·|\n]+)/i);
+  return match?.[1]?.trim() || null;
 }
 
 function ttlHours(code: string) {
@@ -108,6 +115,7 @@ export const warehouseFirstResearcher: Researcher = {
   async metrics(input) {
     const { p1, p2, metrics } = input;
     const date = asOfDate(input.context);
+    const tournament = tournamentFromContext(input.context);
     const codes = metrics.map((metric) => codeOf(metric.code));
 
     const [p1Stored, p2Stored] = await Promise.all([
@@ -122,9 +130,40 @@ export const warehouseFirstResearcher: Researcher = {
       return !a || !b || !USABLE.has(a.treatment) || !USABLE.has(b.treatment) || !a.value_text || !b.value_text;
     });
 
+    // Deterministic warehouse calculations run before any live provider call.
+    // These calculators only emit source-family-gated objective components and
+    // remain PARTIAL when the family is support-only.
+    const deterministicRows = (await Promise.all(missing.map((metric) =>
+      deterministicResultsScheduleMetric({
+        metricCode: metric.code,
+        p1,
+        p2,
+        asOfDate: date,
+        tournament,
+      }),
+    ))).filter((row): row is MetricFinding => Boolean(row));
+    const deterministicByCode = new Map(deterministicRows.map((row) => [codeOf(row.metric_code), row]));
+
+    // Deterministic PARTIAL rows do not suppress live fallback. They are local,
+    // reproducible components; fallback may still complete the metric with other
+    // allowed evidence families. If fallback cannot improve it, the deterministic
+    // PARTIAL row is returned instead of discarding known warehouse evidence.
     let liveRows: MetricFinding[] = [];
     if (missing.length) {
       const observationPacket = await buildMetricObservationContext({ metrics: missing, p1, p2, asOfDate: date });
+      for (const [code, row] of deterministicByCode) {
+        const existing = (observationPacket as Record<string, any>)[code] ?? {};
+        (observationPacket as Record<string, any>)[code] = {
+          ...existing,
+          deterministic_components: {
+            p1_value: row.p1_value,
+            p2_value: row.p2_value,
+            treatment: "PARTIAL",
+            evidence_family: row.evidence_family,
+            sample: row.sample,
+          },
+        };
+      }
       const context = appendMetricObservationContext(input.context, observationPacket);
       liveRows = await finalMetricWiringResearcher.metrics({ ...input, context, metrics: missing });
     }
@@ -136,6 +175,7 @@ export const warehouseFirstResearcher: Researcher = {
       const a = p1Stored.get(code);
       const b = p2Stored.get(code);
       const live = liveByCode.get(code);
+      const deterministic = deterministicByCode.get(code);
 
       if (a && b && USABLE.has(a.treatment) && USABLE.has(b.treatment) && a.value_text && b.value_text) {
         const mergedSources = [...sourcesOf(a), ...sourcesOf(b)].filter((source, index, rows) =>
@@ -157,12 +197,17 @@ export const warehouseFirstResearcher: Researcher = {
         continue;
       }
 
-      if (!live) continue;
-      output.push(live);
+      // Prefer a usable live completion/reconstruction over a support-only local
+      // component, but never replace known deterministic evidence with UNAVAILABLE.
+      const chosen = live && (USABLE.has(live.p1_treatment) || USABLE.has(live.p2_treatment))
+        ? live
+        : deterministic ?? live;
+      if (!chosen) continue;
+      output.push(chosen);
 
       await Promise.all([
-        saveSide({ code, name: metric.name, player: p1, opponent: p2, date, treatment: live.p1_treatment, value: live.p1_value, reliability: live.reliability, sample: live.sample, family: live.evidence_family, sources: live.sources ?? [], unavailableReason: live.unavailable_reason }),
-        saveSide({ code, name: metric.name, player: p2, opponent: p1, date, treatment: live.p2_treatment, value: live.p2_value, reliability: live.reliability, sample: live.sample, family: live.evidence_family, sources: live.sources ?? [], unavailableReason: live.unavailable_reason }),
+        saveSide({ code, name: metric.name, player: p1, opponent: p2, date, treatment: chosen.p1_treatment, value: chosen.p1_value, reliability: chosen.reliability, sample: chosen.sample, family: chosen.evidence_family, sources: chosen.sources ?? [], unavailableReason: chosen.unavailable_reason }),
+        saveSide({ code, name: metric.name, player: p2, opponent: p1, date, treatment: chosen.p2_treatment, value: chosen.p2_value, reliability: chosen.reliability, sample: chosen.sample, family: chosen.evidence_family, sources: chosen.sources ?? [], unavailableReason: chosen.unavailable_reason }),
       ]);
     }
 
