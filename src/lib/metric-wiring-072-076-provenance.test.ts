@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { enforceMetricWiring072076 } from "./metric-wiring-072-076.server";
 import type { MetricFinding } from "./audit-pipeline";
@@ -12,6 +13,19 @@ function row(code:string,p1:string|null,p2:string|null,sourceList=sources):Metri
 };}
 
 describe("072-076 side-specific provenance and orientation",()=>{
+  it("is preserved in the actual production researcher chain",()=>{
+    const repo=readFileSync("src/lib/audit-repo.server.ts","utf8");
+    const finalLayer=readFileSync("src/lib/metric-wiring-078-081.server.ts","utf8");
+    const completion=readFileSync("src/lib/completion-sweep-research.server.ts","utf8");
+    expect(repo).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
+    expect(repo).toContain("research: finalMetricWiringResearcher");
+    expect(finalLayer).toContain('import { metricWiring072076Researcher } from "./metric-wiring-072-076.server"');
+    expect(finalLayer).toContain("...metricWiring072076Researcher");
+    expect(finalLayer).toContain("await metricWiring072076Researcher.metrics");
+    expect(completion).toContain('import { certifyMetricFinding } from "./metric-certification"');
+    expect(completion).toContain("certifyMetricFinding(enforceFiveMetricWiring");
+  });
+
   it("rejects swapped P1/P2 identity even when the metric text itself is semantically valid",()=>{
     const out=enforceMetricWiring072076(row(
       "072",
