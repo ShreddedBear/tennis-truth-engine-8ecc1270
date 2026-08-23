@@ -1,6 +1,6 @@
 name: BSD PBP Historical Boundary Test
 
-# Trigger refresh: 2026-08-23 09:54 ET
+# Persist non-secret BSD boundary results to the repository so they remain readable after each run.
 on:
   workflow_dispatch:
   push:
@@ -9,7 +9,7 @@ on:
       - 'scripts/bsd-pbp-boundary-test.py'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   boundary-test:
@@ -33,6 +33,24 @@ jobs:
         if: always()
         run: |
           if [ -f artifacts/bsd-pbp-boundary/summary.md ]; then cat artifacts/bsd-pbp-boundary/summary.md; fi
+      - name: Persist non-secret results to repository
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p data/audit/bsd-pbp-boundary
+          cp artifacts/bsd-pbp-boundary/summary.md data/audit/bsd-pbp-boundary/summary.md
+          cp artifacts/bsd-pbp-boundary/summary.json data/audit/bsd-pbp-boundary/summary.json
+          cp artifacts/bsd-pbp-boundary/results.json data/audit/bsd-pbp-boundary/results.json
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > data/audit/bsd-pbp-boundary/LAST_RUN_UTC.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-pbp-boundary
+          if git diff --cached --quiet; then
+            echo 'BSD boundary report unchanged.'
+          else
+            git commit -m 'Persist BSD PBP historical boundary results'
+            git push
+          fi
       - name: Upload boundary-test results
         if: always()
         uses: actions/upload-artifact@v4
