@@ -5,6 +5,8 @@ import { familyOf, STAT_CATALOG } from "./reconstruction/stat-catalog";
 
 const PROTECTED = new Set(["066", "067", "069", "070", "071"]);
 
+// Keep these markers aligned to the exact authoritative master wording so CI
+// detects real definition drift rather than failing on shorthand aliases.
 const MASTER_MARKERS: Record<string, string[]> = {
   "066": ["66. Equipment / Technical", "Racket/String Setup Changes", "Shoe/Traction Changes", "String-Tension Weather Adjustment"],
   "067": ["67. On-Court Behavior / Discipline", "Code-Violation History", "Challenge/Hawk-Eye Success Rate", "Bathroom/Medical-Break Patterns", "On-Court Time-Violation Rate"],
