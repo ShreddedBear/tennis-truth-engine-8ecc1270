@@ -1,0 +1,15 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2012,
+  "historical_matches": 2697,
+  "pbp_candidates": 2645,
+  "verified": 162,
+  "partial": 0,
+  "ambiguous": 0,
+  "conflicts": 8,
+  "no_pbp": 2527,
+  "retrieval_failures": 0,
+  "coverage_pct": 6.01,
+  "orphan_pbp": 2483,
+  "generated_at_utc": "2026-08-23T21:43:58.591730+00:00"
+}

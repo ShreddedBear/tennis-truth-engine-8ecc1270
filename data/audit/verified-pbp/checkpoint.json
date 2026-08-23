@@ -1,0 +1,18 @@
+{
+  "last_processed_tour": "ATP_MAIN",
+  "last_processed_year": 2012,
+  "records_attempted": 2697,
+  "verified": 162,
+  "partial": 0,
+  "no_pbp": 2527,
+  "ambiguous": 0,
+  "conflicts": 8,
+  "errors": 0,
+  "remaining": "computed by workflow from unprocessed year summaries",
+  "exact_next_resume_position": {
+    "tour": "ATP_MAIN",
+    "year": 2013
+  },
+  "updated_at_utc": "2026-08-23T21:43:58.591730+00:00",
+  "remaining_batches": 29
+}
