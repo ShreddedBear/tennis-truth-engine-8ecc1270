@@ -147,7 +147,14 @@ export function normalizeTrustedSide(
   }
 
   const value = `PLAYER=${expectedPlayer}; SOURCE=${String(source.source_name).trim()}; SAMPLE=${sample}${formulaTag}; ${String(evidence.value).trim()}`;
-  return { value, treatment, sample, sources: [source], missing };
+  // Every source retained here belongs to THIS side (and, when a persisted list
+  // was supplied, is already present in it). The tagged SOURCE is listed first.
+  const persistedNames = persistedSources ? new Set(persistedSources.map((s) => normName(s.source_name))) : null;
+  const sideSources = (evidence.sources ?? []).filter(
+    (s) => String(s?.source_name ?? "").trim() && (!persistedNames || persistedNames.has(normName(s.source_name))),
+  );
+  const ordered = [source, ...sideSources.filter((s) => s !== source)];
+  return { value, treatment, sample, sources: ordered, missing };
 }
 
 export interface TrustedFindingInput {
