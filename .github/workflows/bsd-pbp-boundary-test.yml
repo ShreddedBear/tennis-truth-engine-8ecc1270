@@ -1,0 +1,41 @@
+name: BSD PBP Historical Boundary Test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bsd-pbp-boundary-test.yml'
+      - 'scripts/bsd-pbp-boundary-test.py'
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify secret is configured without exposing it
+        shell: bash
+        run: |
+          if [ -z "$BSD_TENNIS_API_KEY" ]; then
+            echo 'BSD_TENNIS_API_KEY is not available to this workflow.'
+            exit 1
+          fi
+          echo 'BSD_TENNIS_API_KEY is available (value intentionally hidden).'
+      - name: Test actual BSD historical point-by-point responses
+        run: python3 scripts/bsd-pbp-boundary-test.py
+      - name: Show non-secret summary
+        if: always()
+        run: |
+          if [ -f artifacts/bsd-pbp-boundary/summary.md ]; then cat artifacts/bsd-pbp-boundary/summary.md; fi
+      - name: Upload boundary-test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsd-pbp-boundary-results
+          path: artifacts/bsd-pbp-boundary/
+          if-no-files-found: warn
