@@ -1,11 +1,16 @@
 name: Evidence Live Contract Dispatch
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/evidence-live-contract-dispatch.yml
   workflow_dispatch:
     inputs:
       target_branch:
         description: Branch to patch
-        required: true
+        required: false
         default: evidence-live-contract
 
 permissions:
@@ -14,10 +19,12 @@ permissions:
 jobs:
   patch-test-build:
     runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ inputs.target_branch || 'evidence-live-contract' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_branch }}
+          ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
       - name: Patch live metric research evidence contract
@@ -54,5 +61,5 @@ jobs:
             echo "No patch changes to commit"
           else
             git commit -m "Harden live research evidence contract"
-            git push origin HEAD:${{ inputs.target_branch }}
+            git push origin HEAD:${TARGET_BRANCH}
           fi
