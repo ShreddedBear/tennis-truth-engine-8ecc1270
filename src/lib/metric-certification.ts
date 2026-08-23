@@ -9,6 +9,7 @@ export interface MetricCertificationPolicy {
   forbiddenProxyOnly: RegExp[];
   requireCompleteForFullTreatment?: boolean;
   allowReconstructed?: boolean;
+  rejectForbiddenFields?: boolean;
 }
 
 function codeOf(value: string) {
@@ -112,9 +113,10 @@ export const CERTIFIED_METRIC_POLICIES: Record<string, MetricCertificationPolicy
       [/reach|wingspan|height differential/i],
       [/junior.*(head|meeting|h2h)|ITF.*(head|meeting|h2h)|junior\/ITF/i],
     ],
-    forbiddenProxyOnly: [/generic style|style score|\branking\b|\belo\b|career h2h only|height alone/i],
+    forbiddenProxyOnly: [/generic style|style score|\branking\b|\belo\b|career h2h only|height alone|weather|market odds|fatigue/i],
     requireCompleteForFullTreatment: true,
     allowReconstructed: false,
+    rejectForbiddenFields: true,
   },
   "073": {
     code: "073",
@@ -130,9 +132,10 @@ export const CERTIFIED_METRIC_POLICIES: Record<string, MetricCertificationPolicy
       [/social[- ]media.*(engagement|activity|anomal)|engagement anomal/i],
       [/betting exchange.*(matched volume|volume spike)|matched[- ]volume/i],
     ],
-    forbiddenProxyOnly: [/fans? think|fan chatter|rumou?r|generic sentiment|sportsbook odds|line movement|injury speculation|social chatter/i],
+    forbiddenProxyOnly: [/fans? think|fan chatter|rumou?r|generic sentiment|sportsbook odds|line movement|injury speculation|social chatter|surface elo|serve profile|weather/i],
     requireCompleteForFullTreatment: true,
     allowReconstructed: false,
+    rejectForbiddenFields: true,
   },
   "074": {
     code: "074",
@@ -151,9 +154,10 @@ export const CERTIFIED_METRIC_POLICIES: Record<string, MetricCertificationPolicy
       [/movement asymmetry|directional court coverage|favors? .*leg|favors? .*side/i],
       [/grip[- ]size|grip style|grip adjustment/i],
     ],
-    forbiddenProxyOnly: [/injury history only|generic injury|height|wingspan|serve speed|ace rate|hold %|generic movement|fitness report/i],
+    forbiddenProxyOnly: [/injury history only|generic injury|height|wingspan|serve speed|ace rate|hold %|generic movement|fitness report|\branking\b|market|weather/i],
     requireCompleteForFullTreatment: true,
     allowReconstructed: false,
+    rejectForbiddenFields: true,
   },
   "075": {
     code: "075",
@@ -173,6 +177,7 @@ export const CERTIFIED_METRIC_POLICIES: Record<string, MetricCertificationPolicy
     forbiddenProxyOnly: [/event level|surface|roof|order of play|court assignment|practice access|weather|travel|fatigue/i],
     requireCompleteForFullTreatment: true,
     allowReconstructed: false,
+    rejectForbiddenFields: true,
   },
   "076": {
     code: "076",
@@ -188,9 +193,10 @@ export const CERTIFIED_METRIC_POLICIES: Record<string, MetricCertificationPolicy
       [/outer court|stadium court|show court|court assignment/i],
       [/practice[- ]court access|official hitting time|practice access/i],
     ],
-    forbiddenProxyOnly: [/rest hours|days since last match|travel|time zone|weather|wind|roof|generic fatigue|schedule density/i],
+    forbiddenProxyOnly: [/rest hours|days since last match|travel|time zone|weather|wind|roof|generic fatigue|schedule density|best-of|deciding-set tiebreak/i],
     requireCompleteForFullTreatment: true,
     allowReconstructed: false,
+    rejectForbiddenFields: true,
   },
 };
 
@@ -210,8 +216,11 @@ function reconstructionComplete(policy: MetricCertificationPolicy, text: string)
   if (!policy.reconstructionGroups.length) return true;
   return policy.reconstructionGroups.every((group) => group.some((r) => r.test(text)));
 }
+function hasForbiddenField(policy: MetricCertificationPolicy, text: string) {
+  return policy.forbiddenProxyOnly.some((r) => r.test(text));
+}
 function proxyOnly(policy: MetricCertificationPolicy, text: string) {
-  return policy.forbiddenProxyOnly.some((r) => r.test(text)) && !reconstructionComplete(policy, text);
+  return hasForbiddenField(policy, text) && !reconstructionComplete(policy, text);
 }
 
 function validateSide(
@@ -225,6 +234,7 @@ function validateSide(
   if (value === null || value === undefined || value === "") return { value: null, treatment: "UNAVAILABLE", reason: "No persisted metric value for this player side." };
   const text = textOf(finding, side);
   if (!hasSource(finding)) return { value: null, treatment: "UNAVAILABLE", reason: "Usable evidence lacked persisted named-source provenance." };
+  if (policy.rejectForbiddenFields && hasForbiddenField(policy, text)) return { value: null, treatment: "UNAVAILABLE", reason: `Cross-wired/forbidden fields were mixed into metric ${policy.code}; the side is rejected rather than counting unrelated evidence.` };
   if (proxyOnly(policy, text)) return { value: null, treatment: "UNAVAILABLE", reason: `Only proxy/cross-wired evidence was present for metric ${policy.code}; exact permitted inputs were absent.` };
   if (!hasExactInput(policy, text)) return { value: null, treatment: "UNAVAILABLE", reason: `Value did not expose any exact permitted raw input for metric ${policy.code}.` };
   const complete = reconstructionComplete(policy, text);
