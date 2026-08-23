@@ -1,0 +1,47 @@
+name: Metric Audit 078 079 081
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/metric-certification-078-081.test.ts"
+      - "src/lib/evidence-gap.ts"
+      - ".github/workflows/metric-audit-078-081.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/lib/metric-certification-078-081.test.ts"
+      - "src/lib/evidence-gap.ts"
+      - ".github/workflows/metric-audit-078-081.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    name: Certify 078 079 081
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run 078 079 081 regression suite
+        run: bunx vitest run src/lib/metric-certification-078-081.test.ts
+
+      - name: Run repository regression suite
+        run: bunx vitest run
+
+      - name: Build app
+        run: bun run build
+
+# Synchronization change: pushing this update to the open PR forces a fresh pull_request event.
