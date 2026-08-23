@@ -7,6 +7,9 @@ on:
     paths:
       - "scripts/sync-tennis-data-wta.py"
       - ".github/workflows/sync-tennis-data-wta.yml"
+  pull_request:
+    paths:
+      - ".github/wta-sync-probe"
   schedule:
     - cron: "23 7 1 * *"
 
@@ -77,6 +80,7 @@ jobs:
           EOF
 
       - name: Commit refreshed WTA historical data
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -86,4 +90,4 @@ jobs:
           git commit -m "Sync Tennis-Data WTA historical matches 2007-2016"
           git push origin HEAD:main
 
-# Triggered intentionally to populate the initial historical archive after integration.
+# Pull-request probe exists only to make sync failures observable without committing generated data.
