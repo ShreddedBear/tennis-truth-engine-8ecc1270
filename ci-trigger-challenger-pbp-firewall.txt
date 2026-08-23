@@ -1,0 +1,1 @@
+Trigger ATP Challenger-only PBP firewall continuation after scope isolation fix.
