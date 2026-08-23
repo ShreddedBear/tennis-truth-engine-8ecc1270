@@ -6,6 +6,9 @@ on:
     paths:
       - .github/workflows/evidence-data-diagnostic.yml
 
+permissions:
+  contents: write
+
 jobs:
   inspect:
     runs-on: ubuntu-latest
@@ -13,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inspect bundled tennis data coverage
         run: |
-          python3 - <<'PY'
+          python3 - <<'PY' > /tmp/evidence-data-report.txt
           import csv, os
           files=[
             ('ATP','data/public/predixsport/atp/atp_elo_matches.csv'),
@@ -45,5 +48,14 @@ jobs:
                       last[t]=date if last[t] is None or date>last[t] else last[t]
             print('ROWS',rows,'UNIQUE_NAMES',len(names),'MIN_DATE',min_date,'MAX_DATE',max_date)
             for t in targets:
-              if counts[t]: print('TARGET',t,'ROWS',counts[t],'FIRST',first[t],'LAST',last[t])
+              print('TARGET',t,'ROWS',counts[t],'FIRST',first[t],'LAST',last[t])
           PY
+          cat /tmp/evidence-data-report.txt
+      - name: Commit diagnostic report
+        run: |
+          cp /tmp/evidence-data-report.txt evidence-data-diagnostic.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence-data-diagnostic.txt
+          git commit -m "Persist evidence data diagnostic [skip ci]"
+          git push
