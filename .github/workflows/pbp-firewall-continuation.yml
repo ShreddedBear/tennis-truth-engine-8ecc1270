@@ -64,9 +64,9 @@ jobs:
           test -f scripts/verify-challenger-pbp.py
           python -m py_compile scripts/challenger-pbp-firewall-queue.py scripts/verify-challenger-pbp.py
 
-          # Hard fail if this workflow ever references ATP Main or WTA Main verifier execution.
-          if grep -E 'verify-sackmann-pbp|ATP_MAIN|WTA_MAIN' .github/workflows/pbp-firewall-continuation.yml; then
-            echo 'SAFETY FAILURE: Challenger workflow references ATP/WTA Main.' >&2
+          # The Challenger workflow may never execute the ATP/WTA Main verifier.
+          if grep -E '^\s*python .*verify-sackmann-pbp' .github/workflows/pbp-firewall-continuation.yml; then
+            echo 'SAFETY FAILURE: Challenger workflow executes a main-tour PBP verifier.' >&2
             exit 97
           fi
 
@@ -100,7 +100,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # CRITICAL: never stage ATP Main or WTA Main PBP outputs from this workflow.
+          # CRITICAL: only Challenger paths are staged by this workflow.
           git add data/audit/verified-pbp/atp_challenger 2>/dev/null || true
           git add data/audit/challenger-pbp-firewall-queue 2>/dev/null || true
 
