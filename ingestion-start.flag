@@ -1,3 +1,4 @@
-start=2026-08-23T12:07:00-04:00
+start=2026-08-23T12:09:00-04:00
 sources=open_meteo,odds_api
 odds_max_requests=25
+reason=retry_after_main_trigger_fix
