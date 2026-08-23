@@ -1,0 +1,71 @@
+name: Verified ATP WTA PBP Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/verified-pbp-pipeline.yml'
+      - 'scripts/verify-sackmann-pbp.py'
+      - 'scripts/advance-pbp-pipeline.py'
+      - 'data/audit/verified-pbp/queue.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verified-pbp-pipeline-main
+  cancel-in-progress: false
+
+jobs:
+  next-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Determine next unprocessed batch
+        id: next
+        shell: bash
+        run: |
+          mkdir -p data/audit/verified-pbp
+          NEXT="$(python3 scripts/advance-pbp-pipeline.py --next | tail -n1)"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Next batch: $NEXT"
+      - name: Process next ATP/WTA year batch
+        if: steps.next.outputs.next != 'COMPLETE'
+        shell: bash
+        run: |
+          read TOUR YEAR <<< "${{ steps.next.outputs.next }}"
+          python3 scripts/verify-sackmann-pbp.py --tour "$TOUR" --year "$YEAR"
+          python3 scripts/advance-pbp-pipeline.py
+      - name: Persist checkpoint and queue continuation
+        if: steps.next.outputs.next != 'COMPLETE'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          p=Path('data/audit/verified-pbp/progress.json')
+          progress=json.loads(p.read_text())
+          q=Path('data/audit/verified-pbp/queue.json')
+          q.write_text(json.dumps({'queued_at_utc':datetime.now(timezone.utc).isoformat(),'next_resume_position':progress.get('next_resume_position'),'pipeline_complete':progress.get('pipeline_complete',False)},indent=2)+'\n')
+          cp=Path('data/audit/verified-pbp/checkpoint.json')
+          if cp.exists():
+            c=json.loads(cp.read_text());c['exact_next_resume_position']=progress.get('next_resume_position');c['remaining_batches']=progress['total_batches']-progress['completed_batches'];cp.write_text(json.dumps(c,indent=2)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/verified-pbp
+          if git diff --cached --quiet; then
+            echo 'No checkpoint changes to persist.'
+          else
+            git commit -m "Persist verified PBP checkpoint: ${{ steps.next.outputs.next }}"
+            git push
+          fi
+      - name: Show current progress
+        if: always()
+        shell: bash
+        run: |
+          if [ -f data/audit/verified-pbp/progress.md ]; then cat data/audit/verified-pbp/progress.md; fi
