@@ -1,6 +1,7 @@
 name: BSD PBP Historical Boundary Test
 
 # Persist non-secret BSD boundary results to the repository so they remain readable after each run.
+# Queue continuation run; no verification logic changed.
 on:
   workflow_dispatch:
   push:
