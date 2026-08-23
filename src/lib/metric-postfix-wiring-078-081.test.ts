@@ -40,10 +40,10 @@ describe("post-fix exact runtime wiring for 078/079/081", () => {
     expect(finding.sources).toHaveLength(1);
   });
 
-  it("rejects 078 reconstruction from performance proxies", () => {
+  it("rejects every 078 reconstruction path", () => {
     const finding = enforceMetricWiring078081({
       ...base("078"),
-      p1_value: "PLAYER=Player One; SOURCE=Tournament Media; SAMPLE=5 matches; Home-Market Commercial Appearances; FORMULA=ranking + serve percentage + home crowd",
+      p1_value: "PLAYER=Player One; SOURCE=Tournament Media; SAMPLE=5 matches; Home-Market Commercial Appearances; INPUTS=sponsor appearances|matches; FORMULA=sponsor appearances / matches",
       p1_treatment: "RECONSTRUCTED",
       sources: [source("Tournament Media")],
     }, players);
@@ -77,22 +77,38 @@ describe("post-fix exact runtime wiring for 078/079/081", () => {
     expect(finding.p1_value).toContain("First-Game Win Rate");
   });
 
-  it("requires an explicit permitted formula for RECONSTRUCTED 079/081 values", () => {
+  it("requires enumerated exact inputs and a formula using each input for RECONSTRUCTED 079/081 values", () => {
     const good = enforceMetricWiring078081({
       ...base("081"),
-      p1_value: "PLAYER=Player One; SOURCE=Official Results; SAMPLE=20 matches; Weekday vs Weekend Performance Split; FORMULA=weekday wins / weekday matches versus weekend wins / weekend matches",
+      p1_value: "PLAYER=Player One; SOURCE=Official Results; SAMPLE=20 matches; Weekday vs Weekend Performance Split; INPUTS=weekday wins|weekday matches|weekend wins|weekend matches; FORMULA=weekday wins / weekday matches versus weekend wins / weekend matches",
       p1_treatment: "RECONSTRUCTED",
       sources: [source("Official Results")],
     }, players);
     expect(good.p1_treatment).toBe("RECONSTRUCTED");
 
-    const bad = enforceMetricWiring078081({
+    const missingInputs = enforceMetricWiring078081({
       ...base("081"),
-      p1_value: "PLAYER=Player One; SOURCE=Official Results; SAMPLE=20 matches; Weekday vs Weekend Performance Split; FORMULA=serve profile + market odds",
+      p1_value: "PLAYER=Player One; SOURCE=Official Results; SAMPLE=20 matches; Weekday vs Weekend Performance Split; FORMULA=weekday wins / weekday matches versus weekend wins / weekend matches",
       p1_treatment: "RECONSTRUCTED",
       sources: [source("Official Results")],
     }, players);
-    expect(bad.p1_treatment).toBe("UNAVAILABLE");
+    expect(missingInputs.p1_treatment).toBe("UNAVAILABLE");
+
+    const unrelated = enforceMetricWiring078081({
+      ...base("081"),
+      p1_value: "PLAYER=Player One; SOURCE=Official Results; SAMPLE=20 matches; Weekday vs Weekend Performance Split; INPUTS=age|height; FORMULA=age + height",
+      p1_treatment: "RECONSTRUCTED",
+      sources: [source("Official Results")],
+    }, players);
+    expect(unrelated.p1_treatment).toBe("UNAVAILABLE");
+
+    const omittedInput = enforceMetricWiring078081({
+      ...base("079"),
+      p1_value: "PLAYER=Player One; SOURCE=Official Match Log; SAMPLE=30 matches; First-Game Win Rate; INPUTS=first games won|matches; FORMULA=first games won / observations",
+      p1_treatment: "RECONSTRUCTED",
+      sources: [source("Official Match Log")],
+    }, players);
+    expect(omittedInput.p1_treatment).toBe("UNAVAILABLE");
   });
 
   it("does not allow neighboring metric evidence to satisfy the final metrics", () => {
