@@ -14,48 +14,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect bundled tennis data coverage
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Run provider-independent production metric diagnostic
         run: |
-          python3 - <<'PY' > /tmp/evidence-data-report.txt
-          import csv, os
-          files=[
-            ('ATP','data/public/predixsport/atp/atp_elo_matches.csv'),
-            ('WTA','data/public/predixsport/wta/wta_elo_ratings.csv'),
-          ]
-          targets=['Arthur Fils','Flavio Cobolli','Brandon Nakashima','Frances Tiafoe','Sara Bejlek','Coco Gauff','Iga Swiatek','Jessica Pegula']
-          for tour,path in files:
-            print(f'=== {tour} {path} ===')
-            if not os.path.exists(path):
-              print('MISSING'); continue
-            min_date=max_date=None; rows=0; names=set(); counts={t:0 for t in targets}; last={t:None for t in targets}; first={t:None for t in targets}
-            with open(path,newline='',encoding='utf-8-sig') as f:
-              r=csv.DictReader(f)
-              print('FIELDS:', ','.join(r.fieldnames or []))
-              for row in r:
-                rows+=1
-                date=(row.get('date') or row.get('rating_date') or row.get('as_of_date') or '').strip()
-                if date:
-                  min_date=date if min_date is None or date<min_date else min_date
-                  max_date=date if max_date is None or date>max_date else max_date
-                for k in ('player','name','player_name'):
-                  if row.get(k): names.add(row[k].strip())
-                values=[str(v).strip() for v in row.values() if v is not None]
-                for t in targets:
-                  if t in values:
-                    counts[t]+=1
-                    if date:
-                      first[t]=date if first[t] is None or date<first[t] else first[t]
-                      last[t]=date if last[t] is None or date>last[t] else last[t]
-            print('ROWS',rows,'UNIQUE_NAMES',len(names),'MIN_DATE',min_date,'MAX_DATE',max_date)
-            for t in targets:
-              print('TARGET',t,'ROWS',counts[t],'FIRST',first[t],'LAST',last[t])
-          PY
-          cat /tmp/evidence-data-report.txt
+          cat > scripts/_provider_independent_metric_diagnostic.ts <<'TS'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { parseRuleDocument } from "../src/lib/rule-parser";
+          import { finalMetricWiringResearcher } from "../src/lib/metric-wiring-078-081.server";
+
+          for (const k of ["LOVABLE_API_KEY","RESEARCH_FALLBACK_API_KEY","OPENAI_API_KEY","RESEARCH_FALLBACK_URL","OPENAI_BASE_URL"]) delete process.env[k];
+
+          const text = readFileSync("public/seed/metrics.txt", "utf8");
+          const parsed = parseRuleDocument(text);
+          const metrics = parsed.rules.filter(r => Number(r.rule_code) >= 1 && Number(r.rule_code) <= 81).map(r => ({ code:r.rule_code, name:r.rule_name, body:r.body }));
+          const matches = [
+            ["Arthur Fils","Flavio Cobolli","Tournament: Cincinnati Open; Level: ATP Masters 1000; Surface: hard; Date: 2026-08-22"],
+            ["Brandon Nakashima","Frances Tiafoe","Tournament: Cincinnati Open; Level: ATP Masters 1000; Surface: hard; Date: 2026-08-22"],
+            ["Sara Bejlek","Coco Gauff","Tournament: Cincinnati Open; Level: WTA 1000; Surface: hard; Date: 2026-08-22"],
+            ["Iga Swiatek","Jessica Pegula","Tournament: Cincinnati Open; Level: WTA 1000; Surface: hard; Date: 2026-08-22"],
+          ] as const;
+          const supported = (v:string|null,t:string) => v !== null && !["UNAVAILABLE","EXCLUDED"].includes(t);
+          const lines:string[]=[];
+          lines.push(`PARSED_METRICS ${metrics.length}`);
+          for (const [p1,p2,context] of matches) {
+            const out = await finalMetricWiringResearcher.metrics({ p1,p2,context,dossier:"",metrics });
+            const p1ok=out.filter(x=>supported(x.p1_value,x.p1_treatment));
+            const p2ok=out.filter(x=>supported(x.p2_value,x.p2_treatment));
+            lines.push(`\n=== ${p1} vs ${p2} ===`);
+            lines.push(`P1_SUPPORTED ${p1ok.length}/81 ${(100*p1ok.length/81).toFixed(1)}%`);
+            lines.push(`P2_SUPPORTED ${p2ok.length}/81 ${(100*p2ok.length/81).toFixed(1)}%`);
+            lines.push(`P1_CODES ${p1ok.map(x=>`${String(x.metric_code).padStart(3,"0")}:${x.p1_treatment}`).join(",")}`);
+            lines.push(`P2_CODES ${p2ok.map(x=>`${String(x.metric_code).padStart(3,"0")}:${x.p2_treatment}`).join(",")}`);
+            for (const x of out) {
+              const code=String(x.metric_code).padStart(3,"0");
+              lines.push(`ROW ${code} P1=${x.p1_treatment} P2=${x.p2_treatment} FAMILY=${x.evidence_family??"-"} SAMPLE=${x.sample??"-"} SOURCES=${(x.sources??[]).map(s=>s.source_name).join("|")||"-"} MISSING=${(x.missing_inputs??[]).join("|")||"-"} REASON=${x.unavailable_reason??"-"}`);
+            }
+          }
+          writeFileSync("evidence-provider-independent-diagnostic.txt",lines.join("\n"));
+          console.log(lines.slice(0,30).join("\n"));
+          TS
+          bun scripts/_provider_independent_metric_diagnostic.ts
+          rm scripts/_provider_independent_metric_diagnostic.ts
       - name: Commit diagnostic report
         run: |
-          cp /tmp/evidence-data-report.txt evidence-data-diagnostic.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evidence-data-diagnostic.txt
-          git commit -m "Persist evidence data diagnostic [skip ci]"
+          git add evidence-provider-independent-diagnostic.txt
+          git commit -m "Persist provider-independent evidence diagnostic [skip ci]"
           git push
