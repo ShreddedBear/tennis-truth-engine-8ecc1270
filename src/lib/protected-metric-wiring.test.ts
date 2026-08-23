@@ -15,12 +15,15 @@ describe("post-fix protected wiring 041/043/044/045/046",()=>{
     expect(partial.missing_inputs).toEqual(expect.arrayContaining(["return-points-won trend","Dominance Ratio trend","break-points-created trend"]));
   });
 
-  it("043 requires favorite-role loss conditions AND today's opponent compatibility",()=>{
+  it("043 requires a documented favorite failure condition and today's opponent compatibility without making master examples mandatory",()=>{
     const bad=validateProtectedMetricWiring(finding("043","hold pct=78; break pct=24; ranking=18","DIRECT"));
     expect(bad.p1_treatment).toBe("UNAVAILABLE");
-    const partial=validateProtectedMetricWiring(finding("043","current favorite; losses as favorite; first serve failure; third set failure","RECONSTRUCTED"));
+    const partial=validateProtectedMetricWiring(finding("043","current favorite; losses as favorite; low first serve failure","RECONSTRUCTED"));
     expect(partial.p1_treatment).toBe("PARTIAL");
-    expect(partial.missing_inputs).toEqual(expect.arrayContaining(["return failure condition","today's opponent compatibility"]));
+    expect(partial.missing_inputs).toEqual(expect.arrayContaining(["today's opponent compatibility"]));
+    const complete=validateProtectedMetricWiring(finding("043","current favorite; losses as favorite; failure-mode profile: low first serve; today's opponent can reproduce that failure condition","RECONSTRUCTED"));
+    expect(complete.p1_treatment).toBe("RECONSTRUCTED");
+    expect(complete.missing_inputs).toBeUndefined();
   });
 
   it("044 requires underdog upset history and every master similarity dimension",()=>{
