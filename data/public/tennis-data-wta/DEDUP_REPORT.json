@@ -1,0 +1,24 @@
+{
+  "source": "Tennis-Data.co.uk",
+  "requested_range": "2005-2016",
+  "source_available_range_used": "2007-2016",
+  "note": "Tennis-Data.co.uk WTA archive begins in 2007; 2005-2006 are not fabricated or substituted.",
+  "rows_before_dedup": 24612,
+  "rows_after_dedup": 24612,
+  "duplicates_removed": 0,
+  "conflicting_duplicates": 0,
+  "per_year_input_rows": {
+    "2007": 2491,
+    "2008": 2404,
+    "2009": 2433,
+    "2010": 2448,
+    "2011": 2468,
+    "2012": 2407,
+    "2013": 2442,
+    "2014": 2476,
+    "2015": 2521,
+    "2016": 2522
+  },
+  "canonical_key": "sha256(date|normalized tournament|normalized round|sorted normalized player pair)[:24]",
+  "generated_at_utc": "2026-08-23T05:42:03.264538+00:00"
+}
