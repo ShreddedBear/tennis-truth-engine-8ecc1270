@@ -1,10 +1,11 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ingestOpenMeteoHistorical } from "./open-meteo.server";
 import { ingestOddsHistorical } from "./odds-api.server";
+import { ingestTourResultsAndSchedules, type TourSource } from "./tour-results-schedule.server";
 
 const db = supabaseAdmin as any;
 
-type SourceId = "open_meteo" | "odds_api";
+type SourceId = "open_meteo" | "odds_api" | TourSource;
 
 async function runTracked<T>(sourceId: SourceId, jobType: string, fn: () => Promise<T>) {
   const { data: run, error } = await db.from("source_ingestion_runs").insert({
@@ -42,7 +43,11 @@ export async function runHistoricalHardPull(sources: SourceId[] = ["open_meteo",
       results[source] = await runTracked(source, "HISTORICAL_BACKFILL", () => ingestOpenMeteoHistorical());
     } else if (source === "odds_api") {
       results[source] = await runTracked(source, "HISTORICAL_BACKFILL", () => ingestOddsHistorical());
+    } else if (source === "atp" || source === "wta" || source === "atp_challenger") {
+      results[source] = await runTracked(source, "RESULTS_SCHEDULE_PULL", () => ingestTourResultsAndSchedules(source));
     }
   }
   return results;
 }
+
+export type { SourceId };
