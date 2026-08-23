@@ -19,6 +19,8 @@
 //    invented and the opposite side's sources cannot support a side.
 //  * SAMPLE must be that side's own sample. The opposite side's sample or a
 //    generic row sample is never reused; a missing side sample is a rejection.
+//    Exact zero-event observations over an explicitly named fixed time window
+//    are preserved as window evidence rather than misread as missing data.
 //  * FORMULA/INPUTS are emitted only for reconstructions produced by an
 //    approved deterministic spec or an explicitly documented local formula.
 //    Without that provenance the value is downgraded, never fabricated.
@@ -30,6 +32,14 @@ import type { MetricFinding, SourceRef, Treatment } from "./audit-pipeline";
 import { RECONSTRUCTION_SPECS } from "./reconstruction/specs";
 
 const APPROVED_SPEC_IDS = new Set(RECONSTRUCTION_SPECS.map((s) => s.id));
+const FIXED_WINDOW_ZERO_EVENT_KEYS = [
+  "matches_last_7_days",
+  "matches_last_14_days",
+  "matches_last_28_days",
+  "sets_last_14_days",
+  "three_setters_last_14_days",
+  "qualifying_matches_last_14_days",
+] as const;
 
 export interface TrustedFormulaProvenance {
   /** Approved deterministic reconstruction spec id, when the value came from one. */
@@ -91,6 +101,13 @@ function pickSource(evidence: TrustedSideEvidence, persisted?: SourceRef[]): Sou
   return null;
 }
 
+function isFixedWindowZeroEventObservation(value: string | null): boolean {
+  if (!value) return false;
+  return FIXED_WINDOW_ZERO_EVENT_KEYS.some((key) =>
+    new RegExp(`(?:^|;\\s*)${key}\\s*=\\s*0(?:\\.0+)?(?=\\s*;|$)`, "i").test(value),
+  );
+}
+
 /**
  * Normalize one side of already-produced internal evidence into the tagged
  * form the certified guards require. Returns an UNAVAILABLE side (with the
@@ -121,10 +138,20 @@ export function normalizeTrustedSide(
   const source = pickSource(evidence, persistedSources);
   if (!source) return reject([`${side} SOURCE matching persisted provenance`]);
 
-  const sample = evidence.sample === null || evidence.sample === undefined || String(evidence.sample).trim() === ""
+  const rawSample = evidence.sample === null || evidence.sample === undefined || String(evidence.sample).trim() === ""
     ? null
     : String(evidence.sample).trim();
-  if (!sample || sample === "0") return reject([`${side} actual side-specific SAMPLE denominator`]);
+  if (!rawSample) return reject([`${side} actual side-specific SAMPLE denominator`]);
+
+  // A numeric zero usually means there was no denominator and must remain a
+  // rejection. The narrow exception is an exact count over a fixed named
+  // pre-match window: e.g. matches_last_7_days=0 is a real observation that
+  // the player played zero matches in that window, not an absence of data.
+  // Preserve that truth as window metadata instead of inventing a denominator.
+  const sample = rawSample === "0"
+    ? (isFixedWindowZeroEventObservation(evidence.value) ? "FIXED_WINDOW_ZERO_EVENT" : null)
+    : rawSample;
+  if (!sample) return reject([`${side} actual side-specific SAMPLE denominator`]);
 
   let treatment = evidence.treatment;
   const missing: string[] = [];
