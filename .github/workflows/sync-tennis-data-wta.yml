@@ -1,0 +1,87 @@
+name: Sync Tennis-Data WTA History
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/sync-tennis-data-wta.py"
+      - ".github/workflows/sync-tennis-data-wta.yml"
+  schedule:
+    - cron: "23 7 1 * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install spreadsheet readers
+        run: |
+          python -m pip install --disable-pip-version-check pandas requests xlrd openpyxl
+
+      - name: Download, normalize and deduplicate WTA 2007-2016
+        run: |
+          set -euo pipefail
+          python scripts/sync-tennis-data-wta.py
+
+      - name: Validate historical range and duplicate safety
+        run: |
+          python - <<'PY'
+          import csv, json
+          from collections import Counter
+          p='data/public/tennis-data-wta/wta_matches_2007_2016.csv'
+          with open(p, encoding='utf-8-sig') as f:
+              rows=list(csv.DictReader(f))
+          assert rows, 'No WTA historical rows downloaded'
+          years={int(r['season']) for r in rows}
+          assert min(years) == 2007, years
+          assert max(years) == 2016, years
+          assert not any(int(r['season']) >= 2017 for r in rows), '2017+ overlap entered historical archive'
+          keys=[r['match_key'] for r in rows]
+          dup=[k for k,n in Counter(keys).items() if n>1]
+          assert not dup, f'duplicate canonical match keys: {dup[:10]}'
+          with open('data/public/tennis-data-wta/DEDUP_REPORT.json') as f:
+              report=json.load(f)
+          assert report['conflicting_duplicates'] == 0
+          print(f'Validated {len(rows)} unique WTA historical matches across 2007-2016')
+          PY
+
+      - name: Record source and freshness
+        run: |
+          set -euo pipefail
+          mkdir -p data/public/tennis-data-wta
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > data/public/tennis-data-wta/LAST_SYNC_UTC.txt
+          cat > data/public/tennis-data-wta/SOURCE.md <<'EOF'
+          # Tennis-Data.co.uk WTA historical match results
+
+          Source: https://www.tennis-data.co.uk/alldata.php
+
+          Tennis-Data states that its historical ATP/WTA results and odds files are free to use. The WTA archive exposed by the source begins in 2007. This repository intentionally imports WTA seasons 2007 through 2016 only from this source.
+
+          ## Audit use
+          - Historical WTA match identity/result evidence
+          - Tournament, date, surface, court, round and tier when explicitly present
+          - Historical winner/loser rankings when explicitly present
+          - Set-level score/result evidence when explicitly present
+          - Historical surface/match/set aggregates reconstructed from those rows
+
+          ## Non-overlap rule
+          This archive ends at 2016. The current PredixSport WTA layer begins in 2017 and is ratings history rather than match-result rows. Every Tennis-Data row also has a canonical `match_key` built from date + tournament + round + unordered player pair. The sync refuses conflicting duplicate keys, so an overlapping future match source cannot silently award a player two wins for the same match.
+
+          ## Source limitation
+          Tennis-Data.co.uk does not expose WTA 2005 or 2006 season archives on its all-data page. Those years are not fabricated or silently sourced elsewhere by this sync.
+          EOF
+
+      - name: Commit refreshed WTA historical data
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/public/tennis-data-wta
+          if git diff --cached --quiet; then echo "No Tennis-Data WTA changes."; exit 0; fi
+          git commit -m "Sync Tennis-Data WTA historical matches 2007-2016"
+          git push origin HEAD:main
