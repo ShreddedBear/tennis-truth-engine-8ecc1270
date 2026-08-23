@@ -6,11 +6,11 @@ import { familyOf, STAT_CATALOG } from "./reconstruction/stat-catalog";
 const PROTECTED = new Set(["066", "067", "069", "070", "071"]);
 
 const MASTER_MARKERS: Record<string, string[]> = {
-  "066": ["66. Equipment / Technical", "Racket/String Change", "Shoe Change"],
-  "067": ["67. On-Court Behavior / Discipline", "Code Violations", "Challenge Success", "Bathroom Break"],
-  "069": ["69. Stakes / Career Context", "Retirement/Farewell", "Anti-Doping"],
-  "070": ["70. Support Team / Prep", "Mental Coach", "Late Entry", "Walkover Context"],
-  "071": ["71. Session / Environment", "Roof Status", "Session Start Time"],
+  "066": ["66. Equipment / Technical", "Racket/String Setup Changes", "Shoe/Traction Changes", "String-Tension Weather Adjustment"],
+  "067": ["67. On-Court Behavior / Discipline", "Code-Violation History", "Challenge/Hawk-Eye Success Rate", "Bathroom/Medical-Break Patterns", "On-Court Time-Violation Rate"],
+  "069": ["69. Stakes / Career Context", "Retirement-Tour/Farewell-Run Effects", "Anti-Doping Testing Disruption"],
+  "070": ["70. Support Team / Prep", "Sports-Psychologist Presence", "Short-Notice Draw Entry", "Walkover-Into-Round Effect"],
+  "071": ["71. Session / Environment", "Roof-Open vs Roof-Closed Split", "Fixed Start-Time vs \"Not-Before\" Uncertainty"],
 };
 
 describe("sequential certification guardrails for 066/067/069/070/071", () => {

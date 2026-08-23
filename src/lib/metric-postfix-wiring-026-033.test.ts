@@ -62,9 +62,9 @@ describe("post-fix wiring verification 026/029/031/032/033",()=>{
     expect(familyOf("common_opponent_win_pct")).toBe("080");
   });
 
-  it("adds strict player/source/sample instructions only for the five protected metrics",()=>{
+  it("keeps strict player/source/sample instructions for every previously protected metric while allowing later protected groups",()=>{
     const text=readFileSync("src/lib/validated-completion-research.server.ts","utf8");
-    expect(text).toContain('new Set(["026","029","031","032","033"])');
+    for(const code of protectedCodes)expect(text,`${code} must remain protected`).toMatch(new RegExp(`PROTECTED_EXACT_METRICS[^\\n]*\\"${code}\\"`));
     expect(text).toContain("P1 must use PLAYER=${p1}; P2 must use PLAYER=${p2}");
     expect(text).toContain("RECONSTRUCTED additionally requires FORMULA=");
   });

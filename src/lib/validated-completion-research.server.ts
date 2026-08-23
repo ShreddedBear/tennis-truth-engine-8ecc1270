@@ -40,7 +40,7 @@ function semanticRequirement(name:string,body:string|null):keyof typeof groups|n
 }
 function validSide(value:string|null,required:keyof typeof groups|null){if(!value)return false;if(!required)return true;return containsAny(value,groups[required]);}
 
-const PROTECTED_EXACT_METRICS=new Set(["026","029","031","032","033"]);
+const PROTECTED_EXACT_METRICS=new Set(["026","029","031","032","033","051","052","053","054","059"]);
 const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
   "026":[
     {name:"opening service-game hold",terms:["opening service game hold","first service game hold"]},
@@ -153,6 +153,61 @@ const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
     {name:"double-fault trend",terms:["double fault trend"]},
     {name:"match duration trend",terms:["match duration trend"]},
     {name:"three-set dependency trend",terms:["three set dependency trend","three set trend","go the distance"]},
+  ],
+  "051":[
+    {name:"opponent-specific break expectancy",terms:["opponent specific break expectancy"]},
+    {name:"opponent-specific hold expectancy",terms:["opponent specific hold expectancy"]},
+    {name:"set win expectancy",terms:["set win expectancy"]},
+    {name:"expected set-1 winner",terms:["expected set 1 winner","expected set-1 winner"]},
+    {name:"expected deciding-set winner",terms:["expected deciding set winner","expected deciding-set winner"]},
+    {name:"2-0 conditional probability",terms:["2 0 conditional probability","2-0 conditional probability"]},
+    {name:"2-1 conditional probability",terms:["2 1 conditional probability","2-1 conditional probability"]},
+    {name:"break-first to 2-0 conversion",terms:["break first to 2 0 conversion","break-first to 2-0 conversion"]},
+    {name:"set-1 win to 2-0 conversion",terms:["set 1 win to 2 0 conversion","set-1 win to 2-0 conversion"]},
+    {name:"set-1 loss to match-loss probability",terms:["set 1 loss to match loss probability","set-1 loss to match-loss probability"]},
+  ],
+  "052":[
+    {name:"set-score entropy",terms:["set score entropy","set-score entropy"]},
+    {name:"game-score entropy",terms:["game score entropy","game-score entropy"]},
+    {name:"lead durability index",terms:["lead durability index"]},
+    {name:"deficit survivability index",terms:["deficit survivability index"]},
+    {name:"double-break creation rate",terms:["double break creation rate","double-break creation rate"]},
+    {name:"double-break surrender rate",terms:["double break surrender rate","double-break surrender rate"]},
+    {name:"rebreak-window probability",terms:["rebreak window probability","rebreak-window probability"]},
+    {name:"break clustering",terms:["break clustering"]},
+  ],
+  "053":[
+    {name:"pressure accumulation score",terms:["pressure accumulation score"]},
+    {name:"serve escape dependency",terms:["serve escape dependency"]},
+    {name:"clean-hold rate",terms:["clean hold rate","clean-hold rate"]},
+    {name:"clean-break rate",terms:["clean break rate","clean-break rate"]},
+    {name:"love/15 hold rate",terms:["love 15 hold rate","love/15 hold rate"]},
+    {name:"return-game abandonment rate",terms:["return game abandonment rate","return-game abandonment rate"]},
+  ],
+  "054":[
+    {name:"first-strike efficiency",terms:["first strike efficiency","first-strike efficiency"]},
+    {name:"neutral-rally efficiency",terms:["neutral rally efficiency","neutral-rally efficiency"]},
+    {name:"defense-to-offense conversion",terms:["defense to offense conversion","defense-to-offense conversion"]},
+    {name:"attack conversion rate",terms:["attack conversion rate"]},
+    {name:"depth-pressure differential",terms:["depth pressure differential","depth-pressure differential"]},
+    {name:"baseline territory differential",terms:["baseline territory differential"]},
+    {name:"directional vulnerability",terms:["directional vulnerability"]},
+    {name:"backhand-under-pressure performance",terms:["backhand under pressure performance","backhand-under-pressure performance"]},
+    {name:"forehand-under-pressure performance",terms:["forehand under pressure performance","forehand-under-pressure performance"]},
+    {name:"running-forehand effectiveness",terms:["running forehand effectiveness","running-forehand effectiveness"]},
+    {name:"running-backhand effectiveness",terms:["running backhand effectiveness","running-backhand effectiveness"]},
+    {name:"second-serve return aggression",terms:["second serve return aggression","second-serve return aggression"]},
+    {name:"first-ball-after-return effectiveness",terms:["first ball after return effectiveness","first-ball-after-return effectiveness"]},
+    {name:"net-approach deterrence",terms:["net approach deterrence","net-approach deterrence"]},
+  ],
+  "059":[
+    {name:"loss path opponent serves through",terms:["loss path opponent serves through","opponent serves through"]},
+    {name:"loss path return exposed",terms:["loss path return exposed","return exposed"]},
+    {name:"loss path slow start/set-1 loss",terms:["loss path slow start set 1 loss","slow start set 1 loss","slow start/set-1 loss"]},
+    {name:"loss path physical decline",terms:["loss path physical decline","physical decline"]},
+    {name:"loss path tiebreak variance",terms:["loss path tiebreak variance","tiebreak variance"]},
+    {name:"loss path three-set collapse",terms:["loss path three set collapse","three set collapse","three-set collapse"]},
+    {name:"loss path other",terms:["loss path other"]},
   ],
 };
 function familyCode(code:string){const m=String(code).match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(code).padStart(3,"0");}
