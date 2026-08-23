@@ -1,5 +1,6 @@
 name: BSD PBP Historical Boundary Test
 
+# Trigger refresh: 2026-08-23
 on:
   workflow_dispatch:
   push:
