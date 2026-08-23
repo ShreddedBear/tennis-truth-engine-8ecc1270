@@ -1,11 +1,10 @@
 {
-  "updated_at_utc": "2026-08-23T21:43:58.684546+00:00",
-  "completed_batches": 1,
+  "verifier_version": 3,
+  "updated_at_utc": "2026-08-23T21:46:54.695130+00:00",
+  "completed_batches": 0,
   "total_batches": 30,
   "completed_years": {
-    "ATP_MAIN": [
-      2012
-    ],
+    "ATP_MAIN": [],
     "WTA_MAIN": []
   },
   "partially_processed_years": {
@@ -13,19 +12,19 @@
     "WTA_MAIN": []
   },
   "totals": {
-    "historical_matches": 2697,
-    "pbp_candidates": 2645,
-    "verified": 162,
+    "historical_matches": 0,
+    "pbp_candidates": 0,
+    "verified": 0,
     "partial": 0,
     "ambiguous": 0,
-    "conflicts": 8,
-    "no_pbp": 2527,
+    "conflicts": 0,
+    "no_pbp": 0,
     "retrieval_failures": 0,
-    "coverage_pct": 6.01
+    "coverage_pct": 0.0
   },
   "next_resume_position": {
     "tour": "ATP_MAIN",
-    "year": 2013
+    "year": 2012
   },
   "pipeline_complete": false
 }
