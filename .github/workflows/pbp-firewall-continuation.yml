@@ -16,6 +16,9 @@ on:
         required: false
         type: boolean
         default: false
+  push:
+    paths:
+      - 'ci-trigger-pbp-firewall.txt'
   schedule:
     - cron: '17 */2 * * *'
 
@@ -106,8 +109,6 @@ jobs:
           fi
 
           git commit -m "Continue verified PBP firewall queue"
-
-          # Keep continuation idempotent if main moved while the batch was running.
           git pull --rebase origin main
           git push origin HEAD:main
 
