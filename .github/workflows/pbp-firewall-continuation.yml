@@ -66,12 +66,19 @@ jobs:
 
       - name: Continue from last recoverable checkpoint
         id: queue
+        shell: bash
         run: |
-          set -o pipefail
-          python scripts/pbp-firewall-queue.py \
-            --max-batches "${PBP_MAX_BATCHES}" \
-            ${PBP_THROUGH_YEAR:+--through-year "${PBP_THROUGH_YEAR}"} \
-            $([ "${PBP_FORCE_RECHECK}" = "true" ] && echo --force-recheck) \
+          set -euo pipefail
+
+          args=(--max-batches "${PBP_MAX_BATCHES}")
+          if [[ -n "${PBP_THROUGH_YEAR}" ]]; then
+            args+=(--through-year "${PBP_THROUGH_YEAR}")
+          fi
+          if [[ "${PBP_FORCE_RECHECK}" == "true" ]]; then
+            args+=(--force-recheck)
+          fi
+
+          python scripts/pbp-firewall-queue.py "${args[@]}" \
             | tee /tmp/pbp-firewall-run.log
 
           COMPLETE=$(grep -E '^QUEUE_COMPLETE=' /tmp/pbp-firewall-run.log | tail -1 | cut -d= -f2 || true)
@@ -82,14 +89,16 @@ jobs:
           python scripts/pbp-firewall-queue.py --audit-only
 
       - name: Commit checkpoints and audit evidence
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add \
-            data/audit/verified-pbp \
-            data/audit/pbp-firewall-queue \
-            data/public/tennismylife-challenger 2>/dev/null || true
+          git add data/audit/verified-pbp data/audit/pbp-firewall-queue 2>/dev/null || true
+          if [[ -d data/public/tennismylife-challenger ]]; then
+            git add data/public/tennismylife-challenger
+          fi
 
           if git diff --cached --quiet; then
             echo "No new checkpointed PBP work to commit."
@@ -98,8 +107,7 @@ jobs:
 
           git commit -m "Continue verified PBP firewall queue"
 
-          # Another workflow/user may have pushed while this job ran. Rebase once,
-          # preserving the newest main and preventing duplicate append behavior.
+          # Keep continuation idempotent if main moved while the batch was running.
           git pull --rebase origin main
           git push origin HEAD:main
 
@@ -117,17 +125,18 @@ jobs:
 
       - name: Job summary
         if: always()
+        shell: bash
         run: |
           {
             echo "## PBP Firewall Continuation"
             echo
-            if [ -f data/audit/pbp-firewall-queue/summary.md ]; then
+            if [[ -f data/audit/pbp-firewall-queue/summary.md ]]; then
               cat data/audit/pbp-firewall-queue/summary.md
             else
               echo "No queue summary was produced."
             fi
             echo
-            if [ "${{ steps.queue.outputs.complete }}" = "true" ]; then
+            if [[ "${{ steps.queue.outputs.complete }}" == "true" ]]; then
               echo "**Eligible fixed-year queue is complete.** Future scheduled runs are no-ops unless new eligible work appears."
             else
               echo "**Queue remains active.** The next scheduled run resumes from the checkpoint."
