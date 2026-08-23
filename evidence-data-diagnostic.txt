@@ -1,0 +1,22 @@
+=== ATP data/public/predixsport/atp/atp_elo_matches.csv ===
+FIELDS: season,date,player,opponent,tournament,surface,tournament_type,won,sets_for,sets_against,elo_pre,elo_post
+ROWS 79002 UNIQUE_NAMES 1523 MIN_DATE 2015-01-04 MAX_DATE 2026-05-06
+TARGET Arthur Fils ROWS 330 FIRST 2021-05-30 LAST 2026-04-22
+TARGET Flavio Cobolli ROWS 372 FIRST 2020-09-14 LAST 2026-04-22
+TARGET Brandon Nakashima ROWS 524 FIRST 2018-03-08 LAST 2026-04-22
+TARGET Frances Tiafoe ROWS 936 FIRST 2015-02-09 LAST 2026-03-18
+TARGET Sara Bejlek ROWS 0 FIRST None LAST None
+TARGET Coco Gauff ROWS 0 FIRST None LAST None
+TARGET Iga Swiatek ROWS 0 FIRST None LAST None
+TARGET Jessica Pegula ROWS 0 FIRST None LAST None
+=== WTA data/public/predixsport/wta/wta_elo_ratings.csv ===
+FIELDS: season,date,player,tournament,surface,elo
+ROWS 60638 UNIQUE_NAMES 1407 MIN_DATE 2017-01-01 MAX_DATE 2026-06-29
+TARGET Arthur Fils ROWS 0 FIRST None LAST None
+TARGET Flavio Cobolli ROWS 0 FIRST None LAST None
+TARGET Brandon Nakashima ROWS 0 FIRST None LAST None
+TARGET Frances Tiafoe ROWS 0 FIRST None LAST None
+TARGET Sara Bejlek ROWS 54 FIRST 2022-08-29 LAST 2026-06-29
+TARGET Coco Gauff ROWS 278 FIRST 2019-07-01 LAST 2026-06-29
+TARGET Iga Swiatek ROWS 395 FIRST 2018-12-31 LAST 2026-06-29
+TARGET Jessica Pegula ROWS 390 FIRST 2017-09-11 LAST 2026-06-29
