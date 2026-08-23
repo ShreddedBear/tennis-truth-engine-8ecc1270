@@ -1,49 +1,93 @@
-name: Verified ATP WTA PBP Pipeline
+name: Verified ATP WTA PBP Pipeline v4
 
 on:
   workflow_dispatch:
   push:
     paths:
       - '.github/workflows/verified-pbp-pipeline.yml'
-      - 'scripts/verify-sackmann-pbp-v2.py'
-      - 'scripts/enforce-pbp-global-uniqueness.py'
-      - 'scripts/advance-pbp-pipeline.py'
-      - 'data/audit/verified-pbp/queue.json'
+      - 'scripts/verify-sackmann-pbp-v4.py'
+      - 'scripts/advance-pbp-pipeline-v4.py'
+      - 'data/audit/verified-pbp-v4/queue.json'
+  schedule:
+    - cron: '17 * * * *'
 
 permissions:
   contents: write
 
 concurrency:
-  group: verified-pbp-pipeline-main
+  group: verified-pbp-pipeline-v4-main
   cancel-in-progress: false
 
 jobs:
   next-batch:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
       - name: Install verifier dependencies
         run: python3 -m pip install --quiet pandas openpyxl xlrd
-      - name: Determine next unprocessed batch
+
+      - name: Determine next clean v4 batch
         id: next
         shell: bash
         run: |
-          mkdir -p data/audit/verified-pbp
-          NEXT="$(python3 scripts/advance-pbp-pipeline.py --next | tail -n1)"
+          mkdir -p data/audit/verified-pbp-v4
+          NEXT="$(python3 scripts/advance-pbp-pipeline-v4.py --next | tail -n1)"
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Next batch: $NEXT"
-      - name: Process next ATP/WTA year batch
+          echo "Next v4 batch: $NEXT"
+
+      - name: Verify one ATP/WTA year batch with firewalls
         if: steps.next.outputs.next != 'COMPLETE'
         shell: bash
         run: |
           read TOUR YEAR <<< "${{ steps.next.outputs.next }}"
-          python3 scripts/verify-sackmann-pbp-v2.py --tour "$TOUR" --year "$YEAR"
-          python3 scripts/enforce-pbp-global-uniqueness.py --tour "$TOUR" --year "$YEAR"
-          python3 scripts/advance-pbp-pipeline.py
-      - name: Persist checkpoint and queue continuation
+          python3 scripts/verify-sackmann-pbp-v4.py --tour "$TOUR" --year "$YEAR"
+          python3 scripts/advance-pbp-pipeline-v4.py
+
+      - name: Integrity gate before checkpoint
+        if: steps.next.outputs.next != 'COMPLETE'
+        shell: bash
+        run: |
+          read TOUR YEAR <<< "${{ steps.next.outputs.next }}"
+          python3 - "$TOUR" "$YEAR" <<'PY'
+          import json,sys
+          from pathlib import Path
+          tour,year=sys.argv[1],sys.argv[2]
+          root=Path('data/audit/verified-pbp-v4')
+          d=root/tour.lower()/year
+          s=json.loads((d/'summary.json').read_text())
+          maps=json.loads((d/'verified-mappings.json').read_text())
+          assert s.get('verifier_version')==4, 'wrong verifier version'
+          assert len(maps)==s.get('verified'), 'verified count/mapping mismatch'
+          hist_keys=set();pbp_keys=set()
+          for m in maps:
+            h=m['historical'];p=m['pbp_ref']
+            hk=(m['tour'],h.get('tourney_id'),h.get('match_num'),h.get('winner_id'),h.get('loser_id'))
+            pk=(p.get('source_file'),p.get('source_row'),p.get('pbp_sha256'))
+            assert hk not in hist_keys, f'duplicate historical match attachment: {hk}'
+            assert pk not in pbp_keys, f'duplicate PBP attachment: {pk}'
+            hist_keys.add(hk);pbp_keys.add(pk)
+            assert m['tour']==tour, 'tour firewall failure'
+            assert m.get('trust_level')=='LEVEL_1_RESULT_VERIFIED_PBP', 'untrusted attachment'
+            u=m.get('uniqueness',{})
+            assert u.get('forward_candidates')==1 and u.get('reverse_candidates')==1, 'uniqueness firewall failure'
+          # Global duplicate protection across every v4 checkpoint already persisted.
+          global_hist=set();global_pbp=set()
+          for f in root.glob('*/*/verified-mappings.json'):
+            for m in json.loads(f.read_text()):
+              h=m['historical'];p=m['pbp_ref']
+              hk=(m['tour'],h.get('tourney_id'),h.get('match_num'),h.get('winner_id'),h.get('loser_id'))
+              pk=(p.get('source_file'),p.get('source_row'),p.get('pbp_sha256'))
+              if hk in global_hist: raise SystemExit(f'GLOBAL HISTORICAL DUPLICATE: {hk}')
+              if pk in global_pbp: raise SystemExit(f'GLOBAL PBP DUPLICATE: {pk}')
+              global_hist.add(hk);global_pbp.add(pk)
+          print(f'Integrity gate passed: {len(maps)} verified attachments; no duplicate historical or PBP mappings.')
+          PY
+
+      - name: Persist checkpoint and queue next batch
         if: steps.next.outputs.next != 'COMPLETE'
         shell: bash
         run: |
@@ -51,24 +95,43 @@ jobs:
           import json
           from datetime import datetime,timezone
           from pathlib import Path
-          p=Path('data/audit/verified-pbp/progress.json');progress=json.loads(p.read_text())
-          q=Path('data/audit/verified-pbp/queue.json');q.write_text(json.dumps({'queued_at_utc':datetime.now(timezone.utc).isoformat(),'verifier_version':progress.get('verifier_version'),'next_resume_position':progress.get('next_resume_position'),'pipeline_complete':progress.get('pipeline_complete',False)},indent=2)+'\n')
-          cp=Path('data/audit/verified-pbp/checkpoint.json')
-          if cp.exists():
-            c=json.loads(cp.read_text());c['exact_next_resume_position']=progress.get('next_resume_position');c['remaining_batches']=progress['total_batches']-progress['completed_batches'];cp.write_text(json.dumps(c,indent=2)+'\n')
+          root=Path('data/audit/verified-pbp-v4')
+          progress=json.loads((root/'progress.json').read_text())
+          (root/'queue.json').write_text(json.dumps({
+            'queued_at_utc':datetime.now(timezone.utc).isoformat(),
+            'verifier_version':4,
+            'next_resume_position':progress.get('next_resume_position'),
+            'pipeline_complete':progress.get('pipeline_complete',False)
+          },indent=2)+'\n')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/audit/verified-pbp
+          git add data/audit/verified-pbp-v4
           if git diff --cached --quiet; then
-            echo 'No checkpoint changes to persist.'
+            echo 'No v4 checkpoint changes to persist.'
           else
-            git commit -m "Persist verified PBP v3 checkpoint: ${{ steps.next.outputs.next }}"
+            git commit -m "Persist verified PBP v4 checkpoint: ${{ steps.next.outputs.next }}"
             git pull --rebase origin main
             git push
           fi
-      - name: Show current progress
+
+      - name: Publish user-style progress update
         if: always()
         shell: bash
         run: |
-          if [ -f data/audit/verified-pbp/progress.md ]; then cat data/audit/verified-pbp/progress.md; fi
+          echo '===== PBP STATUS UPDATE ====='
+          if [ -f data/audit/verified-pbp-v4/progress.md ]; then cat data/audit/verified-pbp-v4/progress.md; fi
+          if [ "${{ steps.next.outputs.next }}" != 'COMPLETE' ]; then
+            read TOUR YEAR <<< "${{ steps.next.outputs.next }}"
+            FILE="data/audit/verified-pbp-v4/${TOUR,,}/$YEAR/UPDATE.md"
+            if [ -f "$FILE" ]; then
+              echo '===== LATEST BATCH ====='
+              cat "$FILE"
+            fi
+          fi
+
+      - name: Completion marker
+        if: steps.next.outputs.next == 'COMPLETE'
+        run: |
+          mkdir -p data/audit/verified-pbp-v4
+          printf 'ATP MAIN + WTA MAIN 2012 through current completed under verifier v4.\n' > data/audit/verified-pbp-v4/COMPLETE.txt
