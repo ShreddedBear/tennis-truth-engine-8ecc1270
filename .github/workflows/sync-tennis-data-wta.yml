@@ -85,3 +85,5 @@ jobs:
           if git diff --cached --quiet; then echo "No Tennis-Data WTA changes."; exit 0; fi
           git commit -m "Sync Tennis-Data WTA historical matches 2007-2016"
           git push origin HEAD:main
+
+# Triggered intentionally to populate the initial historical archive after integration.
