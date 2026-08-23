@@ -40,6 +40,7 @@ function semanticRequirement(name:string,body:string|null):keyof typeof groups|n
 }
 function validSide(value:string|null,required:keyof typeof groups|null){if(!value)return false;if(!required)return true;return containsAny(value,groups[required]);}
 
+const PROTECTED_EXACT_METRICS=new Set(["026","029","031","032","033"]);
 const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
   "026":[
     {name:"opening service-game hold",terms:["opening service game hold","first service game hold"]},
@@ -156,9 +157,22 @@ const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
 };
 function familyCode(code:string){const m=String(code).match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(code).padStart(3,"0");}
 function componentHits(value:string|null,components:Array<{name:string;terms:string[]}>){return components.filter(c=>containsAny(value,c.terms));}
-function validateCompositeSide(value:string|null,treatment:MetricFinding["p1_treatment"],sources:MetricFinding["sources"],components:Array<{name:string;terms:string[]}>){
+function playerTagged(value:string|null,expected:string){return Boolean(value)&&norm(value).includes(norm(`PLAYER=${expected}`));}
+function sourceTagged(value:string|null,sources:MetricFinding["sources"]){if(!value||!sources?.length)return false;const v=norm(value);return v.includes("source")&&sources.some(s=>s.source_name?.trim()&&v.includes(norm(s.source_name)));}
+function sampleTagged(value:string|null){return Boolean(value)&&norm(value).includes("sample");}
+function formulaTagged(value:string|null){return Boolean(value)&&norm(value).includes("formula");}
+function tagValue(value:string|null,key:string){if(!value)return null;const m=value.match(new RegExp(`${key}\\s*=\\s*([^;]+)`,"i"));return m?.[1]?.trim()??null;}
+function validateCompositeSide(value:string|null,treatment:MetricFinding["p1_treatment"],sources:MetricFinding["sources"],components:Array<{name:string;terms:string[]}>,expectedPlayer?:string,strictProvenance=false){
   if(treatment==="UNAVAILABLE"||treatment==="EXCLUDED"||!value)return{value,treatment,missing:[] as string[]};
   const hits=componentHits(value,components),missing=components.filter(c=>!hits.includes(c)).map(c=>c.name),hasSource=Boolean(sources?.length);
+  if(strictProvenance){
+    const metaMissing:string[]=[];
+    if(!expectedPlayer||!playerTagged(value,expectedPlayer))metaMissing.push(`PLAYER=${expectedPlayer??"expected player"}`);
+    if(!sourceTagged(value,sources))metaMissing.push("side-specific SOURCE matching persisted source list");
+    if(!sampleTagged(value))metaMissing.push("side-specific SAMPLE");
+    if(treatment==="RECONSTRUCTED"&&!formulaTagged(value))metaMissing.push("FORMULA for reconstructed evidence");
+    if(metaMissing.length)return{value:null,treatment:"UNAVAILABLE" as const,missing:[...missing,...metaMissing]};
+  }
   if(treatment==="DIRECT"){
     if(!missing.length&&hasSource)return{value,treatment,missing};
     if(hits.length&&hasSource)return{value,treatment:"PARTIAL" as const,missing};
@@ -173,18 +187,21 @@ function validateCompositeSide(value:string|null,treatment:MetricFinding["p1_tre
   return{value:null,treatment:"UNAVAILABLE" as const,missing:components.map(c=>c.name)};
 }
 
-export function validateMetric(metric:{code:string;name:string;body:string|null},finding:MetricFinding):MetricFinding{
-  const composite=COMPOSITE_COMPONENTS[familyCode(metric.code)];
+export function validateMetric(metric:{code:string;name:string;body:string|null},finding:MetricFinding,expected?:{p1:string;p2:string}):MetricFinding{
+  const code=familyCode(metric.code),composite=COMPOSITE_COMPONENTS[code],strict=PROTECTED_EXACT_METRICS.has(code)&&Boolean(expected);
   if(composite){
-    const p1=validateCompositeSide(finding.p1_value,finding.p1_treatment,finding.sources,composite),p2=validateCompositeSide(finding.p2_value,finding.p2_treatment,finding.sources,composite);
+    const p1=validateCompositeSide(finding.p1_value,finding.p1_treatment,finding.sources,composite,expected?.p1,strict),p2=validateCompositeSide(finding.p2_value,finding.p2_treatment,finding.sources,composite,expected?.p2,strict);
     const missing=[...new Set([...(p1.missing??[]),...(p2.missing??[])])];
+    const p1Sample=tagValue(p1.value,"SAMPLE"),p2Sample=tagValue(p2.value,"SAMPLE");
     return{
       ...finding,
       p1_value:p1.value,
       p2_value:p2.value,
       p1_treatment:p1.treatment,
       p2_treatment:p2.treatment,
-      unavailable_reason:(p1.treatment==="UNAVAILABLE"||p2.treatment==="UNAVAILABLE"||p1.treatment==="PARTIAL"||p2.treatment==="PARTIAL")&&missing.length?`Exact-component guard: unsupported components remain missing (${missing.join(", ")}). No proxy substitution permitted.`:finding.unavailable_reason,
+      evidence_family:strict?`EXACT_${code}`:finding.evidence_family,
+      sample:strict?`P1:${p1Sample??"UNAVAILABLE"} | P2:${p2Sample??"UNAVAILABLE"}`:finding.sample,
+      unavailable_reason:(p1.treatment==="UNAVAILABLE"||p2.treatment==="UNAVAILABLE"||p1.treatment==="PARTIAL"||p2.treatment==="PARTIAL")&&missing.length?`Exact-component guard: unsupported components remain missing (${missing.join(", ")}). No proxy substitution permitted. Side reversal or unverifiable provenance is also not permitted.`:finding.unavailable_reason,
       missing_inputs:missing.length?[...(finding.missing_inputs??[]),...missing]:finding.missing_inputs,
     };
   }
@@ -214,9 +231,14 @@ function mergeRuntimeIdentity(base:IdentityFinding,p1:string,p2:string):Identity
     sources:[...(base.sources??[]),...(a||b?[{source_name:"Bundled historical player index",url:null,retrieved_at:new Date().toISOString()}]:[])],
   };
 }
+function protectedInstruction(code:string,p1:string,p2:string){return PROTECTED_EXACT_METRICS.has(code)?`\nSTRICT POST-FIX WIRING RULE: do not use a neighboring statistic or proxy. Every usable side value MUST be self-identifying and self-provenancing in this exact form: PLAYER=<exact player name>; SOURCE=<one actual source_name also present in sources>; SAMPLE=<actual denominator/window, or UNAVAILABLE when the source publishes no sample>; <exact supported metric components>. RECONSTRUCTED additionally requires FORMULA=<formula using only master-permitted inputs>. P1 must use PLAYER=${p1}; P2 must use PLAYER=${p2}. If the player/source/sample mapping cannot be proved, return UNAVAILABLE for that side.`:"";}
 
 export const validatedCompletionResearcher:Researcher={
   ...completionSweepResearcher,
   async identity(input){return mergeRuntimeIdentity(await completionSweepResearcher.identity(input),input.p1,input.p2);},
-  async metrics(input){const rows=await completionSweepResearcher.metrics(input);const defs=new Map(input.metrics.map(m=>[String(m.code),m]));return rows.map(row=>{const def=defs.get(String(row.metric_code));return def?validateMetric(def,row):row;});},
+  async metrics(input){
+    const guarded={...input,metrics:input.metrics.map(m=>({...m,body:`${m.body??""}${protectedInstruction(familyCode(String(m.code)),input.p1,input.p2)}`}))};
+    const rows=await completionSweepResearcher.metrics(guarded);const defs=new Map(input.metrics.map(m=>[String(m.code),m]));
+    return rows.map(row=>{const def=defs.get(String(row.metric_code));return def?validateMetric(def,row,{p1:input.p1,p2:input.p2}):row;});
+  },
 };
