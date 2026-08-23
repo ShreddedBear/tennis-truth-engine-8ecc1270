@@ -21,7 +21,10 @@ import requests
 
 START_YEAR = 2007
 END_YEAR = 2016
-BASE = "https://www.tennis-data.co.uk"
+# Tennis-Data's legacy WTA season spreadsheets are published on HTTP URLs.
+# GitHub-hosted HTTPS requests to these old endpoints fail during TLS handshake,
+# while the archive references themselves use HTTP. Do not auto-upgrade them.
+BASE = "http://www.tennis-data.co.uk"
 OUT_DIR = Path("data/public/tennis-data-wta")
 OUT_CSV = OUT_DIR / "wta_matches_2007_2016.csv"
 REPORT = OUT_DIR / "DEDUP_REPORT.json"
@@ -65,7 +68,16 @@ def season_url(year: int) -> str:
 
 def download_year(year: int) -> pd.DataFrame:
     url = season_url(year)
-    r = requests.get(url, timeout=60, headers={"User-Agent": "TennisTruthEngine/1.0 historical-data-sync"})
+    r = requests.get(
+        url,
+        timeout=60,
+        allow_redirects=False,
+        headers={"User-Agent": "TennisTruthEngine/1.0 historical-data-sync"},
+    )
+    # A redirect back to HTTPS would recreate the broken TLS path. Fail loudly
+    # rather than silently bypassing provenance or accepting another endpoint.
+    if 300 <= r.status_code < 400:
+        raise RuntimeError(f"Tennis-Data legacy archive redirected unexpectedly for {year}: {r.status_code} {r.headers.get('Location')}")
     r.raise_for_status()
     suffix = ".xls" if year <= 2012 else ".xlsx"
     temp = OUT_DIR / f".tmp_{year}{suffix}"
@@ -140,15 +152,12 @@ def main() -> int:
         rows.extend(normalized)
 
     before = len(rows)
-    # Same canonical match can appear only once. Prefer the first exact season row.
     deduped: dict[str, dict[str, str]] = {}
     collisions: list[dict[str, str]] = []
     for row in rows:
         key = row["match_key"]
         if key in deduped:
             prev = deduped[key]
-            # If the canonical identity collides but winner differs, do not silently
-            # choose one: fail the sync so a human can inspect the upstream conflict.
             if norm(prev["winner"]) != norm(row["winner"]):
                 collisions.append({"match_key": key, "first": prev["winner"], "second": row["winner"]})
             continue
