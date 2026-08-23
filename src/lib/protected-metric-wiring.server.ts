@@ -15,9 +15,7 @@ const PROTECTED_COMPONENTS: Record<string, Component[]> = {
   "043": [
     { name: "favorite-role designation", terms: ["current favorite", "pre match favorite", "pre-match favorite", "favorite role", "favored player"] },
     { name: "favorite-role historical losses", terms: ["historical losses", "favorite losses", "losses as favorite", "favorite-role historical losses"] },
-    { name: "serve failure condition", terms: ["first serve", "serve condition", "serve failure", "serve deterioration"] },
-    { name: "return failure condition", terms: ["opponent return points won", "return condition", "return pressure", "return failure"] },
-    { name: "set-state failure condition", terms: ["third set", "deciding set", "set state", "set-state"] },
+    { name: "documented favorite failure-mode condition", terms: ["failure mode profile", "failure-mode profile", "failure condition", "low first serve", "first serve failure", "serve deterioration", "opponent return points won", "return pressure", "third set", "deciding set", "set state", "set-state"] },
     { name: "today's opponent compatibility", terms: ["today s opponent", "today's opponent", "opponent compatibility", "opponent can reproduce", "opponent can create"] },
   ],
   "044": [
