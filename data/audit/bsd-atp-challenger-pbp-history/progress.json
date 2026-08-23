@@ -1,0 +1,17 @@
+{
+  "updated_at_utc": "2026-08-23T23:58:52.757364+00:00",
+  "current_year": 2026,
+  "floor_year": 1968,
+  "years_scanned": 1,
+  "years_total": 59,
+  "years_with_confirmed_pbp": [
+    2026
+  ],
+  "earliest_confirmed_pbp_year": 2026,
+  "earliest_confirmed_pbp_date": "2026-01-11T13:00:00+00:00",
+  "total_atp_challenger_matches_examined": 306,
+  "total_usable_pbp": 304,
+  "total_no_pbp_or_unusable": 2,
+  "next_year": 2025,
+  "scan_complete": false
+}

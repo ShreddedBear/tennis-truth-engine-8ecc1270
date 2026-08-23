@@ -1,0 +1,18 @@
+{
+  "year": 2026,
+  "matches_listed_all_tours": 9600,
+  "atp_challenger_matches": 306,
+  "atp_challenger_pbp_requests": 306,
+  "pbp_available": 304,
+  "no_pbp_or_unusable": 2,
+  "list_failures": [
+    {
+      "offset": 9600,
+      "http_status": 502,
+      "body_type": "dict"
+    }
+  ],
+  "earliest_confirmed_pbp_date": "2026-01-11T13:00:00+00:00",
+  "latest_confirmed_pbp_date": "2026-04-19T07:00:00+00:00",
+  "generated_at_utc": "2026-08-23T23:58:52.723724+00:00"
+}
