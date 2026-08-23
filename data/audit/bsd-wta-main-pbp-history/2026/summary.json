@@ -1,0 +1,13 @@
+{
+  "year": 2026,
+  "matches_listed_all_tours": 20000,
+  "wta_main_matches": 3054,
+  "wta_main_pbp_requests": 3054,
+  "pbp_available": 2977,
+  "no_pbp_or_unusable": 77,
+  "list_failures": [],
+  "scan_valid_for_boundary": true,
+  "earliest_confirmed_pbp_date": "2026-01-02T00:00:00+00:00",
+  "latest_confirmed_pbp_date": "2026-07-22T18:05:00+00:00",
+  "generated_at_utc": "2026-08-23T23:57:21.212055+00:00"
+}
