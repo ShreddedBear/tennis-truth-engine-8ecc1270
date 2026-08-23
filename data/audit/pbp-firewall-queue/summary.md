@@ -1,0 +1,14 @@
+- Through year: **2026**
+- Eligible tour/year batches: **40**
+- Processed batches: **1**
+- Pending batches: **36**
+- Retryable blocked batches: **0**
+- Retryable failed batches: **3**
+- Verified PBP mappings: **2274**
+- Ambiguous left unresolved: **13**
+- Conflicts quarantined/not promoted: **0**
+- No-PBP records retained as unresolved: **1944**
+- Partial/review-required records: **0**
+- Global one-result/one-PBP firewall safe: **YES**
+- Global firewall violations: **0**
+- Challenger hard exclusion: **2018–2022**

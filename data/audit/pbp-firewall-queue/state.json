@@ -1,0 +1,64 @@
+{
+  "batches": {
+    "ATP_CHALLENGER:2012": {
+      "ambiguous": 13,
+      "attempts": 1,
+      "conflicts": 0,
+      "last_exit_code": 0,
+      "last_finished_at_utc": "2026-08-23T22:06:20.713653+00:00",
+      "last_started_at_utc": "2026-08-23T22:06:19.394923+00:00",
+      "no_pbp": 1944,
+      "partial": 0,
+      "status": "PROCESSED",
+      "summary_path": "data/audit/verified-pbp/atp_challenger/2012/summary.json",
+      "tour": "ATP_CHALLENGER",
+      "verified": 2274,
+      "year": 2012
+    },
+    "ATP_MAIN:2012": {
+      "attempts": 1,
+      "last_error": "retrieval_failures=2697",
+      "last_exit_code": 0,
+      "last_finished_at_utc": "2026-08-23T22:06:17.165703+00:00",
+      "last_started_at_utc": "2026-08-23T22:06:14.350643+00:00",
+      "status": "FAILED_RETRYABLE",
+      "summary_path": "data/audit/verified-pbp/atp_main/2012/summary.json",
+      "tour": "ATP_MAIN",
+      "year": 2012
+    },
+    "ATP_MAIN:2013": {
+      "attempts": 1,
+      "last_error": "retrieval_failures=2631",
+      "last_exit_code": 0,
+      "last_finished_at_utc": "2026-08-23T22:06:23.050493+00:00",
+      "last_started_at_utc": "2026-08-23T22:06:20.714300+00:00",
+      "status": "FAILED_RETRYABLE",
+      "summary_path": "data/audit/verified-pbp/atp_main/2013/summary.json",
+      "tour": "ATP_MAIN",
+      "year": 2013
+    },
+    "WTA_MAIN:2012": {
+      "attempts": 1,
+      "last_error": "retrieval_failures=538",
+      "last_exit_code": 0,
+      "last_finished_at_utc": "2026-08-23T22:06:19.394426+00:00",
+      "last_started_at_utc": "2026-08-23T22:06:17.166317+00:00",
+      "status": "FAILED_RETRYABLE",
+      "summary_path": "data/audit/verified-pbp/wta_main/2012/summary.json",
+      "tour": "WTA_MAIN",
+      "year": 2012
+    }
+  },
+  "created_at_utc": "2026-08-23T22:06:14.349597+00:00",
+  "hard_exclusions": {
+    "ATP_CHALLENGER": [
+      2018,
+      2019,
+      2020,
+      2021,
+      2022
+    ]
+  },
+  "schema_version": 1,
+  "updated_at_utc": "2026-08-23T22:06:23.050708+00:00"
+}

@@ -1,18 +1,18 @@
 {
   "verifier_version": 2,
   "tour": "ATP_MAIN",
-  "year": 2012,
-  "historical_matches": 2697,
-  "pbp_candidates": 2645,
+  "year": 2013,
+  "historical_matches": 2631,
+  "pbp_candidates": 2648,
   "verified": 0,
   "partial": 0,
   "ambiguous": 0,
   "conflicts": 0,
   "no_pbp": 0,
-  "retrieval_failures": 2697,
+  "retrieval_failures": 2631,
   "coverage_pct": 0.0,
-  "orphan_pbp": 2645,
+  "orphan_pbp": 2648,
   "independent_date_source": null,
   "all_time_meeting_search": "NOT_YET_GLOBAL_INDEXED",
-  "generated_at_utc": "2026-08-23T22:06:17.051141+00:00"
+  "generated_at_utc": "2026-08-23T22:06:22.937554+00:00"
 }
