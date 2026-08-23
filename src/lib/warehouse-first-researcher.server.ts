@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
+import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
@@ -130,24 +131,13 @@ export const warehouseFirstResearcher: Researcher = {
       return !a || !b || !USABLE.has(a.treatment) || !USABLE.has(b.treatment) || !a.value_text || !b.value_text;
     });
 
-    // Deterministic warehouse calculations run before any live provider call.
-    // These calculators only emit source-family-gated objective components and
-    // remain PARTIAL when the family is support-only.
-    const deterministicRows = (await Promise.all(missing.map((metric) =>
-      deterministicResultsScheduleMetric({
-        metricCode: metric.code,
-        p1,
-        p2,
-        asOfDate: date,
-        tournament,
-      }),
-    ))).filter((row): row is MetricFinding => Boolean(row));
+    const deterministicRows = (await Promise.all(missing.map(async (metric) => {
+      const ranking = await deterministicRankingMetric({ metricCode: metric.code, p1, p2, asOfDate: date });
+      if (ranking) return ranking;
+      return deterministicResultsScheduleMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament });
+    }))).filter((row): row is MetricFinding => Boolean(row));
     const deterministicByCode = new Map(deterministicRows.map((row) => [codeOf(row.metric_code), row]));
 
-    // Deterministic PARTIAL rows do not suppress live fallback. They are local,
-    // reproducible components; fallback may still complete the metric with other
-    // allowed evidence families. If fallback cannot improve it, the deterministic
-    // PARTIAL row is returned instead of discarding known warehouse evidence.
     let liveRows: MetricFinding[] = [];
     if (missing.length) {
       const observationPacket = await buildMetricObservationContext({ metrics: missing, p1, p2, asOfDate: date });
@@ -158,7 +148,7 @@ export const warehouseFirstResearcher: Researcher = {
           deterministic_components: {
             p1_value: row.p1_value,
             p2_value: row.p2_value,
-            treatment: "PARTIAL",
+            treatment: row.p1_treatment,
             evidence_family: row.evidence_family,
             sample: row.sample,
           },
@@ -197,11 +187,7 @@ export const warehouseFirstResearcher: Researcher = {
         continue;
       }
 
-      // Prefer a usable live completion/reconstruction over a support-only local
-      // component, but never replace known deterministic evidence with UNAVAILABLE.
-      const chosen = live && (USABLE.has(live.p1_treatment) || USABLE.has(live.p2_treatment))
-        ? live
-        : deterministic ?? live;
+      const chosen = live && (USABLE.has(live.p1_treatment) || USABLE.has(live.p2_treatment)) ? live : deterministic ?? live;
       if (!chosen) continue;
       output.push(chosen);
 

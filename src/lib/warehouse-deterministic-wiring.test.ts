@@ -20,6 +20,6 @@ describe("warehouse deterministic calculator wiring", () => {
   it("passes deterministic components into the metric-scoped fallback context", () => {
     expect(researcher).toContain("deterministic_components");
     expect(researcher).toContain("evidence_family: row.evidence_family");
-    expect(researcher).toContain('treatment: "PARTIAL"');
+    expect(researcher).toContain("treatment: row.p1_treatment");
   });
 });
