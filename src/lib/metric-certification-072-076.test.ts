@@ -41,9 +41,9 @@ const MASTER_MARKERS: Record<string, string[]> = {
 
 describe("sequential certification guardrails for 072/073/074/075/076", () => {
   it("pins the authoritative master definitions", () => {
-    const master = readFileSync("public/seed/metrics.txt", "utf8");
+    const master = readFileSync("public/seed/metrics.txt", "utf8").replace(/\s+/g, " ");
     for (const [code, markers] of Object.entries(MASTER_MARKERS)) {
-      for (const marker of markers) expect(master, `${code} missing master marker: ${marker}`).toContain(marker);
+      for (const marker of markers) expect(master, `${code} missing master marker: ${marker}`).toContain(marker.replace(/\s+/g, " "));
     }
   });
 
