@@ -1,5 +1,6 @@
 name: BSD ATP Challenger PBP Historical Scan
 
+# Kickoff: 2026-08-23 — scan current year backward to actual BSD PBP boundary.
 on:
   workflow_dispatch:
   push:
