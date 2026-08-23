@@ -19,6 +19,7 @@ import { getCourtContextStats } from "./court-context.server";
 import { getWeatherContextStats } from "./weather-context.server";
 import { getCommonOpponentEvidence } from "./predixsport-common.server";
 import { resolveLocalMatchContext } from "./local-match-context.server";
+import { buildTrustedInternalFinding } from "./trusted-internal-evidence";
 
 function isProviderFailure(error: unknown) {
   const m = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
