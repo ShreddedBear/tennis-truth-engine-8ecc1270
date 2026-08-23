@@ -1,15 +1,19 @@
 {
+  "verifier_version": 3,
   "tour": "ATP_MAIN",
   "year": 2012,
   "historical_matches": 2697,
   "pbp_candidates": 2645,
-  "verified": 162,
+  "verified": 0,
   "partial": 0,
   "ambiguous": 0,
-  "conflicts": 8,
-  "no_pbp": 2527,
-  "retrieval_failures": 0,
-  "coverage_pct": 6.01,
-  "orphan_pbp": 2483,
-  "generated_at_utc": "2026-08-23T21:46:54.579345+00:00"
+  "conflicts": 0,
+  "no_pbp": 0,
+  "retrieval_failures": 2697,
+  "coverage_pct": 0.0,
+  "orphan_pbp": 2645,
+  "independent_date_source": null,
+  "all_time_meeting_search": "1968-current",
+  "generated_at_utc": "2026-08-23T21:47:26.544580+00:00",
+  "all_time_index_errors": []
 }

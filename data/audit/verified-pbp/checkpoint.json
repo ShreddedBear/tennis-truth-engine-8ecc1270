@@ -1,18 +1,18 @@
 {
+  "verifier_version": 2,
   "last_processed_tour": "ATP_MAIN",
   "last_processed_year": 2012,
   "records_attempted": 2697,
-  "verified": 162,
+  "verified": 0,
   "partial": 0,
-  "no_pbp": 2527,
+  "no_pbp": 0,
   "ambiguous": 0,
-  "conflicts": 8,
-  "errors": 0,
-  "remaining": "computed by workflow from unprocessed year summaries",
+  "conflicts": 0,
+  "errors": 2697,
   "exact_next_resume_position": {
     "tour": "ATP_MAIN",
-    "year": 2012
+    "year": 2013
   },
-  "updated_at_utc": "2026-08-23T21:46:54.579345+00:00",
-  "remaining_batches": 30
+  "updated_at_utc": "2026-08-23T21:47:18.967244+00:00",
+  "remaining_batches": 29
 }

@@ -1,8 +1,9 @@
 {
-  "queued_at_utc": "2026-08-23T21:46:54.737879+00:00",
+  "queued_at_utc": "2026-08-23T21:47:26.668839+00:00",
+  "verifier_version": 3,
   "next_resume_position": {
     "tour": "ATP_MAIN",
-    "year": 2012
+    "year": 2013
   },
   "pipeline_complete": false
 }
