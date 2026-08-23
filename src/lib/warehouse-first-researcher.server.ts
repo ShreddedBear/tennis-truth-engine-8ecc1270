@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
+import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
@@ -31,6 +32,7 @@ export const warehouseFirstResearcher: Researcher = {
     const deterministicRows=(await Promise.all(missing.map(async metric=>{
       const ranking=await deterministicRankingMetric({metricCode:metric.code,p1,p2,asOfDate:date});if(ranking)return ranking;
       const rules=await deterministicRulesContextMetric({metricCode:metric.code,p1,p2,asOfDate:date,context:input.context});if(rules)return rules;
+      const environment=await deterministicEnvironmentMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});if(environment)return environment;
       return deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});
     }))).filter((row):row is MetricFinding=>Boolean(row));
     const deterministicByCode=new Map(deterministicRows.map(row=>[codeOf(row.metric_code),row]));
