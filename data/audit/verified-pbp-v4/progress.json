@@ -1,0 +1,29 @@
+{
+  "verifier_version": 4,
+  "updated_at_utc": "2026-08-23T22:00:43.463017+00:00",
+  "completed_batches": 1,
+  "total_batches": 30,
+  "completed_years": {
+    "ATP_MAIN": [
+      2012
+    ],
+    "WTA_MAIN": []
+  },
+  "totals": {
+    "historical_matches": 2697,
+    "pbp_candidates": 2645,
+    "verified": 0,
+    "partial": 0,
+    "ambiguous": 0,
+    "conflicts": 0,
+    "no_pbp": 1321,
+    "retrieval_failures": 0,
+    "access_limitations": 1376,
+    "coverage_pct": 0.0
+  },
+  "next_resume_position": {
+    "tour": "ATP_MAIN",
+    "year": 2013
+  },
+  "pipeline_complete": false
+}
