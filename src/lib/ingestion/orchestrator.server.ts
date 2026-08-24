@@ -9,12 +9,40 @@ const db = supabaseAdmin as any;
 
 type SourceId = "open_meteo" | "odds_api" | TourSource | RankingSource | RulesSource;
 
-async function runTracked<T>(sourceId: SourceId, jobType: string, fn: () => Promise<T>) {
+type IngestionResult = Record<string, unknown> & {
+  targets?: number;
+  observations_written?: number;
+  requests?: number;
+};
+
+const TARGET_BACKED_SOURCES = new Set<SourceId>([
+  "open_meteo",
+  "atp", "wta", "atp_challenger",
+  "atp_rankings", "wta_rankings",
+  "itf_rules", "atp_rules", "wta_rules",
+]);
+
+export function assertMeaningfulIngestion(sourceId: SourceId, result: IngestionResult) {
+  if (TARGET_BACKED_SOURCES.has(sourceId) && Number(result.targets ?? 0) <= 0) {
+    throw new Error(`No enabled ingestion target configured for requested source: ${sourceId}`);
+  }
+
+  if (sourceId === "odds_api" && Number(result.requests ?? 0) <= 0) {
+    throw new Error("The Odds API ingestion completed without making any historical API requests");
+  }
+
+  if (Number(result.observations_written ?? 0) <= 0) {
+    throw new Error(`Ingestion source ${sourceId} completed without producing any source observations`);
+  }
+}
+
+async function runTracked<T extends IngestionResult>(sourceId: SourceId, jobType: string, fn: () => Promise<T>) {
   const { data: run, error } = await db.from("source_ingestion_runs").insert({ source_id: sourceId, job_type: jobType, status: "RUNNING", started_at: new Date().toISOString() }).select("id").single();
   if (error) throw error;
   try {
     const result = await fn();
-    const written = Number((result as any)?.observations_written ?? 0);
+    assertMeaningfulIngestion(sourceId, result);
+    const written = Number(result.observations_written ?? 0);
     await db.from("source_ingestion_runs").update({ status: "COMPLETE", records_seen: written, records_inserted: written, metadata: result, completed_at: new Date().toISOString() }).eq("id", run.id);
     return result;
   } catch (err) {
