@@ -5,7 +5,18 @@ const requested = (process.env.INGEST_SOURCES ?? "open_meteo,odds_api")
   .map((value) => value.trim())
   .filter(Boolean) as SourceId[];
 
-const allowed = new Set<SourceId>(["open_meteo", "odds_api", "atp", "wta", "atp_challenger"]);
+const allowed = new Set<SourceId>([
+  "open_meteo",
+  "odds_api",
+  "atp",
+  "wta",
+  "atp_challenger",
+  "atp_rankings",
+  "wta_rankings",
+  "itf_rules",
+  "atp_rules",
+  "wta_rules",
+]);
 for (const source of requested) {
   if (!allowed.has(source)) throw new Error(`Unsupported ingestion source: ${source}`);
 }
