@@ -1,5 +1,7 @@
 {
-  "queued_at_utc": "2026-08-24T01:47:32.728513+00:00",
+  "queued_at_utc": "2026-08-24T03:38:00Z",
   "next_year": 2024,
-  "scan_complete": false
+  "scan_complete": false,
+  "resume_requested": true,
+  "resume_reason": "Resume stalled historical scan at persisted next_year without reprocessing 2025 or 2026"
 }
