@@ -7,6 +7,7 @@ import { deterministicResultsScheduleMetric } from "./deterministic-results-sche
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
+import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -22,6 +23,18 @@ async function lookup(metricCodes:string[],player:string,opponent:string,date:st
 function sourcesOf(row:StoredEvidence|undefined):MetricFinding["sources"]{return Array.isArray(row?.sources)?row!.sources!:[];}
 
 async function saveSide(args:{code:string;name:string;player:string;opponent:string;date:string;treatment:MetricFinding["p1_treatment"];value:string|null;reliability:number|null;sample:string|null;family:string|null;sources:MetricFinding["sources"];unavailableReason:string|null;}){const {code,name,player,opponent,date,treatment,value,reliability,sample,family,sources,unavailableReason}=args;if(!USABLE.has(treatment)||!value)return;const validUntil=new Date(Date.now()+ttlHours(code)*3_600_000).toISOString();const sourceIds=(sources??[]).map(source=>source.source_name).filter(Boolean);await db.from("metric_evidence_store").delete().eq("metric_code",code).eq("player_name",player).eq("opponent_name",opponent).eq("as_of_date",date).is("tournament",null).is("surface",null);await db.from("metric_evidence_store").insert({metric_code:code,metric_name:name,player_name:player,opponent_name:opponent,as_of_date:date,treatment,value_text:value,reliability,sample_label:sample,evidence_family:family,source_ids:sourceIds,sources:sources??[],unavailable_reason:unavailableReason,valid_until:validUntil,updated_at:new Date().toISOString()});}
+
+function mergeObservationPackets(base:Record<string,unknown>, extra:Record<string,unknown>){
+  const merged:Record<string,unknown>={...base};
+  for(const [code,value] of Object.entries(extra)){
+    const a=(merged[code]??{}) as Record<string,any>;
+    const b=(value??{}) as Record<string,any>;
+    const observations=[...(Array.isArray(a.observations)?a.observations:[]),...(Array.isArray(b.observations)?b.observations:[])];
+    const observedFamilies=[...new Set([...(Array.isArray(a.observed_families)?a.observed_families:[]),...(Array.isArray(b.observed_families)?b.observed_families:[])])];
+    merged[code]={...a,...b,observations,observed_families:observedFamilies,direct_satisfaction_allowed:Boolean(a.direct_satisfaction_allowed||b.direct_satisfaction_allowed)};
+  }
+  return merged;
+}
 
 export const warehouseFirstResearcher: Researcher = {
   ...finalMetricWiringResearcher,
@@ -40,7 +53,16 @@ export const warehouseFirstResearcher: Researcher = {
     const deterministicByCode=new Map(deterministicRows.map(row=>[codeOf(row.metric_code),row]));
 
     let liveRows:MetricFinding[]=[];
-    if(missing.length){const observationPacket=await buildMetricObservationContext({metrics:missing,p1,p2,asOfDate:date});for(const [code,row] of deterministicByCode){const existing=(observationPacket as Record<string,any>)[code]??{};(observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};}const context=appendMetricObservationContext(input.context,observationPacket);liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:missing});}
+    if(missing.length){
+      const [warehousePacket,bsdPbp]=await Promise.all([
+        buildMetricObservationContext({metrics:missing,p1,p2,asOfDate:date}),
+        buildBsdAtpChallengerPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
+      ]);
+      const observationPacket=mergeObservationPackets(warehousePacket,bsdPbp.packet);
+      for(const [code,row] of deterministicByCode){const existing=(observationPacket as Record<string,any>)[code]??{};(observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};}
+      const context=appendMetricObservationContext(input.context,{...observationPacket,_bsd_atp_challenger_pbp_status:bsdPbp.status});
+      liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:missing});
+    }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
 
     const output:MetricFinding[]=[];
