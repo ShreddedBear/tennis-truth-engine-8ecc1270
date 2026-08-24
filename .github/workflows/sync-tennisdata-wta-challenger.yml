@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'scripts/sync-tennisdata-wta-challenger.py'
+      - 'data/raw/tennisdata-wta/**'
       - '.github/workflows/sync-tennisdata-wta-challenger.yml'
 
 permissions:
@@ -25,6 +25,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify all six raw TennisData.app season files exist
+        run: |
+          set -euo pipefail
+          for y in 2021 2022 2023 2024 2025 2026; do
+            f="data/raw/tennisdata-wta/${y}-wta-season.csv"
+            if [ ! -s "$f" ]; then
+              echo "Missing required raw file: $f"
+              exit 1
+            fi
+          done
+
       - name: Mark sync running
         env:
           RUN_ID: ${{ github.run_id }}
@@ -37,19 +48,13 @@ jobs:
           p='data/public/tennisdata-wta-challenger/STATUS.json'
           json.dump({
             'state':'RUNNING',
-            'message':'GitHub Actions sync is currently running',
+            'message':'Local-file WTA 125 contamination-safe sync is running',
             'updated_at_utc':datetime.now(timezone.utc).isoformat(),
             'run_id':os.environ['RUN_ID'],
             'run_url':os.environ['RUN_URL']
           }, open(p,'w'), indent=2)
           open(p,'a').write('\n')
           PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/public/tennisdata-wta-challenger/STATUS.json
-          git commit -m 'Mark WTA Challenger sync running' || true
-          git pull --rebase origin main
-          git push origin HEAD:main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -59,10 +64,24 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pandas requests
 
-      - name: Sync WTA Challenger / WTA 125 history
-        env:
-          TENNISDATA_WTA_URL_TEMPLATE: ${{ secrets.TENNISDATA_WTA_URL_TEMPLATE }}
+      - name: Sync ONLY WTA Challenger / WTA 125 history
         run: python scripts/sync-tennisdata-wta-challenger.py
+
+      - name: Verify zero main-tour contamination
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('data/public/tennisdata-wta-challenger/IMPORT_MANIFEST.json')
+          if not p.exists():
+              raise SystemExit('IMPORT_MANIFEST.json missing')
+          m=json.loads(p.read_text())
+          if m.get('contamination_firewall') != 'PASS':
+              raise SystemExit('Contamination firewall did not PASS')
+          if m.get('main_tour_rows_integrated') != 0:
+              raise SystemExit(f"MAIN TOUR CONTAMINATION DETECTED: {m.get('main_tour_rows_integrated')}")
+          print('PASS: zero regular WTA main-tour rows integrated')
+          PY
 
       - name: Mark sync final status
         if: always()
@@ -71,6 +90,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          mkdir -p data/public/tennisdata-wta-challenger
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
@@ -78,7 +98,7 @@ jobs:
           p='data/public/tennisdata-wta-challenger/STATUS.json'
           json.dump({
             'state':state,
-            'message':'GitHub Actions sync completed successfully' if state == 'SUCCESS' else 'GitHub Actions sync failed; inspect the run URL',
+            'message':'WTA 125 sync completed with contamination firewall PASS' if state == 'SUCCESS' else 'WTA 125 sync failed; no unverified data should be integrated',
             'updated_at_utc':datetime.now(timezone.utc).isoformat(),
             'run_id':os.environ['RUN_ID'],
             'run_url':os.environ['RUN_URL']
@@ -86,13 +106,13 @@ jobs:
           open(p,'a').write('\n')
           PY
 
-      - name: Commit integrated match history and status
+      - name: Commit integrated WTA 125 history and status
         if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/public/tennisdata-wta-challenger
-          git commit -m 'Sync TennisData.app WTA Challenger 2021-2026 matches and status' || true
+          git commit -m 'Sync contamination-safe TennisData.app WTA 125 history' || true
           git pull --rebase origin main
           git push origin HEAD:main
 
