@@ -1031,6 +1031,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ingestion_targets: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          last_ingested_at: string | null
+          latitude: number | null
+          longitude: number | null
+          pullback_end: string | null
+          pullback_start: string | null
+          source_id: string
+          sport_key: string | null
+          target_key: string
+          timezone: string | null
+          tournament: string | null
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_ingested_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          pullback_end?: string | null
+          pullback_start?: string | null
+          source_id: string
+          sport_key?: string | null
+          target_key: string
+          timezone?: string | null
+          tournament?: string | null
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_ingested_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          pullback_end?: string | null
+          pullback_start?: string | null
+          source_id?: string
+          sport_key?: string | null
+          target_key?: string
+          timezone?: string | null
+          tournament?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       match_identity_records: {
         Row: {
           claimed_value: string | null
@@ -1240,6 +1294,87 @@ export type Database = {
             referencedColumns: ["metric_code"]
           },
         ]
+      }
+      metric_evidence_store: {
+        Row: {
+          as_of_date: string
+          computed_at: string
+          created_at: string
+          evidence_family: string | null
+          formula: string | null
+          id: string
+          input_observation_ids: string[]
+          metric_code: string
+          metric_name: string
+          opponent_name: string | null
+          player_name: string
+          reliability: number | null
+          sample_label: string | null
+          source_ids: string[]
+          sources: Json
+          surface: string | null
+          tournament: string | null
+          treatment: string
+          unavailable_reason: string | null
+          updated_at: string
+          user_id: string | null
+          valid_from: string | null
+          valid_until: string | null
+          value_text: string | null
+        }
+        Insert: {
+          as_of_date: string
+          computed_at?: string
+          created_at?: string
+          evidence_family?: string | null
+          formula?: string | null
+          id?: string
+          input_observation_ids?: string[]
+          metric_code: string
+          metric_name: string
+          opponent_name?: string | null
+          player_name: string
+          reliability?: number | null
+          sample_label?: string | null
+          source_ids?: string[]
+          sources?: Json
+          surface?: string | null
+          tournament?: string | null
+          treatment: string
+          unavailable_reason?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+          value_text?: string | null
+        }
+        Update: {
+          as_of_date?: string
+          computed_at?: string
+          created_at?: string
+          evidence_family?: string | null
+          formula?: string | null
+          id?: string
+          input_observation_ids?: string[]
+          metric_code?: string
+          metric_name?: string
+          opponent_name?: string | null
+          player_name?: string
+          reliability?: number | null
+          sample_label?: string | null
+          source_ids?: string[]
+          sources?: Json
+          surface?: string | null
+          tournament?: string | null
+          treatment?: string
+          unavailable_reason?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+          value_text?: string | null
+        }
+        Relationships: []
       }
       metric_registry: {
         Row: {
@@ -2181,6 +2316,138 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      source_ingestion_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          job_type: string
+          metadata: Json
+          records_inserted: number
+          records_seen: number
+          records_updated: number
+          requested_window_end: string | null
+          requested_window_start: string | null
+          source_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type: string
+          metadata?: Json
+          records_inserted?: number
+          records_seen?: number
+          records_updated?: number
+          requested_window_end?: string | null
+          requested_window_start?: string | null
+          source_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          metadata?: Json
+          records_inserted?: number
+          records_seen?: number
+          records_updated?: number
+          requested_window_end?: string | null
+          requested_window_start?: string | null
+          source_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      source_observations: {
+        Row: {
+          created_at: string
+          event_date: string | null
+          id: string
+          numeric_value: number | null
+          observation_key: string
+          observation_type: string
+          opponent_name: string | null
+          player_name: string | null
+          provenance: Json
+          raw_payload: Json | null
+          retrieved_at: string
+          sample_label: string | null
+          source_id: string
+          source_name: string
+          source_published_at: string | null
+          source_record_key: string | null
+          source_url: string | null
+          surface: string | null
+          text_value: string | null
+          tournament: string | null
+          unit: string | null
+          user_id: string | null
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          numeric_value?: number | null
+          observation_key: string
+          observation_type: string
+          opponent_name?: string | null
+          player_name?: string | null
+          provenance?: Json
+          raw_payload?: Json | null
+          retrieved_at?: string
+          sample_label?: string | null
+          source_id: string
+          source_name: string
+          source_published_at?: string | null
+          source_record_key?: string | null
+          source_url?: string | null
+          surface?: string | null
+          text_value?: string | null
+          tournament?: string | null
+          unit?: string | null
+          user_id?: string | null
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          numeric_value?: number | null
+          observation_key?: string
+          observation_type?: string
+          opponent_name?: string | null
+          player_name?: string | null
+          provenance?: Json
+          raw_payload?: Json | null
+          retrieved_at?: string
+          sample_label?: string | null
+          source_id?: string
+          source_name?: string
+          source_published_at?: string | null
+          source_record_key?: string | null
+          source_url?: string | null
+          surface?: string | null
+          text_value?: string | null
+          tournament?: string | null
+          unit?: string | null
+          user_id?: string | null
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: []
       }
       source_snapshots: {
         Row: {
