@@ -1,7 +1,5 @@
 name: BSD PBP Historical Boundary Test
 
-# Persist non-secret BSD boundary results to the repository so they remain readable after each run.
-# Queue continuation run at 2026-08-23T21:03Z; no verification logic changed.
 on:
   workflow_dispatch:
   push:
@@ -11,6 +9,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: bsd-pbp-historical-boundary-test
+  cancel-in-progress: true
 
 jobs:
   boundary-test:
@@ -28,7 +30,7 @@ jobs:
             exit 1
           fi
           echo 'BSD_TENNIS_API_KEY is available (value intentionally hidden).'
-      - name: Test actual BSD historical point-by-point responses
+      - name: Test 3 matches per year for ATP WTA and ATP Challenger
         run: python3 scripts/bsd-pbp-boundary-test.py
       - name: Show non-secret summary
         if: always()
@@ -41,6 +43,7 @@ jobs:
           mkdir -p data/audit/bsd-pbp-boundary
           cp artifacts/bsd-pbp-boundary/summary.md data/audit/bsd-pbp-boundary/summary.md
           cp artifacts/bsd-pbp-boundary/summary.json data/audit/bsd-pbp-boundary/summary.json
+          cp artifacts/bsd-pbp-boundary/year-summary.json data/audit/bsd-pbp-boundary/year-summary.json
           cp artifacts/bsd-pbp-boundary/results.json data/audit/bsd-pbp-boundary/results.json
           date -u +'%Y-%m-%dT%H:%M:%SZ' > data/audit/bsd-pbp-boundary/LAST_RUN_UTC.txt
           git config user.name 'github-actions[bot]'
@@ -49,7 +52,7 @@ jobs:
           if git diff --cached --quiet; then
             echo 'BSD boundary report unchanged.'
           else
-            git commit -m 'Persist BSD PBP historical boundary results'
+            git commit -m 'Persist BSD 3-match yearly PBP boundary results'
             git push
           fi
       - name: Upload boundary-test results
