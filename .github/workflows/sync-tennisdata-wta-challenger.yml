@@ -2,6 +2,12 @@ name: Sync TennisData.app WTA Challenger 2021-2026
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'data/raw/tennisdata-wta-challenger/direct-normalized/**'
+      - 'scripts/sync-tennisdata-wta-challenger.py'
+      - '.github/workflows/sync-tennisdata-wta-challenger.yml'
 
 permissions:
   contents: write
@@ -20,7 +26,73 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Staging guard
+      - name: Verify required normalized inputs
         run: |
-          echo 'Direct plain-CSV migration is being staged. Re-enable this workflow only after all normalized source files are committed.'
-          exit 1
+          set -euo pipefail
+          base=data/raw/tennisdata-wta-challenger/direct-normalized
+          test -s "$base/SOURCE_MANIFEST.json"
+          test -s "$base/BUNDLE_MANIFEST.json"
+          test -s "$base/events.csv"
+          test -s "$base/players-part01.csv"
+          test -s "$base/players-part02.csv"
+          for n in 01 02 03 04 05; do test -s "$base/matches.csv.xz.part${n}.b64"; done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pandas
+
+      - name: Sync ONLY WTA Challenger / WTA 125 history
+        run: python scripts/sync-tennisdata-wta-challenger.py
+
+      - name: Verify zero WTA Main contamination and full coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('data/public/tennisdata-wta-challenger/IMPORT_MANIFEST.json')
+          if not p.exists(): raise SystemExit('IMPORT_MANIFEST.json missing')
+          m=json.loads(p.read_text())
+          assert m.get('contamination_firewall')=='PASS', m
+          assert m.get('main_tour_rows_integrated')==0, m
+          assert m.get('source_rows')==7615, m
+          assert m.get('rows_after_validation')==7615, m
+          assert set(m.get('years',{}))=={'2021','2022','2023','2024','2025','2026'}, m
+          assert m.get('source_pre_normalization_gate_verified') is True, m
+          print('PASS: 7615 WTA Challenger/WTA 125 rows validated; zero WTA Main rows integrated')
+          PY
+
+      - name: Mark SUCCESS
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          p='data/public/tennisdata-wta-challenger/STATUS.json'
+          json.dump({'state':'SUCCESS','message':'WTA 125 sync completed with contamination firewall PASS','updated_at_utc':datetime.now(timezone.utc).isoformat(),'run_id':os.environ['RUN_ID'],'run_url':os.environ['RUN_URL']},open(p,'w'),indent=2)
+          open(p,'a').write('\n')
+          PY
+
+      - name: Commit validated WTA 125 history
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/public/tennisdata-wta-challenger
+          git diff --cached --quiet && exit 0
+          git commit -m 'Sync validated TennisData.app WTA 125 history'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+
+      - name: Upload audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tennisdata-wta-challenger-sync
+          path: data/public/tennisdata-wta-challenger/
+          if-no-files-found: warn
