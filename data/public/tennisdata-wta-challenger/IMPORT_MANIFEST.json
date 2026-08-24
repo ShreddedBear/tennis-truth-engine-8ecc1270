@@ -1,0 +1,50 @@
+{
+  "source": "TennisData.app user-supplied season CSVs",
+  "scope": "WTA Challenger / WTA 125 ONLY",
+  "input_transport": "HASH_VERIFIED_INDEPENDENT_BASE64_PARTS_XZ",
+  "source_pre_normalization_gate_verified": true,
+  "source_gate": "tour_type_human == WTA Chall AND tour_type == 4",
+  "years": {
+    "2021": {
+      "source_rows": 540,
+      "accepted_wta_challenger_rows": 540
+    },
+    "2022": {
+      "source_rows": 881,
+      "accepted_wta_challenger_rows": 881
+    },
+    "2023": {
+      "source_rows": 1096,
+      "accepted_wta_challenger_rows": 1096
+    },
+    "2024": {
+      "source_rows": 1374,
+      "accepted_wta_challenger_rows": 1374
+    },
+    "2025": {
+      "source_rows": 2092,
+      "accepted_wta_challenger_rows": 2092
+    },
+    "2026": {
+      "source_rows": 1632,
+      "accepted_wta_challenger_rows": 1632
+    }
+  },
+  "source_rows": 7615,
+  "rows_after_validation": 7615,
+  "main_tour_rows_integrated": 0,
+  "contamination_firewall": "PASS",
+  "missing_winner_rows": 57,
+  "missing_set_score_rows": 109,
+  "normalized_source_csv_sha256": "d9caab5a834dac98446cf964d3b232c0efc98e5154b169529fa8629d4895b42e",
+  "compressed_bundle_sha256": "e37aa1f715ef636c5570d4cf1ce3f06147f0973b0dfae1560b5510e2385ab0a4",
+  "original_filtered_source_sha256": {
+    "2021": "264fdb0bbe6918d435ee19844a40e62fee8373243b7f867f1c155b2c4230094e",
+    "2022": "517c2b822328c800e1dae4f319a7a32a379ecfe349dc740565cab123b672c53d",
+    "2023": "b95589e17ea8ca95398976fcb2622b10efaf563c2a48bb2e1b572c8b8920c22b",
+    "2024": "e5bd15b6cea62b2f7f3056c744d8dc7b8f9ce7174605890ad6d3a4a55abbe17a",
+    "2025": "3ad9623d4014c17c1343c27a9c82cfc5f7fe2c3e2b55c89f1d5103eb68852536",
+    "2026": "d0f4182c740d26c176866e05d96b8d0252514c80c99db3cb23e4266ba32bad8c"
+  },
+  "generated_at_utc": "2026-08-24T04:44:31.832927+00:00"
+}
