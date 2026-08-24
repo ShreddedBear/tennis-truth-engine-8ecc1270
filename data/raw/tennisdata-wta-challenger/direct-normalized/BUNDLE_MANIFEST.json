@@ -1,0 +1,14 @@
+{
+  "encoding": "base64(each part independently) -> concat decoded bytes -> xz decompress",
+  "source_csv_sha256": "d9caab5a834dac98446cf964d3b232c0efc98e5154b169529fa8629d4895b42e",
+  "compressed_sha256": "e37aa1f715ef636c5570d4cf1ce3f06147f0973b0dfae1560b5510e2385ab0a4",
+  "source_bytes": 330132,
+  "compressed_bytes": 47316,
+  "parts": [
+    {"file":"matches.csv.xz.part01.b64","b64_chars":12620,"decoded_bytes":9464,"sha256":"fee894962907ded7bb165e645e7a1a5c021246061f6da43fc71435c08f87f3c1"},
+    {"file":"matches.csv.xz.part02.b64","b64_chars":12620,"decoded_bytes":9464,"sha256":"e35e6e0495bb447439f31f24d91afead293c8db2ecd0a142df9b67fa673ed633"},
+    {"file":"matches.csv.xz.part03.b64","b64_chars":12620,"decoded_bytes":9464,"sha256":"504774b5b1fdec5bc583c8d393c8ab4d2037be434156b5f05c20212c72bb70a6"},
+    {"file":"matches.csv.xz.part04.b64","b64_chars":12620,"decoded_bytes":9464,"sha256":"4fe50d44a8114bb880540d5eccee20266f77f4095ee8aca3306ffec1518eb713"},
+    {"file":"matches.csv.xz.part05.b64","b64_chars":12616,"decoded_bytes":9460,"sha256":"a52fbbdc1068145bf382dd847597137c30c4e6ca9aebe740733f5d7af897c9d6"}
+  ]
+}
