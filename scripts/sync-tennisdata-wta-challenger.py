@@ -46,7 +46,7 @@ def load_years():
       2022:('gz','2022-compact.csv.gz.b64'),
       2023:('gz','2023-compact.csv.gz.b64'),
       2024:('gz','2024-compact.csv.gz.b64.part*'),
-      2025:('xz','2025-compact.csv.xz.b64.part*'),
+      2025:('xz','2025-v2.csv.xz.b64.part*'),
       2026:('xz','2026-compact.csv.xz.b64.part*'),
     }
     data={}
