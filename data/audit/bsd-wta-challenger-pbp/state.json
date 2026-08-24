@@ -3,31 +3,31 @@
   "source": "BSD",
   "start_year": 2025,
   "through_year": 2026,
-  "updated_at_utc": "2026-08-24T01:06:50.793703+00:00",
+  "updated_at_utc": "2026-08-24T01:31:42.204927+00:00",
   "totals": {
     "examined": 33037,
     "wta_challenger_matches": 1801,
-    "pbp_found": 1800,
+    "pbp_found": 0,
     "pbp_missing": 1,
-    "duplicates_skipped": 0,
+    "duplicates_skipped": 1800,
     "hash_collisions": 0,
     "http_failures": 0,
-    "new_records": 1800
+    "new_records": 0
   },
   "years": {
     "2026": {
       "examined": 20000,
       "wta_challenger_matches": 840,
-      "pbp_found": 840,
+      "pbp_found": 0,
       "pbp_missing": 0,
-      "new_records": 840
+      "new_records": 0
     },
     "2025": {
       "examined": 13037,
       "wta_challenger_matches": 961,
-      "pbp_found": 960,
+      "pbp_found": 0,
       "pbp_missing": 1,
-      "new_records": 960
+      "new_records": 0
     }
   },
   "unique_match_ids": 1800,
