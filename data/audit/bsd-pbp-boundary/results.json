@@ -49,38 +49,6 @@
   },
   {
     "year": 2026,
-    "tour": "ATP_MAIN",
-    "match_id": 20801,
-    "players": [
-      "Gunawan Trismuwantara",
-      "Denis Vishenchuk Vishenko"
-    ],
-    "tournament": "UTR PTT Bali Men +H 03",
-    "date": "2026-01-01T02:25:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 15,
-    "points_detected": 78,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2026,
-    "tour": "ATP_MAIN",
-    "match_id": 20507,
-    "players": [
-      "Parth Aggarwal",
-      "Vivek Kolluru"
-    ],
-    "tournament": "UTR PTT Bali Men +H 03",
-    "date": "2026-01-01T02:55:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 15,
-    "points_detected": 86,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2026,
     "tour": "WTA_MAIN",
     "match_id": 20748,
     "players": [
@@ -129,38 +97,6 @@
   },
   {
     "year": 2026,
-    "tour": "WTA_MAIN",
-    "match_id": 20883,
-    "players": [
-      "Rachel Wu",
-      "Ella Brownback"
-    ],
-    "tournament": "UTR PTT Waco Women 04",
-    "date": "2026-01-01T16:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 21,
-    "points_detected": 118,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2026,
-    "tour": "WTA_MAIN",
-    "match_id": 20925,
-    "players": [
-      "Alanis Hamilton",
-      "Taylor Goetz"
-    ],
-    "tournament": "UTR PTT Boca Raton Women 11",
-    "date": "2026-01-01T17:30:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 15,
-    "points_detected": 89,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2026,
     "tour": "ATP_CHALLENGER",
     "match_id": 22338,
     "players": [
@@ -204,38 +140,6 @@
     "pbp_available": "YES",
     "games_detected": 30,
     "points_detected": 152,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2026,
-    "tour": "ATP_CHALLENGER",
-    "match_id": 22342,
-    "players": [
-      "Joaquin Aguilar Cardozo",
-      "Christopher Li"
-    ],
-    "tournament": "Buenos Aires, Argentina",
-    "date": "2026-01-11T14:50:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 27,
-    "points_detected": 159,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2026,
-    "tour": "ATP_CHALLENGER",
-    "match_id": 22341,
-    "players": [
-      "Arklon Huertas Del Pino Cordova",
-      "Lucio Ratti"
-    ],
-    "tournament": "Buenos Aires, Argentina",
-    "date": "2026-01-11T15:25:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 14,
-    "points_detected": 73,
     "quality": "COMPLETE_OR_PARTIAL_PBP",
     "http_status": 200
   },
@@ -305,38 +209,6 @@
   },
   {
     "year": 2025,
-    "tour": "WTA_MAIN",
-    "match_id": 317,
-    "players": [
-      "Elsa Jacquemot",
-      "Simona Waltert"
-    ],
-    "tournament": "Canberra, Australia",
-    "date": "2025-01-01T01:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 17,
-    "points_detected": 100,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2025,
-    "tour": "WTA_MAIN",
-    "match_id": 318,
-    "players": [
-      "Marina Stakusic",
-      "Taylah Preston"
-    ],
-    "tournament": "Canberra, Australia",
-    "date": "2025-01-01T01:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 26,
-    "points_detected": 175,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2025,
     "tour": "ATP_MAIN",
     "match_id": 295,
     "players": [
@@ -364,38 +236,6 @@
     "pbp_available": "YES",
     "games_detected": 21,
     "points_detected": 107,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2025,
-    "tour": "ATP_MAIN",
-    "match_id": 298,
-    "players": [
-      "Cameron Norrie",
-      "Lorenzo Sonego"
-    ],
-    "tournament": "Hong Kong Men Singles",
-    "date": "2025-01-01T05:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 25,
-    "points_detected": 120,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2025,
-    "tour": "ATP_MAIN",
-    "match_id": 299,
-    "players": [
-      "Miomir Kecmanovi\u0107",
-      "Alexandre Muller"
-    ],
-    "tournament": "Hong Kong Men Singles",
-    "date": "2025-01-01T05:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 38,
-    "points_detected": 225,
     "quality": "COMPLETE_OR_PARTIAL_PBP",
     "http_status": 200
   },
@@ -444,38 +284,6 @@
     "pbp_available": "YES",
     "games_detected": 29,
     "points_detected": 173,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2025,
-    "tour": "ATP_CHALLENGER",
-    "match_id": 874,
-    "players": [
-      "Nikolas Sanchez Izquierdo",
-      "Tadeo Meneo"
-    ],
-    "tournament": "Buenos Aires, Argentina",
-    "date": "2025-01-12T15:55:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 14,
-    "points_detected": 75,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2025,
-    "tour": "ATP_CHALLENGER",
-    "match_id": 875,
-    "players": [
-      "Alex Barrena",
-      "Mariano Kestelboim"
-    ],
-    "tournament": "Buenos Aires, Argentina",
-    "date": "2025-01-12T16:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 20,
-    "points_detected": 136,
     "quality": "COMPLETE_OR_PARTIAL_PBP",
     "http_status": 200
   },
@@ -529,38 +337,6 @@
   },
   {
     "year": 2024,
-    "tour": "WTA_MAIN",
-    "match_id": 19,
-    "players": [
-      "Leolia Jeanjean",
-      "Daria Lodikova"
-    ],
-    "tournament": "Florianapolis, Brazil",
-    "date": "2024-12-02T13:00:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 20,
-    "points_detected": 124,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2024,
-    "tour": "WTA_MAIN",
-    "match_id": 2,
-    "players": [
-      "Tamara Korpatsch",
-      "Anna-Lena Friedsam"
-    ],
-    "tournament": "Angers, France",
-    "date": "2024-12-02T13:10:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 18,
-    "points_detected": 115,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2024,
     "tour": "ATP_MAIN",
     "match_id": 101,
     "players": [
@@ -605,38 +381,6 @@
     "games_detected": 33,
     "points_detected": 179,
     "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2024,
-    "tour": "ATP_MAIN",
-    "match_id": 103,
-    "players": [
-      "Arthur Fils",
-      "Joao Fonseca"
-    ],
-    "tournament": "Next Gen Finals",
-    "date": "2024-12-18T18:35:00+00:00",
-    "pbp_available": "YES",
-    "games_detected": 27,
-    "points_detected": 121,
-    "quality": "COMPLETE_OR_PARTIAL_PBP",
-    "http_status": 200
-  },
-  {
-    "year": 2024,
-    "tour": "ATP_MAIN",
-    "match_id": 105,
-    "players": [
-      "Juncheng Shang",
-      "Nishesh Basavareddy"
-    ],
-    "tournament": "Next Gen Finals",
-    "date": "2024-12-19T11:00:00+00:00",
-    "pbp_available": "NO",
-    "games_detected": 0,
-    "points_detected": 0,
-    "quality": "EMPTY_OR_METADATA_ONLY",
     "http_status": 200
   }
 ]
