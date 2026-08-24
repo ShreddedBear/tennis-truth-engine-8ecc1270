@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       sources:
-        description: Comma-separated sources (open_meteo,odds_api)
+        description: Comma-separated sources (open_meteo,odds_api,atp,wta,atp_challenger,atp_rankings,wta_rankings)
         required: false
         default: open_meteo,odds_api
       odds_max_requests:
@@ -19,24 +19,46 @@ on:
   schedule:
     - cron: "17 6 * * 1"
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   ingest:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
       INGEST_SOURCES: ${{ inputs.sources || 'open_meteo,odds_api' }}
-      ODDS_MAX_REQUESTS: ${{ inputs.odds_max_requests || '25' }}
-      ODDS_BACKFILL_FROM: "2020-06-06T00:00:00Z"
-      ODDS_REGIONS: "us"
-      ODDS_MARKETS: "h2h"
+      INGESTION_BRIDGE_URL: https://id-preview--e217cec6-8cf9-40d2-9443-14b4f8716490.lovable.app/api/warehouse-ingest
+      OIDC_AUDIENCE: tennis-truth-engine-warehouse-ingestion
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - name: Run historical ingestion
-        run: bun scripts/run-historical-ingestion.ts
+      - name: Trigger Lovable-managed warehouse ingestion
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IFS=',' read -ra SOURCES <<< "$INGEST_SOURCES"
+          for RAW_SOURCE in "${SOURCES[@]}"; do
+            SOURCE="$(echo "$RAW_SOURCE" | xargs)"
+            [ -n "$SOURCE" ] || continue
+
+            OIDC_JSON="$(curl --fail-with-body --silent --show-error \
+              -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+            OIDC_TOKEN="$(echo "$OIDC_JSON" | jq -r '.value')"
+            if [ -z "$OIDC_TOKEN" ] || [ "$OIDC_TOKEN" = "null" ]; then
+              echo "GitHub did not return an OIDC token" >&2
+              exit 1
+            fi
+            echo "::add-mask::$OIDC_TOKEN"
+
+            BODY="$(jq -nc --arg source "$SOURCE" '{sources:[$source]}')"
+            echo "Starting warehouse ingestion source: $SOURCE"
+            curl --fail-with-body --silent --show-error \
+              --max-time 600 \
+              -X POST "$INGESTION_BRIDGE_URL" \
+              -H "Authorization: Bearer $OIDC_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$BODY"
+            echo
+          done
