@@ -61,11 +61,21 @@ function normalizedFromObject(source:TourSource,url:string,target:Target,obj:Rec
   return rows;
 }
 
-async function request(url:string){ return fetch(url,{headers:{"user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",accept:"text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8","accept-language":"en-US,en;q=0.9","cache-control":"no-cache",pragma:"no-cache"}}); }
+function proTennisLiveKey(){ return process.env['PROTENNISLIVE_API_KEY']?.trim() || null; }
+async function request(url:string){
+  const headers:Record<string,string>={"user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",accept:"text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8","accept-language":"en-US,en;q=0.9","cache-control":"no-cache",pragma:"no-cache"};
+  if(url.includes("api.protennislive.com")){
+    const key=proTennisLiveKey();
+    if(!key) throw new Error("Missing PROTENNISLIVE_API_KEY for official ATP/Challenger ingestion");
+    headers["x-api-key"]=key;
+    headers["Authorization"]=`Bearer ${key}`;
+  }
+  return fetch(url,{headers});
+}
 async function fetchStructured(source:TourSource,url:string){
   const isAtpSource = source === "atp" || source === "atp_challenger";
   let res = await request(isAtpSource ? ATP_CALENDAR_FEED : url);
-  if(isAtpSource && !res.ok && url !== ATP_CALENDAR_FEED) res = await request(url);
+  if(isAtpSource && !res.ok) throw new Error(`Official ProTennisLive ATP feed returned ${res.status}; verify PROTENNISLIVE_API_KEY`);
   if(!res.ok) throw new Error(`${res.url||url} returned ${res.status}`);
   const effectiveUrl=res.url||url;
   const contentType=res.headers.get("content-type")??"";
