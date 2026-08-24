@@ -34,8 +34,9 @@ jobs:
           test -s data/raw/tennisdata-wta-challenger/2023-compact.csv.gz.b64
           test -s data/raw/tennisdata-wta-challenger/2024-compact.csv.gz.b64.part01
           test -s data/raw/tennisdata-wta-challenger/2024-compact.csv.gz.b64.part02
-          test -s data/raw/tennisdata-wta-challenger/2025-compact.csv.xz.b64.part01
-          test -s data/raw/tennisdata-wta-challenger/2025-compact.csv.xz.b64.part02
+          test -s data/raw/tennisdata-wta-challenger/2025-v2.csv.xz.b64.part01
+          test -s data/raw/tennisdata-wta-challenger/2025-v2.csv.xz.b64.part02
+          test -s data/raw/tennisdata-wta-challenger/2025-v2.csv.xz.b64.part03
           test -s data/raw/tennisdata-wta-challenger/2026-compact.csv.xz.b64.part01
           test -s data/raw/tennisdata-wta-challenger/2026-compact.csv.xz.b64.part02
 
