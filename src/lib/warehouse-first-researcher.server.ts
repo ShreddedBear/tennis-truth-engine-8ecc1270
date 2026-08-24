@@ -10,6 +10,7 @@ import { appendMetricObservationContext, buildMetricObservationContext } from ".
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
+import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -56,17 +57,19 @@ export const warehouseFirstResearcher: Researcher = {
 
     let liveRows:MetricFinding[]=[];
     if(missing.length){
-      const [warehousePacket,bsdAtpChallengerPbp,bsdAtpMainPbp,bsdWtaMainPbp]=await Promise.all([
+      const [warehousePacket,bsdAtpChallengerPbp,bsdAtpMainPbp,bsdWtaMainPbp,bsdWtaChallengerPbp]=await Promise.all([
         buildMetricObservationContext({metrics:missing,p1,p2,asOfDate:date}),
         buildBsdAtpChallengerPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdAtpMainPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdWtaMainPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
+        buildBsdWtaChallengerPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
       ]);
       let observationPacket=mergeObservationPackets(warehousePacket,bsdAtpChallengerPbp.packet);
       observationPacket=mergeObservationPackets(observationPacket,bsdAtpMainPbp.packet);
       observationPacket=mergeObservationPackets(observationPacket,bsdWtaMainPbp.packet);
+      observationPacket=mergeObservationPackets(observationPacket,bsdWtaChallengerPbp.packet);
       for(const [code,row] of deterministicByCode){const existing=(observationPacket as Record<string,any>)[code]??{};(observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};}
-      const context=appendMetricObservationContext(input.context,{...observationPacket,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status});
+      const context=appendMetricObservationContext(input.context,{...observationPacket,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
       liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:missing});
     }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
