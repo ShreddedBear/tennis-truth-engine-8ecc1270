@@ -26,12 +26,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify uploaded WTA-Challenger-only inputs exist
+      - name: Verify complete compact WTA-Challenger-only inputs exist
         run: |
           set -euo pipefail
-          test -s data/raw/tennisdata-wta-challenger/2021-wta-challenger-only.csv.gz.b64
-          test -s data/raw/tennisdata-wta-challenger/2022-wta-challenger-only.csv.gz.b64
-          test -s data/raw/tennisdata-wta-challenger/2023-2026-wta-challenger-only.zip.b64
+          test -s data/raw/tennisdata-wta-challenger/2021-compact.csv.gz.b64
+          test -s data/raw/tennisdata-wta-challenger/2022-compact.csv.gz.b64
+          test -s data/raw/tennisdata-wta-challenger/2023-compact.csv.gz.b64
+          test -s data/raw/tennisdata-wta-challenger/2024-compact.csv.gz.b64.part01
+          test -s data/raw/tennisdata-wta-challenger/2024-compact.csv.gz.b64.part02
+          test -s data/raw/tennisdata-wta-challenger/2025-compact.csv.xz.b64.part01
+          test -s data/raw/tennisdata-wta-challenger/2025-compact.csv.xz.b64.part02
+          test -s data/raw/tennisdata-wta-challenger/2026-compact.csv.xz.b64.part01
+          test -s data/raw/tennisdata-wta-challenger/2026-compact.csv.xz.b64.part02
 
       - name: Mark sync running
         env:
