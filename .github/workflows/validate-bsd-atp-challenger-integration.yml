@@ -3,6 +3,8 @@ name: Validate BSD ATP Challenger Integration
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - '.github/workflows/validate-bsd-atp-challenger-integration.yml'
       - 'src/lib/bsd-atp-challenger-pbp.server.ts'
