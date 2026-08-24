@@ -29,7 +29,29 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async saveConflicts(runId,rows){if(!rows.length)return;await db.from("source_conflicts").insert(rows.map(r=>({...r,audit_run_id:runId,user_id}))as never);},
     async getCalibration(){const{data:version}=await db.from("calibration_versions").select("id, label, version_number").eq("is_active",true).order("version_number",{ascending:false}).limit(1).maybeSingle();if(!version)return{version:null,buckets:[]};const{data:buckets}=await db.from("calibration_buckets").select("bucket_code, wp_min, wp_max, wins, graded").eq("calibration_version_id",version.id).order("wp_min");return{version,buckets:(buckets??[])as never};},
     async getDecisionId(runId){const{data}=await db.from("final_decisions").select("id").eq("audit_run_id",runId).maybeSingle();return data?.id??null;},
-    async saveDecision(runId,existingId,payload){if(existingId){const{error}=await db.from("final_decisions").update(payload as never).eq("id",existingId);if(error)throw new Error(`Database update failed (final_decisions): ${error.message}`);}else{const{error}=await db.from("final_decisions").insert({...payload,user_id}as never);if(error)throw new Error(`Database insert failed (final_decisions): ${error.message}`);}},
+    async saveDecision(runId,existingId,payload){
+      const extras = {
+        final_recommendation: payload["final_recommendation"] ?? null,
+        independent_winner: payload["independent_winner"] ?? null,
+        independent_range: payload["independent_range"] ?? null,
+        calibrated_range: payload["calibrated_range"] ?? null,
+        green_locked: payload["green_locked"] ?? null,
+        green_lock_reasons: payload["green_lock_reasons"] ?? [],
+      };
+      const persisted = {
+        audit_run_id: runId,
+        final_audit_color: payload["final_audit_color"] ?? null,
+        final_selection: payload["final_selection"] ?? payload["final_recommendation"] ?? null,
+        action: payload["action"] ?? payload["final_recommendation"] ?? null,
+        gate_report: { ...extras, ...((payload["gate_report"] && typeof payload["gate_report"] === "object") ? payload["gate_report"] as Record<string, unknown> : {}) },
+        completion_percent: payload["completion_percent"] ?? 0,
+        audit_complete: payload["audit_complete"] ?? true,
+        matrix_firewall_valid: payload["matrix_firewall_valid"] ?? false,
+        calibration_bucket: payload["calibration_bucket"] ?? null,
+        verified_win_rate: payload["verified_win_rate"] ?? null,
+      };
+      if(existingId){const{error}=await db.from("final_decisions").update(persisted as never).eq("id",existingId);if(error)throw new Error(`Database update failed (final_decisions): ${error.message}`);}else{const{error}=await db.from("final_decisions").insert({...persisted,user_id}as never);if(error)throw new Error(`Database insert failed (final_decisions): ${error.message}`);}
+    },
     async getConflicts(runId){const{data}=await db.from("source_conflicts").select("critical, resolution_status").eq("audit_run_id",runId);return(data??[])as never;},
     async getReconstructions(runId){const{data}=await db.from("reconstruction_results").select("status").eq("audit_run_id",runId);return(data??[])as never;},
     async saveCoverage(runId,rows){const mapped=rows.map(row=>({audit_run_id:row["audit_run_id"]??runId,player_side:row["player_side"],direct_count:row["direct_count"]??row["direct"]??0,reconstructed_count:row["reconstructed_count"]??row["reconstructed"]??0,partial_count:row["partial_count"]??row["partial"]??0,unavailable_count:row["unavailable_count"]??row["unavailable"]??0,excluded_count:row["excluded_count"]??row["excluded"]??0,total_count:row["total_count"]??row["total"]??0,usable_coverage_percent:row["usable_coverage_percent"]??row["usablePercent"]??0,execution_completion_percent:row["execution_completion_percent"]??row["executionPercent"]??0,recorded_at:row["recorded_at"]??new Date().toISOString(),user_id}));const{error}=await db.from("audit_coverage").upsert(mapped as never,{onConflict:"audit_run_id,player_side"});if(error)throw new Error(`Database write failed (audit_coverage): ${error.message}`);},
