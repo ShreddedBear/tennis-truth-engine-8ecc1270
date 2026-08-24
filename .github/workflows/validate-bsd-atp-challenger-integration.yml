@@ -29,11 +29,17 @@ jobs:
       - name: TypeScript/build validation
         run: npm run build
       - name: Validate ATP Challenger PBP contamination firewall
+        shell: bash
         run: |
+          set -euo pipefail
           test -f src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q "2025" src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -qi "challenger" src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -qi "wta" src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -qi "POINT_BY_POINT" src/lib/source-observation-metric-bridge.server.ts
-          grep -qi "POINT_BY_POINT" src/lib/metric-source-family-policy.ts
+          grep -q 'const COVERAGE_START = "2025-01-01"' src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q 'STRICT_ATP_CHALLENGER_ONLY' src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q 'circuit !== "ATP"' src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q 'wta 125' src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q 'atp main' src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q 'POINT_BY_POINT' src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q 'PBP_METRICS' src/lib/metric-source-family-policy.ts
+          grep -q 'allowed_families.includes(family)' src/lib/metric-source-family-policy.ts
+          grep -q 'buildMetricObservationContext' src/lib/source-observation-metric-bridge.server.ts
           echo 'ATP Challenger PBP integration/firewall validation passed.'
