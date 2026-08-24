@@ -7,7 +7,7 @@ from pathlib import Path
 
 BASE='https://sports.bzzoiro.com/tennis/api/v2'
 TOKEN=os.environ['BSD_TENNIS_API_KEY']
-HEAD={'Authorization':f'Token {TOKEN}','User-Agent':'tennis-truth-engine-wta-challenger-pbp/1.1'}
+HEAD={'Authorization':f'Token {TOKEN}','User-Agent':'tennis-truth-engine-wta-challenger-pbp/1.2'}
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'data'/'audit'/'bsd-wta-challenger-pbp'
 RAW=OUT/'matches.jsonl'; STATE=OUT/'state.json'; SUMMARY=OUT/'summary.md'
@@ -41,7 +41,6 @@ def load_existing():
             if not line.strip():continue
             try:r=json.loads(line)
             except:continue
-            # Revalidate persisted payload before counting it as stored PBP.
             if not pbp_meaningful(r.get('pbp')):continue
             by_id[str(r.get('match_id'))]=r
             if r.get('pbp_sha256'):by_hash[r['pbp_sha256']]=r
@@ -64,7 +63,8 @@ def main():
                 mid=m.get('id')
                 if mid is None:continue
                 if str(mid) in by_id:
-                    counters['duplicates_already_stored']+=1;yc['already_stored']+=1;yc['pbp_confirmed_this_scan']+=1;counters['pbp_confirmed_this_scan']+=1
+                    counters['duplicates_already_stored']+=1;yc['already_stored']+=1
+                    counters['pbp_confirmed_this_scan']+=1;yc['pbp_confirmed_this_scan']+=1
                     continue
                 ps,payload=get(f'/matches/{mid}/point-by-point/')
                 if ps!=200 or not pbp_meaningful(payload):
