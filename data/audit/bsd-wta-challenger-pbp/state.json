@@ -3,13 +3,13 @@
   "source": "BSD",
   "start_year": 2025,
   "through_year": 2026,
-  "updated_at_utc": "2026-08-24T01:31:42.204927+00:00",
+  "updated_at_utc": "2026-08-24T02:45:29.247963+00:00",
   "totals": {
     "examined": 33037,
     "wta_challenger_matches": 1801,
-    "pbp_found": 0,
+    "pbp_confirmed_this_scan": 1800,
     "pbp_missing": 1,
-    "duplicates_skipped": 1800,
+    "duplicates_already_stored": 1800,
     "hash_collisions": 0,
     "http_failures": 0,
     "new_records": 0
@@ -18,21 +18,28 @@
     "2026": {
       "examined": 20000,
       "wta_challenger_matches": 840,
-      "pbp_found": 0,
+      "pbp_confirmed_this_scan": 840,
       "pbp_missing": 0,
+      "already_stored": 840,
       "new_records": 0
     },
     "2025": {
       "examined": 13037,
       "wta_challenger_matches": 961,
-      "pbp_found": 0,
+      "pbp_confirmed_this_scan": 960,
       "pbp_missing": 1,
+      "already_stored": 960,
       "new_records": 0
     }
   },
-  "unique_match_ids": 1800,
-  "unique_pbp_hashes": 1800,
+  "stored_pbp_by_year": {
+    "2026": 840,
+    "2025": 960
+  },
+  "unique_stored_match_ids": 1800,
+  "unique_stored_pbp_hashes": 1800,
   "firewall": {
+    "persisted_pbp_revalidated": true,
     "match_id_unique": true,
     "pbp_hash_unique": true,
     "other_tours_excluded": true
