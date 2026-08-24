@@ -1,0 +1,67 @@
+name: Deploy Supabase Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Type DEPLOY to allow production migrations'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-migrations
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate migration deployment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require explicit production confirmation
+        run: |
+          if [ "${{ inputs.confirm_production }}" != "DEPLOY" ]; then
+            echo "Refusing production migration: confirm_production must equal DEPLOY"
+            exit 1
+          fi
+      - name: Verify warehouse repair migration exists
+        run: |
+          test -d supabase/migrations
+          grep -RIl "metric_evidence_store" supabase/migrations >/dev/null
+          grep -RIl "source_observations" supabase/migrations >/dev/null
+
+  deploy:
+    name: Deploy migrations to production Supabase
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Require deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required GitHub secret: $name"
+              exit 1
+            fi
+          done
+      - name: Link production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+      - name: Preview pending migrations
+        run: supabase db push --dry-run --password "$SUPABASE_DB_PASSWORD"
+      - name: Apply pending migrations
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Verify migration state
+        run: supabase migration list
