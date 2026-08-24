@@ -1,0 +1,41 @@
+name: BSD PBP Direct-ID Boundary Probe v2
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bsd-pbp-boundary-probe-v2.yml'
+      - 'scripts/bsd-pbp-boundary-probe-v2.py'
+permissions:
+  contents: write
+concurrency:
+  group: bsd-pbp-direct-id-boundary-v2
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify BSD secret
+        run: test -n "$BSD_TENNIS_API_KEY"
+      - name: Discover historical BSD match IDs and direct-test PBP
+        run: python3 scripts/bsd-pbp-boundary-probe-v2.py
+      - name: Persist report
+        if: success()
+        run: |
+          mkdir -p data/audit/bsd-pbp-boundary-v2
+          cp artifacts/bsd-pbp-boundary-v2/* data/audit/bsd-pbp-boundary-v2/
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > data/audit/bsd-pbp-boundary-v2/LAST_RUN_UTC.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-pbp-boundary-v2
+          git diff --cached --quiet || (git commit -m 'Persist BSD direct-ID boundary v2 results' && git push)
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsd-pbp-boundary-v2
+          path: artifacts/bsd-pbp-boundary-v2/
+          if-no-files-found: warn
