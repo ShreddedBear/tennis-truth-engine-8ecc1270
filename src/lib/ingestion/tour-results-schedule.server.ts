@@ -120,7 +120,6 @@ function normalizedFromObject(source: TourSource, url: string, target: Target, o
     source_id: source,
     source_name: SOURCE_NAMES[source],
     source_url: url,
-    source_record_key: identity,
     tournament,
     event_date: eventDate,
     surface,
@@ -135,6 +134,7 @@ function normalizedFromObject(source: TourSource, url: string, target: Target, o
   if (looksLikeMatch) {
     rows.push({
       ...common,
+      source_record_key: `${identity}:match_record:${player1}`,
       player_name: player1,
       opponent_name: player2,
       observation_type: "MATCH_RESULT_OR_SCHEDULE",
@@ -146,6 +146,7 @@ function normalizedFromObject(source: TourSource, url: string, target: Target, o
   if (looksLikeSchedule) {
     rows.push({
       ...common,
+      source_record_key: `${identity}:event_schedule`,
       player_name: null,
       opponent_name: null,
       observation_type: "TOURNAMENT_SCHEDULE",
@@ -160,8 +161,11 @@ function normalizedFromObject(source: TourSource, url: string, target: Target, o
 async function fetchStructured(url: string) {
   const res = await fetch(url, {
     headers: {
-      "user-agent": "TennisTruthEngine/1.0 (+warehouse ingestion)",
-      accept: "text/html,application/json;q=0.9,*/*;q=0.8",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      "cache-control": "no-cache",
+      pragma: "no-cache",
     },
   });
   if (!res.ok) throw new Error(`${url} returned ${res.status}`);
@@ -171,15 +175,13 @@ async function fetchStructured(url: string) {
 }
 
 async function writeRows(rows: Observation[]) {
-  // Hard gate: this adapter is allowed to create RESULTS_SCHEDULE observations only.
-  // If a future parser accidentally labels one as ranking/market/etc., fail before DB write.
   for (const row of rows) assertObservationFamily(row, "RESULTS_SCHEDULE");
 
   let written = 0;
   for (let i = 0; i < rows.length; i += 500) {
     const chunk = rows.slice(i, i + 500);
     const { error } = await db.from("source_observations").upsert(chunk, {
-      onConflict: "source_id,source_record_key,player_name,observation_key,event_date,text_value,numeric_value",
+      onConflict: "source_id,source_record_key",
       ignoreDuplicates: true,
     });
     if (error) throw error;
@@ -213,7 +215,7 @@ export async function ingestTourResultsAndSchedules(source: TourSource) {
     const dedupe = new Map<string, Observation>();
     for (const obj of objects) {
       for (const row of normalizedFromObject(source, url, target, obj)) {
-        dedupe.set(`${row.source_record_key}:${row.observation_key}:${row.player_name ?? ""}`, row);
+        dedupe.set(row.source_record_key, row);
       }
     }
     observationsWritten += await writeRows([...dedupe.values()]);
