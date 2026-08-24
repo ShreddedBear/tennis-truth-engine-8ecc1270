@@ -4,9 +4,9 @@ from collections import defaultdict
 
 BASE='https://sports.bzzoiro.com/tennis/api/v2'
 TOKEN=os.environ['BSD_TENNIS_API_KEY']
-HEAD={'Authorization':f'Token {TOKEN}','User-Agent':'tennis-truth-engine-bsd-boundary-test/1.0'}
+HEAD={'Authorization':f'Token {TOKEN}','User-Agent':'tennis-truth-engine-bsd-boundary-test/1.1'}
 YEARS=list(range(2026,1999,-1))
-TARGET=5
+TARGET=3
 MAX_PAGES=8
 
 def get(path, params=None):
@@ -54,7 +54,6 @@ def count_points(x):
 def has_pbp(x):
     g,p=count_points(x)
     if p>0: return True,g,p
-    # tolerate APIs returning flat point/game event arrays
     blob=json.dumps(x).lower() if x else ''
     meaningful=('server' in blob and ('15' in blob or '40' in blob or 'point' in blob))
     return meaningful,g,p
@@ -77,11 +76,10 @@ for year in YEARS:
             if not mid: continue
             ps,payload=get(f'/matches/{mid}/point-by-point/')
             ok,g,p=has_pbp(payload) if ps==200 else (False,0,0)
-            raw=json.dumps(payload).lower() if payload is not None else ''
             if ok: quality='COMPLETE_OR_PARTIAL_PBP'
             elif ps==200 and payload: quality='EMPTY_OR_METADATA_ONLY'
             else: quality='NO_PBP'
-            row={'year':year,'tour':tour,'match_id':mid,'players':[ (m.get('player1') or {}).get('name'),(m.get('player2') or {}).get('name') ],'tournament':(m.get('tournament') or {}).get('name'),'date':m.get('match_date'),'pbp_available':'YES' if ok else 'NO','games_detected':g,'points_detected':p,'quality':quality,'http_status':ps}
+            row={'year':year,'tour':tour,'match_id':mid,'players':[(m.get('player1') or {}).get('name'),(m.get('player2') or {}).get('name')],'tournament':(m.get('tournament') or {}).get('name'),'date':m.get('match_date'),'pbp_available':'YES' if ok else 'NO','games_detected':g,'points_detected':p,'quality':quality,'http_status':ps}
             rows.append(row); by[(year,tour)].append(row); need[tour]-=1
             print(json.dumps(row,separators=(',',':')),flush=True)
             time.sleep(.15)
@@ -90,22 +88,29 @@ for year in YEARS:
     print(f'YEAR_DONE {year} counts='+json.dumps({t:len(by[(year,t)]) for t in need}),flush=True)
 
 summary=[]
+year_summary=[]
+for y in YEARS:
+    for tour in ('ATP_MAIN','WTA_MAIN','ATP_CHALLENGER'):
+        rr=by[(y,tour)]
+        year_summary.append({'year':y,'tour':tour,'matches_tested':len(rr),'successful_pbp':sum(r['pbp_available']=='YES' for r in rr),'no_pbp':sum(r['pbp_available']=='NO' for r in rr)})
 for tour in ('ATP_MAIN','WTA_MAIN','ATP_CHALLENGER'):
     confirmed=[]
     for y in YEARS:
         rr=by[(y,tour)]
-        succ=sum(r['pbp_available']=='YES' for r in rr)
-        if succ: confirmed.append(y)
+        if any(r['pbp_available']=='YES' for r in rr): confirmed.append(y)
     earliest=min(confirmed) if confirmed else None
     allr=[r for r in rows if r['tour']==tour]
     summary.append({'tour':tour,'earliest_confirmed_pbp_year':earliest,'matches_tested':len(allr),'successful_pbp':sum(r['pbp_available']=='YES' for r in allr),'no_pbp':sum(r['pbp_available']=='NO' for r in allr),'confidence':'BOUNDARY_REQUIRES_REVIEW' if earliest else 'NO_CONFIRMED_PBP'})
 
-# Boundary verification: test extra matches in earliest-1, earliest, earliest+1 by requesting additional offsets.
-# Main sweep already tests >=5/year where classifiable; summary preserves exact observations without guessing.
 os.makedirs('artifacts/bsd-pbp-boundary',exist_ok=True)
 with open('artifacts/bsd-pbp-boundary/results.json','w') as f: json.dump(rows,f,indent=2)
+with open('artifacts/bsd-pbp-boundary/year-summary.json','w') as f: json.dump(year_summary,f,indent=2)
 with open('artifacts/bsd-pbp-boundary/summary.json','w') as f: json.dump(summary,f,indent=2)
 with open('artifacts/bsd-pbp-boundary/summary.md','w') as f:
     f.write('| Tour | Earliest Confirmed PBP Year | Matches Tested | Successful PBP | No PBP | Confidence |\n|---|---:|---:|---:|---:|---|\n')
     for s in summary: f.write(f"| {s['tour']} | {s['earliest_confirmed_pbp_year'] or 'NONE'} | {s['matches_tested']} | {s['successful_pbp']} | {s['no_pbp']} | {s['confidence']} |\n")
+    f.write('\n## Year-by-year (3 matches max per tour/year)\n\n')
+    f.write('| Year | Tour | Tested | PBP Yes | PBP No |\n|---:|---|---:|---:|---:|\n')
+    for s in year_summary:
+        f.write(f"| {s['year']} | {s['tour']} | {s['matches_tested']} | {s['successful_pbp']} | {s['no_pbp']} |\n")
 print('FINAL_SUMMARY '+json.dumps(summary),flush=True)
