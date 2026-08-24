@@ -54,11 +54,47 @@ jobs:
 
             BODY="$(jq -nc --arg source "$SOURCE" '{sources:[$source]}')"
             echo "Starting warehouse ingestion source: $SOURCE"
-            curl --fail-with-body --silent --show-error \
+            RESPONSE="$(curl --fail-with-body --silent --show-error \
               --max-time 600 \
               -X POST "$INGESTION_BRIDGE_URL" \
               -H "Authorization: Bearer $OIDC_TOKEN" \
               -H "Content-Type: application/json" \
-              --data "$BODY"
-            echo
+              --data "$BODY")"
+
+            echo "$RESPONSE" | jq .
+
+            OK="$(echo "$RESPONSE" | jq -r '.ok // false')"
+            RETURNED_SOURCE="$(echo "$RESPONSE" | jq -r '.sources[0] // empty')"
+            WRITTEN="$(echo "$RESPONSE" | jq -r --arg source "$SOURCE" '.result[$source].observations_written // 0')"
+            TARGETS="$(echo "$RESPONSE" | jq -r --arg source "$SOURCE" '.result[$source].targets // 0')"
+            REQUESTS="$(echo "$RESPONSE" | jq -r --arg source "$SOURCE" '.result[$source].requests // 0')"
+
+            if [ "$OK" != "true" ]; then
+              echo "Bridge did not return ok=true for $SOURCE" >&2
+              exit 1
+            fi
+            if [ "$RETURNED_SOURCE" != "$SOURCE" ]; then
+              echo "Bridge response source mismatch: requested=$SOURCE returned=$RETURNED_SOURCE" >&2
+              exit 1
+            fi
+            if [ "$WRITTEN" -le 0 ]; then
+              echo "False-green prevention: $SOURCE reported zero observations_written" >&2
+              exit 1
+            fi
+            case "$SOURCE" in
+              open_meteo|atp|wta|atp_challenger|atp_rankings|wta_rankings|itf_rules|atp_rules|wta_rules)
+                if [ "$TARGETS" -le 0 ]; then
+                  echo "False-green prevention: $SOURCE reported zero enabled targets" >&2
+                  exit 1
+                fi
+                ;;
+              odds_api)
+                if [ "$REQUESTS" -le 0 ]; then
+                  echo "False-green prevention: odds_api reported zero historical requests" >&2
+                  exit 1
+                fi
+                ;;
+            esac
+
+            echo "Persistence proof accepted for $SOURCE: observations_written=$WRITTEN targets=$TARGETS requests=$REQUESTS"
           done
