@@ -29,16 +29,43 @@ def _decode_b64_text(text:str)->bytes:
     s += '='*((4-len(s)%4)%4)
     return base64.b64decode(s,validate=True)
 
-def _read_parts(pattern:str)->str:
+def _parts(pattern:str):
     parts=sorted(RAW.glob(pattern))
     if not parts: raise RuntimeError(f'missing required compact input: {pattern}')
-    return ''.join(p.read_text().strip() for p in parts)
+    return parts
 
-def _df_gz(text:str)->pd.DataFrame:
-    return pd.read_csv(io.BytesIO(gzip.decompress(_decode_b64_text(text))),low_memory=False)
+def _decompress(raw:bytes,kind:str)->bytes:
+    return gzip.decompress(raw) if kind=='gz' else lzma.decompress(raw)
 
-def _df_xz(text:str)->pd.DataFrame:
-    return pd.read_csv(io.BytesIO(lzma.decompress(_decode_b64_text(text))),low_memory=False)
+def _load_encoded_csv(year:int,kind:str,pattern:str)->pd.DataFrame:
+    parts=_parts(pattern)
+    texts=[p.read_text().strip() for p in parts]
+    print(f'{year}: loading {len(parts)} input part(s): {[p.name for p in parts]}')
+
+    # Strategy A: parts are slices of one base64 stream.
+    joined=''.join(texts)
+    try:
+        raw=_decode_b64_text(joined)
+        csv_bytes=_decompress(raw,kind)
+        print(f'{year}: decoded using joined-base64 strategy')
+        return pd.read_csv(io.BytesIO(csv_bytes),low_memory=False)
+    except Exception as joined_exc:
+        print(f'{year}: joined-base64 strategy failed: {type(joined_exc).__name__}: {joined_exc}')
+
+    # Strategy B: each part was base64-encoded independently after binary chunking.
+    # Decode each part separately, concatenate the binary chunks, then decompress once.
+    try:
+        raw=b''.join(_decode_b64_text(t) for t in texts)
+        csv_bytes=_decompress(raw,kind)
+        print(f'{year}: decoded using per-part-base64 strategy')
+        return pd.read_csv(io.BytesIO(csv_bytes),low_memory=False)
+    except Exception as part_exc:
+        lengths=[len(''.join(t.split())) for t in texts]
+        raise RuntimeError(
+            f'{year}: encoded input is unreadable; pattern={pattern}; '
+            f'base64_char_lengths={lengths}; '
+            f'per-part error={type(part_exc).__name__}: {part_exc}'
+        ) from part_exc
 
 def load_years():
     specs={
@@ -51,8 +78,7 @@ def load_years():
     }
     data={}
     for year,(kind,pattern) in specs.items():
-        text=_read_parts(pattern)
-        data[year]=_df_gz(text) if kind=='gz' else _df_xz(text)
+        data[year]=_load_encoded_csv(year,kind,pattern)
     return data
 
 def validate_source(year,df):
