@@ -1,0 +1,12 @@
+{
+  "year": 2026,
+  "matches_listed_all_tours": 20000,
+  "atp_main_matches": 3172,
+  "atp_main_pbp_requests": 3172,
+  "pbp_available": 2730,
+  "no_pbp_or_unusable": 442,
+  "list_failures": [],
+  "earliest_confirmed_pbp_date": "2026-01-02T02:00:00+00:00",
+  "latest_confirmed_pbp_date": "2026-07-22T16:30:00+00:00",
+  "generated_at_utc": "2026-08-24T00:00:00.953273+00:00"
+}
