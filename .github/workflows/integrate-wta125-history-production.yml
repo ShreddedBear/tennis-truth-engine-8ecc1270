@@ -1,0 +1,81 @@
+name: Integrate WTA 125 History Into Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'data/public/tennisdata-wta-challenger/wta_challenger_matches_2021_2026.csv'
+      - 'data/public/tennisdata-wta-challenger/IMPORT_MANIFEST.json'
+      - 'scripts/integrate-wta125-history-production.py'
+      - '.github/workflows/integrate-wta125-history-production.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wta125-production-history
+  cancel-in-progress: true
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pandas
+        run: python -m pip install --upgrade pandas
+
+      - name: Verify validated WTA 125 source manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('data/public/tennisdata-wta-challenger/IMPORT_MANIFEST.json')
+          if not p.exists(): raise SystemExit('source manifest missing')
+          m=json.loads(p.read_text())
+          if m.get('contamination_firewall') != 'PASS': raise SystemExit('source contamination firewall not PASS')
+          if m.get('main_tour_rows_integrated') != 0: raise SystemExit('source contains WTA main contamination')
+          if int(m.get('rows_after_validation', m.get('rows_after_dedup', 0))) != 7615: raise SystemExit('validated source row count is not 7615')
+          print('PASS: validated WTA 125 source accepted')
+          PY
+
+      - name: Integrate WTA 125 production history
+        run: python scripts/integrate-wta125-history-production.py
+
+      - name: Verify production contamination firewall
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('data/public/production-history/wta_challenger/INTEGRATION_MANIFEST.json')
+          if not p.exists(): raise SystemExit('production integration manifest missing')
+          m=json.loads(p.read_text())
+          assert m['state']=='SUCCESS'
+          assert m['rows_integrated']==7615
+          assert m['wta_main_rows_integrated']==0
+          assert m['atp_rows_integrated']==0
+          assert m['atp_challenger_rows_integrated']==0
+          assert m['contamination_firewall']=='PASS'
+          assert m['production_tour_family']=='WTA_CHALLENGER'
+          assert m['production_competition_level']=='WTA_125'
+          print('PASS: WTA 125 production history isolated from WTA Main and ATP')
+          PY
+
+      - name: Commit production WTA 125 history
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/public/production-history/wta_challenger
+          git commit -m 'Integrate validated WTA 125 production history' || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
