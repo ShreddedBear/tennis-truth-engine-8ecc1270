@@ -1,0 +1,26 @@
+{
+  "generated_at_utc": "2026-08-24T03:48:14.582031+00:00",
+  "boundary": "2024-12-02",
+  "years": [
+    2024,
+    2025,
+    2026
+  ],
+  "accepted_unique_usable_wta_main_pbp_matches": 7916,
+  "rejected_contaminating_or_preboundary_rows": 0,
+  "duplicate_match_ids": 0,
+  "missing_year_files": [],
+  "checks": {
+    "all_expected_year_files_present": true,
+    "zero_contaminating_accepted_rows": true,
+    "zero_duplicate_match_ids": true,
+    "coverage_floor_enforced_in_metrics_module": true,
+    "strict_wta_main_tour_guard_present": true,
+    "duplicate_guard_present_in_metrics_module": true,
+    "metrics_pipeline_wired": true,
+    "historical_scan_locked_at_boundary": true
+  },
+  "validation_passed": true,
+  "rejected_examples": [],
+  "duplicate_examples": []
+}
