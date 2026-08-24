@@ -1,0 +1,51 @@
+name: Validate BSD ATP Main Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/validate-bsd-atp-main-integration.yml'
+      - 'src/lib/bsd-atp-main-pbp.server.ts'
+      - 'src/lib/warehouse-first-researcher.server.ts'
+      - 'src/lib/source-observation-metric-bridge.server.ts'
+      - 'src/lib/metric-source-family-policy.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate ATP Main PBP integration and contamination firewall
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/lib/bsd-atp-main-pbp.server.ts
+          test -f src/lib/warehouse-first-researcher.server.ts
+          test -f src/lib/metric-source-family-policy.ts
+
+          grep -q 'const COVERAGE_START = "2024-01-01"' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'Array.from({ length: endYear - 2024 + 1 }' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'circuit !== "ATP"' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'challenger' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'wta 125' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'itf' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'utr' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'STRICT_ATP_MAIN_ONLY' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'duplicate_match_guard: true' src/lib/bsd-atp-main-pbp.server.ts
+          grep -q 'POINT_BY_POINT' src/lib/bsd-atp-main-pbp.server.ts
+
+          grep -q 'buildBsdAtpMainPbpContext' src/lib/warehouse-first-researcher.server.ts
+          grep -q 'bsdAtpMainPbp.packet' src/lib/warehouse-first-researcher.server.ts
+          grep -q '_bsd_atp_main_pbp_status' src/lib/warehouse-first-researcher.server.ts
+
+          grep -q 'PBP_METRICS' src/lib/metric-source-family-policy.ts
+          grep -q 'allowed.add("POINT_BY_POINT")' src/lib/metric-source-family-policy.ts
+          grep -q 'allowed_families.includes(family)' src/lib/metric-source-family-policy.ts
+
+          echo 'PASS: BSD ATP Main PBP is limited to 2024-current, wired into the metrics pipeline, deduplicated by match id, and blocked from Challenger/WTA/ITF/UTR contamination.'
