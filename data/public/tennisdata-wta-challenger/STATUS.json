@@ -1,7 +1,7 @@
 {
-  "state": "FAILED",
-  "message": "GitHub Actions sync failed; inspect the run URL",
-  "updated_at_utc": "2026-08-24T01:12:36.666706+00:00",
-  "run_id": "32679040893",
-  "run_url": "https://github.com/dashawnkillzz-sketch/tennis-truth-engine/actions/runs/32679040893"
+  "state": "RUNNING",
+  "message": "GitHub Actions sync is currently running",
+  "updated_at_utc": "2026-08-24T01:40:16.158644+00:00",
+  "run_id": "32680522472",
+  "run_url": "https://github.com/dashawnkillzz-sketch/tennis-truth-engine/actions/runs/32680522472"
 }
