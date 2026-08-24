@@ -1,84 +1,17 @@
-name: BSD ATP Main PBP Historical Scan
+name: BSD ATP Main PBP Historical Scan — BOUNDARY CONFIRMED 2024
+
+# Boundary confirmed by user and repository evidence: 2024.
+# Historical backward scan is intentionally disabled so 2023 and earlier are not processed.
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/bsd-atp-main-pbp-history.yml'
-      - 'scripts/bsd-atp-main-pbp-history.py'
-      - 'scripts/advance-bsd-atp-main-pbp-history.py'
-      - 'data/audit/bsd-atp-main-pbp-history/queue.json'
-  schedule:
-    - cron: '23 * * * *'
 
 permissions:
-  contents: write
-
-concurrency:
-  group: bsd-atp-main-pbp-history
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  scan-next-year:
+  boundary-confirmed:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 55
-    env:
-      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Confirm BSD token exists without exposing it
-        run: |
-          test -n "$BSD_TENNIS_API_KEY" || { echo 'BSD_TENNIS_API_KEY missing'; exit 1; }
-          echo 'BSD token available.'
-
-      - name: Determine next year going backward
-        id: next
-        run: |
-          mkdir -p data/audit/bsd-atp-main-pbp-history
-          NEXT="$(python3 scripts/advance-bsd-atp-main-pbp-history.py --next | tail -n1)"
-          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Next year: $NEXT"
-
-      - name: Scan strict ATP Main BSD PBP for year
-        if: steps.next.outputs.next != 'COMPLETE'
-        run: |
-          python3 scripts/bsd-atp-main-pbp-history.py --year "${{ steps.next.outputs.next }}"
-          python3 scripts/advance-bsd-atp-main-pbp-history.py
-
-      - name: Persist checkpoint and queue next year
-        if: steps.next.outputs.next != 'COMPLETE'
-        run: |
-          python3 - <<'PY'
-          import json
-          from datetime import datetime,timezone
-          from pathlib import Path
-          root=Path('data/audit/bsd-atp-main-pbp-history')
-          p=json.loads((root/'progress.json').read_text())
-          (root/'queue.json').write_text(json.dumps({
-            'queued_at_utc':datetime.now(timezone.utc).isoformat(),
-            'next_year':p.get('next_year'),
-            'scan_complete':p.get('scan_complete',False)
-          },indent=2)+'\n')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/audit/bsd-atp-main-pbp-history
-          if git diff --cached --quiet; then
-            echo 'No checkpoint changes.'
-          else
-            git commit -m "Persist BSD ATP Main PBP history: ${{ steps.next.outputs.next }}"
-            git pull --rebase origin main
-            git push
-          fi
-
-      - name: Show progress
-        if: always()
-        run: |
-          if [ -f data/audit/bsd-atp-main-pbp-history/progress.md ]; then cat data/audit/bsd-atp-main-pbp-history/progress.md; fi
-          if [ "${{ steps.next.outputs.next }}" != 'COMPLETE' ]; then
-            FILE="data/audit/bsd-atp-main-pbp-history/${{ steps.next.outputs.next }}/UPDATE.md"
-            if [ -f "$FILE" ]; then cat "$FILE"; fi
-          fi
+      - run: echo 'BSD ATP Main PBP boundary frozen at 2024; use 2024-current integration workflow.'
