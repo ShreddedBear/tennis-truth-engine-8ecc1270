@@ -212,10 +212,10 @@ const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
 };
 function familyCode(code:string){const m=String(code).match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(code).padStart(3,"0");}
 function componentHits(value:string|null,components:Array<{name:string;terms:string[]}>){return components.filter(c=>containsAny(value,c.terms));}
-function playerTagged(value:string|null,expected:string){return Boolean(value)&&norm(value??"").includes(norm(`PLAYER=${expected}`));}
+function playerTagged(value:string|null,expected:string){return Boolean(value)&&norm(value).includes(norm(`PLAYER=${expected}`));}
 function sourceTagged(value:string|null,sources:MetricFinding["sources"]){if(!value||!sources?.length)return false;const v=norm(value);return v.includes("source")&&sources.some(s=>s.source_name?.trim()&&v.includes(norm(s.source_name)));}
-function sampleTagged(value:string|null){return Boolean(value)&&norm(value??"").includes("sample");}
-function formulaTagged(value:string|null){return Boolean(value)&&norm(value??"").includes("formula");}
+function sampleTagged(value:string|null){return Boolean(value)&&norm(value).includes("sample");}
+function formulaTagged(value:string|null){return Boolean(value)&&norm(value).includes("formula");}
 function tagValue(value:string|null,key:string){if(!value)return null;const m=value.match(new RegExp(`${key}\\s*=\\s*([^;]+)`,"i"));return m?.[1]?.trim()??null;}
 function validateCompositeSide(value:string|null,treatment:MetricFinding["p1_treatment"],sources:MetricFinding["sources"],components:Array<{name:string;terms:string[]}>,expectedPlayer?:string,strictProvenance=false){
   if(treatment==="UNAVAILABLE"||treatment==="EXCLUDED"||!value)return{value,treatment,missing:[] as string[]};

@@ -35,7 +35,7 @@ function ensureServerDomMatrix(): void {
     constructor(init?: number[] | { a?: number; b?: number; c?: number; d?: number; e?: number; f?: number }) {
       if (Array.isArray(init) && init.length >= 6) {
         [this.a, this.b, this.c, this.d, this.e, this.f] = init.slice(0, 6);
-      } else if (init && typeof init === "object" && !Array.isArray(init)) {
+      } else if (init && typeof init === "object") {
         this.a = init.a ?? 1;
         this.b = init.b ?? 0;
         this.c = init.c ?? 0;
@@ -112,7 +112,7 @@ function ensureServerDomMatrix(): void {
 async function ensureServerPdfWorker(): Promise<void> {
   const g = globalThis as any;
   if (g.pdfjsWorker?.WorkerMessageHandler) return;
-  const workerModule = await import("pdfjs-dist/legacy/build/pdf.worker.mjs" as any);
+  const workerModule = await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
   if (!(workerModule as any).WorkerMessageHandler) {
     throw new Error("PDF.js worker module loaded without WorkerMessageHandler");
   }
