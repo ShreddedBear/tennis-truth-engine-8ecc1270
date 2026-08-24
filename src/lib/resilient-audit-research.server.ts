@@ -21,7 +21,7 @@ function localRules(input: Parameters<Researcher["rules"]>[0]): RuleFinding[] {
     rule_code: rule.code,
     p1_finding: null,
     p2_finding: null,
-    outcome: "UNAVAILABLE",
+    outcome: "UNAVAILABLE" as unknown as StressFinding["outcome"],
     severity: rule.severity === "CRITICAL" ? "CRITICAL" : "STANDARD",
     decision_effect: null,
     contradiction_severity: "NONE",
