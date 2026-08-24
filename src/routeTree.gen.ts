@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/app/route'
+import { Route as ApiWarehouseIngestRouteImport } from './routes/api/warehouse-ingest'
 import { Route as AppBoardRouteImport } from './routes/app/board'
 import { Route as AppCalibrationRouteImport } from './routes/app/calibration'
 import { Route as AppCalibrationHistoryRouteImport } from './routes/app/calibration-history'
@@ -31,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppRouteRoute = AppRouteRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWarehouseIngestRoute = ApiWarehouseIngestRouteImport.update({
+  id: '/api/warehouse-ingest',
+  path: '/api/warehouse-ingest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppBoardRoute = AppBoardRouteImport.update({
@@ -92,6 +98,7 @@ const AppMatchMatchIdRoute = AppMatchMatchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
+  '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
   '/app/calibration': typeof AppCalibrationRoute
   '/app/calibration-history': typeof AppCalibrationHistoryRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
+  '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
   '/app/calibration': typeof AppCalibrationRoute
   '/app/calibration-history': typeof AppCalibrationHistoryRoute
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
+  '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
   '/app/calibration': typeof AppCalibrationRoute
   '/app/calibration-history': typeof AppCalibrationHistoryRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/api/warehouse-ingest'
     | '/app/board'
     | '/app/calibration'
     | '/app/calibration-history'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
+    | '/api/warehouse-ingest'
     | '/app/board'
     | '/app/calibration'
     | '/app/calibration-history'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/api/warehouse-ingest'
     | '/app/board'
     | '/app/calibration'
     | '/app/calibration-history'
@@ -186,6 +198,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
+  ApiWarehouseIngestRoute: typeof ApiWarehouseIngestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -202,6 +215,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/warehouse-ingest': {
+      id: '/api/warehouse-ingest'
+      path: '/api/warehouse-ingest'
+      fullPath: '/api/warehouse-ingest'
+      preLoaderRoute: typeof ApiWarehouseIngestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/board': {
@@ -319,6 +339,7 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
+  ApiWarehouseIngestRoute: ApiWarehouseIngestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
