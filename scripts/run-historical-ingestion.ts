@@ -8,9 +8,7 @@ const requested = (process.env.INGEST_SOURCES ?? "open_meteo,odds_api")
 const allowed = new Set<SourceId>([
   "open_meteo",
   "odds_api",
-  "atp",
-  "wta",
-  "atp_challenger",
+  "atp", "wta", "atp_challenger",
   "atp_rankings",
   "wta_rankings",
   "itf_rules",
