@@ -1,0 +1,17 @@
+{
+  "scope": "WTA Challenger / WTA 125 ONLY",
+  "source": "TennisData.app user-supplied WTA season CSVs",
+  "source_gate": "tour_type_human == WTA Chall AND tour_type == 4",
+  "source_files": {
+    "2021": {"rows": 540, "sha256": "264fdb0bbe6918d435ee19844a40e62fee8373243b7f867f1c155b2c4230094e"},
+    "2022": {"rows": 881, "sha256": "517c2b822328c800e1dae4f319a7a32a379ecfe349dc740565cab123b672c53d"},
+    "2023": {"rows": 1096, "sha256": "b95589e17ea8ca95398976fcb2622b10efaf563c2a48bb2e1b572c8b8920c22b"},
+    "2024": {"rows": 1374, "sha256": "e5bd15b6cea62b2f7f3056c744d8dc7b8f9ce7174605890ad6d3a4a55abbe17a"},
+    "2025": {"rows": 2092, "sha256": "3ad9623d4014c17c1343c27a9c82cfc5f7fe2c3e2b55c89f1d5103eb68852536"},
+    "2026": {"rows": 1632, "sha256": "d0f4182c740d26c176866e05d96b8d0252514c80c99db3cb23e4266ba32bad8c"}
+  },
+  "round_map": {"0":"","1":"1/16-finals","2":"1/8-finals","3":"Final","4":"Qualifier","5":"Quarter-finals","6":"Semi-finals"},
+  "surface_map": {"0":"clay","1":"grass","2":"hard"},
+  "expected_rows": 7615,
+  "main_tour_rows_integrated": 0
+}
