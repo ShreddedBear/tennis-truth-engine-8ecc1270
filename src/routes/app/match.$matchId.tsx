@@ -8,6 +8,7 @@ import { log } from "@/lib/audit-runs";
 import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, winRate, type EngineInput } from "@/lib/audit-engine";
 import { MATRIX_FIELDS } from "@/lib/constants";
+import { isPreviewForceReloadError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuditColorBadge, BucketBadge, StateText } from "@/components/StatusBadge";
@@ -191,8 +192,9 @@ function Workspace() {
         const res = await executePipeline({ data: { matchId } });
         refresh();
         if (!res.ok) {
-          setPipelineError(res.failures[0]?.message ?? "Pipeline failed");
-          toast.error(res.failures[0]?.message ?? "Pipeline failed");
+          const message = safePipelineErrorMessage(res.failures[0]?.message ?? "Pipeline failed");
+          setPipelineError(message);
+          toast.error(message);
           return;
         }
         if (res.complete) {
@@ -200,21 +202,27 @@ function Workspace() {
           return;
         }
         if (!res.nextStage) {
-          setPipelineError(res.failures[0]?.message ?? "Pipeline stopped before completing all stages.");
+          const message = safePipelineErrorMessage(res.failures[0]?.message ?? "Pipeline stopped before completing all stages.");
+          setPipelineError(message);
           toast.warning("Pipeline stopped early — see stage diagnostics");
           return;
         }
       }
       toast.warning("Pipeline still running — press Run Audit again to resume");
     } catch (e) {
-      setPipelineError((e as Error).message);
-      toast.error((e as Error).message);
+      const message = safePipelineErrorMessage(e);
+      setPipelineError(message);
+      if (isPreviewForceReloadError(e)) {
+        toast.info("The preview updated while the audit was running. Reloading the workspace; persisted progress is safe.");
+        window.setTimeout(() => window.location.reload(), 350);
+        return;
+      }
+      toast.error(message);
     } finally {
       setRunning(false);
       refresh();
     }
   };
-
 
   if (isLoading || !data?.match) return <div className="panel p-6 text-sm">Loading match…</div>;
   const { match, run } = data;
@@ -267,7 +275,6 @@ function Workspace() {
     await log({ audit_run_id: run.id, match_id: matchId, stage, status: "COMPLETE", output: values, matrix_visible: !!run.matrix_revealed_at });
     refresh();
   };
-
 
   const commitIndependent = async () => {
     if (!winner) {
@@ -374,7 +381,6 @@ function Workspace() {
       <div className="panel p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-
             <h1 className="text-xl font-semibold">
               {match.player1_name} <span className="text-muted-foreground">vs</span> {match.player2_name}
             </h1>
@@ -596,7 +602,7 @@ function Workspace() {
               </thead>
               <tbody>
                 {metricRows.map((m) => (
-                  <tr className="border-t border-border">
+                  <tr key={m.id} className="border-t border-border">
                     <td className="mono-num px-2 py-1 text-xs">{m.metric_code}</td>
                     <td className="px-2 py-1">{m.metric_name}</td>
                     <td className="px-2 py-1">
@@ -641,7 +647,7 @@ function Workspace() {
               </thead>
               <tbody>
                 {verificationRows.map((r) => (
-                  <tr className="border-t border-border">
+                  <tr key={r.id} className="border-t border-border">
                     <td className="mono-num px-2 py-1 text-xs">{r.rule_code}</td>
                     <td className="px-2 py-1">{r.rule_name}</td>
                     <td className="px-2 py-1">
@@ -678,7 +684,7 @@ function Workspace() {
               </thead>
               <tbody>
                 {disagreementRows.map((r) => (
-                  <tr className="border-t border-border">
+                  <tr key={r.id} className="border-t border-border">
                     <td className="mono-num px-2 py-1 text-xs">{r.rule_code}</td>
                     <td className="px-2 py-1">{r.rule_name}</td>
                     <td className="px-2 py-1">
@@ -716,7 +722,7 @@ function Workspace() {
               </thead>
               <tbody>
                 {underdogRows.map((r) => (
-                  <tr className="border-t border-border">
+                  <tr key={r.id} className="border-t border-border">
                     <td className="px-2 py-1">{r.player_side}</td>
                     <td className="px-2 py-1">{r.pathway_name}</td>
                     <td className="px-2 py-1">
@@ -745,7 +751,7 @@ function Workspace() {
               </tr>
             </thead>
             <tbody>
-                {stressRows.map((s) => (
+              {stressRows.map((s) => (
                 <tr key={s.id} className="border-t border-border">
                   <td className="mono-num px-2 py-1 text-xs">{s.test_code}</td>
                   <td className="px-2 py-1">{s.test_name}</td>
