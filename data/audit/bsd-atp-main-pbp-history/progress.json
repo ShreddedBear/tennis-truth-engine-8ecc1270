@@ -1,18 +1,19 @@
 {
-  "updated_at_utc": "2026-08-24T01:47:32.689958+00:00",
+  "updated_at_utc": "2026-08-24T03:47:27.814342+00:00",
   "current_year": 2026,
   "floor_year": 1968,
-  "years_scanned": 2,
+  "years_scanned": 3,
   "years_total": 59,
   "years_with_confirmed_pbp": [
+    2024,
     2025,
     2026
   ],
-  "earliest_confirmed_pbp_year": 2025,
-  "earliest_confirmed_pbp_date": "2025-01-01T01:00:00+00:00",
-  "total_atp_main_matches_examined": 7123,
-  "total_usable_pbp": 6584,
-  "total_no_pbp_or_unusable": 539,
-  "next_year": 2024,
+  "earliest_confirmed_pbp_year": 2024,
+  "earliest_confirmed_pbp_date": "2024-12-18T13:15:00+00:00",
+  "total_atp_main_matches_examined": 7196,
+  "total_usable_pbp": 6651,
+  "total_no_pbp_or_unusable": 545,
+  "next_year": 2023,
   "scan_complete": false
 }
