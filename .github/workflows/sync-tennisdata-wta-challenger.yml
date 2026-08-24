@@ -32,8 +32,8 @@ jobs:
           test -s data/raw/tennisdata-wta-challenger/2021-compact.csv.gz.b64
           test -s data/raw/tennisdata-wta-challenger/2022-compact.csv.gz.b64
           test -s data/raw/tennisdata-wta-challenger/2023-compact.csv.gz.b64
-          test -s data/raw/tennisdata-wta-challenger/2024-compact.csv.gz.b64.part01
-          test -s data/raw/tennisdata-wta-challenger/2024-compact.csv.gz.b64.part02
+          test -s data/raw/tennisdata-wta-challenger/2024-v2.csv.xz.b64.part01
+          test -s data/raw/tennisdata-wta-challenger/2024-v2.csv.xz.b64.part02
           test -s data/raw/tennisdata-wta-challenger/2025-v2.csv.xz.b64.part01
           test -s data/raw/tennisdata-wta-challenger/2025-v2.csv.xz.b64.part02
           test -s data/raw/tennisdata-wta-challenger/2025-v2.csv.xz.b64.part03
@@ -98,13 +98,12 @@ jobs:
           PY
 
       - name: Commit integrated WTA 125 history and status
-        if: always()
+        if: success()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/public/tennisdata-wta-challenger
           git commit -m 'Sync contamination-safe TennisData.app WTA 125 history' || true
-          git pull --rebase origin main
           git push origin HEAD:main
 
       - name: Upload audit artifact
