@@ -63,8 +63,9 @@ function normalizedFromObject(source:TourSource,url:string,target:Target,obj:Rec
 
 async function request(url:string){ return fetch(url,{headers:{"user-agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",accept:"text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8","accept-language":"en-US,en;q=0.9","cache-control":"no-cache",pragma:"no-cache"}}); }
 async function fetchStructured(source:TourSource,url:string){
-  let res=await request(url);
-  if((source==="atp"||source==="atp_challenger")&&!res.ok) res=await request(ATP_CALENDAR_FEED);
+  const isAtpSource = source === "atp" || source === "atp_challenger";
+  let res = await request(isAtpSource ? ATP_CALENDAR_FEED : url);
+  if(isAtpSource && !res.ok && url !== ATP_CALENDAR_FEED) res = await request(url);
   if(!res.ok) throw new Error(`${res.url||url} returned ${res.status}`);
   const effectiveUrl=res.url||url;
   const contentType=res.headers.get("content-type")??"";
