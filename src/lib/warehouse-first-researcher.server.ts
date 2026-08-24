@@ -8,6 +8,7 @@ import { deterministicRulesContextMetric } from "./deterministic-rules-context-m
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
+import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -54,13 +55,15 @@ export const warehouseFirstResearcher: Researcher = {
 
     let liveRows:MetricFinding[]=[];
     if(missing.length){
-      const [warehousePacket,bsdPbp]=await Promise.all([
+      const [warehousePacket,bsdAtpChallengerPbp,bsdWtaMainPbp]=await Promise.all([
         buildMetricObservationContext({metrics:missing,p1,p2,asOfDate:date}),
         buildBsdAtpChallengerPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
+        buildBsdWtaMainPbpContext({metrics:missing,p1,p2,asOfDate:date,context:input.context}),
       ]);
-      const observationPacket=mergeObservationPackets(warehousePacket,bsdPbp.packet);
+      let observationPacket=mergeObservationPackets(warehousePacket,bsdAtpChallengerPbp.packet);
+      observationPacket=mergeObservationPackets(observationPacket,bsdWtaMainPbp.packet);
       for(const [code,row] of deterministicByCode){const existing=(observationPacket as Record<string,any>)[code]??{};(observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};}
-      const context=appendMetricObservationContext(input.context,{...observationPacket,_bsd_atp_challenger_pbp_status:bsdPbp.status});
+      const context=appendMetricObservationContext(input.context,{...observationPacket,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status});
       liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:missing});
     }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
