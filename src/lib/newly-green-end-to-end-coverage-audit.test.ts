@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { policyForMetric } from "./metric-source-family-policy";
 
@@ -35,7 +35,7 @@ const NON_PBP_DETERMINISTIC = [
   "012", "015", "019", "021", "028", "030", "062", "064", "069", "071", "075", "076", "077", "081",
 ];
 
-const PBP_DEPENDENT = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
+const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
 
 describe("newly-green end-to-end coverage audit", () => {
   it("keeps every newly-green metric on the exact intended source families", () => {
@@ -84,11 +84,40 @@ describe("newly-green end-to-end coverage audit", () => {
     expect([...NON_PBP_DETERMINISTIC].filter((code) => !covered.has(code))).toEqual([]);
   });
 
-  it("keeps the remaining unfinished group explicitly limited to PBP-dependent metrics", () => {
-    expect(PBP_DEPENDENT).toEqual(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
-    for (const code of PBP_DEPENDENT) {
-      expect(policyForMetric(code).allowed_families).toContain("POINT_BY_POINT");
+  it("recognizes the completed BSD PBP metric family for every PBP-dependent newly-green metric", () => {
+    for (const code of PBP_METRICS) {
+      expect(policyForMetric(code).allowed_families, `metric ${code}`).toContain("POINT_BY_POINT");
     }
+  });
+
+  it("certifies the three runtime BSD PBP adapters are wired into warehouse execution", () => {
+    const compact = warehouse.replace(/\s+/g, "");
+    for (const builder of [
+      "buildBsdAtpMainPbpContext({",
+      "buildBsdAtpChallengerPbpContext({",
+      "buildBsdWtaMainPbpContext({",
+    ]) {
+      expect(compact).toContain(builder.replace(/\s+/g, ""));
+    }
+    expect(compact).toContain("_bsd_atp_main_pbp_status");
+    expect(compact).toContain("_bsd_atp_challenger_pbp_status");
+    expect(compact).toContain("_bsd_wta_main_pbp_status");
+  });
+
+  it("certifies WTA Challenger/WTA 125 approved-index integration and final quarantine result", () => {
+    const approvedPath = "data/metrics/pbp/wta_challenger/approved-index.jsonl";
+    const quarantineSummaryPath = "data/audit/bsd-wta-challenger-pbp-quarantine-audit/summary.md";
+    expect(existsSync(approvedPath)).toBe(true);
+    expect(existsSync(quarantineSummaryPath)).toBe(true);
+
+    const approved = readFileSync(approvedPath, "utf8").split(/\r?\n/).filter(Boolean);
+    expect(approved.length).toBe(1646);
+
+    const summary = readFileSync(quarantineSummaryPath, "utf8");
+    expect(summary).toContain("Promoted after clean fresh re-audit: **1**");
+    expect(summary).toContain("Genuinely invalid or incomplete PBP: **154**");
+    expect(summary).toContain("Metrics total after promotions: **1646**");
+    expect(summary).toContain("Other tours excluded: **YES**");
   });
 
   it("does not let ranking metrics accept results/schedule evidence", () => {
