@@ -50,6 +50,6 @@ describe("metric source family policy", () => {
   it("is enforced by the production ATP/WTA/Challenger ingestion adapter", () => {
     const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
     expect(adapter).toContain('import { assertObservationFamily } from "../metric-source-family-policy"');
-    expect(adapter).toContain('assertObservationFamily(row, "RESULTS_SCHEDULE")');
+    expect(adapter).toMatch(/assertObservationFamily\(row,\s*["']RESULTS_SCHEDULE["']\)/);
   });
 });
