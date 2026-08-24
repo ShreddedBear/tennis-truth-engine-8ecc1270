@@ -48,14 +48,16 @@ function normalizedFromObject(source:TourSource,url:string,target:Target,obj:Rec
   const status=first(obj,["status","Status","matchStatus","state"]);
   const score=first(obj,["score","Score","scoreText","result"]);
   const winner=first(obj,["winner","Winner","winnerName"]);
-  const looksLikeMatch=Boolean(player1&&player2);
-  const looksLikeSchedule=Boolean(tournament&&(eventDate||dateRaw));
-  if(!looksLikeMatch&&!looksLikeSchedule)return [];
+
+  const looksLikeMatch = Boolean(player1 && player2);
+  const looksLikeSchedule = Boolean(tournament && (eventDate || dateRaw));
+  if (!looksLikeMatch && !looksLikeSchedule) return [];
+
   const identity=[target.target_key,tournament,eventDate??dateRaw,player1,player2,round].filter(Boolean).join(":");
   const common={source_id:source,source_name:SOURCE_NAMES[source],source_url:url,tournament,event_date:eventDate,surface,sample_label:round,window_start:target.pullback_start,window_end:target.pullback_end,raw_payload:obj,provenance:{target_key:target.target_key,tour:source,level:levelText(obj),extraction:url.includes("protennislive")?"official_atp_feed":"official_page_structured_json"}};
   const rows:Observation[]=[];
-  if(looksLikeMatch) rows.push({...common,source_record_key:`${identity}:match_record:${player1}`,player_name:player1,opponent_name:player2,observation_type:"MATCH_RESULT_OR_SCHEDULE",observation_key:"match_record",text_value:JSON.stringify({player1,player2,round,status,score,winner}),numeric_value:null});
-  if(looksLikeSchedule) rows.push({...common,source_record_key:`${identity}:event_schedule`,player_name:null,opponent_name:null,observation_type:"TOURNAMENT_SCHEDULE",observation_key:"event_schedule",text_value:JSON.stringify({tournament,date:eventDate??dateRaw,end_date:isoDate(endDateRaw)??endDateRaw,surface,round,status,level:levelText(obj)}),numeric_value:null});
+  if(looksLikeMatch) rows.push({...common,source_record_key:`${identity}:match_record:${player1}`,player_name:player1,opponent_name:player2,observation_type:"MATCH_RESULT_OR_SCHEDULE",observation_key: "match_record",text_value:JSON.stringify({player1,player2,round,status,score,winner}),numeric_value:null});
+  if(looksLikeSchedule) rows.push({...common,source_record_key:`${identity}:event_schedule`,player_name:null,opponent_name:null,observation_type:"TOURNAMENT_SCHEDULE",observation_key: "event_schedule",text_value:JSON.stringify({tournament,date:eventDate??dateRaw,end_date:isoDate(endDateRaw)??endDateRaw,surface,round,status,level:levelText(obj)}),numeric_value:null});
   return rows;
 }
 
@@ -70,7 +72,12 @@ async function fetchStructured(source:TourSource,url:string){
   return {payloads:embeddedJson(await res.text()),url:effectiveUrl};
 }
 
-async function writeRows(rows:Observation[]){ for(const row of rows)assertObservationFamily(row,"RESULTS_SCHEDULE"); let written=0; for(let i=0;i<rows.length;i+=500){const chunk=rows.slice(i,i+500); const {error}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:true}); if(error)throw error; written+=chunk.length;} return written; }
+async function writeRows(rows:Observation[]){
+  for (const row of rows) assertObservationFamily(row, "RESULTS_SCHEDULE");
+  let written=0;
+  for(let i=0;i<rows.length;i+=500){const chunk=rows.slice(i,i+500); const {error}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:true}); if(error)throw error; written+=chunk.length;}
+  return written;
+}
 
 export async function ingestTourResultsAndSchedules(source:TourSource){
   const {data:targets,error}=await db.from("ingestion_targets").select("id,source_id,target_key,pullback_start,pullback_end,config").eq("source_id",source).eq("enabled",true); if(error)throw error;
