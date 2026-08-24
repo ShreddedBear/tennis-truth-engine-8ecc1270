@@ -1,20 +1,21 @@
 {
-  "updated_at_utc": "2026-08-23T23:57:21.295280+00:00",
+  "updated_at_utc": "2026-08-24T01:53:03.006767+00:00",
   "current_year": 2026,
   "floor_year": 1968,
   "boundary_confirmation_empty_years_required": 3,
   "boundary_confirmation_years": [],
   "historical_boundary_confirmed": false,
-  "years_scanned": 1,
+  "years_scanned": 2,
   "years_total_possible": 59,
   "years_with_confirmed_pbp": [
+    2025,
     2026
   ],
-  "earliest_confirmed_pbp_year": 2026,
-  "earliest_confirmed_pbp_date": "2026-01-02T00:00:00+00:00",
-  "total_wta_main_matches_examined": 3054,
-  "total_usable_pbp": 2977,
-  "total_no_pbp_or_unusable": 77,
-  "next_year": 2025,
+  "earliest_confirmed_pbp_year": 2025,
+  "earliest_confirmed_pbp_date": "2025-01-01T00:20:00+00:00",
+  "total_wta_main_matches_examined": 7874,
+  "total_usable_pbp": 7702,
+  "total_no_pbp_or_unusable": 172,
+  "next_year": 2024,
   "scan_complete": false
 }
