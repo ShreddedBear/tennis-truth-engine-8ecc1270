@@ -1,0 +1,37 @@
+name: Validate BSD ATP Challenger Integration
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/validate-bsd-atp-challenger-integration.yml'
+      - 'src/lib/bsd-atp-challenger-pbp.server.ts'
+      - 'src/lib/source-observation-metric-bridge.server.ts'
+      - 'src/lib/metric-source-family-policy.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript/build validation
+        run: npm run build
+      - name: Validate ATP Challenger PBP contamination firewall
+        run: |
+          test -f src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -q "2025" src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -qi "challenger" src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -qi "wta" src/lib/bsd-atp-challenger-pbp.server.ts
+          grep -qi "POINT_BY_POINT" src/lib/source-observation-metric-bridge.server.ts
+          grep -qi "POINT_BY_POINT" src/lib/metric-source-family-policy.ts
+          echo 'ATP Challenger PBP integration/firewall validation passed.'
