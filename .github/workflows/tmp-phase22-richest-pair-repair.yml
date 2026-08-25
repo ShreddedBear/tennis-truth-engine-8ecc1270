@@ -1,0 +1,69 @@
+name: Temporary Phase 22 Richest Pair Repair
+
+on:
+  push:
+    branches: [fix/evidence-coverage-phase22-richest-pair]
+    paths: ['.github/workflows/tmp-phase22-richest-pair-repair.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Patch persisted pair representative ranking
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/evidence-coverage-runtime-diagnostic.server.ts')
+          s=p.read_text()
+          old='type PersistedPairCandidate = { player_name:string|null; opponent_name:string|null; as_of_date:string|null };'
+          new='type PersistedPairCandidate = { metric_code:string|null; player_name:string|null; opponent_name:string|null; as_of_date:string|null; treatment:string|null };'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          anchor='function persistedPairRepresentative(id:RepresentativeId,row:PersistedPairCandidate,index:number):RepresentativeMatch {'
+          helper='''export function rankPersistedPairCandidates(rows:PersistedPairCandidate[]):PersistedPairCandidate[] {\n  const groups=new Map<string,{row:PersistedPairCandidate;date:string;pairComplete:Set<string>;usableByMetric:Map<string,Set<string>>}>();\n  for(const row of rows){\n    const p1=String(row.player_name??"").trim(),p2=String(row.opponent_name??"").trim(),date=String(row.as_of_date??"").trim(),metric=codeOf(row.metric_code);\n    if(!p1||!p2||!date||p1===p2||!USABLE.has(String(row.treatment??"")))continue;\n    const names=[p1,p2].sort(),key=`${names.join("|")}|${date}`,orientation=`${p1}|${p2}`;\n    const group=groups.get(key)??{row:{...row,player_name:names[0],opponent_name:names[1]},date,pairComplete:new Set<string>(),usableByMetric:new Map<string,Set<string>>()};\n    const orientations=group.usableByMetric.get(metric)??new Set<string>();orientations.add(orientation);group.usableByMetric.set(metric,orientations);\n    if(orientations.has(`${names[0]}|${names[1]}`)&&orientations.has(`${names[1]}|${names[0]}`))group.pairComplete.add(metric);\n    groups.set(key,group);\n  }\n  return [...groups.values()].filter(g=>g.pairComplete.size>0).sort((a,b)=>b.pairComplete.size-a.pairComplete.size||b.date.localeCompare(a.date)).map(g=>g.row);\n}\n\n'''
+          assert anchor in s
+          s=s.replace(anchor,helper+anchor,1)
+
+          oldblock='''    const persisted=await db.from("metric_evidence_store").select("player_name,opponent_name,as_of_date").not("player_name","is",null).not("opponent_name","is",null).not("as_of_date","is",null).order("as_of_date",{ascending:false}).limit(1000);\n    if(!persisted.error){\n      const seenPairs=new Set<string>();\n      const rows=((persisted.data??[]) as PersistedPairCandidate[]).filter(row=>{const p1=String(row.player_name??"").trim(),p2=String(row.opponent_name??"").trim(),date=String(row.as_of_date??"").trim();if(!p1||!p2||!date||p1===p2)return false;const key=`${[p1,p2].sort().join("|")}|${date}`;if(seenPairs.has(key))return false;seenPairs.add(key);return true;});\n      for(let index=0;index<rows.length&&missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN");index++){const row=rows[index];const inferred=await classifyPairFromExactRankingEvidence(row.player_name!,row.opponent_name!);if(inferred&&missing().includes(inferred))selected.push(persistedPairRepresentative(inferred,row,index));}\n    }'''
+          newblock='''    const persisted=await db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,as_of_date,treatment").not("player_name","is",null).not("opponent_name","is",null).not("as_of_date","is",null).order("as_of_date",{ascending:false}).limit(5000);\n    if(!persisted.error){\n      const rows=rankPersistedPairCandidates((persisted.data??[]) as PersistedPairCandidate[]);\n      for(let index=0;index<rows.length&&missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN");index++){const row=rows[index];const inferred=await classifyPairFromExactRankingEvidence(row.player_name!,row.opponent_name!);if(inferred&&missing().includes(inferred))selected.push(persistedPairRepresentative(inferred,row,index));}\n    }'''
+          assert oldblock in s
+          s=s.replace(oldblock,newblock,1)
+          p.write_text(s)
+
+          t=Path('src/lib/evidence-coverage-runtime-diagnostic.test.ts')
+          x=t.read_text()
+          x=x.replace('expect(diagnostic).toContain(\'from("metric_evidence_store").select("player_name,opponent_name,as_of_date")\');','expect(diagnostic).toContain(\'from("metric_evidence_store").select("metric_code,player_name,opponent_name,as_of_date,treatment")\');')
+          x=x.replace('expect(diagnostic).toContain("seenPairs");','expect(diagnostic).toContain("rankPersistedPairCandidates");\n    expect(diagnostic).toMatch(/pairComplete\\.size-a\\.pairComplete\\.size/);\n    expect(diagnostic).toContain("USABLE.has(String(row.treatment");')
+          marker='''  it("documents representative classes that cannot be sampled from current persisted production data", () => {'''
+          extra='''  it("ranks persisted representatives by real pair-complete usable evidence before recency", () => {\n    expect(diagnostic).toContain("usableByMetric");\n    expect(diagnostic).toContain("pairComplete.add(metric)");\n    expect(diagnostic).toContain("g.pairComplete.size>0");\n    expect(diagnostic).toContain("b.date.localeCompare(a.date)");\n    expect(diagnostic).not.toContain("seenPairs");\n  });\n\n'''
+          assert marker in x
+          x=x.replace(marker,extra+marker,1)
+          t.write_text(x)
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Targeted tests
+        run: npx vitest run src/lib/evidence-coverage-runtime-diagnostic.test.ts src/lib/deterministic-ranking-metrics.test.ts src/lib/deterministic-results-schedule-metrics.test.ts src/lib/deterministic-market-metrics.test.ts src/lib/deterministic-pbp-metrics.test.ts
+      - name: Build
+        run: npm run build
+      - name: Commit repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+          git commit -m 'Rank evidence representatives by pair-complete coverage'
+          git push
