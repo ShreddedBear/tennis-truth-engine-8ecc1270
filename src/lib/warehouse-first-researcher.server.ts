@@ -54,7 +54,6 @@ async function lookup(metricCodes:string[],player:string,opponent:string,date:st
   }
   const out=new Map<string,StoredEvidence>();
   for(const [code,rows] of byCode){
-    // Fail closed if legacy aliases resolve to more than one persisted record.
     if(rows.length===1)out.set(code,rows[0]);
   }
   return out;
@@ -85,13 +84,11 @@ function mergeObservationPackets(base:Record<string,unknown>, extra:Record<strin
 export const warehouseFirstResearcher: Researcher = {
   ...finalMetricWiringResearcher,
   async metrics(input){
-    const {metrics}=input;
-    // Resolve surname-only uploaded identities exactly once, then feed the
-    // proven canonical pair through every evidence family. Ambiguous/unproven
-    // surnames stay unchanged, so all downstream exact-match paths fail closed.
     const identities=await resolveCanonicalEvidencePair(input.p1,input.p2);
-    const p1=identities.p1.canonical;
-    const p2=identities.p2.canonical;
+    // Canonicalize the request object itself so every downstream lane receives
+    // the same proven pair while preserving the established wiring contract.
+    input={...input,p1:identities.p1.canonical,p2:identities.p2.canonical};
+    const {p1,p2,metrics}=input;
     const date=asOfDate(input.context);
     const tournament=tournamentFromContext(input.context);
     const codes=metrics.map(metric=>codeOf(metric.code));
@@ -110,7 +107,6 @@ export const warehouseFirstResearcher: Researcher = {
       return deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});
     }))).filter((row):row is MetricFinding=>Boolean(row));
     const deterministicByCode=new Map(deterministicRows.map(row=>[codeOf(row.metric_code),row]));
-
     const liveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
 
     let liveRows:MetricFinding[]=[];
@@ -132,7 +128,7 @@ export const warehouseFirstResearcher: Researcher = {
       }
       const identityResolution={p1:identities.p1,p2:identities.p2};
       const context=appendMetricObservationContext(input.context,{...observationPacket,_canonical_identity_resolution:identityResolution,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
-      liveRows=await finalMetricWiringResearcher.metrics({...input,p1,p2,context,metrics:liveMissing});
+      liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing});
     }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
 
