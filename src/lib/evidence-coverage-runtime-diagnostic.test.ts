@@ -59,6 +59,15 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date})");
   });
 
+  it("uses only unexpired unambiguous persisted evidence and surfaces relevant lane failures", () => {
+    expect(diagnostic).toContain("valid_until.gt");
+    expect(diagnostic).toContain("unambiguousStoredSide");
+    expect(diagnostic).toContain("signatures.size===1?matching[0]:null");
+    expect(diagnostic).toContain("laneErrorsForPolicy");
+    expect(diagnostic).toContain("failure.families.some");
+    expect(diagnostic).toContain("tournament:match.tournament");
+  });
+
   it("resolves surname-only identities from warehouse evidence only and propagates canonical names through every evidence lane", () => {
     expect(canonical).toContain("uniqueCanonicalWarehouseIdentity");
     expect(canonical).toContain('from("source_observations")');
