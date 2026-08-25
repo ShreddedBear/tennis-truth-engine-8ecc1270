@@ -62,6 +62,7 @@ jobs:
 
             RESPONSE_FILE="$(mktemp)"
             HTTP_STATUS="$(curl --silent --show-error \
+              --location --location-trusted --post301 --post302 --post303 \
               --max-time 600 \
               -o "$RESPONSE_FILE" \
               -w '%{http_code}' \
