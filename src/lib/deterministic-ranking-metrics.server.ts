@@ -4,7 +4,7 @@ import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alia
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
 const db = supabaseAdmin as any;
-const SUPPORTED = new Set(["062","069"]);
+const SUPPORTED = new Set(["014","062","069"]);
 
 type Row={source_id:string|null;source_name:string|null;source_url:string|null;player_name:string|null;event_date:string|null;observation_type:string|null;observation_key:string|null;text_value:string|null;numeric_value:number|null;sample_label:string|null};
 function codeOf(v:unknown){const m=String(v??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(v??"").padStart(3,"0");}
@@ -22,7 +22,17 @@ function summary(player:string,opponent:string,rows:Row[],asOf:string){
   const movement=(r:Row|null)=>{const v=r?rank(r):null;return v===null?null:v-cur;};
   return {rank:cur,points:points(current),rank_change_30d:movement(r30),rank_change_90d:movement(r90),rank_change_365d:movement(r365),best_rank_52w:best52,snapshots_52w:pRows.filter(r=>r.event_date&&days(r.event_date,asOf)<=365).length};
 }
-function value(code:string,s:ReturnType<typeof summary>){if(!s)return null;if(code==="062")return`rank=${s.rank}; points=${s.points??"NA"}; rank_change_30d=${s.rank_change_30d??"NA"}; rank_change_90d=${s.rank_change_90d??"NA"}`;return`rank=${s.rank}; points=${s.points??"NA"}; rank_change_365d=${s.rank_change_365d??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;}
+function value(code:string,s:ReturnType<typeof summary>){
+  if(!s)return null;
+  if(code==="014")return`rank=${s.rank}; points=${s.points??"NA"}`;
+  if(code==="062")return`rank=${s.rank}; points=${s.points??"NA"}; rank_change_30d=${s.rank_change_30d??"NA"}; rank_change_90d=${s.rank_change_90d??"NA"}`;
+  return`rank=${s.rank}; points=${s.points??"NA"}; rank_change_365d=${s.rank_change_365d??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;
+}
+function pairNote(code:string,p1Available:boolean,p2Available:boolean){
+  if(!p1Available||!p2Available)return"Ranking evidence is one-sided; the missing side is not synthesized or credited.";
+  if(code==="014")return null;
+  return"Subjective motivation/private pressure components are not inferred from ranking data.";
+}
 
 export async function deterministicRankingMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);
@@ -37,5 +47,5 @@ export async function deterministicRankingMetric(args:{metricCode:string;p1:stri
   const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate),p1=value(code,s1),p2=value(code,s2);
   if(!p1&&!p2)return null;
   const p1Available=Boolean(p1),p2Available=Boolean(p2);
-  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1Available?"PARTIAL":"UNAVAILABLE",p2_treatment:p2Available?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ranking history through ${args.asOfDate}; p1_evidence=${p1Available}; p2_evidence=${p2Available}`,unavailable_reason:p1Available&&p2Available?"Subjective motivation/private pressure components are not inferred from ranking data.":"Ranking evidence is one-sided; the missing side is not synthesized or credited.",sources:sourceRefs(rows)};
+  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1Available?"PARTIAL":"UNAVAILABLE",p2_treatment:p2Available?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ranking history through ${args.asOfDate}; p1_evidence=${p1Available}; p2_evidence=${p2Available}`,unavailable_reason:pairNote(code,p1Available,p2Available),sources:sourceRefs(rows)};
 }
