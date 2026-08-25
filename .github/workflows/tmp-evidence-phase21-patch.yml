@@ -15,6 +15,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: repair/evidence-coverage-phase21-persisted-pair-sampling
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Add persisted evidence pair sampling fallback
         run: |
           python - <<'PY'
@@ -71,8 +74,8 @@ jobs:
           PY
       - name: Run diagnostic regression tests
         run: |
-          npm ci
-          npx vitest run src/lib/evidence-coverage-runtime-diagnostic.test.ts src/lib/evidence-player-alias.test.ts src/lib/deterministic-ranking-metrics.test.ts src/lib/deterministic-results-schedule-metrics.test.ts
+          bun install --frozen-lockfile
+          bunx vitest run src/lib/evidence-coverage-runtime-diagnostic.test.ts src/lib/evidence-player-alias.test.ts src/lib/deterministic-ranking-metrics.test.ts src/lib/deterministic-results-schedule-metrics.test.ts
       - name: Commit repair
         run: |
           git config user.name github-actions[bot]
