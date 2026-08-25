@@ -112,6 +112,12 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain('bucket="EVIDENCE_WIRING_FAILURE";reason="Sufficient admissible observations exist but did not become a usable deterministic/stored finding."');
   });
 
+  it("classifies shared-only schedule context as ingestion missing rather than reconstruction failure", () => {
+    expect(diagnostic).toContain('policy.allowed_families.includes("RESULTS_SCHEDULE")');
+    expect(diagnostic).toContain('!(entry.observations??[]).some((o:any)=>Boolean(o?.player))');
+    expect(diagnostic).toContain('Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.');
+  });
+
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
     expect(bridge).toContain('eq("observation_type", "MARKET")');
     expect(bridge).toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
