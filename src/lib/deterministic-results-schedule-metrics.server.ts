@@ -31,12 +31,18 @@ function valueFor(code:string,c:PlayerComponents){switch(code){case"012":case"07
 export async function deterministicResultsScheduleMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;tournament?:string|null}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;
   const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-5);
-  const aliases=[...new Set([...safeEvidenceAliases(args.p1,args.p2),...safeEvidenceAliases(args.p2,args.p1)])];
   const select="source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label";
-  const base=()=>db.from("source_observations").select(select).gte("event_date",start.toISOString().slice(0,10)).lte("event_date",args.asOfDate).order("event_date",{ascending:false}).limit(2000);
-  const [playerResult,sharedResult]=await Promise.all([base().in("player_name",aliases),base().is("player_name",null)]);
-  if(playerResult.error||sharedResult.error)return null;
-  const rows=([...(playerResult.data??[]),...(sharedResult.data??[])] as Observation[]).filter(row=>metricAllowsObservation(code,row));
+  const base=()=>db.from("source_observations").select(select).gte("event_date",start.toISOString().slice(0,10)).lte("event_date",args.asOfDate).order("event_date",{ascending:false}).limit(1500);
+  const [p1Result,p2Result,sharedResult]=await Promise.all([
+    base().in("player_name",safeEvidenceAliases(args.p1,args.p2)),
+    base().in("player_name",safeEvidenceAliases(args.p2,args.p1)),
+    base().is("player_name",null),
+  ]);
+  const rows=([
+    ...((p1Result.error?[]:p1Result.data??[]) as Observation[]),
+    ...((p2Result.error?[]:p2Result.data??[]) as Observation[]),
+    ...((sharedResult.error?[]:sharedResult.data??[]) as Observation[]),
+  ]).filter(row=>metricAllowsObservation(code,row));
   const p1HasEvidence=hasPlayerEvidence(args.p1,args.p2,rows),p2HasEvidence=hasPlayerEvidence(args.p2,args.p1,rows);
   if(!p1HasEvidence&&!p2HasEvidence)return null;
   const c1=componentsFor(args.p1,args.p2,rows,args.asOfDate,args.tournament??null),c2=componentsFor(args.p2,args.p1,rows,args.asOfDate,args.tournament??null);
