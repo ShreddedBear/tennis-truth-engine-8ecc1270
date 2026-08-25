@@ -161,3 +161,25 @@ describe("verified PBP index sampling fallback", () => {
     expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');
   });
 });
+
+
+describe("certified provider-independent local evidence bridge", () => {
+  it("runs local historical evidence through the existing exact-field and certification guards before coverage credit", () => {
+    expect(diagnostic).toContain('localMetricRows(match.p1,match.p2,match.context,metrics)');
+    expect(diagnostic).toContain('certifyMetricFinding(enforceFiveMetricWiring(metrics[index],row))');
+    expect(diagnostic).toContain('internal=certifiedLocalByCode.get(code)??null');
+    expect(diagnostic).toContain('local_internal_p1:Boolean(internal?.p1_value)');
+    expect(diagnostic).toContain('schema_version:9');
+  });
+});
+
+
+describe("coverage fallback precedence requires real side values", () => {
+  it("does not let an unavailable deterministic row block certified local evidence", () => {
+    expect(diagnostic).toContain('function chooseEvidenceSide(');
+    expect(diagnostic).toContain('candidates.find(candidate=>usableEvidenceSide(candidate.treatment,candidate.value))');
+    expect(diagnostic).toContain('select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family")');
+    expect(diagnostic).toContain('p1Usable=usableEvidenceSide(p1Treatment,p1Chosen.value)');
+    expect(diagnostic).toContain('credited_source_p1:p1Usable?p1Chosen.source:null');
+  });
+});
