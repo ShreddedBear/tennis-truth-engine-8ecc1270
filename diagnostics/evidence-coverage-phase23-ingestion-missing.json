@@ -1,0 +1,388 @@
+{
+  "generated_at": "2026-08-25T21:12:34.335Z",
+  "matches": [
+    {
+      "id": "WTA_MAIN",
+      "pair": "Jessica Pegula vs Iga Swiatek",
+      "rows": [
+        {
+          "code": "015",
+          "expected": [
+            "MARKET"
+          ],
+          "name": "Market Layer",
+          "reason": "A structured path exists for MARKET but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "016",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Point-by-Point & Score-State Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "019",
+          "expected": [
+            "MARKET"
+          ],
+          "name": "Market Calibration",
+          "reason": "A structured path exists for MARKET but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "024",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Hidden Performance Quality",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "025",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Match Deterioration Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "030",
+          "expected": [
+            "RESULTS_SCHEDULE",
+            "ENVIRONMENT"
+          ],
+          "name": "Tournament-Specific Strength",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "033",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Break Quality Differential",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "036",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Loss Autopsy Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "040",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Hidden Decline Detector",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "042",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Opponent Win Pathways",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "043",
+          "expected": [
+            "MARKET",
+            "POINT_BY_POINT"
+          ],
+          "name": "Favorite Failure-Mode Score",
+          "reason": "A structured path exists for MARKET,POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "044",
+          "expected": [
+            "MARKET",
+            "POINT_BY_POINT"
+          ],
+          "name": "Opponent Upset Compatibility",
+          "reason": "A structured path exists for MARKET,POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "060",
+          "expected": [
+            "ENVIRONMENT",
+            "POINT_BY_POINT"
+          ],
+          "name": "Interaction / Matchup Residuals",
+          "reason": "A structured path exists for ENVIRONMENT,POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "064",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Draw Context",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "071",
+          "expected": [
+            "RESULTS_SCHEDULE",
+            "ENVIRONMENT"
+          ],
+          "name": "Session / Environment",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "075",
+          "expected": [
+            "RULES_CONTEXT"
+          ],
+          "name": "Match Format / Rules Context",
+          "reason": "A structured path exists for RULES_CONTEXT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "076",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Scheduling Micro-Context",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "077",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Season-Long Fatigue Context",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "079",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Additional Differentiating Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "081",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Further Differentiating Metrics",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        }
+      ]
+    },
+    {
+      "id": "ATP_MAIN",
+      "pair": "Flavio Cobolli vs Arthur Fils",
+      "rows": [
+        {
+          "code": "015",
+          "expected": [
+            "MARKET"
+          ],
+          "name": "Market Layer",
+          "reason": "A structured path exists for MARKET but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "016",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Point-by-Point & Score-State Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "019",
+          "expected": [
+            "MARKET"
+          ],
+          "name": "Market Calibration",
+          "reason": "A structured path exists for MARKET but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "024",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Hidden Performance Quality",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "025",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Match Deterioration Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "030",
+          "expected": [
+            "RESULTS_SCHEDULE",
+            "ENVIRONMENT"
+          ],
+          "name": "Tournament-Specific Strength",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "033",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Break Quality Differential",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "036",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Loss Autopsy Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "040",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Hidden Decline Detector",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "042",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Opponent Win Pathways",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "043",
+          "expected": [
+            "MARKET",
+            "POINT_BY_POINT"
+          ],
+          "name": "Favorite Failure-Mode Score",
+          "reason": "A structured path exists for MARKET,POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "044",
+          "expected": [
+            "MARKET",
+            "POINT_BY_POINT"
+          ],
+          "name": "Opponent Upset Compatibility",
+          "reason": "A structured path exists for MARKET,POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "060",
+          "expected": [
+            "ENVIRONMENT",
+            "POINT_BY_POINT"
+          ],
+          "name": "Interaction / Matchup Residuals",
+          "reason": "A structured path exists for ENVIRONMENT,POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "064",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Draw Context",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "071",
+          "expected": [
+            "RESULTS_SCHEDULE",
+            "ENVIRONMENT"
+          ],
+          "name": "Session / Environment",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "075",
+          "expected": [
+            "RULES_CONTEXT"
+          ],
+          "name": "Match Format / Rules Context",
+          "reason": "A structured path exists for RULES_CONTEXT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "076",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Scheduling Micro-Context",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "077",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Season-Long Fatigue Context",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        },
+        {
+          "code": "079",
+          "expected": [
+            "POINT_BY_POINT"
+          ],
+          "name": "Additional Differentiating Metrics",
+          "reason": "A structured path exists for POINT_BY_POINT but no admissible warehouse observation was ingested for this matchup/window.",
+          "warehouse_observation_count": 0
+        },
+        {
+          "code": "081",
+          "expected": [
+            "RESULTS_SCHEDULE"
+          ],
+          "name": "Further Differentiating Metrics",
+          "reason": "Only shared tournament/schedule context is present; player-specific match evidence required by this metric has not been ingested.",
+          "warehouse_observation_count": 80
+        }
+      ]
+    }
+  ],
+  "schema_version": 9
+}
