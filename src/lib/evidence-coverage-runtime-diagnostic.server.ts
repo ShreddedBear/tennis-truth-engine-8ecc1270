@@ -23,12 +23,74 @@ type FailureBucket =
   | "GENUINELY_UNAVAILABLE";
 
 type Metric = { code: string; name: string; body: string | null };
+type RepresentativeMatch = {
+  id: "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER";
+  match_id: string;
+  p1: string;
+  p2: string;
+  date: string;
+  tournament: string;
+  context: string;
+  event_level: string | null;
+  surface: string | null;
+};
 
-const REPRESENTATIVE_MATCHES = [
-  { id: "ATP_MAIN", p1: "Arthur Fils", p2: "Flavio Cobolli", date: "2026-08-22", tournament: "Cincinnati Open", context: "Tournament: Cincinnati Open | Level: ATP Masters 1000 | Tour: ATP Main | Surface: hard | Date: 2026-08-22" },
-  { id: "WTA_MAIN", p1: "Iga Swiatek", p2: "Jessica Pegula", date: "2026-08-22", tournament: "Cincinnati Open", context: "Tournament: Cincinnati Open | Level: WTA 1000 | Tour: WTA Main | Surface: hard | Date: 2026-08-22" },
-  { id: "ATP_CHALLENGER", p1: "Emilio Nava", p2: "Patrick Kypson", date: "2026-08-22", tournament: "ATP Challenger representative", context: "Tournament: ATP Challenger representative | Level: ATP Challenger | Tour: ATP Challenger | Surface: hard | Date: 2026-08-22" },
-] as const;
+type MatchCandidate = {
+  id: string;
+  player1_name: string;
+  player2_name: string;
+  tournament_name: string | null;
+  event_level: string | null;
+  scheduled_date: string | null;
+  surface: string | null;
+  round: string | null;
+};
+
+function classifyTour(row: MatchCandidate): RepresentativeMatch["id"] | null {
+  const level = String(row.event_level ?? "").toLowerCase();
+  const tournament = String(row.tournament_name ?? "").toLowerCase();
+  const combined = `${level} ${tournament}`;
+  if (/challenger/.test(combined) && !/wta\s*125|125k/.test(combined)) return "ATP_CHALLENGER";
+  if (/wta|women/.test(combined) && !/challenger/.test(combined)) return "WTA_MAIN";
+  if (/atp|masters|grand slam|slam|250|500|1000/.test(combined) && !/challenger/.test(combined)) return "ATP_MAIN";
+  return null;
+}
+
+function toRepresentative(id: RepresentativeMatch["id"], row: MatchCandidate): RepresentativeMatch {
+  const tournament = row.tournament_name ?? `${id} production match`;
+  const date = row.scheduled_date!;
+  const surface = row.surface ?? null;
+  const level = row.event_level ?? id.replaceAll("_", " ");
+  const context = [
+    `Tournament: ${tournament}`,
+    `Level: ${level}`,
+    `Tour: ${id.replaceAll("_", " ")}`,
+    surface ? `Surface: ${surface}` : null,
+    `Date: ${date}`,
+    row.round ? `Round: ${row.round}` : null,
+  ].filter(Boolean).join(" | ");
+  return { id, match_id: row.id, p1: row.player1_name, p2: row.player2_name, date, tournament, context, event_level: row.event_level, surface };
+}
+
+async function representativeMatches(): Promise<{ matches: RepresentativeMatch[]; missing_classes: RepresentativeMatch["id"][] }> {
+  const { data, error } = await db.from("matches")
+    .select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round")
+    .not("player1_name", "is", null)
+    .not("player2_name", "is", null)
+    .not("scheduled_date", "is", null)
+    .order("scheduled_date", { ascending: false })
+    .limit(1000);
+  if (error) throw new Error(`production match sampling: ${error.message}`);
+
+  const candidates = ((data ?? []) as MatchCandidate[]).filter((row) => row.player1_name && row.player2_name && row.scheduled_date);
+  const wanted: RepresentativeMatch["id"][] = ["ATP_MAIN", "WTA_MAIN", "ATP_CHALLENGER"];
+  const selected: RepresentativeMatch[] = [];
+  for (const id of wanted) {
+    const row = candidates.find((candidate) => classifyTour(candidate) === id);
+    if (row) selected.push(toRepresentative(id, row));
+  }
+  return { matches: selected, missing_classes: wanted.filter((id) => !selected.some((match) => match.id === id)) };
+}
 
 function codeOf(value: unknown) {
   const match = String(value ?? "").match(/(\d{1,3})$/);
@@ -44,7 +106,7 @@ async function activeMetrics(): Promise<Metric[]> {
   return (data ?? []).filter((row: any) => Number(row.rule_code) >= 1 && Number(row.rule_code) <= 81).map((row: any) => ({ code: String(row.rule_code), name: String(row.rule_name), body: row.body ?? null }));
 }
 
-async function deterministic(metric: Metric, match: typeof REPRESENTATIVE_MATCHES[number]) {
+async function deterministic(metric: Metric, match: RepresentativeMatch) {
   const runners = [
     () => deterministicRankingMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date }),
     () => deterministicRulesContextMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date, context: match.context }),
@@ -63,12 +125,14 @@ async function deterministic(metric: Metric, match: typeof REPRESENTATIVE_MATCHE
 export async function runEvidenceCoverageRuntimeDiagnostic() {
   const metrics = await activeMetrics();
   if (metrics.length !== 81) throw new Error(`Expected 81 active metrics, found ${metrics.length}`);
+  const sample = await representativeMatches();
+  if (!sample.matches.length) throw new Error("No real production matches were available for evidence coverage sampling");
   const matches: any[] = [];
 
-  for (const match of REPRESENTATIVE_MATCHES) {
+  for (const match of sample.matches) {
     const aliases = [...new Set([...safeEvidenceAliases(match.p1, match.p2), ...safeEvidenceAliases(match.p2, match.p1)])];
     const [identityResult, storedResult, packetResult] = await Promise.allSettled([
-      db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").or(`and(player1_name.eq.${match.p1},player2_name.eq.${match.p2}),and(player1_name.eq.${match.p2},player2_name.eq.${match.p1})`).limit(5),
+      db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").eq("id", match.match_id).limit(1),
       db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family").eq("as_of_date", match.date).in("metric_code", metrics.map((m) => codeOf(m.code))).in("player_name", aliases).in("opponent_name", aliases),
       buildMetricObservationContext({ metrics, p1: match.p1, p2: match.p2, asOfDate: match.date }),
     ]);
@@ -97,9 +161,6 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
       let bucket: FailureBucket | null = null;
       let reason: string | null = null;
       if (!pairUsable) {
-        // The production `matches` table is not the evidence warehouse. An empty
-        // exact-pair lookup is identity metadata only and must not overwrite the
-        // real downstream failure bucket for all 81 metrics.
         const queryErrors = [storedError, packetError, ...local.errors].filter(Boolean) as string[];
         if (queryErrors.length) {
           bucket = "EVIDENCE_QUERY_FAILURE";
@@ -131,8 +192,8 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     const pairCredited = details.filter((row) => row.pair_credited).length;
     const oneSided = details.filter((row) => row.one_sided_usable).length;
     matches.push({
-      id: match.id, pair: `${match.p1} vs ${match.p2}`,
-      identity: { exact_match_count: identityRows.length, query_error: identityError, blocks_evidence_classification: false },
+      id: match.id, match_id: match.match_id, pair: `${match.p1} vs ${match.p2}`, tournament: match.tournament, scheduled_date: match.date, event_level: match.event_level, surface: match.surface,
+      identity: { exact_match_count: identityRows.length, query_error: identityError, blocks_evidence_classification: identityRows.length !== 1 },
       query_errors: [storedError, packetError].filter(Boolean),
       coverage: { p1: p1Credited, p2: p2Credited, pair: pairCredited, one_sided: oneSided, p1_percent: Number((100 * p1Credited / 81).toFixed(2)), p2_percent: Number((100 * p2Credited / 81).toFixed(2)), pair_percent: Number((100 * pairCredited / 81).toFixed(2)) },
       false_green_guard: { passed: oneSided === 0, one_sided_metric_count: oneSided },
@@ -140,5 +201,5 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     });
   }
 
-  return { schema_version: 3, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
+  return { schema_version: 4, generated_at: new Date().toISOString(), metrics: metrics.length, sampling: { source: "REAL_PRODUCTION_MATCHES", requested_classes: ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"], sampled_classes: matches.map((m) => m.id), missing_classes: sample.missing_classes }, matches };
 }
