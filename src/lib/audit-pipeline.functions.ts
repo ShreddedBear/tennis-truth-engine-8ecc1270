@@ -2,7 +2,11 @@
 // Module scope must stay free of runtime helpers (server-fn splitting).
 import { createServerFn } from "@tanstack/react-start";
 
-const ZERO_EVIDENCE_RECOVERY_VERSION = "2026-08-22-v3-treatment-safe";
+// Any run below full legitimate evidence coverage gets one repair pass per
+// version. Existing usable sides are preserved; only unavailable/excluded
+// metric sides are reopened. Bump this version whenever new evidence wiring is
+// shipped so completed historical runs can benefit without deleting good data.
+const EVIDENCE_COVERAGE_RECOVERY_VERSION = "2026-08-25-v4-sub100-uplift";
 const BROWSER_SAFE_BUDGET_MS = 20_000;
 
 export const runAuditPipeline = createServerFn({ method: "POST" })
@@ -51,7 +55,7 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
     try {
       const latest = await deps.getLatestRun(data.matchId);
       if (latest) {
-        const [metrics, verification, disagreement, stages] = await Promise.all([deps.list("metric_results", latest.id),deps.list("verification_results", latest.id),deps.list("disagreement_results", latest.id),deps.getStages(latest.id)]);
+        const [metrics, verification, disagreement, stages, match] = await Promise.all([deps.list("metric_results", latest.id),deps.list("verification_results", latest.id),deps.list("disagreement_results", latest.id),deps.getStages(latest.id),deps.getMatch(data.matchId)]);
         const definitionStage = stages.find((s) => s.stage === "DEFINITION INSTANTIATION");
         const definitionsClaimed = definitionStage?.status === "COMPLETE";
         const structurallyEmpty = definitionsClaimed && (metrics.length === 0 || verification.length === 0 || disagreement.length === 0);
@@ -65,22 +69,28 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
           const usableSides=metrics.reduce((n,m)=>n+(usableTreatment(m["p1_treatment"])?1:0)+(usableTreatment(m["p2_treatment"])?1:0),0);
           const totalSides=metrics.length*2, usablePercent=totalSides?100*usableSides/totalSides:0;
           const runMeta=latest as unknown as {independent_inputs?:Record<string,unknown>};
-          const alreadyRecovered=runMeta.independent_inputs?.["zero_evidence_recovery_version"]===ZERO_EVIDENCE_RECOVERY_VERSION;
-          if (usablePercent < 10 && !alreadyRecovered) {
+          const alreadyRecovered=runMeta.independent_inputs?.["evidence_coverage_recovery_version"]===EVIDENCE_COVERAGE_RECOVERY_VERSION;
+          if (usablePercent < 100 && !alreadyRecovered) {
             for (const row of metrics) {
+              const p1Usable=usableTreatment(row["p1_treatment"]),p2Usable=usableTreatment(row["p2_treatment"]);
+              if(p1Usable&&p2Usable)continue;
               const patch:Record<string,unknown>={status:"NOT STARTED",reconstruction_attempted:false};
-              // p1_treatment/p2_treatment are NOT NULL in the database. Keep the
-              // truthful terminal label UNAVAILABLE while status is reset to
-              // NOT STARTED; executeMetrics will replace the treatment when real
-              // evidence is found. Never write null into these columns.
-              if(!usableTreatment(row["p1_treatment"])){patch["p1_status"]="NOT STARTED";patch["p1_treatment"]="UNAVAILABLE";patch["p1_unavailable_reason"]=null;patch["p1_provider_error"]=null;}
-              if(!usableTreatment(row["p2_treatment"])){patch["p2_status"]="NOT STARTED";patch["p2_treatment"]="UNAVAILABLE";patch["p2_unavailable_reason"]=null;patch["p2_provider_error"]=null;}
+              // Preserve every already-usable side. Only a side that is not
+              // DIRECT/RECONSTRUCTED/PARTIAL is reopened for legitimate new
+              // evidence. Treatment columns remain NOT NULL throughout.
+              if(!p1Usable){patch["p1_status"]="NOT STARTED";patch["p1_treatment"]="UNAVAILABLE";patch["p1_unavailable_reason"]=null;patch["p1_provider_error"]=null;}
+              if(!p2Usable){patch["p2_status"]="NOT STARTED";patch["p2_treatment"]="UNAVAILABLE";patch["p2_unavailable_reason"]=null;patch["p2_provider_error"]=null;}
               await deps.update("metric_results",String(row["id"]),patch);
             }
-            const restartFrom=STAGES.indexOf("P1 METRIC EXECUTION");
+            // An UNVERIFIED identity can suppress otherwise legitimate player
+            // evidence. Re-run identity/context in that narrow case; verified
+            // matches restart directly at metric execution.
+            const identityNeedsRepair=!!match && match.identity_status!=="VERIFIED";
+            const restartStage=identityNeedsRepair?"MATCH IDENTITY VERIFICATION":"P1 METRIC EXECUTION";
+            const restartFrom=STAGES.indexOf(restartStage);
             for(const stage of STAGES.slice(restartFrom))await deps.setStage(latest.id,data.matchId,stage,{status:"PENDING",done_count:0,total_count:stage==="P1 METRIC EXECUTION"||stage==="P2 METRIC EXECUTION"?metrics.length:0,error_code:null,error_message:null,finished_at:null});
-            await deps.updateRun(latest.id,{status:"RUNNING",independent_decision_committed_at:null,matrix_revealed_at:null,independent_winner:null,independent_low:null,independent_high:null,effective_evidence_count:0,independent_inputs:{...(runMeta.independent_inputs??{}),zero_evidence_recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION}});
-            await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"ZERO EVIDENCE RECOVERY",status:"RUNNING",output:{reason:"Reopened low-coverage metric statuses while preserving NOT NULL treatment columns.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),recovery_version:ZERO_EVIDENCE_RECOVERY_VERSION},matrix_visible:false});
+            await deps.updateRun(latest.id,{status:"RUNNING",independent_decision_committed_at:null,matrix_revealed_at:null,independent_winner:null,independent_low:null,independent_high:null,effective_evidence_count:usableSides,independent_inputs:{...(runMeta.independent_inputs??{}),evidence_coverage_recovery_version:EVIDENCE_COVERAGE_RECOVERY_VERSION,prior_usable_evidence_percent:Number(usablePercent.toFixed(1))}});
+            await deps.log({audit_run_id:latest.id,match_id:data.matchId,stage:"EVIDENCE COVERAGE RECOVERY",status:"RUNNING",output:{reason:"Reopened only unresolved metric sides so newly wired legitimate evidence can raise any sub-100% completed run without discarding prior usable evidence.",metric_rows:metrics.length,prior_usable_sides:usableSides,prior_usable_percent:Number(usablePercent.toFixed(1)),identity_repair:identityNeedsRepair,recovery_version:EVIDENCE_COVERAGE_RECOVERY_VERSION},matrix_visible:false});
           }
         }
         // Existing completed metric/underdog/stress sweeps can be upgraded without rerunning tennis research.
