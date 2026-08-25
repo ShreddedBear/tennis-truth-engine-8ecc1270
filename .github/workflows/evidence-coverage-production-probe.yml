@@ -1,0 +1,25 @@
+name: Evidence Coverage Production Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/evidence-coverage-production-probe.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe production route once
+        shell: bash
+        run: |
+          set -u
+          body="$(mktemp)"
+          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 'https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1' || true)"
+          echo "HTTP_STATUS=$status"
+          head -c 4000 "$body" || true
+          echo
