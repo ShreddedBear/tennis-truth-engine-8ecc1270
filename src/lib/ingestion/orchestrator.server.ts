@@ -1,13 +1,15 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ingestOpenMeteoHistorical } from "./open-meteo.server";
 import { ingestOddsHistorical } from "./odds-api.server";
-import { ingestTourResultsAndSchedules, type TourSource } from "./tour-results-schedule.server";
-import { ingestTourRankings, type RankingSource } from "./tour-rankings.server";
+import { ingestTourResultsAndSchedules, type TourSource, type OfficialTourSnapshot } from "./tour-results-schedule.server";
+import { ingestTourRankings, type RankingSource, type OfficialRankingSnapshot } from "./tour-rankings.server";
 import { ingestRulesContext, type RulesSource } from "./rules-context.server";
 
 const db = supabaseAdmin as any;
 
 type SourceId = "open_meteo" | "odds_api" | TourSource | RankingSource | RulesSource;
+export type OfficialSnapshot = OfficialTourSnapshot | OfficialRankingSnapshot;
+type IngestionOptions = { officialSnapshots?: OfficialSnapshot[] };
 
 type IngestionResult = Record<string, unknown> & {
   targets?: number;
@@ -51,13 +53,14 @@ async function runTracked<T extends IngestionResult>(sourceId: SourceId, jobType
   }
 }
 
-export async function runHistoricalHardPull(sources: SourceId[] = ["open_meteo", "odds_api"]) {
+export async function runHistoricalHardPull(sources: SourceId[] = ["open_meteo", "odds_api"], options: IngestionOptions = {}) {
   const results: Record<string, unknown> = {};
+  const snapshots = options.officialSnapshots ?? [];
   for (const source of sources) {
     if (source === "open_meteo") results[source] = await runTracked(source, "HISTORICAL_BACKFILL", () => ingestOpenMeteoHistorical());
     else if (source === "odds_api") results[source] = await runTracked(source, "HISTORICAL_BACKFILL", () => ingestOddsHistorical());
-    else if (source === "atp" || source === "wta" || source === "atp_challenger") results[source] = await runTracked(source, "RESULTS_SCHEDULE_PULL", () => ingestTourResultsAndSchedules(source));
-    else if (source === "atp_rankings" || source === "wta_rankings") results[source] = await runTracked(source, "RANKING_HISTORY_PULL", () => ingestTourRankings(source));
+    else if (source === "atp" || source === "wta" || source === "atp_challenger") results[source] = await runTracked(source, "RESULTS_SCHEDULE_PULL", () => ingestTourResultsAndSchedules(source, snapshots.filter((s): s is OfficialTourSnapshot => s.source === "atp" || s.source === "atp_challenger")));
+    else if (source === "atp_rankings" || source === "wta_rankings") results[source] = await runTracked(source, "RANKING_HISTORY_PULL", () => ingestTourRankings(source, snapshots.filter((s): s is OfficialRankingSnapshot => s.source === "atp_rankings")));
     else if (source === "itf_rules" || source === "atp_rules" || source === "wta_rules") results[source] = await runTracked(source, "RULES_CONTEXT_PULL", () => ingestRulesContext(source));
   }
   return results;

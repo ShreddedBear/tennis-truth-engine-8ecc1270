@@ -42,6 +42,39 @@ jobs:
         run: |
           set -euo pipefail
 
+          render_official_snapshot() {
+            local source="$1" url="$2" expect="$3" out_file="$4"
+            local html_file b64_file
+            html_file="$(mktemp --suffix=.html)"
+            b64_file="$(mktemp --suffix=.b64)"
+
+            timeout 90s google-chrome \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --disable-blink-features=AutomationControlled \
+              --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36' \
+              --virtual-time-budget=15000 \
+              --dump-dom "$url" > "$html_file"
+
+            if grep -qiE 'Just a moment|cf-chl|captcha|Attention Required' "$html_file"; then
+              echo "ATP Official browser snapshot hit a challenge: $url" >&2
+              exit 1
+            fi
+            if ! grep -qiE "$expect" "$html_file"; then
+              echo "ATP Official browser snapshot did not contain expected content: $url" >&2
+              exit 1
+            fi
+
+            gzip -c "$html_file" | base64 -w0 > "$b64_file"
+            jq -nc \
+              --arg source "$source" \
+              --arg url "$url" \
+              --rawfile body "$b64_file" \
+              '{source:$source,url:$url,encoding:"gzip-base64",body:$body}' >> "$out_file"
+            rm -f "$html_file" "$b64_file"
+          }
+
           IFS=',' read -ra SOURCES <<< "$INGEST_SOURCES"
           for RAW_SOURCE in "${SOURCES[@]}"; do
             SOURCE="$(echo "$RAW_SOURCE" | xargs)"
@@ -57,7 +90,30 @@ jobs:
             fi
             echo "::add-mask::$OIDC_TOKEN"
 
-            BODY="$(jq -nc --arg source "$SOURCE" '{sources:[$source]}')"
+            SNAPSHOTS_FILE="$(mktemp)"
+            : > "$SNAPSHOTS_FILE"
+            CURRENT_YEAR="$(date -u +%Y)"
+            PREVIOUS_YEAR="$((CURRENT_YEAR - 1))"
+
+            case "$SOURCE" in
+              atp)
+                for YEAR in "$PREVIOUS_YEAR" "$CURRENT_YEAR"; do
+                  render_official_snapshot "$SOURCE" "https://www.atptour.com/en/scores/results-archive?year=${YEAR}&tournamentType=atp" '/en/scores/archive/|Singles Winner|TOURNAMENT RESULTS' "$SNAPSHOTS_FILE"
+                done
+                ;;
+              atp_challenger)
+                for YEAR in "$PREVIOUS_YEAR" "$CURRENT_YEAR"; do
+                  render_official_snapshot "$SOURCE" "https://www.atptour.com/en/scores/results-archive?year=${YEAR}&tournamentType=ch" '/en/scores/archive/|Challenger|Singles Winner' "$SNAPSHOTS_FILE"
+                done
+                ;;
+              atp_rankings)
+                render_official_snapshot "$SOURCE" 'https://www.atptour.com/en/rankings/singles' 'Rankings|Rank|Points|Player' "$SNAPSHOTS_FILE"
+                ;;
+            esac
+
+            BODY_FILE="$(mktemp)"
+            jq -nc --arg source "$SOURCE" --slurpfile snapshots "$SNAPSHOTS_FILE" '{sources:[$source],official_snapshots:$snapshots}' > "$BODY_FILE"
+            rm -f "$SNAPSHOTS_FILE"
             echo "Starting warehouse ingestion source: $SOURCE"
 
             RESPONSE_FILE="$(mktemp)"
@@ -69,7 +125,8 @@ jobs:
               -X POST "$INGESTION_BRIDGE_URL" \
               -H "Authorization: Bearer $OIDC_TOKEN" \
               -H "Content-Type: application/json" \
-              --data "$BODY")"
+              --data-binary "@$BODY_FILE")"
+            rm -f "$BODY_FILE"
             RESPONSE="$(cat "$RESPONSE_FILE")"
             rm -f "$RESPONSE_FILE"
 
