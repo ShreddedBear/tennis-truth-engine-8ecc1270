@@ -35,21 +35,11 @@ jobs:
           if anchor not in text:
               raise SystemExit('expected diagnostic test anchor not found')
           test.write_text(text.replace(anchor, addition + anchor, 1))
-
-          workflow = Path('.github/workflows/evidence-coverage-repair-diagnostic.yml')
-          text = workflow.read_text()
-          anchor = '      - repair/evidence-coverage-phase14-bsd-deterministic\n'
-          addition = anchor + '      - repair/evidence-coverage-phase16-proof-contract\n'
-          if 'repair/evidence-coverage-phase16-proof-contract' not in text:
-              if anchor not in text:
-                  raise SystemExit('expected diagnostic workflow branch anchor not found')
-              text = text.replace(anchor, addition, 1)
-              workflow.write_text(text)
           PY
       - name: Commit repairs
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts .github/workflows/evidence-coverage-repair-diagnostic.yml
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
           git commit -m 'Classify missing source paths correctly in Evidence Coverage'
           git push origin HEAD:repair/evidence-coverage-phase16-proof-contract
