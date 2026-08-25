@@ -85,6 +85,19 @@ function summarizeForSide(payload: any, side: "player1" | "player2") {
   return { pointsWon, pointsLost, totalPoints, pointWinPct: Number((100 * pointsWon / totalPoints).toFixed(2)), gamesObserved, serviceGames, returnGames, breaksWon };
 }
 
+function balancedCandidates(rows: IndexRow[], p1n: string, p2n: string) {
+  const sorted = [...rows].sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
+  const p1Rows = sorted.filter(row => (row.players ?? []).map(norm).includes(p1n)).slice(0, 12);
+  const p2Rows = sorted.filter(row => (row.players ?? []).map(norm).includes(p2n)).slice(0, 12);
+  const seen = new Set<string>();
+  return [...p1Rows, ...p2Rows].filter(row => {
+    const key = String(row.match_id ?? `${row.date}|${(row.players ?? []).map(norm).join("|")}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
+}
+
 export async function buildBsdAtpMainPbpContext(args: {
   metrics: MetricLike[];
   p1: string;
@@ -105,11 +118,12 @@ export async function buildBsdAtpMainPbpContext(args: {
   const endYear = Math.min(2026, Number(args.asOfDate.slice(0, 4)) || 2026);
   const indexes = (await Promise.all(Array.from({ length: endYear - 2024 + 1 }, (_, i) => loadIndex(2024 + i)))).flat();
   const p1n = norm(args.p1), p2n = norm(args.p2);
-  const candidates = indexes.filter(row => {
+  const eligible = indexes.filter(row => {
     if (!strictIndexedAtpMain(row) || !row.date || row.date.slice(0, 10) > args.asOfDate) return false;
     const names = (row.players ?? []).map(norm);
     return names.includes(p1n) || names.includes(p2n);
-  }).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? ""))).slice(0, 24);
+  });
+  const candidates = balancedCandidates(eligible, p1n, p2n);
 
   const observations: any[] = [];
   const seenMatchIds = new Set<string>();
@@ -139,7 +153,7 @@ export async function buildBsdAtpMainPbpContext(args: {
         key: "bsd_atp_main_pbp_summary",
         value: summary,
         sample: `${summary.totalPoints} point rows; ${summary.gamesObserved} games`,
-        provenance: { circuit: "ATP", level: "MAIN", coverage_floor: COVERAGE_START, strict_index_classifier: true, duplicate_match_guard: true },
+        provenance: { circuit: "ATP", level: "MAIN", coverage_floor: COVERAGE_START, strict_index_classifier: true, duplicate_match_guard: true, balanced_player_candidate_budget: true },
       });
       status.matches_used += 1;
     }
