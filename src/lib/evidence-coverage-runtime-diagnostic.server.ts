@@ -31,7 +31,7 @@ const REPRESENTATIVE_MATCHES = [
 
 function codeOf(value: unknown) {
   const match = String(value ?? "").match(/(\d{1,3})$/);
-  return match ? match[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
+  return match ? match[1].padStart(3,"0") : String(value ?? "").padStart(3,"0");
 }
 
 async function activeMetrics(): Promise<Metric[]> {
@@ -92,10 +92,13 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
       const local = await deterministic(metric, match);
       const p1Treatment = String(p1Stored?.treatment ?? local.row?.p1_treatment ?? "UNAVAILABLE");
       const p2Treatment = String(p2Stored?.treatment ?? local.row?.p2_treatment ?? "UNAVAILABLE");
-      const usable = USABLE.has(p1Treatment) || USABLE.has(p2Treatment);
+      const p1Usable = USABLE.has(p1Treatment);
+      const p2Usable = USABLE.has(p2Treatment);
+      const pairUsable = p1Usable && p2Usable;
+      const oneSidedUsable = p1Usable !== p2Usable;
       let bucket: FailureBucket | null = null;
       let reason: string | null = null;
-      if (!usable) {
+      if (!pairUsable) {
         const queryErrors = [identityError, storedError, packetError, ...local.errors].filter(Boolean) as string[];
         if (queryErrors.length) {
           bucket = "EVIDENCE_QUERY_FAILURE";
@@ -103,6 +106,9 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
         } else if (!identityRows.length) {
           bucket = "IDENTITY_MATCH_FAILURE";
           reason = "Exact persisted representative pair was not found.";
+        } else if (oneSidedUsable) {
+          bucket = "COVERAGE_CREDIT_FAILURE";
+          reason = `One-sided usable evidence cannot count as pair-complete coverage (P1=${p1Treatment}, P2=${p2Treatment}).`;
         } else if ((entry?.observations?.length ?? 0) > 0 && entry?.direct_satisfaction_allowed) {
           bucket = "EVIDENCE_WIRING_FAILURE";
           reason = "Sufficient admissible observations exist but did not become a usable deterministic/stored finding.";
@@ -124,7 +130,9 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
         warehouse_observation_count: Number(entry?.observations?.length ?? 0),
         stored_p1: Boolean(p1Stored), stored_p2: Boolean(p2Stored),
         p1_treatment: p1Treatment, p2_treatment: p2Treatment,
-        p1_credited: USABLE.has(p1Treatment), p2_credited: USABLE.has(p2Treatment),
+        p1_credited: p1Usable, p2_credited: p2Usable,
+        pair_credited: pairUsable,
+        one_sided_usable: oneSidedUsable,
         deterministic_family: local.row?.evidence_family ?? null,
         failure_bucket: bucket,
         reason,
@@ -135,16 +143,27 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     for (const row of details) if (row.failure_bucket) buckets[row.failure_bucket] = (buckets[row.failure_bucket] ?? 0) + 1;
     const p1Credited = details.filter((row) => row.p1_credited).length;
     const p2Credited = details.filter((row) => row.p2_credited).length;
+    const pairCredited = details.filter((row) => row.pair_credited).length;
+    const oneSided = details.filter((row) => row.one_sided_usable).length;
     matches.push({
       id: match.id,
       pair: `${match.p1} vs ${match.p2}`,
       identity_match_count: identityRows.length,
       query_errors: [identityError, storedError, packetError].filter(Boolean),
-      coverage: { p1: p1Credited, p2: p2Credited, p1_percent: Number((100 * p1Credited / 81).toFixed(2)), p2_percent: Number((100 * p2Credited / 81).toFixed(2)) },
+      coverage: {
+        p1: p1Credited,
+        p2: p2Credited,
+        pair: pairCredited,
+        one_sided: oneSided,
+        p1_percent: Number((100 * p1Credited / 81).toFixed(2)),
+        p2_percent: Number((100 * p2Credited / 81).toFixed(2)),
+        pair_percent: Number((100 * pairCredited / 81).toFixed(2)),
+      },
+      false_green_guard: { passed: oneSided === 0, one_sided_metric_count: oneSided },
       failure_buckets: buckets,
       metrics: details,
     });
   }
 
-  return { schema_version: 1, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
+  return { schema_version: 2, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
 }
