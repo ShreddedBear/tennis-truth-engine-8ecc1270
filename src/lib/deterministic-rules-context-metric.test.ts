@@ -15,10 +15,10 @@ describe("metric 075 rules context wiring",()=>{
     expect(calc).toContain('p1_treatment:"PARTIAL"');
     expect(calc).toContain('p2_treatment:"PARTIAL"');
   });
-  it("hard-asserts the ingestion family and runs before live fallback",()=>{
+  it("hard-asserts the ingestion family and runs before unresolved live fallback",()=>{
     expect(ingestion).toContain('assertObservationFamily(row,"RULES_CONTEXT")');
     const rulesIndex=researcher.indexOf("deterministicRulesContextMetric({");
-    const liveIndex=researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:missing})");
+    const liveIndex=researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
     expect(rulesIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(rulesIndex);
   });

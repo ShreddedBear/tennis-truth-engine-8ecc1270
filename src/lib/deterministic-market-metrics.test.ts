@@ -24,9 +24,9 @@ describe("deterministic market metrics", () => {
     expect(calc).toContain('isCoreMarket ? "RECONSTRUCTED" : "PARTIAL"');
   });
 
-  it("runs market calculations before live fallback", () => {
+  it("runs market calculations before unresolved live fallback", () => {
     const deterministicIndex = researcher.indexOf("deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date})");
-    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:missing})");
+    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);
   });
