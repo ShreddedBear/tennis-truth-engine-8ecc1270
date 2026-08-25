@@ -24,4 +24,4 @@ jobs:
           head -c 20000 "$body" || true
           echo
 
-# production probe retrigger after phase-14 publish and later evidence recovery merges
+# production probe retrigger after Phase 21 verified-index merge and deployment propagation
