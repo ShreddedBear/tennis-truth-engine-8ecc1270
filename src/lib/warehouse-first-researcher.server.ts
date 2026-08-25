@@ -5,6 +5,7 @@ import { deterministicMarketMetric } from "./deterministic-market-metrics.server
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
+import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
@@ -84,7 +85,13 @@ function mergeObservationPackets(base:Record<string,unknown>, extra:Record<strin
 export const warehouseFirstResearcher: Researcher = {
   ...finalMetricWiringResearcher,
   async metrics(input){
-    const {p1,p2,metrics}=input;
+    const {metrics}=input;
+    // Resolve surname-only uploaded identities exactly once, then feed the
+    // proven canonical pair through every evidence family. Ambiguous/unproven
+    // surnames stay unchanged, so all downstream exact-match paths fail closed.
+    const identities=await resolveCanonicalEvidencePair(input.p1,input.p2);
+    const p1=identities.p1.canonical;
+    const p2=identities.p2.canonical;
     const date=asOfDate(input.context);
     const tournament=tournamentFromContext(input.context);
     const codes=metrics.map(metric=>codeOf(metric.code));
@@ -104,10 +111,6 @@ export const warehouseFirstResearcher: Researcher = {
     }))).filter((row):row is MetricFinding=>Boolean(row));
     const deterministicByCode=new Map(deterministicRows.map(row=>[codeOf(row.metric_code),row]));
 
-    // A locally recovered DIRECT/RECONSTRUCTED/PARTIAL result is already valid evidence.
-    // Do not send it through the slower live fallback merely to rediscover the same metric.
-    // This was a major latency/coverage leak: the entire batch could stall on live research
-    // before deterministic warehouse evidence ever reached the audit rows.
     const liveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
 
     let liveRows:MetricFinding[]=[];
@@ -127,8 +130,9 @@ export const warehouseFirstResearcher: Researcher = {
         const existing=(observationPacket as Record<string,any>)[code]??{};
         (observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};
       }
-      const context=appendMetricObservationContext(input.context,{...observationPacket,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
-      liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing});
+      const identityResolution={p1:identities.p1,p2:identities.p2};
+      const context=appendMetricObservationContext(input.context,{...observationPacket,_canonical_identity_resolution:identityResolution,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
+      liveRows=await finalMetricWiringResearcher.metrics({...input,p1,p2,context,metrics:liveMissing});
     }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
 
