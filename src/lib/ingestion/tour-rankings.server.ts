@@ -51,6 +51,31 @@ function normalize(source:RankingSource,url:string,target:Target,o:Record<string
   return row;
 }
 
+function normalizeWtaOfficialRanking(target:Target,url:string,value:unknown):Row|null {
+  if(!value || typeof value!=="object" || Array.isArray(value)) return null;
+  const o=value as Record<string,unknown>;
+  const playerObj=o.player && typeof o.player==="object" && !Array.isArray(o.player) ? o.player as Record<string,unknown> : null;
+  const player=playerObj ? first(playerObj,["fullName","playerName","name"]) : null;
+  const rank=num(o.ranking ?? o.rank ?? o.position);
+  const points=num(o.points);
+  if(!player || rank===null || rank<1 || rank>5000) return null;
+  const rankedAt=date(str(o.rankedAt ?? o.rankingDate)) ?? target.pullback_end ?? new Date().toISOString().slice(0,10);
+  const movement=num(o.movement);
+  const country=playerObj ? first(playerObj,["countryCode","country","nation"]) : null;
+  const playerId=playerObj ? first(playerObj,["id","playerId"]) : null;
+  const payload={rank,points,prior_rank:null,movement,country,player_id:playerId,tournaments_played:num(o.tournamentsPlayed)};
+  const row:Row={
+    source_id:"wta_rankings",source_name:SOURCE_NAMES.wta_rankings,source_url:url,
+    source_record_key:`${target.target_key}:${rankedAt}:${playerId??player}:${rank}`,
+    player_name:player,opponent_name:null,tournament:null,event_date:rankedAt,surface:null,
+    observation_type:"RANKING",observation_key:"ranking_snapshot",text_value:JSON.stringify(payload),numeric_value:rank,
+    unit:"rank",sample_label:points===null?null:`points=${points}`,window_start:target.pullback_start,window_end:target.pullback_end,
+    raw_payload:o,provenance:{target_key:target.target_key,tour:"wta_rankings",extraction:"official_wta_public_api"},
+  };
+  assertObservationFamily(row,"RANKING");
+  return row;
+}
+
 function parseRankingTable(html:string,source:RankingSource,target:Target,url:string,extraction?:string):Row[]{
   const rows:Row[]=[]; const seen=new Set<string>(); const rankingDate=target.pullback_end ?? new Date().toISOString().slice(0,10);
   for(const tr of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
@@ -82,11 +107,15 @@ async function fetchRows(source:RankingSource,url:string,target:Target,snapshots
     for(const snapshot of snapshots){validateAtpRankingSnapshot(snapshot);const parsed=rowsFromHtml(source,snapshot.url,target,snapshot.html,"official_atp_rankings_browser_snapshot");objects_seen+=parsed.objects_seen;for(const row of parsed.rows)rows.set(row.source_record_key,row);}
     return {rows:[...rows.values()],objects_seen,pages:snapshots.length};
   }
+  if(source==="wta_rankings") {
+    const api=await request(WTA_RANKINGS_API); if(!api.ok) throw new Error(`${WTA_RANKINGS_API} returned ${api.status}`);
+    const payload=await api.json() as unknown; const values=Array.isArray(payload)?payload:(payload&&typeof payload==="object"&&Array.isArray((payload as Record<string,unknown>).content)?(payload as Record<string,unknown>).content as unknown[]:[]);
+    const rows=new Map<string,Row>(); for(const value of values){const row=normalizeWtaOfficialRanking(target,WTA_RANKINGS_API,value);if(row)rows.set(row.source_record_key,row);}
+    return {rows:[...rows.values()],objects_seen:values.length,pages:1};
+  }
   const r=await request(url); if(!r.ok) throw new Error(`${url} returned ${r.status}`); const effectiveUrl=r.url||url; const ct=r.headers.get("content-type")??"";
   if(ct.includes("application/json")) { const payload=await r.json(); const objects:Record<string,unknown>[]=[]; collect(payload,objects); const rows=new Map<string,Row>(); for(const o of objects){const row=normalize(source,effectiveUrl,target,o);if(row)rows.set(row.source_record_key,row);} return {rows:[...rows.values()],objects_seen:objects.length,pages:1}; }
-  const html=await r.text(); const parsed=rowsFromHtml(source,effectiveUrl,target,html,"official_page"); if(parsed.rows.length||source!=="wta_rankings") return {rows:parsed.rows,objects_seen:parsed.objects_seen,pages:1};
-  const api=await request(WTA_RANKINGS_API); if(!api.ok) throw new Error(`${WTA_RANKINGS_API} returned ${api.status}`); const payload=await api.json() as unknown; const apiObjects:Record<string,unknown>[]=[]; collect(payload,apiObjects); const rows=new Map<string,Row>();
-  for(const o of apiObjects){const row=normalize(source,WTA_RANKINGS_API,target,o,"official_wta_public_api");if(row)rows.set(row.source_record_key,row);} return {rows:[...rows.values()],objects_seen:parsed.objects_seen+apiObjects.length,pages:2};
+  const html=await r.text(); const parsed=rowsFromHtml(source,effectiveUrl,target,html,"official_page"); return {rows:parsed.rows,objects_seen:parsed.objects_seen,pages:1};
 }
 
 async function persistRows(rows:Row[]) {

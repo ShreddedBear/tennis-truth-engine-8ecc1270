@@ -83,8 +83,9 @@ function levelText(obj:Record<string,unknown>) {
 function isChallengerLevel(level:string|null) { return !!level && (/challenger/i.test(level) || /\bch\b/i.test(level)); }
 function isWtaMainLevel(level:string|null) {
   if(!level) return false;
-  if(/\b125\b|wta\s*125|challenger|itf/i.test(level)) return false;
-  return /grand\s*slam|finals|1000|500|250|premier|international|wta/i.test(level);
+  const normalized=level.replace(/[_-]+/g," ").trim();
+  if(/(^|\D)125\s*k?\b|wta\s*125|challenger|itf/i.test(normalized)) return false;
+  return /grand\s*slam|tour\s*finals|wta\s*finals|1000|500|250|premier|international|wta/i.test(normalized);
 }
 function sourceMatchesTour(source:TourSource,obj:Record<string,unknown>) {
   const level=levelText(obj);
@@ -197,14 +198,15 @@ function wtaApiRows(target:Target,url:string,payload:unknown):Observation[] {
   }
   const allowedYears=new Set(targetYears(target)); const rows:Observation[]=[];
   for(const obj of roots) {
-    const level=levelText(obj); if(!isWtaMainLevel(level)) continue;
-    const year=Number(deepFirst(obj,["year","tournamentYear","seasonYear"])); if(!Number.isFinite(year)||!allowedYears.has(year)) continue;
     const group=(obj.tournamentGroup && typeof obj.tournamentGroup === "object" && !Array.isArray(obj.tournamentGroup)) ? obj.tournamentGroup as Record<string,unknown> : null;
-    const groupId=(group?first(group,["id","groupId"]):null) ?? deepFirst(obj,["tournamentGroupId","groupId","id"]);
-    const tournament=(group?first(group,["name","title"]):null) ?? deepFirst(obj,["tournamentName","name","title"]);
+    const level=(group?first(group,["level","levelName","levelLabel"]):null) ?? first(obj,["level","levelName","levelLabel"]);
+    if(!isWtaMainLevel(level)) continue;
+    const year=Number(first(obj,["year","tournamentYear","seasonYear"])); if(!Number.isFinite(year)||!allowedYears.has(year)) continue;
+    const groupId=(group?first(group,["id","groupId"]):null) ?? first(obj,["tournamentGroupId","groupId"]);
+    const tournament=first(obj,["title","tournamentName","name"]) ?? (group?first(group,["name","title"]):null);
     if(!groupId || !tournament) continue;
-    const start=isoDate(deepFirst(obj,["startDate","date","fromDate"])); const end=isoDate(deepFirst(obj,["endDate","toDate"]));
-    const surface=deepFirst(obj,["surface","surfaceName"]); const key=`${target.target_key}:${year}:${groupId}:event_schedule`;
+    const start=isoDate(first(obj,["startDate","date","fromDate"])); const end=isoDate(first(obj,["endDate","toDate"]));
+    const surface=first(obj,["surface","surfaceName"]); const key=`${target.target_key}:${year}:${groupId}:event_schedule`;
     rows.push({source_id:"wta",source_name:SOURCE_NAMES.wta,source_url:url,source_record_key:key,player_name:null,opponent_name:null,tournament,event_date:start,surface,
       observation_type:"TOURNAMENT_SCHEDULE",observation_key:"event_schedule",text_value:JSON.stringify({tournament,year,start_date:start,end_date:end,surface,level,group_id:groupId}),numeric_value:null,sample_label:level,
       window_start:target.pullback_start,window_end:target.pullback_end,raw_payload:obj,provenance:{target_key:target.target_key,tour:"wta",level,group_id:groupId,extraction:"official_wta_public_api"}});
@@ -213,22 +215,24 @@ function wtaApiRows(target:Target,url:string,payload:unknown):Observation[] {
 }
 
 async function fetchWtaOfficial(target:Target,configuredUrl:string) {
-  const pageRes=await request(configuredUrl); if(!pageRes.ok) throw new Error(`${configuredUrl} returned ${pageRes.status}`);
-  const pageUrl=pageRes.url||configuredUrl; const pageHtml=await pageRes.text();
-  const objects:Record<string,unknown>[]=[]; for(const payload of embeddedJson(pageHtml)) collectObjects(payload,objects);
-  const pageRows=new Map<string,Observation>(); for(const obj of objects) for(const row of normalizedFromObject("wta",pageUrl,target,obj)) pageRows.set(row.source_record_key,row);
-  if(pageRows.size) return {rows:[...pageRows.values()],pages:1,seen:objects.length};
-
-  const rows=new Map<string,Observation>(); let pages=1,seen=objects.length;
-  for(let page=0;page<10;page++) {
-    const apiUrl=`${WTA_TOURNAMENT_API}?page=${page}&pageSize=500`; const res=await request(apiUrl); if(!res.ok) throw new Error(`${apiUrl} returned ${res.status}`);
-    const payload=await res.json() as unknown; const parsed=wtaApiRows(target,apiUrl,payload); for(const row of parsed) rows.set(row.source_record_key,row); pages++; seen+=parsed.length;
+  const rows=new Map<string,Observation>(); let pages=0,seen=0;
+  for(let page=0;page<25;page++) {
+    const params=new URLSearchParams({page:String(page),pageSize:"500"});
+    const apiUrl=`${WTA_TOURNAMENT_API}?${params.toString()}`; const res=await request(apiUrl); if(!res.ok) throw new Error(`${apiUrl} returned ${res.status}`);
+    const payload=await res.json() as unknown; const parsed=wtaApiRows(target,apiUrl,payload); for(const row of parsed) rows.set(row.source_record_key,row); pages++;
+    const content=payload&&typeof payload==="object"&&!Array.isArray(payload)?(payload as Record<string,unknown>).content:null; seen+=Array.isArray(content)?content.length:0;
     if(payload && typeof payload === "object" && !Array.isArray(payload)) {
-      const root=payload as Record<string,unknown>; const info=root.pageInfo as Record<string,unknown>|undefined; const total=Number(info?.numPages);
+      const root=payload as Record<string,unknown>; const info=root.pageInfo as Record<string,unknown>|undefined; const total=Number(info?.numPages ?? info?.totalPages);
       if(Number.isFinite(total) && page+1>=total) break;
-      const content=root.content; if(Array.isArray(content) && content.length===0) break;
+      if(Array.isArray(content) && content.length===0) break;
     } else break;
   }
+  if(rows.size) return {rows:[...rows.values()],pages,seen};
+
+  const pageRes=await request(configuredUrl); if(!pageRes.ok) throw new Error(`${configuredUrl} returned ${pageRes.status}`);
+  const pageUrl=pageRes.url||configuredUrl; const pageHtml=await pageRes.text(); pages++;
+  const objects:Record<string,unknown>[]=[]; for(const payload of embeddedJson(pageHtml)) collectObjects(payload,objects); seen+=objects.length;
+  for(const obj of objects) for(const row of normalizedFromObject("wta",pageUrl,target,obj)) rows.set(row.source_record_key,row);
   return {rows:[...rows.values()],pages,seen};
 }
 
