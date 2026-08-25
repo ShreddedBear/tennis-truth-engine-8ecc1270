@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
+import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
 const db = supabaseAdmin as any;
@@ -63,8 +64,8 @@ function sources(rows: Observation[]): SourceRef[] {
   return out;
 }
 
-function componentsFor(player: string, rows: Observation[], asOfDate: string, tournament: string | null): PlayerComponents {
-  const playerRows = rows.filter((r) => r.player_name === player && isMatch(r));
+function componentsFor(player: string, opponent: string, rows: Observation[], asOfDate: string, tournament: string | null): PlayerComponents {
+  const playerRows = rows.filter((r) => evidenceNameMatches(r.player_name, player, opponent) && isMatch(r));
   const recent = (days: number) => playerRows.filter((r) => r.event_date && daysBetween(r.event_date, asOfDate) >= 0 && daysBetween(r.event_date, asOfDate) <= days);
   const r14 = recent(14);
   const r30 = recent(30);
@@ -75,7 +76,7 @@ function componentsFor(player: string, rows: Observation[], asOfDate: string, to
   let sameTournamentWins = 0;
   for (const row of sameTournament) {
     const payload = parseText(row);
-    if (String(payload.winner ?? "") === player) sameTournamentWins += 1;
+    if (evidenceNameMatches(String(payload.winner ?? ""), player, opponent)) sameTournamentWins += 1;
   }
   const qualifying = r14.filter((r) => /qual/i.test(String(r.sample_label ?? parseText(r).round ?? "")));
   const scheduledCurrent = rows.filter((r) => r.observation_key === "event_schedule" && (!tournament || r.tournament === tournament)).length;
@@ -117,19 +118,23 @@ export async function deterministicResultsScheduleMetric(args: {
   if (!SUPPORTED.has(code)) return null;
   const start = new Date(`${args.asOfDate}T00:00:00Z`);
   start.setUTCFullYear(start.getUTCFullYear() - 5);
-  const { data, error } = await db.from("source_observations")
-    .select("source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label")
+  const aliases = [...new Set([...safeEvidenceAliases(args.p1, args.p2), ...safeEvidenceAliases(args.p2, args.p1)])];
+  const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label";
+  const base = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10))
     .lte("event_date", args.asOfDate)
-    .or(`player_name.eq.${args.p1},player_name.eq.${args.p2},player_name.is.null`)
     .order("event_date", { ascending: false })
     .limit(2000);
-  if (error) return null;
-  const rows = ((data ?? []) as Observation[]).filter((row) => metricAllowsObservation(code, row));
-  const playerRows = rows.filter((r) => r.player_name === args.p1 || r.player_name === args.p2);
+  const [playerResult, sharedResult] = await Promise.all([
+    base().in("player_name", aliases),
+    base().is("player_name", null),
+  ]);
+  if (playerResult.error || sharedResult.error) return null;
+  const rows = ([...(playerResult.data ?? []), ...(sharedResult.data ?? [])] as Observation[]).filter((row) => metricAllowsObservation(code, row));
+  const playerRows = rows.filter((r) => evidenceNameMatches(r.player_name, args.p1, args.p2) || evidenceNameMatches(r.player_name, args.p2, args.p1));
   if (!playerRows.length) return null;
-  const c1 = componentsFor(args.p1, rows, args.asOfDate, args.tournament ?? null);
-  const c2 = componentsFor(args.p2, rows, args.asOfDate, args.tournament ?? null);
+  const c1 = componentsFor(args.p1, args.p2, rows, args.asOfDate, args.tournament ?? null);
+  const c2 = componentsFor(args.p2, args.p1, rows, args.asOfDate, args.tournament ?? null);
   const p1 = valueFor(code, c1);
   const p2 = valueFor(code, c2);
   if (!p1 || !p2) return null;
