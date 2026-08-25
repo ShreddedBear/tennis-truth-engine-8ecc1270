@@ -45,7 +45,7 @@ describe("newly-green end-to-end coverage audit", () => {
     }
   });
 
-  it("wires every non-PBP deterministic calculator into warehouse execution", () => {
+  it("wires every non-PBP deterministic calculator before unresolved live fallback", () => {
     const compact = warehouse.replace(/\s+/g, "");
     for (const calculator of [
       "deterministicRankingMetric({",
@@ -57,9 +57,10 @@ describe("newly-green end-to-end coverage audit", () => {
       expect(compact).toContain(calculator.replace(/\s+/g, ""));
     }
 
-    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:missing})";
+    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})";
     const liveIndex = compact.indexOf(liveCall);
     expect(liveIndex).toBeGreaterThan(-1);
+    expect(compact).toContain("constliveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     for (const calculator of [
       "deterministicRankingMetric({",
       "deterministicRulesContextMetric({",
