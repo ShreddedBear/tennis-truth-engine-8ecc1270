@@ -1,4 +1,4 @@
-function normalize(value: string | null | undefined) {
+export function normalizeEvidenceIdentity(value: string | null | undefined) {
   return String(value ?? "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -9,16 +9,44 @@ function normalize(value: string | null | undefined) {
 }
 
 function surname(value: string) {
-  const parts = normalize(value).split(" ").filter(Boolean);
+  const parts = normalizeEvidenceIdentity(value).split(" ").filter(Boolean);
   return parts.length >= 2 ? parts[parts.length - 1] : null;
+}
+
+export function isSurnameOnlyEvidenceIdentity(value: string | null | undefined) {
+  const parts = normalizeEvidenceIdentity(value).split(" ").filter(Boolean);
+  return parts.length === 1;
+}
+
+/**
+ * Resolve a surname-only uploaded identity only when the warehouse candidate
+ * set proves exactly one full canonical name. This is intentionally strict:
+ * no fuzzy matching, initials, prefix matching, or best-effort selection.
+ */
+export function uniqueCanonicalWarehouseIdentity(
+  uploaded: string,
+  warehouseCandidates: Array<string | null | undefined>,
+): string | null {
+  if (!isSurnameOnlyEvidenceIdentity(uploaded)) return uploaded;
+  const wantedSurname = normalizeEvidenceIdentity(uploaded);
+  if (!wantedSurname) return null;
+
+  const byNormalized = new Map<string, string>();
+  for (const candidate of warehouseCandidates) {
+    const display = String(candidate ?? "").trim();
+    const normalized = normalizeEvidenceIdentity(display);
+    const parts = normalized.split(" ").filter(Boolean);
+    if (parts.length < 2 || parts[parts.length - 1] !== wantedSurname) continue;
+    if (!byNormalized.has(normalized)) byNormalized.set(normalized, display);
+  }
+  return byNormalized.size === 1 ? [...byNormalized.values()][0] : null;
 }
 
 /**
  * Evidence written by older completion sweeps sometimes used only a surname
  * (for example "Gauff") while the audit asks for the canonical display name
- * ("Coco Gauff").  Recover only the one safe legacy alias we can prove from
- * the requested matchup: an exact surname that is not shared by the opponent.
- * No fuzzy/edit-distance matching is permitted here.
+ * ("Coco Gauff"). Recover only the exact surname alias implied by an already
+ * canonical matchup; no fuzzy/edit-distance matching is permitted here.
  */
 export function safeEvidenceAliases(player: string, opponent: string) {
   const aliases = new Set<string>([player]);
@@ -29,8 +57,8 @@ export function safeEvidenceAliases(player: string, opponent: string) {
 }
 
 export function evidenceNameMatches(stored: string | null | undefined, requested: string, opponent: string) {
-  const wanted = new Set(safeEvidenceAliases(requested, opponent).map(normalize));
-  return wanted.has(normalize(stored));
+  const wanted = new Set(safeEvidenceAliases(requested, opponent).map(normalizeEvidenceIdentity));
+  return wanted.has(normalizeEvidenceIdentity(stored));
 }
 
 export function evidencePairMatches(
