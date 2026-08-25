@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { safeEvidenceAliases } from "./evidence-player-alias";
-import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
+import { metricAllowsObservation, observationFamily, policyForMetric, type ObservationFamily } from "./metric-source-family-policy";
 
 const db = supabaseAdmin as any;
 
@@ -22,6 +22,7 @@ type ObservationRow = {
   window_start: string | null;
   window_end: string | null;
 };
+type LaneFailure = { lane: string; families: ObservationFamily[]; message: string };
 
 function codeOf(value: unknown) {
   const match = String(value ?? "").match(/(\d{1,3})$/);
@@ -41,35 +42,42 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
     .order("event_date", { ascending: false });
 
-  // Dense PBP and market snapshots can contain thousands of rows for one player.
-  // A single global LIMIT used to let those families crowd rankings/results/rules
-  // out of the candidate packet. Keep independent bounded lanes so every
-  // admissible family gets a fair chance to reach metric wiring.
+  // Dense PBP and market snapshots are isolated so they cannot crowd other
+  // evidence families out of the packet. A failed lane is also isolated: its
+  // error is surfaced as metadata while successful lanes remain usable.
   const [otherResult, marketResult, pbpResult, sharedResult] = await Promise.all([
     base().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
     base().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
     base().in("player_name", aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
     base().is("player_name", null).limit(1000),
   ]);
-  if (otherResult.error || marketResult.error || pbpResult.error || sharedResult.error) return [] as ObservationRow[];
+
+  const laneFailures: LaneFailure[] = [];
+  if (otherResult.error) laneFailures.push({ lane: "other", families: ["RESULTS_SCHEDULE", "RANKING", "ENVIRONMENT", "RULES_CONTEXT"], message: otherResult.error.message });
+  if (marketResult.error) laneFailures.push({ lane: "market", families: ["MARKET"], message: marketResult.error.message });
+  if (pbpResult.error) laneFailures.push({ lane: "pbp", families: ["POINT_BY_POINT"], message: pbpResult.error.message });
+  if (sharedResult.error) laneFailures.push({ lane: "shared", families: ["RESULTS_SCHEDULE", "ENVIRONMENT", "RULES_CONTEXT"], message: sharedResult.error.message });
+
   const rows = [
-    ...((otherResult.data ?? []) as ObservationRow[]),
-    ...((marketResult.data ?? []) as ObservationRow[]),
-    ...((pbpResult.data ?? []) as ObservationRow[]),
-    ...((sharedResult.data ?? []) as ObservationRow[]),
+    ...((otherResult.error ? [] : otherResult.data ?? []) as ObservationRow[]),
+    ...((marketResult.error ? [] : marketResult.data ?? []) as ObservationRow[]),
+    ...((pbpResult.error ? [] : pbpResult.data ?? []) as ObservationRow[]),
+    ...((sharedResult.error ? [] : sharedResult.data ?? []) as ObservationRow[]),
   ];
   const seen = new Set<string>();
-  return rows.filter((row) => {
+  const deduped = rows.filter((row) => {
     const key = [row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value,row.numeric_value].join("|");
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  return { rows: deduped, laneFailures };
 }
 
 export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; }) {
-  const rows = await loadCandidateRows(args.p1, args.p2, args.asOfDate);
+  const { rows, laneFailures } = await loadCandidateRows(args.p1, args.p2, args.asOfDate);
   const packet: Record<string, unknown> = {};
+  if (laneFailures.length) packet._query_errors = laneFailures;
   for (const metric of args.metrics) {
     const code = codeOf(metric.code);
     const policy = policyForMetric(code);
@@ -85,6 +93,6 @@ export async function buildMetricObservationContext(args: { metrics: MetricLike[
 
 export function appendMetricObservationContext(baseContext: string | null | undefined, packet: Record<string, unknown>) {
   if (!Object.keys(packet).length) return baseContext ?? "";
-  const appendix = `\n\nWAREHOUSE_OBSERVATION_CONTEXT\n${JSON.stringify(packet)}\nEND_WAREHOUSE_OBSERVATION_CONTEXT\nRules: use only observations listed under the requested metric code; never borrow an observation family from another metric; support-only families may inform reconstruction but cannot alone justify DIRECT treatment or a complete metric answer.`;
+  const appendix = `\n\nWAREHOUSE_OBSERVATION_CONTEXT\n${JSON.stringify(packet)}\nEND_WAREHOUSE_OBSERVATION_CONTEXT\nRules: use only observations listed under the requested metric code; never borrow an observation family from another metric; support-only families may inform reconstruction but cannot alone justify DIRECT treatment or a complete metric answer. Warehouse lane query errors are diagnostic metadata and never authorize evidence borrowing or fabricated findings.`;
   return `${baseContext ?? ""}${appendix}`;
 }
