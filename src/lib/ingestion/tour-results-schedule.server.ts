@@ -216,15 +216,22 @@ function wtaApiRows(target:Target,url:string,payload:unknown):Observation[] {
 
 async function fetchWtaOfficial(target:Target,configuredUrl:string) {
   const rows=new Map<string,Observation>(); let pages=0,seen=0;
-  for(let page=0;page<25;page++) {
-    const params=new URLSearchParams({page:String(page),pageSize:"500"});
+  const pageSize=500;
+  let expectedPages=50;
+  for(let page=0;page<expectedPages;page++) {
+    const params=new URLSearchParams({page:String(page),pageSize:String(pageSize)});
     const apiUrl=`${WTA_TOURNAMENT_API}?${params.toString()}`; const res=await request(apiUrl); if(!res.ok) throw new Error(`${apiUrl} returned ${res.status}`);
     const payload=await res.json() as unknown; const parsed=wtaApiRows(target,apiUrl,payload); for(const row of parsed) rows.set(row.source_record_key,row); pages++;
     const content=payload&&typeof payload==="object"&&!Array.isArray(payload)?(payload as Record<string,unknown>).content:null; seen+=Array.isArray(content)?content.length:0;
     if(payload && typeof payload === "object" && !Array.isArray(payload)) {
-      const root=payload as Record<string,unknown>; const info=root.pageInfo as Record<string,unknown>|undefined; const total=Number(info?.numPages ?? info?.totalPages);
-      if(Number.isFinite(total) && page+1>=total) break;
+      const root=payload as Record<string,unknown>; const info=root.pageInfo as Record<string,unknown>|undefined;
+      const reportedPages=Number(info?.numPages ?? info?.totalPages);
+      const entries=Number(info?.numEntries ?? info?.totalEntries);
+      const reportedPageSize=Number(info?.pageSize);
+      if(Number.isFinite(entries) && entries>0) expectedPages=Math.min(100,Math.ceil(entries/(Number.isFinite(reportedPageSize)&&reportedPageSize>0?reportedPageSize:pageSize)));
+      else if(Number.isFinite(reportedPages) && reportedPages>0) expectedPages=Math.min(100,reportedPages);
       if(Array.isArray(content) && content.length===0) break;
+      if(page+1>=expectedPages) break;
     } else break;
   }
   if(rows.size) return {rows:[...rows.values()],pages,seen};
