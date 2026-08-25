@@ -47,11 +47,15 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
 
   // Family isolation prevents PBP/market density from crowding other evidence.
   // Side isolation prevents a high-volume player from consuming the shared LIMIT
-  // before the opponent's rows are reached. Every player/family lane gets its
-  // own bounded query and a failure in one lane never erases successful lanes.
-  const [p1Other, p2Other, p1Market, p2Market, p1Pbp, p2Pbp, sharedResult] = await Promise.all([
+  // before the opponent's rows are reached. Official match ingestion preserves
+  // source-native player1/player2 orientation, so match-result lanes also query
+  // opponent_name. This recovers a target who was player2 without manufacturing
+  // a reciprocal warehouse row or broadening the identity firewall.
+  const [p1Other, p2Other, p1MatchAsOpponent, p2MatchAsOpponent, p1Market, p2Market, p1Pbp, p2Pbp, sharedResult] = await Promise.all([
     base().in("player_name", p1Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
     base().in("player_name", p2Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    base().in("opponent_name", p1Aliases).eq("observation_type", "MATCH_RESULT_OR_SCHEDULE").limit(1000),
+    base().in("opponent_name", p2Aliases).eq("observation_type", "MATCH_RESULT_OR_SCHEDULE").limit(1000),
     base().in("player_name", p1Aliases).eq("observation_type", "MARKET").limit(1000),
     base().in("player_name", p2Aliases).eq("observation_type", "MARKET").limit(1000),
     base().in("player_name", p1Aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
@@ -62,6 +66,8 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   const lanes: Lane[] = [
     { name: "p1_other", families: ["RESULTS_SCHEDULE", "RANKING", "ENVIRONMENT", "RULES_CONTEXT"], result: p1Other },
     { name: "p2_other", families: ["RESULTS_SCHEDULE", "RANKING", "ENVIRONMENT", "RULES_CONTEXT"], result: p2Other },
+    { name: "p1_match_as_opponent", families: ["RESULTS_SCHEDULE"], result: p1MatchAsOpponent },
+    { name: "p2_match_as_opponent", families: ["RESULTS_SCHEDULE"], result: p2MatchAsOpponent },
     { name: "p1_market", families: ["MARKET"], result: p1Market },
     { name: "p2_market", families: ["MARKET"], result: p2Market },
     { name: "p1_pbp", families: ["POINT_BY_POINT"], result: p1Pbp },
