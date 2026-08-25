@@ -17,6 +17,7 @@ on:
       - repair/evidence-coverage-phase11-sampling
       - repair/evidence-coverage-phase14-bsd-deterministic
       - repair/evidence-coverage-phase15-ranking-context
+      - repair/evidence-coverage-phase17-pbp-score-state
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
