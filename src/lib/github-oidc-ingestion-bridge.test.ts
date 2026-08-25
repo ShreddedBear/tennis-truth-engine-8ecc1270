@@ -12,7 +12,7 @@ describe("Lovable-managed warehouse ingestion bridge", () => {
     expect(verifier).toContain('const WORKFLOW_PATH = ".github/workflows/historical-hard-pull.yml"');
     expect(verifier).toContain('OPS_VALIDATION_HEAD = "ops/historical-hard-pull-validation"');
     expect(verifier).toContain('claims.event_name === "pull_request"');
-    expect(verifier).toContain('claims.base_ref !== "refs/heads/main"');
+    expect(verifier).toContain('baseRef === "main" || baseRef === "refs/heads/main"');
     expect(verifier).toContain('claims.ref?.startsWith("refs/pull/")');
     expect(verifier).toContain('tennis-truth-engine-warehouse-ingestion');
   });
