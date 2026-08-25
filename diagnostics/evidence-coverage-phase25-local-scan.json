@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ATP_MAIN",
+    "p1": "Flavio Cobolli",
+    "p2": "Arthur Fils",
+    "ctx": "Tournament: current ATP | Level: ATP MAIN | Tour: ATP MAIN | Surface: hard | Date: 2026-08-25",
+    "pair_count": 13,
+    "pair_codes": [
+      "001",
+      "005",
+      "006",
+      "007",
+      "010",
+      "011",
+      "012",
+      "013",
+      "028",
+      "035",
+      "055",
+      "068",
+      "080"
+    ],
+    "one_sided_codes": []
+  },
+  {
+    "id": "ATP_MAIN_ALT",
+    "p1": "Frances Tiafoe",
+    "p2": "Brandon Nakashima",
+    "ctx": "Tournament: current ATP | Level: ATP MAIN | Tour: ATP MAIN | Surface: hard | Date: 2026-08-25",
+    "pair_count": 13,
+    "pair_codes": [
+      "001",
+      "005",
+      "006",
+      "007",
+      "010",
+      "011",
+      "012",
+      "013",
+      "028",
+      "035",
+      "055",
+      "068",
+      "080"
+    ],
+    "one_sided_codes": [
+      "002",
+      "003",
+      "004",
+      "008",
+      "009"
+    ]
+  },
+  {
+    "id": "WTA_MAIN",
+    "p1": "Jessica Pegula",
+    "p2": "Iga Swiatek",
+    "ctx": "Tournament: current WTA | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25",
+    "pair_count": 4,
+    "pair_codes": [
+      "001",
+      "012",
+      "013",
+      "028"
+    ],
+    "one_sided_codes": []
+  },
+  {
+    "id": "WTA_ALT",
+    "p1": "Coco Gauff",
+    "p2": "Sara Bejlek",
+    "ctx": "Tournament: current WTA | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25",
+    "pair_count": 4,
+    "pair_codes": [
+      "001",
+      "012",
+      "013",
+      "028"
+    ],
+    "one_sided_codes": []
+  }
+]
