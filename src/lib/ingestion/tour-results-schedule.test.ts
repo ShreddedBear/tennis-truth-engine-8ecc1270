@@ -8,7 +8,8 @@ describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
     const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
 
     expect(orchestrator).toContain('source === "atp" || source === "wta" || source === "atp_challenger"');
-    expect(orchestrator).toContain("ingestTourResultsAndSchedules(source)");
+    expect(orchestrator).toContain("ingestTourResultsAndSchedules(source,");
+    expect(orchestrator).toContain("OfficialTourSnapshot");
     expect(runner).toContain('"atp", "wta", "atp_challenger"');
     expect(adapter).toContain("https://www.atptour.com/en/scores/current");
     expect(adapter).toContain("https://www.wtatennis.com/tournaments");
@@ -26,6 +27,15 @@ describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
     expect(adapter).toContain("tournamentType=ch");
     expect(adapter).toContain('competition_level:level');
     expect(adapter).toContain('source === "atp_challenger" ? "ATP_CHALLENGER" : "ATP_MAIN"');
+  });
+
+  it("validates ATP Official browser snapshots server-side before persistence", () => {
+    const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
+    expect(adapter).toContain("snapshot.source!==source");
+    expect(adapter).toContain('parsed.hostname!=="www.atptour.com"');
+    expect(adapter).toContain('source==="atp_challenger" && type!=="ch"');
+    expect(adapter).toContain('source==="atp" && type==="ch"');
+    expect(adapter).toContain("Cloudflare challenge");
   });
 
   it("keeps WTA 125 and ITF events out of WTA Main", () => {
