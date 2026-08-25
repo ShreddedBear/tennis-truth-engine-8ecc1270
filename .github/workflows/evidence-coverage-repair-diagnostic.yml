@@ -77,3 +77,5 @@ jobs:
           echo "Production Supabase credentials are Lovable-managed and are intentionally not copied into GitHub Actions."
           echo "Real production evidence counts/baselines are inspected through the production diagnostic endpoint without copying credentials into CI."
           echo "This workflow validates the diagnostic and downstream repair code without weakening credential boundaries."
+
+# phase10 sampling rerun
