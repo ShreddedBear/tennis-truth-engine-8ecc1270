@@ -140,7 +140,7 @@ export const warehouseFirstResearcher: Researcher = {
         output.push({metric_code:code,p1_value:a.value_text,p2_value:b.value_text,p1_treatment:a.treatment,p2_treatment:b.treatment,differential:null,evidence_family:a.evidence_family??b.evidence_family,reliability:Math.min(a.reliability??100,b.reliability??100),sample:[a.sample_label,b.sample_label].filter(Boolean).join(" | ")||null,unavailable_reason:null,sources:mergedSources});
         continue;
       }
-      const chosen=live&&(USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment))?live:deterministic??live;
+      const chosen=fullyUsableFinding(live)?live:fullyUsableFinding(deterministic)?deterministic:live&&(USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment))?live:deterministic??live;
       if(!chosen)continue;
       output.push(chosen);
       await Promise.all([
