@@ -14,25 +14,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Inspect public WTA response keys
+      - name: Inspect WTA tournament pagination semantics
         shell: bash
         run: |
           set -euo pipefail
-          probe() {
-            local label="$1" url="$2"
-            echo "=== $label ==="
-            file="$(mktemp)"
-            status="$(curl -sS -L -o "$file" -w '%{http_code}' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' "$url")"
-            echo "status=$status bytes=$(wc -c < "$file" | xargs)"
-            if jq -e . "$file" >/dev/null 2>&1; then
-              echo "root_type=$(jq -r 'type' "$file")"
-              jq -r 'if type=="object" then "root_keys=" + (keys|join(",")) else "array_length=" + (length|tostring) end' "$file"
-              jq -c 'if type=="array" then .[0:2] elif (.content|type)=="array" then {pageInfo:.pageInfo,content:(.content[0:2])} else . end' "$file" | head -c 12000
-              echo
-            else
-              echo "non_json_preview=$(head -c 800 "$file" | tr '\n' ' ')"
-            fi
-            rm -f "$file"
-          }
-          probe tournaments 'https://api.wtatennis.com/tennis/tournaments?page=0&pageSize=5'
-          probe rankings 'https://api.wtatennis.com/tennis/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=5'
+          for PAGE in 0 1 2 5 9 20 30 37; do
+            URL="https://api.wtatennis.com/tennis/tournaments?page=${PAGE}&pageSize=500"
+            FILE="$(mktemp)"
+            STATUS="$(curl -sS -L -o "$FILE" -w '%{http_code}' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' "$URL")"
+            echo "=== page=$PAGE status=$STATUS bytes=$(wc -c < "$FILE" | xargs) ==="
+            jq -r '
+              "pageInfo=" + (.pageInfo|tojson),
+              "content_length=" + ((.content|length)|tostring),
+              "first=" + ((.content[0] // {}) | {year,title,level:(.tournamentGroup.level // .level),groupId:(.tournamentGroup.id // .tournamentGroupId),startDate}|tojson),
+              "last=" + ((.content[-1] // {}) | {year,title,level:(.tournamentGroup.level // .level),groupId:(.tournamentGroup.id // .tournamentGroupId),startDate}|tojson),
+              "years=" + ([.content[]?.year] | unique | sort | tojson),
+              "levels=" + ([.content[]? | (.tournamentGroup.level // .level // "NULL")] | unique | sort | tojson)
+            ' "$FILE"
+            rm -f "$FILE"
+          done
+
+          echo "=== query-filter probes ==="
+          for URL in \
+            'https://api.wtatennis.com/tennis/tournaments?year=2025&page=0&pageSize=500' \
+            'https://api.wtatennis.com/tennis/tournaments?year=2026&page=0&pageSize=500' \
+            'https://api.wtatennis.com/tennis/tournaments?startYear=2025&endYear=2026&page=0&pageSize=500'
+          do
+            FILE="$(mktemp)"
+            STATUS="$(curl -sS -L -o "$FILE" -w '%{http_code}' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' "$URL")"
+            echo "url=$URL status=$STATUS"
+            jq -r '"pageInfo=" + (.pageInfo|tojson), "content_length=" + ((.content|length)|tostring), "years=" + ([.content[]?.year] | unique | sort | tojson), "sample=" + ((.content[0] // {})|{year,title,level:(.tournamentGroup.level // .level),startDate}|tojson)' "$FILE"
+            rm -f "$FILE"
+          done
