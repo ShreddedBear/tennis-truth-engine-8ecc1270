@@ -1,0 +1,56 @@
+name: Temporary Evidence Coverage Phase 25 Local Scan
+
+on:
+  push:
+    branches: [repair/evidence-coverage-phase25-current-sampling]
+    paths: ['.github/workflows/tmp-evidence-phase25-local-scan.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Scan bundled local evidence coverage for candidate pairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun - <<'TS'
+          import { localMetricRows } from './src/lib/hybrid-audit-research.server.ts';
+          import { certifyMetricFinding } from './src/lib/metric-certification.ts';
+          import { enforceFiveMetricWiring } from './src/lib/completion-sweep-research.server.ts';
+          import fs from 'node:fs';
+          const pairs=[
+            {id:'ATP_MAIN',p1:'Flavio Cobolli',p2:'Arthur Fils',ctx:'Tournament: current ATP | Level: ATP MAIN | Tour: ATP MAIN | Surface: hard | Date: 2026-08-25'},
+            {id:'ATP_MAIN_ALT',p1:'Frances Tiafoe',p2:'Brandon Nakashima',ctx:'Tournament: current ATP | Level: ATP MAIN | Tour: ATP MAIN | Surface: hard | Date: 2026-08-25'},
+            {id:'WTA_MAIN',p1:'Jessica Pegula',p2:'Iga Swiatek',ctx:'Tournament: current WTA | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25'},
+            {id:'WTA_ALT',p1:'Coco Gauff',p2:'Sara Bejlek',ctx:'Tournament: current WTA | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25'},
+          ];
+          const requested=Array.from({length:81},(_,i)=>({code:String(i+1).padStart(3,'0'),name:`Metric ${i+1}`,body:null}));
+          const usable=new Set(['DIRECT','RECONSTRUCTED','PARTIAL']);
+          const out=[];
+          for(const pair of pairs){
+            const rows=localMetricRows(pair.p1,pair.p2,pair.ctx,requested).map((r,i)=>certifyMetricFinding(enforceFiveMetricWiring(requested[i],r)));
+            const pairCodes=[]; const oneSided=[];
+            for(const r of rows){
+              const p1=usable.has(String(r.p1_treatment)) && r.p1_value!=null && String(r.p1_value).trim()!=='';
+              const p2=usable.has(String(r.p2_treatment)) && r.p2_value!=null && String(r.p2_value).trim()!=='';
+              if(p1&&p2) pairCodes.push(r.metric_code);
+              else if(p1!==p2) oneSided.push(r.metric_code);
+            }
+            out.push({...pair,pair_count:pairCodes.length,pair_codes:pairCodes,one_sided_codes:oneSided});
+          }
+          fs.mkdirSync('diagnostics',{recursive:true});
+          fs.writeFileSync('diagnostics/evidence-coverage-phase25-local-scan.json',JSON.stringify(out,null,2));
+          TS
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/evidence-coverage-phase25-local-scan.json
+          git commit -m 'Record Phase 25 local evidence scan'
+          git push
