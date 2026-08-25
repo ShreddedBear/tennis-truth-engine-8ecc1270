@@ -10,200 +10,49 @@ import { deterministicRulesContextMetric } from "./deterministic-rules-context-m
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
+type FailureBucket = "SOURCE_MISSING"|"INGESTION_MISSING"|"IDENTITY_MATCH_FAILURE"|"EVIDENCE_QUERY_FAILURE"|"NORMALIZATION_FAILURE"|"EVIDENCE_WIRING_FAILURE"|"RECONSTRUCTION_FAILURE"|"COVERAGE_CREDIT_FAILURE"|"GENUINELY_UNAVAILABLE";
+type Metric = { code:string; name:string; body:string|null };
+type TourId = "ATP_MAIN"|"WTA_MAIN"|"ATP_CHALLENGER";
+type RepresentativeMatch = { id:TourId; match_id:string; p1:string; p2:string; date:string; tournament:string; context:string; event_level:string|null; surface:string|null; sampling_source:"matches"|"source_observations" };
+type MatchCandidate = { id:string; player1_name:string; player2_name:string; tournament_name:string|null; event_level:string|null; scheduled_date:string|null; surface:string|null; round:string|null };
+type ObservationCandidate = { source_id:string|null; source_name:string|null; player_name:string|null; opponent_name:string|null; tournament:string|null; event_date:string|null; surface:string|null; observation_type:string|null; sample_label:string|null };
 
-type FailureBucket =
-  | "SOURCE_MISSING"
-  | "INGESTION_MISSING"
-  | "IDENTITY_MATCH_FAILURE"
-  | "EVIDENCE_QUERY_FAILURE"
-  | "NORMALIZATION_FAILURE"
-  | "EVIDENCE_WIRING_FAILURE"
-  | "RECONSTRUCTION_FAILURE"
-  | "COVERAGE_CREDIT_FAILURE"
-  | "GENUINELY_UNAVAILABLE";
-
-type Metric = { code: string; name: string; body: string | null };
-type RepresentativeMatch = {
-  id: "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER";
-  match_id: string;
-  p1: string;
-  p2: string;
-  date: string;
-  tournament: string;
-  context: string;
-  event_level: string | null;
-  surface: string | null;
-};
-
-type MatchCandidate = {
-  id: string;
-  player1_name: string;
-  player2_name: string;
-  tournament_name: string | null;
-  event_level: string | null;
-  scheduled_date: string | null;
-  surface: string | null;
-  round: string | null;
-};
-
-function classifyTour(row: MatchCandidate): RepresentativeMatch["id"] | null {
-  const level = String(row.event_level ?? "").toLowerCase();
-  const tournament = String(row.tournament_name ?? "").toLowerCase();
-  const combined = `${level} ${tournament}`;
-  if (/challenger/.test(combined) && !/wta\s*125|125k/.test(combined)) return "ATP_CHALLENGER";
-  if (/wta|women/.test(combined) && !/challenger/.test(combined)) return "WTA_MAIN";
-  if (/atp|masters|grand slam|slam|250|500|1000/.test(combined) && !/challenger/.test(combined)) return "ATP_MAIN";
-  return null;
+function classifyText(level:unknown,tournament:unknown,source:unknown=""):TourId|null {
+ const combined=`${String(level??"")} ${String(tournament??"")} ${String(source??"")}`.toLowerCase();
+ if (/challenger/.test(combined)&&!/wta\s*125|125k/.test(combined)) return "ATP_CHALLENGER";
+ if (/wta|women/.test(combined)&&!/challenger/.test(combined)) return "WTA_MAIN";
+ if (/atp|masters|grand slam|slam|250|500|1000/.test(combined)&&!/challenger/.test(combined)) return "ATP_MAIN";
+ return null;
 }
-
-function toRepresentative(id: RepresentativeMatch["id"], row: MatchCandidate): RepresentativeMatch {
-  const tournament = row.tournament_name ?? `${id} production match`;
-  const date = row.scheduled_date!;
-  const surface = row.surface ?? null;
-  const level = row.event_level ?? id.replaceAll("_", " ");
-  const context = [
-    `Tournament: ${tournament}`,
-    `Level: ${level}`,
-    `Tour: ${id.replaceAll("_", " ")}`,
-    surface ? `Surface: ${surface}` : null,
-    `Date: ${date}`,
-    row.round ? `Round: ${row.round}` : null,
-  ].filter(Boolean).join(" | ");
-  return { id, match_id: row.id, p1: row.player1_name, p2: row.player2_name, date, tournament, context, event_level: row.event_level, surface };
+function toRepresentative(id:TourId,row:MatchCandidate):RepresentativeMatch {
+ const tournament=row.tournament_name??`${id} production match`; const date=row.scheduled_date!; const surface=row.surface??null; const level=row.event_level??id.replaceAll("_"," ");
+ const context=[`Tournament: ${tournament}`,`Level: ${level}`,`Tour: ${id.replaceAll("_"," ")}`,surface?`Surface: ${surface}`:null,`Date: ${date}`,row.round?`Round: ${row.round}`:null].filter(Boolean).join(" | ");
+ return {id,match_id:row.id,p1:row.player1_name,p2:row.player2_name,date,tournament,context,event_level:row.event_level,surface,sampling_source:"matches"};
 }
-
-async function representativeMatches(): Promise<{ matches: RepresentativeMatch[]; missing_classes: RepresentativeMatch["id"][] }> {
-  const { data, error } = await db.from("matches")
-    .select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round")
-    .not("player1_name", "is", null)
-    .not("player2_name", "is", null)
-    .not("scheduled_date", "is", null)
-    .order("scheduled_date", { ascending: false })
-    .limit(1000);
-  if (error) throw new Error(`production match sampling: ${error.message}`);
-
-  const candidates = ((data ?? []) as MatchCandidate[]).filter((row) => row.player1_name && row.player2_name && row.scheduled_date);
-  const wanted: RepresentativeMatch["id"][] = ["ATP_MAIN", "WTA_MAIN", "ATP_CHALLENGER"];
-  const selected: RepresentativeMatch[] = [];
-  for (const id of wanted) {
-    const row = candidates.find((candidate) => classifyTour(candidate) === id);
-    if (row) selected.push(toRepresentative(id, row));
-  }
-  return { matches: selected, missing_classes: wanted.filter((id) => !selected.some((match) => match.id === id)) };
+function observationRepresentative(id:TourId,row:ObservationCandidate,index:number):RepresentativeMatch {
+ const tournament=row.tournament??`${id} warehouse match`; const date=row.event_date!; const surface=row.surface??null; const level=id.replaceAll("_"," ");
+ return {id,match_id:`warehouse:${id}:${index}`,p1:row.player_name!,p2:row.opponent_name!,date,tournament,context:[`Tournament: ${tournament}`,`Level: ${level}`,`Tour: ${level}`,surface?`Surface: ${surface}`:null,`Date: ${date}`].filter(Boolean).join(" | "),event_level:level,surface,sampling_source:"source_observations"};
 }
-
-function codeOf(value: unknown) {
-  const match = String(value ?? "").match(/(\d{1,3})$/);
-  return match ? match[1].padStart(3,"0") : String(value ?? "").padStart(3,"0");
+async function representativeMatches():Promise<{matches:RepresentativeMatch[];missing_classes:TourId[]}> {
+ const wanted:TourId[]=["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"]; const selected:RepresentativeMatch[]=[];
+ const primary=await db.from("matches").select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round").not("player1_name","is",null).not("player2_name","is",null).order("scheduled_date",{ascending:false,nullsFirst:false}).limit(2000);
+ if (!primary.error) {
+  const candidates=((primary.data??[]) as MatchCandidate[]).filter(r=>r.player1_name&&r.player2_name&&r.scheduled_date);
+  for(const id of wanted){const row=candidates.find(r=>classifyText(r.event_level,r.tournament_name)===id);if(row)selected.push(toRepresentative(id,row));}
+ }
+ const missing=()=>wanted.filter(id=>!selected.some(m=>m.id===id));
+ if(missing().length){
+  const fallback=await db.from("source_observations").select("source_id,source_name,player_name,opponent_name,tournament,event_date,surface,observation_type,sample_label").not("player_name","is",null).not("opponent_name","is",null).not("event_date","is",null).order("event_date",{ascending:false}).limit(5000);
+  if(fallback.error&&primary.error) throw new Error(`production sampling failed: matches=${primary.error.message}; source_observations=${fallback.error.message}`);
+  if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const row=rows.find(r=>r.player_name&&r.opponent_name&&r.event_date&&r.player_name!==r.opponent_name&&classifyText(r.sample_label,r.tournament,`${r.source_id} ${r.source_name}`)===id);if(row)selected.push(observationRepresentative(id,row,rows.indexOf(row)));}}
+ }
+ return {matches:selected,missing_classes:missing()};
 }
-
-async function activeMetrics(): Promise<Metric[]> {
-  const { data: doc, error: docError } = await db.from("rule_documents").select("active_version_id").eq("doc_type", "METRICS").maybeSingle();
-  if (docError) throw new Error(`metric document lookup: ${docError.message}`);
-  if (!doc?.active_version_id) throw new Error("No active METRICS rule document version");
-  const { data, error } = await db.from("rules").select("rule_code,rule_name,body").eq("version_id", doc.active_version_id).order("rule_code");
-  if (error) throw new Error(`metric rules lookup: ${error.message}`);
-  return (data ?? []).filter((row: any) => Number(row.rule_code) >= 1 && Number(row.rule_code) <= 81).map((row: any) => ({ code: String(row.rule_code), name: String(row.rule_name), body: row.body ?? null }));
-}
-
-async function deterministic(metric: Metric, match: RepresentativeMatch) {
-  const runners = [
-    () => deterministicRankingMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date }),
-    () => deterministicRulesContextMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date, context: match.context }),
-    () => deterministicEnvironmentMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date, tournament: match.tournament }),
-    () => deterministicMarketMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date }),
-    () => deterministicResultsScheduleMetric({ metricCode: metric.code, p1: match.p1, p2: match.p2, asOfDate: match.date, tournament: match.tournament }),
-  ];
-  const errors: string[] = [];
-  for (const runner of runners) {
-    try { const row = await runner(); if (row) return { row, errors }; }
-    catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
-  }
-  return { row: null, errors };
-}
-
-export async function runEvidenceCoverageRuntimeDiagnostic() {
-  const metrics = await activeMetrics();
-  if (metrics.length !== 81) throw new Error(`Expected 81 active metrics, found ${metrics.length}`);
-  const sample = await representativeMatches();
-  if (!sample.matches.length) throw new Error("No real production matches were available for evidence coverage sampling");
-  const matches: any[] = [];
-
-  for (const match of sample.matches) {
-    const aliases = [...new Set([...safeEvidenceAliases(match.p1, match.p2), ...safeEvidenceAliases(match.p2, match.p1)])];
-    const [identityResult, storedResult, packetResult] = await Promise.allSettled([
-      db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").eq("id", match.match_id).limit(1),
-      db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family").eq("as_of_date", match.date).in("metric_code", metrics.map((m) => codeOf(m.code))).in("player_name", aliases).in("opponent_name", aliases),
-      buildMetricObservationContext({ metrics, p1: match.p1, p2: match.p2, asOfDate: match.date }),
-    ]);
-
-    const identityError = identityResult.status === "rejected" ? String(identityResult.reason) : identityResult.value.error?.message ?? null;
-    const identityRows = identityResult.status === "fulfilled" ? identityResult.value.data ?? [] : [];
-    const storedError = storedResult.status === "rejected" ? String(storedResult.reason) : storedResult.value.error?.message ?? null;
-    const storedRows = storedResult.status === "fulfilled" ? storedResult.value.data ?? [] : [];
-    const packetError = packetResult.status === "rejected" ? String(packetResult.reason) : null;
-    const packet = packetResult.status === "fulfilled" ? packetResult.value as Record<string, any> : {};
-
-    const details: any[] = [];
-    for (const metric of metrics) {
-      const code = codeOf(metric.code);
-      const policy = policyForMetric(code);
-      const entry = packet[code] ?? null;
-      const p1Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && evidencePairMatches(r.player_name, r.opponent_name, match.p1, match.p2)) ?? null;
-      const p2Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && evidencePairMatches(r.player_name, r.opponent_name, match.p2, match.p1)) ?? null;
-      const local = await deterministic(metric, match);
-      const p1Treatment = String(p1Stored?.treatment ?? local.row?.p1_treatment ?? "UNAVAILABLE");
-      const p2Treatment = String(p2Stored?.treatment ?? local.row?.p2_treatment ?? "UNAVAILABLE");
-      const p1Usable = USABLE.has(p1Treatment);
-      const p2Usable = USABLE.has(p2Treatment);
-      const pairUsable = p1Usable && p2Usable;
-      const oneSidedUsable = p1Usable !== p2Usable;
-      let bucket: FailureBucket | null = null;
-      let reason: string | null = null;
-      if (!pairUsable) {
-        const queryErrors = [storedError, packetError, ...local.errors].filter(Boolean) as string[];
-        if (queryErrors.length) {
-          bucket = "EVIDENCE_QUERY_FAILURE";
-          reason = queryErrors.join(" | ");
-        } else if (oneSidedUsable) {
-          bucket = "COVERAGE_CREDIT_FAILURE";
-          reason = `One-sided usable evidence cannot count as pair-complete coverage (P1=${p1Treatment}, P2=${p2Treatment}).`;
-        } else if ((entry?.observations?.length ?? 0) > 0 && entry?.direct_satisfaction_allowed) {
-          bucket = "EVIDENCE_WIRING_FAILURE";
-          reason = "Sufficient admissible observations exist but did not become a usable deterministic/stored finding.";
-        } else if ((entry?.observations?.length ?? 0) > 0) {
-          bucket = "RECONSTRUCTION_FAILURE";
-          reason = "Support-only admissible observations exist but no permitted deterministic reconstruction recovered the metric.";
-        } else if (policy.allowed_families.length) {
-          bucket = "INGESTION_MISSING";
-          reason = `A structured path exists for ${policy.allowed_families.join(",")} but no admissible warehouse observation was ingested for this matchup/window.`;
-        } else {
-          bucket = "EVIDENCE_WIRING_FAILURE";
-          reason = "No provider-independent structured source-family path is registered for this metric.";
-        }
-      }
-      details.push({ metric_code: code, metric_name: metric.name, source_expected: policy.allowed_families, warehouse_observation_count: Number(entry?.observations?.length ?? 0), stored_p1: Boolean(p1Stored), stored_p2: Boolean(p2Stored), p1_treatment: p1Treatment, p2_treatment: p2Treatment, p1_credited: p1Usable, p2_credited: p2Usable, pair_credited: pairUsable, one_sided_usable: oneSidedUsable, deterministic_family: local.row?.evidence_family ?? null, failure_bucket: bucket, reason });
-    }
-
-    const buckets: Record<string, number> = {};
-    for (const row of details) if (row.failure_bucket) buckets[row.failure_bucket] = (buckets[row.failure_bucket] ?? 0) + 1;
-    const p1Credited = details.filter((row) => row.p1_credited).length;
-    const p2Credited = details.filter((row) => row.p2_credited).length;
-    const pairCredited = details.filter((row) => row.pair_credited).length;
-    const oneSided = details.filter((row) => row.one_sided_usable).length;
-    matches.push({
-      id: match.id, match_id: match.match_id, pair: `${match.p1} vs ${match.p2}`, tournament: match.tournament, scheduled_date: match.date, event_level: match.event_level, surface: match.surface,
-      // This identity check is diagnostic metadata only. Evidence classification
-      // is based on the actual sampled pair + side-safe aliases and must not be
-      // rewritten as an identity failure merely because a secondary app-table
-      // lookup is empty, stale, or temporarily inaccessible.
-      identity: { exact_match_count: identityRows.length, query_error: identityError, blocks_evidence_classification: false },
-      query_errors: [storedError, packetError].filter(Boolean),
-      coverage: { p1: p1Credited, p2: p2Credited, pair: pairCredited, one_sided: oneSided, p1_percent: Number((100 * p1Credited / 81).toFixed(2)), p2_percent: Number((100 * p2Credited / 81).toFixed(2)), pair_percent: Number((100 * pairCredited / 81).toFixed(2)) },
-      false_green_guard: { passed: oneSided === 0, one_sided_metric_count: oneSided },
-      failure_buckets: buckets, metrics: details,
-    });
-  }
-
-  return { schema_version: 4, generated_at: new Date().toISOString(), metrics: metrics.length, sampling: { source: "REAL_PRODUCTION_MATCHES", requested_classes: ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"], sampled_classes: matches.map((m) => m.id), missing_classes: sample.missing_classes }, matches };
-}
+function codeOf(value:unknown){const match=String(value??"").match(/(\d{1,3})$/);return match?match[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
+async function activeMetrics():Promise<Metric[]>{const {data:doc,error:docError}=await db.from("rule_documents").select("active_version_id").eq("doc_type","METRICS").maybeSingle();if(docError)throw new Error(`metric document lookup: ${docError.message}`);if(!doc?.active_version_id)throw new Error("No active METRICS rule document version");const {data,error}=await db.from("rules").select("rule_code,rule_name,body").eq("version_id",doc.active_version_id).order("rule_code");if(error)throw new Error(`metric rules lookup: ${error.message}`);return(data??[]).filter((r:any)=>Number(r.rule_code)>=1&&Number(r.rule_code)<=81).map((r:any)=>({code:String(r.rule_code),name:String(r.rule_name),body:r.body??null}));}
+async function deterministic(metric:Metric,match:RepresentativeMatch){const runners=[()=>deterministicRankingMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicRulesContextMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,context:match.context}),()=>deterministicEnvironmentMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament}),()=>deterministicMarketMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicResultsScheduleMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament})];const errors:string[]=[];for(const runner of runners){try{const row=await runner();if(row)return{row,errors};}catch(error){errors.push(error instanceof Error?error.message:String(error));}}return{row:null,errors};}
+export async function runEvidenceCoverageRuntimeDiagnostic(){const metrics=await activeMetrics();if(metrics.length!==81)throw new Error(`Expected 81 active metrics, found ${metrics.length}`);const sample=await representativeMatches();if(!sample.matches.length)throw new Error("No real persisted matches or paired warehouse observations were available for evidence coverage sampling");const matches:any[]=[];
+ for(const match of sample.matches){const aliases=[...new Set([...safeEvidenceAliases(match.p1,match.p2),...safeEvidenceAliases(match.p2,match.p1)])];const identityPromise=match.sampling_source==="matches"?db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").eq("id",match.match_id).limit(1):Promise.resolve({data:[],error:null});const [identityResult,storedResult,packetResult]=await Promise.allSettled([identityPromise,db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family").eq("as_of_date",match.date).in("metric_code",metrics.map(m=>codeOf(m.code))).in("player_name",aliases).in("opponent_name",aliases),buildMetricObservationContext({metrics,p1:match.p1,p2:match.p2,asOfDate:match.date})]);const identityError=identityResult.status==="rejected"?String(identityResult.reason):(identityResult.value as any).error?.message??null;const identityRows=identityResult.status==="fulfilled"?(identityResult.value as any).data??[]:[];const storedError=storedResult.status==="rejected"?String(storedResult.reason):(storedResult.value as any).error?.message??null;const storedRows=storedResult.status==="fulfilled"?(storedResult.value as any).data??[]:[];const packetError=packetResult.status==="rejected"?String(packetResult.reason):null;const packet=packetResult.status==="fulfilled"?packetResult.value as Record<string,any>:{};const details:any[]=[];
+  for(const metric of metrics){const code=codeOf(metric.code),policy=policyForMetric(code),entry=packet[code]??null;const p1Stored=storedRows.find((r:any)=>codeOf(r.metric_code)===code&&evidencePairMatches(r.player_name,r.opponent_name,match.p1,match.p2))??null;const p2Stored=storedRows.find((r:any)=>codeOf(r.metric_code)===code&&evidencePairMatches(r.player_name,r.opponent_name,match.p2,match.p1))??null;const local=await deterministic(metric,match);const p1Treatment=String(p1Stored?.treatment??local.row?.p1_treatment??"UNAVAILABLE"),p2Treatment=String(p2Stored?.treatment??local.row?.p2_treatment??"UNAVAILABLE");const p1Usable=USABLE.has(p1Treatment),p2Usable=USABLE.has(p2Treatment),pairUsable=p1Usable&&p2Usable,oneSidedUsable=p1Usable!==p2Usable;let bucket:FailureBucket|null=null,reason:string|null=null;if(!pairUsable){const queryErrors=[storedError,packetError,...local.errors].filter(Boolean) as string[];if(queryErrors.length){bucket="EVIDENCE_QUERY_FAILURE";reason=queryErrors.join(" | ");}else if(oneSidedUsable){bucket="COVERAGE_CREDIT_FAILURE";reason=`One-sided usable evidence cannot count as pair-complete coverage (P1=${p1Treatment}, P2=${p2Treatment}).`;}else if((entry?.observations?.length??0)>0&&entry?.direct_satisfaction_allowed){bucket="EVIDENCE_WIRING_FAILURE";reason="Sufficient admissible observations exist but did not become a usable deterministic/stored finding.";}else if((entry?.observations?.length??0)>0){bucket="RECONSTRUCTION_FAILURE";reason="Support-only admissible observations exist but no permitted deterministic reconstruction recovered the metric.";}else if(policy.allowed_families.length){bucket="INGESTION_MISSING";reason=`A structured path exists for ${policy.allowed_families.join(",")} but no admissible warehouse observation was ingested for this matchup/window.`;}else{bucket="EVIDENCE_WIRING_FAILURE";reason="No provider-independent structured source-family path is registered for this metric.";}}details.push({metric_code:code,metric_name:metric.name,source_expected:policy.allowed_families,warehouse_observation_count:Number(entry?.observations?.length??0),stored_p1:Boolean(p1Stored),stored_p2:Boolean(p2Stored),p1_treatment:p1Treatment,p2_treatment:p2Treatment,p1_credited:p1Usable,p2_credited:p2Usable,pair_credited:pairUsable,one_sided_usable:oneSidedUsable,deterministic_family:local.row?.evidence_family??null,failure_bucket:bucket,reason});}
+  const buckets:Record<string,number>={};for(const row of details)if(row.failure_bucket)buckets[row.failure_bucket]=(buckets[row.failure_bucket]??0)+1;const p1Credited=details.filter(r=>r.p1_credited).length,p2Credited=details.filter(r=>r.p2_credited).length,pairCredited=details.filter(r=>r.pair_credited).length,oneSided=details.filter(r=>r.one_sided_usable).length;matches.push({id:match.id,match_id:match.match_id,pair:`${match.p1} vs ${match.p2}`,tournament:match.tournament,scheduled_date:match.date,event_level:match.event_level,surface:match.surface,sampling_source:match.sampling_source,identity:{exact_match_count:identityRows.length,query_error:identityError,blocks_evidence_classification:false},query_errors:[storedError,packetError].filter(Boolean),coverage:{p1:p1Credited,p2:p2Credited,pair:pairCredited,one_sided:oneSided,p1_percent:Number((100*p1Credited/81).toFixed(2)),p2_percent:Number((100*p2Credited/81).toFixed(2)),pair_percent:Number((100*pairCredited/81).toFixed(2))},false_green_guard:{passed:oneSided===0,one_sided_metric_count:oneSided},failure_buckets:buckets,metrics:details});}
+ return{schema_version:5,generated_at:new Date().toISOString(),metrics:metrics.length,sampling:{source:"REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_FALLBACK",requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"],sampled_classes:matches.map(m=>m.id),missing_classes:sample.missing_classes},matches};}
