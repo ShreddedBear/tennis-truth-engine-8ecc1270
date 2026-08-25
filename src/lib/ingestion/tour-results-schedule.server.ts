@@ -247,10 +247,17 @@ async function writeRows(rows:Observation[]) {
   for (const row of rows) assertObservationFamily(row,"RESULTS_SCHEDULE");
   let persisted=0;
   for (let i=0;i<rows.length;i+=500) {
-    const chunk=rows.slice(i,i+500); const {error}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:true}); if(error) throw error;
-    const keys=chunk.map((row)=>row.source_record_key); const sourceId=chunk[0]?.source_id; if(!sourceId||!keys.length) continue;
-    const {data:confirmed,error:confirmError}=await db.from("source_observations").select("source_record_key").eq("source_id",sourceId).in("source_record_key",keys); if(confirmError) throw confirmError;
-    persisted += new Set((confirmed??[]).map((row:any)=>row.source_record_key)).size;
+    const chunk=rows.slice(i,i+500);
+    const {error}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:true});
+    if(error) throw error;
+    const sourceId=chunk[0]?.source_id; if(!sourceId) continue;
+    for (let j=0;j<chunk.length;j+=50) {
+      const confirmChunk=chunk.slice(j,j+50);
+      const keys=confirmChunk.map((row)=>row.source_record_key); if(!keys.length) continue;
+      const {data:confirmed,error:confirmError}=await db.from("source_observations").select("source_record_key").eq("source_id",sourceId).in("source_record_key",keys);
+      if(confirmError) throw confirmError;
+      persisted += new Set((confirmed??[]).map((row:any)=>row.source_record_key)).size;
+    }
   }
   return persisted;
 }
