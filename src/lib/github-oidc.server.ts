@@ -36,6 +36,10 @@ function audienceMatches(aud: string | string[] | undefined): boolean {
   return Array.isArray(aud) ? aud.includes(EXPECTED_AUDIENCE) : aud === EXPECTED_AUDIENCE;
 }
 
+function isMainBaseRef(baseRef: string | undefined): boolean {
+  return baseRef === "main" || baseRef === "refs/heads/main";
+}
+
 function verifyWorkflowScope(claims: GithubOidcClaims): void {
   if (!claims.event_name || !ALLOWED_EVENTS.has(claims.event_name)) {
     throw new Error("Unsupported GitHub ingestion event");
@@ -43,7 +47,7 @@ function verifyWorkflowScope(claims: GithubOidcClaims): void {
 
   if (claims.event_name === "pull_request") {
     if (claims.head_ref !== OPS_VALIDATION_HEAD) throw new Error("GitHub PR ingestion is restricted to the ops validation branch");
-    if (claims.base_ref !== "refs/heads/main") throw new Error("GitHub PR ingestion must target main");
+    if (!isMainBaseRef(claims.base_ref)) throw new Error("GitHub PR ingestion must target main");
     if (!claims.ref?.startsWith("refs/pull/")) throw new Error("Invalid GitHub PR ingestion ref");
     const expectedPrWorkflowRef = `${EXPECTED_REPOSITORY}/${WORKFLOW_PATH}@${claims.ref}`;
     if (claims.workflow_ref !== expectedPrWorkflowRef) throw new Error("Invalid GitHub PR ingestion workflow");
