@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { evidenceNameCouldMatch, uniqueEvidenceIdentity } from "./evidence-player-identity";
+import { safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 
 const db = supabaseAdmin as any;
@@ -33,32 +33,42 @@ function compactObservation(row: ObservationRow) {
 }
 
 async function loadCandidateRows(player: string, opponent: string, asOfDate: string) {
-  const start = new Date(`${asOfDate}T00:00:00Z`); start.setUTCFullYear(start.getUTCFullYear() - 5);
-  // Do not pre-filter by exact player spelling. Historical/provider observations can
-  // contain surname-only or accent-normalized identities. Fetch the bounded window,
-  // then admit only identities that resolve uniquely to P1/P2 below.
-  const { data, error } = await db.from("source_observations")
-    .select("source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end")
+  const start = new Date(`${asOfDate}T00:00:00Z`);
+  start.setUTCFullYear(start.getUTCFullYear() - 5);
+  const aliases = unique([...safeEvidenceAliases(player, opponent), ...safeEvidenceAliases(opponent, player)]);
+  const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
+  const base = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
-    .order("event_date", { ascending: false }).limit(2000);
-  if (error) return [] as ObservationRow[];
-  const rows = (data ?? []) as ObservationRow[];
-  const names = rows.map(row => row.player_name);
-  const p1Identity = uniqueEvidenceIdentity(player, names);
-  const p2Identity = uniqueEvidenceIdentity(opponent, names);
-  if (p1Identity && p2Identity && p1Identity === p2Identity) return rows.filter(row => row.player_name == null);
-  return rows.filter(row => row.player_name == null || (p1Identity != null && row.player_name === p1Identity && evidenceNameCouldMatch(player, row.player_name)) || (p2Identity != null && row.player_name === p2Identity && evidenceNameCouldMatch(opponent, row.player_name)));
+    .order("event_date", { ascending: false }).limit(1000);
+  // Query matchup-specific aliases separately from shared observations. This
+  // recovers legacy surname-only rows without scanning unrelated player data and
+  // keeps the identity firewall fail-closed (no fuzzy/edit-distance matching).
+  const [playerResult, sharedResult] = await Promise.all([
+    base().in("player_name", aliases),
+    base().is("player_name", null),
+  ]);
+  if (playerResult.error || sharedResult.error) return [] as ObservationRow[];
+  const rows = [...((playerResult.data ?? []) as ObservationRow[]), ...((sharedResult.data ?? []) as ObservationRow[])];
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = [row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value,row.numeric_value].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; }) {
   const rows = await loadCandidateRows(args.p1, args.p2, args.asOfDate);
   const packet: Record<string, unknown> = {};
   for (const metric of args.metrics) {
-    const code = codeOf(metric.code); const policy = policyForMetric(code);
+    const code = codeOf(metric.code);
+    const policy = policyForMetric(code);
     const allowed = rows.filter((row) => metricAllowsObservation(code, row));
     if (!allowed.length) continue;
     const families = unique(allowed.map((row) => observationFamily(row)).filter(Boolean));
-    const supportOnly = policy.support_only_families ?? []; const sufficient = policy.sufficient_families ?? [];
+    const supportOnly = policy.support_only_families ?? [];
+    const sufficient = policy.sufficient_families ?? [];
     packet[code] = { metric_name: metric.name, allowed_families: policy.allowed_families, sufficient_families: sufficient, support_only_families: supportOnly, observed_families: families, direct_satisfaction_allowed: families.some((family) => sufficient.includes(family!)), observations: allowed.slice(0, 80).map(compactObservation) };
   }
   return packet;
