@@ -18,7 +18,7 @@ describe("metric 075 rules context wiring",()=>{
   it("hard-asserts the ingestion family and runs before unresolved live fallback",()=>{
     expect(ingestion).toContain('assertObservationFamily(row,"RULES_CONTEXT")');
     const rulesIndex=researcher.indexOf("deterministicRulesContextMetric({");
-    const liveIndex=researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
+    const liveIndex=researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})");
     expect(rulesIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(rulesIndex);
   });
