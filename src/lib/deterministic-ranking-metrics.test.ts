@@ -22,9 +22,12 @@ describe("ranking ingestion and deterministic metric wiring", () => {
     expect(warehouse).toContain("deterministicRankingMetric");
   });
 
-  it("does not fabricate subjective motivation from ranking observations", () => {
-    const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
-    expect(calculator).toContain('p1_treatment:"PARTIAL"');
+  it("preserves available ranking evidence without fabricating the missing side or subjective motivation", () => {
+    const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8").replace(/\s+/g, " ");
+    expect(calculator).toContain("p1Available");
+    expect(calculator).toContain("p2Available");
+    expect(calculator).toContain('?"PARTIAL":"UNAVAILABLE"');
+    expect(calculator).toContain("Ranking evidence is one-sided; the missing side is not synthesized or credited.");
     expect(calculator).toContain("Subjective motivation/private pressure components are not inferred");
   });
 });
