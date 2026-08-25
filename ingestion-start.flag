@@ -1,4 +1,4 @@
-start=2026-08-25T12:40:00Z
-sources=atp,wta,atp_challenger,atp_rankings,wta_rankings
-reason=validate_challenger_confirmation_batching_and_continue_full_hard_pull
-nonce=19
+start=2026-08-25T12:49:00Z
+sources=atp_challenger
+reason=validate_challenger_confirmation_batching_after_production_publish
+nonce=20
