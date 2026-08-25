@@ -24,6 +24,8 @@ type ObservationRow = {
 };
 type LaneFailure = { lane: string; families: ObservationFamily[]; message: string };
 
+type Lane = { name: string; families: ObservationFamily[]; result: { data: any[] | null; error: { message: string } | null } };
+
 function codeOf(value: unknown) {
   const match = String(value ?? "").match(/(\d{1,3})$/);
   return match ? match[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
@@ -36,34 +38,38 @@ function compactObservation(row: ObservationRow) {
 async function loadCandidateRows(player: string, opponent: string, asOfDate: string) {
   const start = new Date(`${asOfDate}T00:00:00Z`);
   start.setUTCFullYear(start.getUTCFullYear() - 5);
-  const aliases = unique([...safeEvidenceAliases(player, opponent), ...safeEvidenceAliases(opponent, player)]);
+  const p1Aliases = safeEvidenceAliases(player, opponent);
+  const p2Aliases = safeEvidenceAliases(opponent, player);
   const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
   const base = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
     .order("event_date", { ascending: false });
 
-  // Dense PBP and market snapshots are isolated so they cannot crowd other
-  // evidence families out of the packet. A failed lane is also isolated: its
-  // error is surfaced as metadata while successful lanes remain usable.
-  const [otherResult, marketResult, pbpResult, sharedResult] = await Promise.all([
-    base().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    base().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
-    base().in("player_name", aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
+  // Family isolation prevents PBP/market density from crowding other evidence.
+  // Side isolation prevents a high-volume player from consuming the shared LIMIT
+  // before the opponent's rows are reached. Every player/family lane gets its
+  // own bounded query and a failure in one lane never erases successful lanes.
+  const [p1Other, p2Other, p1Market, p2Market, p1Pbp, p2Pbp, sharedResult] = await Promise.all([
+    base().in("player_name", p1Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    base().in("player_name", p2Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    base().in("player_name", p1Aliases).eq("observation_type", "MARKET").limit(1000),
+    base().in("player_name", p2Aliases).eq("observation_type", "MARKET").limit(1000),
+    base().in("player_name", p1Aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
+    base().in("player_name", p2Aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
     base().is("player_name", null).limit(1000),
   ]);
 
-  const laneFailures: LaneFailure[] = [];
-  if (otherResult.error) laneFailures.push({ lane: "other", families: ["RESULTS_SCHEDULE", "RANKING", "ENVIRONMENT", "RULES_CONTEXT"], message: otherResult.error.message });
-  if (marketResult.error) laneFailures.push({ lane: "market", families: ["MARKET"], message: marketResult.error.message });
-  if (pbpResult.error) laneFailures.push({ lane: "pbp", families: ["POINT_BY_POINT"], message: pbpResult.error.message });
-  if (sharedResult.error) laneFailures.push({ lane: "shared", families: ["RESULTS_SCHEDULE", "ENVIRONMENT", "RULES_CONTEXT"], message: sharedResult.error.message });
-
-  const rows = [
-    ...((otherResult.error ? [] : otherResult.data ?? []) as ObservationRow[]),
-    ...((marketResult.error ? [] : marketResult.data ?? []) as ObservationRow[]),
-    ...((pbpResult.error ? [] : pbpResult.data ?? []) as ObservationRow[]),
-    ...((sharedResult.error ? [] : sharedResult.data ?? []) as ObservationRow[]),
+  const lanes: Lane[] = [
+    { name: "p1_other", families: ["RESULTS_SCHEDULE", "RANKING", "ENVIRONMENT", "RULES_CONTEXT"], result: p1Other },
+    { name: "p2_other", families: ["RESULTS_SCHEDULE", "RANKING", "ENVIRONMENT", "RULES_CONTEXT"], result: p2Other },
+    { name: "p1_market", families: ["MARKET"], result: p1Market },
+    { name: "p2_market", families: ["MARKET"], result: p2Market },
+    { name: "p1_pbp", families: ["POINT_BY_POINT"], result: p1Pbp },
+    { name: "p2_pbp", families: ["POINT_BY_POINT"], result: p2Pbp },
+    { name: "shared", families: ["RESULTS_SCHEDULE", "ENVIRONMENT", "RULES_CONTEXT"], result: sharedResult },
   ];
+  const laneFailures: LaneFailure[] = lanes.filter((lane) => lane.result.error).map((lane) => ({ lane: lane.name, families: lane.families, message: lane.result.error!.message }));
+  const rows = lanes.flatMap((lane) => lane.result.error ? [] : ((lane.result.data ?? []) as ObservationRow[]));
   const seen = new Set<string>();
   const deduped = rows.filter((row) => {
     const key = [row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value,row.numeric_value].join("|");
