@@ -1,7 +1,8 @@
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { parseRuleDocument } from "../src/lib/rule-parser";
-import { readFileSync } from "node:fs";
 import { finalMetricWiringResearcher } from "../src/lib/metric-wiring-078-081.server";
+
+for (const key of ["LOVABLE_API_KEY","RESEARCH_FALLBACK_API_KEY","OPENAI_API_KEY","RESEARCH_FALLBACK_URL","OPENAI_BASE_URL"]) delete process.env[key];
 
 type FailureBucket =
   | "SOURCE_MISSING"
@@ -37,15 +38,7 @@ function status(treatment: string | null | undefined): SideStatus {
   if (treatment === "EXCLUDED") return "EXCLUDED";
   return USABLE.has(String(treatment)) ? "AVAILABLE" : "UNAVAILABLE";
 }
-function classify(args: {
-  code: string;
-  p1Treatment: string;
-  p2Treatment: string;
-  family: string | null;
-  sourceCount: number;
-  reason: string | null;
-  missing: string[];
-}): FailureBucket | null {
+function classify(args: { code:string; p1Treatment:string; p2Treatment:string; family:string|null; sourceCount:number; reason:string|null; missing:string[] }): FailureBucket | null {
   const { code, p1Treatment, p2Treatment, family, sourceCount, reason, missing } = args;
   if (USABLE.has(p1Treatment) || USABLE.has(p2Treatment)) return null;
   const text = `${reason ?? ""} ${missing.join(" ")}`.toLowerCase();
@@ -61,12 +54,8 @@ function classify(args: {
   return "GENUINELY_UNAVAILABLE";
 }
 
-const text = readFileSync("public/seed/metrics.txt", "utf8");
-const parsed = parseRuleDocument(text);
-const metrics = parsed.rules
-  .filter((r) => Number(r.rule_code) >= 1 && Number(r.rule_code) <= 81)
-  .map((r) => ({ code: r.rule_code, name: r.rule_name, body: r.body }));
-
+const parsed = parseRuleDocument(readFileSync("public/seed/metrics.txt", "utf8"));
+const metrics = parsed.rules.filter((r) => Number(r.rule_code) >= 1 && Number(r.rule_code) <= 81).map((r) => ({ code:r.rule_code, name:r.rule_name, body:r.body }));
 if (metrics.length !== 81) throw new Error(`Expected 81 metrics, parsed ${metrics.length}`);
 
 const matches = [
@@ -75,83 +64,35 @@ const matches = [
   { id:"ATP_CHALLENGER_BASELINE", tour:"ATP_CHALLENGER", p1:"Emilio Nava", p2:"Patrick Kypson", context:"Tournament: ATP Challenger representative | Level: ATP Challenger | Tour: ATP Challenger | Surface: hard | Date: 2026-08-22" },
 ] as const;
 
-const report: any = {
-  schema_version: 1,
-  generated_at: new Date().toISOString(),
-  mode: "provider_independent_pre_production_change_baseline",
-  invariant: "No production logic changed before this baseline.",
-  metrics_parsed: metrics.length,
-  matches: [],
-};
+const report:any = { schema_version:1, generated_at:new Date().toISOString(), mode:"provider_independent_pre_production_change_baseline", invariant:"No production logic changed before this baseline.", metrics_parsed:metrics.length, matches:[] };
 
 for (const match of matches) {
-  const rows = await finalMetricWiringResearcher.metrics({
-    p1: match.p1,
-    p2: match.p2,
-    context: match.context,
-    dossier: "",
-    metrics,
-  });
+  let rows:any[]=[];
+  let resolverError:string|null=null;
+  try {
+    rows = await finalMetricWiringResearcher.metrics({ p1:match.p1, p2:match.p2, context:match.context, dossier:"", metrics });
+  } catch (error) {
+    resolverError = error instanceof Error ? error.message : String(error);
+  }
   const detail = metrics.map((metric) => {
-    const code = codeOf(metric.code);
-    const row = rows.find((r) => codeOf(r.metric_code) === code);
-    const p1Treatment = String(row?.p1_treatment ?? "UNAVAILABLE");
-    const p2Treatment = String(row?.p2_treatment ?? "UNAVAILABLE");
-    const sources = row?.sources ?? [];
-    const family = row?.evidence_family ?? null;
-    const missing = row?.missing_inputs ?? [];
-    const bucket = classify({
-      code,
-      p1Treatment,
-      p2Treatment,
-      family,
-      sourceCount: sources.length,
-      reason: row?.unavailable_reason ?? null,
-      missing,
-    });
+    const code=codeOf(metric.code); const row=rows.find((r)=>codeOf(r.metric_code)===code);
+    const p1Treatment=String(row?.p1_treatment??"UNAVAILABLE"), p2Treatment=String(row?.p2_treatment??"UNAVAILABLE");
+    const sources=row?.sources??[], family=row?.evidence_family??null;
+    const missing=[...(row?.missing_inputs??[]), ...(resolverError ? [`resolver error: ${resolverError}`] : [])];
+    const bucket=classify({code,p1Treatment,p2Treatment,family,sourceCount:sources.length,reason:row?.unavailable_reason??resolverError,missing});
     return {
-      metric: { code, name: metric.name },
-      requested_evidence: metric.body ?? null,
-      source_expected: EXPECTED_FAMILY[code] ?? [],
-      source_actually_found: sources.map((s) => ({ name:s.source_name, url:s.url ?? null })),
-      database_evidence_found: null,
-      player_identity_status: "NOT_DB_PROBED",
-      match_identity_status: "NOT_DB_PROBED",
-      resolver_result: {
-        p1_value: row?.p1_value ?? null,
-        p2_value: row?.p2_value ?? null,
-        p1_treatment: p1Treatment,
-        p2_treatment: p2Treatment,
-        evidence_family: family,
-        sample: row?.sample ?? null,
-      },
-      reconstruction_result: p1Treatment === "RECONSTRUCTED" || p2Treatment === "RECONSTRUCTED" ? "RECOVERED" : missing.some((x) => /reconstruct|formula|input/i.test(x)) ? "FAILED_OR_INCOMPLETE" : "NOT_ATTEMPTED_OR_NOT_REQUIRED",
-      audit_availability_status: { p1: status(p1Treatment), p2: status(p2Treatment) },
-      coverage_credit: {
-        p1: USABLE.has(p1Treatment),
-        p2: USABLE.has(p2Treatment),
-        partial_preserved: p1Treatment === "PARTIAL" || p2Treatment === "PARTIAL",
-      },
-      failure_bucket: bucket,
-      reason: row?.unavailable_reason ?? (bucket ? missing.join("; ") || "No usable evidence survived resolver" : null),
-      missing_inputs: missing,
+      metric:{code,name:metric.name}, requested_evidence:metric.body??null, source_expected:EXPECTED_FAMILY[code]??[],
+      source_actually_found:sources.map((s:any)=>({name:s.source_name,url:s.url??null})), database_evidence_found:null,
+      player_identity_status:"NOT_DB_PROBED", match_identity_status:"NOT_DB_PROBED",
+      resolver_result:{p1_value:row?.p1_value??null,p2_value:row?.p2_value??null,p1_treatment:p1Treatment,p2_treatment:p2Treatment,evidence_family:family,sample:row?.sample??null},
+      reconstruction_result:p1Treatment==="RECONSTRUCTED"||p2Treatment==="RECONSTRUCTED"?"RECOVERED":missing.some((x:string)=>/reconstruct|formula|input/i.test(x))?"FAILED_OR_INCOMPLETE":"NOT_ATTEMPTED_OR_NOT_REQUIRED",
+      audit_availability_status:{p1:status(p1Treatment),p2:status(p2Treatment)}, coverage_credit:{p1:USABLE.has(p1Treatment),p2:USABLE.has(p2Treatment),partial_preserved:p1Treatment==="PARTIAL"||p2Treatment==="PARTIAL"},
+      failure_bucket:bucket, reason:row?.unavailable_reason??resolverError??(bucket?missing.join("; ")||"No usable evidence survived resolver":null), missing_inputs:missing,
     };
   });
-  const p1Credit = detail.filter((d) => d.coverage_credit.p1).length;
-  const p2Credit = detail.filter((d) => d.coverage_credit.p2).length;
-  const buckets: Record<string, number> = {};
-  for (const d of detail) if (d.failure_bucket) buckets[d.failure_bucket] = (buckets[d.failure_bucket] ?? 0) + 1;
-  report.matches.push({
-    ...match,
-    coverage: {
-      p1_credited: p1Credit, p2_credited: p2Credit,
-      p1_percent: Number((100 * p1Credit / 81).toFixed(2)),
-      p2_percent: Number((100 * p2Credit / 81).toFixed(2)),
-    },
-    failure_buckets: buckets,
-    metrics: detail,
-  });
+  const p1Credit=detail.filter((d:any)=>d.coverage_credit.p1).length, p2Credit=detail.filter((d:any)=>d.coverage_credit.p2).length;
+  const buckets:Record<string,number>={}; for(const d of detail) if(d.failure_bucket) buckets[d.failure_bucket]=(buckets[d.failure_bucket]??0)+1;
+  report.matches.push({...match,resolver_error:resolverError,coverage:{p1_credited:p1Credit,p2_credited:p2Credit,p1_percent:Number((100*p1Credit/81).toFixed(2)),p2_percent:Number((100*p2Credit/81).toFixed(2))},failure_buckets:buckets,metrics:detail});
 }
-
-writeFileSync("data/audit/evidence-coverage-baseline.json", `${JSON.stringify(report, null, 2)}\n`);
-console.log(JSON.stringify(report.matches.map((m:any) => ({ id:m.id, coverage:m.coverage, failure_buckets:m.failure_buckets })), null, 2));
+writeFileSync("data/audit/evidence-coverage-baseline.json",`${JSON.stringify(report,null,2)}\n`);
+console.log(JSON.stringify(report.matches.map((m:any)=>({id:m.id,resolver_error:m.resolver_error,coverage:m.coverage,failure_buckets:m.failure_buckets})),null,2));
