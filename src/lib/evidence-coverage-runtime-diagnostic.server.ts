@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildMetricObservationContext } from "./source-observation-metric-bridge.server";
+import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { policyForMetric } from "./metric-source-family-policy";
 import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
 import { deterministicMarketMetric } from "./deterministic-market-metrics.server";
@@ -53,12 +54,8 @@ async function deterministic(metric: Metric, match: typeof REPRESENTATIVE_MATCHE
   ];
   const errors: string[] = [];
   for (const runner of runners) {
-    try {
-      const row = await runner();
-      if (row) return { row, errors };
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
+    try { const row = await runner(); if (row) return { row, errors }; }
+    catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
   }
   return { row: null, errors };
 }
@@ -69,9 +66,10 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
   const matches: any[] = [];
 
   for (const match of REPRESENTATIVE_MATCHES) {
+    const aliases = [...new Set([...safeEvidenceAliases(match.p1, match.p2), ...safeEvidenceAliases(match.p2, match.p1)])];
     const [identityResult, storedResult, packetResult] = await Promise.allSettled([
       db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").or(`and(player1_name.eq.${match.p1},player2_name.eq.${match.p2}),and(player1_name.eq.${match.p2},player2_name.eq.${match.p1})`).limit(5),
-      db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family").eq("as_of_date", match.date).in("metric_code", metrics.map((m) => codeOf(m.code))).in("player_name", [match.p1, match.p2]).in("opponent_name", [match.p1, match.p2]),
+      db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family").eq("as_of_date", match.date).in("metric_code", metrics.map((m) => codeOf(m.code))).in("player_name", aliases).in("opponent_name", aliases),
       buildMetricObservationContext({ metrics, p1: match.p1, p2: match.p2, asOfDate: match.date }),
     ]);
 
@@ -87,8 +85,8 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
       const code = codeOf(metric.code);
       const policy = policyForMetric(code);
       const entry = packet[code] ?? null;
-      const p1Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && r.player_name === match.p1 && r.opponent_name === match.p2) ?? null;
-      const p2Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && r.player_name === match.p2 && r.opponent_name === match.p1) ?? null;
+      const p1Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && evidencePairMatches(r.player_name, r.opponent_name, match.p1, match.p2)) ?? null;
+      const p2Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && evidencePairMatches(r.player_name, r.opponent_name, match.p2, match.p1)) ?? null;
       const local = await deterministic(metric, match);
       const p1Treatment = String(p1Stored?.treatment ?? local.row?.p1_treatment ?? "UNAVAILABLE");
       const p2Treatment = String(p2Stored?.treatment ?? local.row?.p2_treatment ?? "UNAVAILABLE");
@@ -99,13 +97,13 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
       let bucket: FailureBucket | null = null;
       let reason: string | null = null;
       if (!pairUsable) {
-        const queryErrors = [identityError, storedError, packetError, ...local.errors].filter(Boolean) as string[];
+        // The production `matches` table is not the evidence warehouse. An empty
+        // exact-pair lookup is identity metadata only and must not overwrite the
+        // real downstream failure bucket for all 81 metrics.
+        const queryErrors = [storedError, packetError, ...local.errors].filter(Boolean) as string[];
         if (queryErrors.length) {
           bucket = "EVIDENCE_QUERY_FAILURE";
           reason = queryErrors.join(" | ");
-        } else if (!identityRows.length) {
-          bucket = "IDENTITY_MATCH_FAILURE";
-          reason = "Exact persisted representative pair was not found.";
         } else if (oneSidedUsable) {
           bucket = "COVERAGE_CREDIT_FAILURE";
           reason = `One-sided usable evidence cannot count as pair-complete coverage (P1=${p1Treatment}, P2=${p2Treatment}).`;
@@ -116,27 +114,14 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
           bucket = "RECONSTRUCTION_FAILURE";
           reason = "Support-only admissible observations exist but no permitted deterministic reconstruction recovered the metric.";
         } else if (policy.allowed_families.length) {
-          bucket = "SOURCE_MISSING";
-          reason = `No admissible observation found for ${policy.allowed_families.join(",")}.`;
+          bucket = "INGESTION_MISSING";
+          reason = `A structured path exists for ${policy.allowed_families.join(",")} but no admissible warehouse observation was ingested for this matchup/window.`;
         } else {
           bucket = "EVIDENCE_WIRING_FAILURE";
           reason = "No provider-independent structured source-family path is registered for this metric.";
         }
       }
-      details.push({
-        metric_code: code,
-        metric_name: metric.name,
-        source_expected: policy.allowed_families,
-        warehouse_observation_count: Number(entry?.observations?.length ?? 0),
-        stored_p1: Boolean(p1Stored), stored_p2: Boolean(p2Stored),
-        p1_treatment: p1Treatment, p2_treatment: p2Treatment,
-        p1_credited: p1Usable, p2_credited: p2Usable,
-        pair_credited: pairUsable,
-        one_sided_usable: oneSidedUsable,
-        deterministic_family: local.row?.evidence_family ?? null,
-        failure_bucket: bucket,
-        reason,
-      });
+      details.push({ metric_code: code, metric_name: metric.name, source_expected: policy.allowed_families, warehouse_observation_count: Number(entry?.observations?.length ?? 0), stored_p1: Boolean(p1Stored), stored_p2: Boolean(p2Stored), p1_treatment: p1Treatment, p2_treatment: p2Treatment, p1_credited: p1Usable, p2_credited: p2Usable, pair_credited: pairUsable, one_sided_usable: oneSidedUsable, deterministic_family: local.row?.evidence_family ?? null, failure_bucket: bucket, reason });
     }
 
     const buckets: Record<string, number> = {};
@@ -146,24 +131,14 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     const pairCredited = details.filter((row) => row.pair_credited).length;
     const oneSided = details.filter((row) => row.one_sided_usable).length;
     matches.push({
-      id: match.id,
-      pair: `${match.p1} vs ${match.p2}`,
-      identity_match_count: identityRows.length,
-      query_errors: [identityError, storedError, packetError].filter(Boolean),
-      coverage: {
-        p1: p1Credited,
-        p2: p2Credited,
-        pair: pairCredited,
-        one_sided: oneSided,
-        p1_percent: Number((100 * p1Credited / 81).toFixed(2)),
-        p2_percent: Number((100 * p2Credited / 81).toFixed(2)),
-        pair_percent: Number((100 * pairCredited / 81).toFixed(2)),
-      },
+      id: match.id, pair: `${match.p1} vs ${match.p2}`,
+      identity: { exact_match_count: identityRows.length, query_error: identityError, blocks_evidence_classification: false },
+      query_errors: [storedError, packetError].filter(Boolean),
+      coverage: { p1: p1Credited, p2: p2Credited, pair: pairCredited, one_sided: oneSided, p1_percent: Number((100 * p1Credited / 81).toFixed(2)), p2_percent: Number((100 * p2Credited / 81).toFixed(2)), pair_percent: Number((100 * pairCredited / 81).toFixed(2)) },
       false_green_guard: { passed: oneSided === 0, one_sided_metric_count: oneSided },
-      failure_buckets: buckets,
-      metrics: details,
+      failure_buckets: buckets, metrics: details,
     });
   }
 
-  return { schema_version: 2, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
+  return { schema_version: 3, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
 }
