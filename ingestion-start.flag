@@ -1,4 +1,4 @@
-start=2026-08-24T21:27:00-04:00
+start=2026-08-24T21:31:00-04:00
 sources=atp,wta,atp_challenger,atp_rankings,wta_rankings
-reason=autonomous_validation_after_lovable_sync_confirmed
-nonce=3
+reason=main_validation_after_lovable_sync_confirmed
+nonce=5
