@@ -22,6 +22,7 @@ jobs:
           import { certifyMetricFinding } from "./metric-certification";
           const metrics = Array.from({length:81},(_,i)=>({code:String(i+1).padStart(3,"0"),name:`Metric ${String(i+1).padStart(3,"0")}`,body:null}));
           const usable=new Set(["DIRECT","RECONSTRUCTED","PARTIAL"]);
+          const storedCodes=new Set(["001","005","012","014","021","028","062","069"]);
           const pairs=[
             {label:"WTA_MAIN",p1:"Jessica Pegula",p2:"Iga Swiatek",context:"Tournament: WTA MAIN persisted evidence pair | Level: WTA MAIN | Tour: WTA MAIN | Date: 2026-08-25"},
             {label:"ATP_MAIN",p1:"Flavio Cobolli",p2:"Arthur Fils",context:"Tournament: ATP MAIN persisted evidence pair | Level: ATP MAIN | Tour: ATP MAIN | Date: 2026-08-25"},
@@ -34,8 +35,9 @@ jobs:
               const b=usable.has(String(r.p2_treatment))&&r.p2_value!=null&&String(r.p2_value).trim()!=="";
               return a!==b;
             });
-            console.log(`PHASE23|${pair.label}|PAIR=${pairUsable.length}|PERCENT=${(100*pairUsable.length/81).toFixed(2)}|ONE_SIDED=${oneSided.length}|CODES=${pairUsable.map(r=>String(r.metric_code).padStart(3,"0")).join(",")}`);
+            const union=new Set([...storedCodes,...pairUsable.map(r=>String(r.metric_code).padStart(3,"0"))]);
+            console.log(`PHASE23|${pair.label}|LOCAL_PAIR=${pairUsable.length}|LOCAL_PERCENT=${(100*pairUsable.length/81).toFixed(2)}|EXPECTED_STORED_PLUS_LOCAL=${union.size}|EXPECTED_PERCENT=${(100*union.size/81).toFixed(2)}|ONE_SIDED=${oneSided.length}|CODES=${pairUsable.map(r=>String(r.metric_code).padStart(3,"0")).join(",")}`);
             console.log(`PHASE23_FAMILIES|${pair.label}|${pairUsable.map(r=>`${String(r.metric_code).padStart(3,"0")}:${r.evidence_family}`).join("|")}`);
-          })});
+          },30000)});
           TS
           bunx vitest run src/lib/phase23-local-coverage-audit.test.ts --reporter=verbose
