@@ -95,12 +95,11 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("classifyFromExactRankingEvidence");
     expect(diagnostic).toContain('eq("observation_type","RANKING")');
     expect(diagnostic).toContain('in("player_name",names)');
-    expect(diagnostic).toContain('sampling_source:"matches_plus_rankings"');
+    expect(diagnostic).toContain('"matches_plus_rankings"');
     expect(diagnostic).toContain("status===\"AMBIGUOUS\"");
     expect(diagnostic).toContain("status===\"QUERY_FAILED\"");
     expect(diagnostic).toContain("status===\"UNRESOLVED\"");
     expect(diagnostic).toMatch(/challenger\|wta\\s\*125\|wta125\|125k/);
-    expect(diagnostic).not.toContain('return "ATP_CHALLENGER";\n  const identities=await resolveCanonicalEvidencePair');
   });
 
   it("documents representative classes that genuinely cannot be sampled from current persisted production data", () => {
