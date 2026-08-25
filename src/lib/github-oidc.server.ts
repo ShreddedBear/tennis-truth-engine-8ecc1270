@@ -1,8 +1,10 @@
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const EXPECTED_REPOSITORY = "dashawnkillzz-sketch/tennis-truth-engine";
 const EXPECTED_AUDIENCE = "tennis-truth-engine-warehouse-ingestion";
-const EXPECTED_WORKFLOW_REF = `${EXPECTED_REPOSITORY}/.github/workflows/historical-hard-pull.yml@refs/heads/main`;
-const ALLOWED_EVENTS = new Set(["workflow_dispatch", "schedule", "push"]);
+const WORKFLOW_PATH = ".github/workflows/historical-hard-pull.yml";
+const EXPECTED_MAIN_WORKFLOW_REF = `${EXPECTED_REPOSITORY}/${WORKFLOW_PATH}@refs/heads/main`;
+const OPS_VALIDATION_HEAD = "ops/historical-hard-pull-validation";
+const ALLOWED_EVENTS = new Set(["workflow_dispatch", "schedule", "push", "pull_request"]);
 
 function decodeBase64Url(input: string): Uint8Array {
   const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -22,6 +24,8 @@ type GithubOidcClaims = {
   nbf?: number;
   repository?: string;
   ref?: string;
+  base_ref?: string;
+  head_ref?: string;
   event_name?: string;
   workflow_ref?: string;
 };
@@ -30,6 +34,24 @@ type Jwks = { keys?: JsonWebKey[] };
 
 function audienceMatches(aud: string | string[] | undefined): boolean {
   return Array.isArray(aud) ? aud.includes(EXPECTED_AUDIENCE) : aud === EXPECTED_AUDIENCE;
+}
+
+function verifyWorkflowScope(claims: GithubOidcClaims): void {
+  if (!claims.event_name || !ALLOWED_EVENTS.has(claims.event_name)) {
+    throw new Error("Unsupported GitHub ingestion event");
+  }
+
+  if (claims.event_name === "pull_request") {
+    if (claims.head_ref !== OPS_VALIDATION_HEAD) throw new Error("GitHub PR ingestion is restricted to the ops validation branch");
+    if (claims.base_ref !== "refs/heads/main") throw new Error("GitHub PR ingestion must target main");
+    if (!claims.ref?.startsWith("refs/pull/")) throw new Error("Invalid GitHub PR ingestion ref");
+    const expectedPrWorkflowRef = `${EXPECTED_REPOSITORY}/${WORKFLOW_PATH}@${claims.ref}`;
+    if (claims.workflow_ref !== expectedPrWorkflowRef) throw new Error("Invalid GitHub PR ingestion workflow");
+    return;
+  }
+
+  if (claims.ref !== "refs/heads/main") throw new Error("GitHub ingestion is restricted to main");
+  if (claims.workflow_ref !== EXPECTED_MAIN_WORKFLOW_REF) throw new Error("Invalid GitHub ingestion workflow");
 }
 
 export async function verifyGithubActionsOidc(token: string): Promise<GithubOidcClaims> {
@@ -44,9 +66,7 @@ export async function verifyGithubActionsOidc(token: string): Promise<GithubOidc
   if (claims.iss !== GITHUB_OIDC_ISSUER) throw new Error("Invalid GitHub OIDC issuer");
   if (!audienceMatches(claims.aud)) throw new Error("Invalid GitHub OIDC audience");
   if (claims.repository !== EXPECTED_REPOSITORY) throw new Error("Invalid GitHub OIDC repository");
-  if (claims.ref !== "refs/heads/main") throw new Error("GitHub ingestion is restricted to main");
-  if (claims.workflow_ref !== EXPECTED_WORKFLOW_REF) throw new Error("Invalid GitHub ingestion workflow");
-  if (!claims.event_name || !ALLOWED_EVENTS.has(claims.event_name)) throw new Error("Unsupported GitHub ingestion event");
+  verifyWorkflowScope(claims);
 
   const now = Math.floor(Date.now() / 1000);
   if (!claims.exp || claims.exp <= now) throw new Error("Expired GitHub OIDC token");
