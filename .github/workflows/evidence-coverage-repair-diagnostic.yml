@@ -40,9 +40,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Validate evidence identity firewall
-        run: bun test src/lib/evidence-player-alias.test.ts
+        run: bunx vitest run src/lib/evidence-player-alias.test.ts
       - name: Validate full regression suite
-        run: bun test
+        run: bunx vitest run
       - name: Explain production-data execution boundary
         run: |
           echo "Production Supabase credentials are Lovable-managed and are intentionally not copied into GitHub Actions."
