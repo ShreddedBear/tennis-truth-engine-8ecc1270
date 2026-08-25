@@ -1,0 +1,64 @@
+name: Phase 21 index sampling patch
+on:
+  push:
+    branches: [repair/evidence-coverage-phase21-index-sampling]
+    paths: ['.github/workflows/phase21-index-sampling-patch.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/evidence-coverage-phase21-index-sampling
+          fetch-depth: 0
+      - name: Patch runtime diagnostic
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/evidence-coverage-runtime-diagnostic.server.ts')
+          s=p.read_text()
+          old='import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";'
+          new=old+'\nimport { sampleVerifiedEvidenceIndexMatch } from "./evidence-index-match-sampler.server";'
+          assert old in s and 'sampleVerifiedEvidenceIndexMatch' not in s
+          s=s.replace(old,new,1)
+          old='date_source:"scheduled_date"|"parsed_summary"|"created_at"|"warehouse_event_date";'
+          new='date_source:"scheduled_date"|"parsed_summary"|"created_at"|"warehouse_event_date"|"verified_index_date";'
+          assert old in s
+          s=s.replace(old,new,1)
+          old='sampling_source:"matches"|"source_observations"|"matches_plus_rankings"'
+          new='sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"verified_pbp_index"'
+          assert old in s
+          s=s.replace(old,new,1)
+          marker='  const missingClasses=missing(),missing_class_reasons:Partial<Record<RepresentativeId,string>>={};'
+          insert='''  if(missing().length){\n    for(const id of missing()){\n      const row=await sampleVerifiedEvidenceIndexMatch(id);\n      if(!row)continue;\n      const level=id.replaceAll("_"," ");\n      selected.push({id,match_id:row.match_id,p1:row.p1,p2:row.p2,date:row.date,date_source:"verified_index_date",tournament:row.tournament,context:[`Tournament: ${row.tournament}`,`Level: ${level}`,`Tour: ${level}`,row.surface?`Surface: ${row.surface}`:null,`Date: ${row.date}`].filter(Boolean).join(" | "),event_level:level,surface:row.surface,sampling_source:"verified_pbp_index"});\n    }\n  }\n'''+marker
+          assert marker in s
+          s=s.replace(marker,insert,1)
+          old='const identityPromise=match.sampling_source!=="source_observations"?db.from("matches")'
+          new='const identityPromise=(match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings")?db.from("matches")'
+          assert old in s
+          s=s.replace(old,new,1)
+          s=s.replace('REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_FALLBACK','REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_AND_VERIFIED_PBP_INDEX_FALLBACK')
+          p.write_text(s)
+          PY
+      - name: Add regression assertions
+        run: |
+          cat >> src/lib/evidence-coverage-runtime-diagnostic.test.ts <<'EOF'
+
+          describe("verified PBP index sampling fallback", () => {
+            it("uses strict verified index matches only after database sampling is exhausted", () => {
+              expect(diagnostic).toContain('sampleVerifiedEvidenceIndexMatch(id)');
+              expect(diagnostic).toContain('sampling_source:"verified_pbp_index"');
+              expect(diagnostic).toContain('date_source:"verified_index_date"');
+              expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');
+            });
+          });
+          EOF
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+          git commit -m 'Sample real verified PBP index matches when DB pairing is absent'
+          git push origin HEAD:repair/evidence-coverage-phase21-index-sampling
