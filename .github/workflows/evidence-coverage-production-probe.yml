@@ -21,6 +21,7 @@ jobs:
           body="$(mktemp)"
           status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 'https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1' || true)"
           echo "HTTP_STATUS=$status"
-          head -c 4000 "$body" || true
+          head -c 20000 "$body" || true
           echo
-# publish verification trigger 2026-08-25
+
+# production probe retrigger after phase-14 publish and later evidence recovery merges
