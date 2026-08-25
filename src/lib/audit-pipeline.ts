@@ -25,7 +25,7 @@ export type Stage=(typeof STAGES)[number];
 export const TREATMENTS=["DIRECT","RECONSTRUCTED","PARTIAL","UNAVAILABLE","EXCLUDED"] as const;
 export type Treatment=(typeof TREATMENTS)[number];
 
-export interface SourceRef{source_name:string;url:string|null;retrieved_at:string|null;}
+export interface SourceRef{source_name:string;url?:string|null;retrieved_at?:string|null;}
 export interface IdentityFinding{player1_canonical:string|null;player2_canonical:string|null;player1_status:"VERIFIED"|"UNVERIFIED"|"CONFLICT";player2_status:"VERIFIED"|"UNVERIFIED"|"CONFLICT";tournament:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;indoor:boolean|null;best_of:number|null;surface_status:"VERIFIED"|"UNVERIFIED"|"CONFLICT";unresolved_reason:string|null;sources:SourceRef[];conflicts:Array<{field:string;values:string[];note:string|null}>;}
 export interface MetricFinding{metric_code:string;p1_value:string|null;p2_value:string|null;p1_treatment:Treatment;p2_treatment:Treatment;differential:string|null;evidence_family:string|null;reliability:number|null;sample:string|null;unavailable_reason:string|null;provider_error?:string|null;missing_inputs?:string[];sources:SourceRef[];}
 export interface RuleFinding{rule_code:string;p1_finding:string|null;p2_finding:string|null;outcome:"PASS"|"WARN"|"FAIL"|"UNAVAILABLE";severity:"STANDARD"|"CRITICAL"|null;decision_effect:string|null;contradiction_severity:"NONE"|"MINOR"|"MATERIAL"|"CRITICAL"|null;supporting_evidence:string|null;opposing_evidence:string|null;final_effect:string|null;unavailable_reason?:string|null;provider_error?:string|null;missing_inputs?:string[];sources:SourceRef[];}
