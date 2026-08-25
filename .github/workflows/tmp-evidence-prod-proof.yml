@@ -1,0 +1,43 @@
+name: Temporary Evidence Production Proof
+
+on:
+  push:
+    branches: [diagnostic/evidence-prod-proof-c66]
+    paths: ['.github/workflows/tmp-evidence-prod-proof.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe published diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1'
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS -L --max-time 180 -o /tmp/ecov.json -w '%{http_code}' "$url" || true)
+            echo "attempt=$attempt http_status=$code"
+            if [ "$code" = "200" ]; then break; fi
+            cat /tmp/ecov.json 2>/dev/null || true
+            sleep 12
+          done
+          test "${code:-000}" = "200"
+          python - <<'PY'
+          import json
+          p='/tmp/ecov.json'
+          d=json.load(open(p))
+          print('schema_version=',d.get('schema_version'))
+          print('metrics=',d.get('metrics'))
+          print('sampling=',json.dumps(d.get('sampling'),sort_keys=True))
+          for m in d.get('matches',[]):
+              print('MATCH',m.get('id'),m.get('pair'),'sampling_source=',m.get('sampling_source'),'date_source=',m.get('date_source'))
+              print('COVERAGE',json.dumps(m.get('coverage'),sort_keys=True))
+              print('FALSE_GREEN',json.dumps(m.get('false_green_guard'),sort_keys=True))
+              print('BUCKETS',json.dumps(m.get('failure_buckets'),sort_keys=True))
+              interesting=[x for x in m.get('metrics',[]) if x.get('metric_code') in {'014','016'}]
+              print('INTERESTING',json.dumps(interesting,sort_keys=True))
+          PY
