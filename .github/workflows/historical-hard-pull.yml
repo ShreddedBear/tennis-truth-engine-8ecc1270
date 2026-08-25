@@ -16,6 +16,11 @@ on:
       - main
     paths:
       - ingestion-start.flag
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ingestion-start.flag
   schedule:
     - cron: "17 6 * * 1"
 
@@ -28,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      INGEST_SOURCES: ${{ github.event_name == 'push' && 'atp,wta,atp_challenger,atp_rankings,wta_rankings' || inputs.sources || 'open_meteo,odds_api' }}
+      INGEST_SOURCES: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'atp,wta,atp_challenger,atp_rankings,wta_rankings' || inputs.sources || 'open_meteo,odds_api' }}
       INGESTION_BRIDGE_URL: https://id-preview--e217cec6-8cf9-40d2-9443-14b4f8716490.lovable.app/api/warehouse-ingest
       OIDC_AUDIENCE: tennis-truth-engine-warehouse-ingestion
     steps:
