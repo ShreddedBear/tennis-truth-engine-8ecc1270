@@ -1,4 +1,3 @@
-start=2026-08-23T12:09:00-04:00
-sources=open_meteo,odds_api
-odds_max_requests=25
-reason=retry_after_main_trigger_fix
+start=2026-08-24T20:54:00-04:00
+sources=atp,wta,atp_challenger,atp_rankings,wta_rankings
+reason=autonomous_validation_after_sackmann_source_fix
