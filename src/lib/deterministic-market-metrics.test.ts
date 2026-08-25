@@ -13,15 +13,20 @@ describe("deterministic market metrics", () => {
   });
 
   it("uses the verified June 6 2020 historical floor and de-vig math", () => {
-    expect(calc).toContain('const from = "2020-06-06"');
+    expect(calc).toContain('"2020-06-06"');
     expect(calc).toContain('p / (p + q)');
     expect(calc).toContain('probability_movement');
     expect(calc).toContain('favorite_share');
   });
 
-  it("keeps 043 and 044 support-only while 015 and 019 can be reconstructed", () => {
-    expect(calc).toContain('const isCoreMarket = code === "015" || code === "019"');
-    expect(calc).toContain('isCoreMarket ? "RECONSTRUCTED" : "PARTIAL"');
+  it("keeps support-only market metrics partial and core metrics fail-closed", () => {
+    expect(calc).toContain("treatmentFor");
+    expect(calc).toContain('code === "015" || code === "019"');
+    expect(calc).toContain("summary.paired_devig_observations > 0");
+    expect(calc).toContain('return "RECONSTRUCTED"');
+    expect(calc).toContain('return "PARTIAL"');
+    expect(calc).toContain('return "UNAVAILABLE"');
+    expect(calc).toContain("missing side is not synthesized or credited");
   });
 
   it("runs market calculations before unresolved live fallback", () => {
