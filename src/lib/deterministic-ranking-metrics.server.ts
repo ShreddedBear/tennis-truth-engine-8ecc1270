@@ -26,9 +26,14 @@ function value(code:string,s:ReturnType<typeof summary>){if(!s)return null;if(co
 
 export async function deterministicRankingMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);
-  const aliases=[...new Set([...safeEvidenceAliases(args.p1,args.p2),...safeEvidenceAliases(args.p2,args.p1)])];
-  const {data,error}=await db.from("source_observations").select("source_id,source_name,source_url,player_name,event_date,observation_type,observation_key,text_value,numeric_value,sample_label").gte("event_date",start.toISOString().slice(0,10)).lte("event_date",args.asOfDate).in("player_name",aliases).order("event_date",{ascending:false}).limit(2000);
-  if(error)return null;const rows=((data??[]) as Row[]).filter(r=>metricAllowsObservation(code,r));if(!rows.length)return null;
+  const select="source_id,source_name,source_url,player_name,event_date,observation_type,observation_key,text_value,numeric_value,sample_label";
+  const base=()=>db.from("source_observations").select(select).gte("event_date",start.toISOString().slice(0,10)).lte("event_date",args.asOfDate).order("event_date",{ascending:false}).limit(1200);
+  const [p1Result,p2Result]=await Promise.all([
+    base().in("player_name",safeEvidenceAliases(args.p1,args.p2)),
+    base().in("player_name",safeEvidenceAliases(args.p2,args.p1)),
+  ]);
+  const rows=[...((p1Result.error?[]:p1Result.data??[]) as Row[]),...((p2Result.error?[]:p2Result.data??[]) as Row[])].filter(r=>metricAllowsObservation(code,r));
+  if(!rows.length)return null;
   const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate),p1=value(code,s1),p2=value(code,s2);
   if(!p1&&!p2)return null;
   const p1Available=Boolean(p1),p2Available=Boolean(p2);
