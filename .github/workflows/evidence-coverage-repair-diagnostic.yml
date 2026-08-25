@@ -12,6 +12,7 @@ on:
       - repair/evidence-coverage-phase6
       - repair/evidence-coverage-phase7
       - repair/evidence-coverage-phase8
+      - repair/evidence-coverage-phase9
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
