@@ -37,6 +37,11 @@ function asOfDate(context:string|null|undefined){const match=String(context??"")
 function tournamentFromContext(context:string|null|undefined){const text=String(context??"");const match=text.match(/(?:^|[·|\n])\s*tournament\s+([^·|\n]+)/i);return match?.[1]?.trim()||null;}
 function ttlHours(code:string){if(["062","064","069","071","075","076","081"].includes(code))return 12;if(["012","028","077","079"].includes(code))return 24;if(["015","019"].includes(code))return 6;return 168;}
 function fullyUsableFinding(row:MetricFinding|undefined){return Boolean(row&&USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value);}
+function unambiguousStoredRow(rows:StoredEvidence[]){
+  if(rows.length===1)return rows[0];
+  const signatures=new Set(rows.map(row=>JSON.stringify([row.treatment,row.value_text,row.evidence_family,row.unavailable_reason])));
+  return signatures.size===1?rows[0]:null;
+}
 
 async function lookup(metricCodes:string[],player:string,opponent:string,date:string):Promise<Map<string,StoredEvidence>>{
   if(!metricCodes.length)return new Map<string,StoredEvidence>();
@@ -55,7 +60,8 @@ async function lookup(metricCodes:string[],player:string,opponent:string,date:st
   }
   const out=new Map<string,StoredEvidence>();
   for(const [code,rows] of byCode){
-    if(rows.length===1)out.set(code,rows[0]);
+    const selected=unambiguousStoredRow(rows);
+    if(selected)out.set(code,selected);
   }
   return out;
 }
