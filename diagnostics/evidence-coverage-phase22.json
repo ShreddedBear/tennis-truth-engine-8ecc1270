@@ -11,6 +11,64 @@
         "pair_percent": 9.88
       },
       "credit_missing": [],
+      "credited": [
+        {
+          "code": "001",
+          "family": null,
+          "name": "Surface Strength",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "005",
+          "family": null,
+          "name": "Interpretation rules",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "012",
+          "family": null,
+          "name": "Fatigue/Workload",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "014",
+          "family": "RANKING",
+          "name": "Ranking Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "021",
+          "family": null,
+          "name": "Surface & Environmental Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "028",
+          "family": null,
+          "name": "Scheduling/Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "062",
+          "family": "RANKING",
+          "name": "Motivation / Stakes",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "069",
+          "family": "RANKING",
+          "name": "Stakes / Career Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        }
+      ],
       "date_source": "persisted_as_of_date",
       "failure_buckets": {
         "INGESTION_MISSING": 20,
@@ -1328,6 +1386,64 @@
         "pair_percent": 9.88
       },
       "credit_missing": [],
+      "credited": [
+        {
+          "code": "001",
+          "family": null,
+          "name": "Surface Strength",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "005",
+          "family": null,
+          "name": "Interpretation rules",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "012",
+          "family": null,
+          "name": "Fatigue/Workload",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "014",
+          "family": "RANKING",
+          "name": "Ranking Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "021",
+          "family": null,
+          "name": "Surface & Environmental Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "028",
+          "family": null,
+          "name": "Scheduling/Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "062",
+          "family": "RANKING",
+          "name": "Motivation / Stakes",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        },
+        {
+          "code": "069",
+          "family": "RANKING",
+          "name": "Stakes / Career Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL"
+        }
+      ],
       "date_source": "persisted_as_of_date",
       "failure_buckets": {
         "INGESTION_MISSING": 20,
