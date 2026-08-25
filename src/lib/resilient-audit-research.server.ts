@@ -55,7 +55,7 @@ function localStress(input: Parameters<Researcher["stress"]>[0]): StressFinding[
     test_code: t.code,
     winner_after: null,
     range_after: null,
-    outcome: "UNAVAILABLE",
+    outcome: "UNAVAILABLE" as unknown as StressFinding["outcome"],
     note: "Stress test not executed because the semantic research provider was unavailable; no stability result was fabricated.",
     unavailable_reason: "RESEARCH_PROVIDER_UNAVAILABLE",
     missing_inputs: ["stress-test execution"],
