@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
 import { deterministicMarketMetric } from "./deterministic-market-metrics.server";
-import { deterministicPbpMetric } from "./deterministic-pbp-metrics.server";
+import { deterministicPbpMetric, deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.server";
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
@@ -128,13 +128,27 @@ export const warehouseFirstResearcher: Researcher = {
       observationPacket=mergeObservationPackets(observationPacket,bsdAtpMainPbp.packet);
       observationPacket=mergeObservationPackets(observationPacket,bsdWtaMainPbp.packet);
       observationPacket=mergeObservationPackets(observationPacket,bsdWtaChallengerPbp.packet);
+
+      // BSD PBP lives in verified tour-specific repo assets/API lanes rather than
+      // source_observations. Convert only the already tour-guarded packet into
+      // the same conservative PARTIAL deterministic contract as warehouse PBP.
+      // Pair credit still requires independently matched evidence for both sides.
+      for(const metric of liveMissing){
+        const code=codeOf(metric.code);
+        const recovered=deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket});
+        if(fullyUsableFinding(recovered??undefined))deterministicByCode.set(code,recovered!);
+      }
+
       for(const [code,row] of deterministicByCode){
         const existing=(observationPacket as Record<string,any>)[code]??{};
         (observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};
       }
-      const identityResolution={p1:identities.p1,p2:identities.p2};
-      const context=appendMetricObservationContext(input.context,{...observationPacket,_canonical_identity_resolution:identityResolution,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
-      liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing});
+      const remainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
+      if(remainingLiveMissing.length){
+        const identityResolution={p1:identities.p1,p2:identities.p2};
+        const context=appendMetricObservationContext(input.context,{...observationPacket,_canonical_identity_resolution:identityResolution,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
+        liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing});
+      }
     }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
 
