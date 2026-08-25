@@ -5,6 +5,7 @@ import { deterministicMarketMetric } from "./deterministic-market-metrics.server
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
+import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
@@ -37,12 +38,25 @@ function fullyUsableFinding(row:MetricFinding|undefined){return Boolean(row&&USA
 
 async function lookup(metricCodes:string[],player:string,opponent:string,date:string):Promise<Map<string,StoredEvidence>>{
   if(!metricCodes.length)return new Map<string,StoredEvidence>();
+  const playerAliases=safeEvidenceAliases(player,opponent);
+  const opponentAliases=safeEvidenceAliases(opponent,player);
   const {data,error}=await db.from("metric_evidence_store")
     .select("metric_code,player_name,opponent_name,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until")
-    .in("metric_code",metricCodes).eq("player_name",player).eq("opponent_name",opponent).eq("as_of_date",date)
+    .in("metric_code",metricCodes).in("player_name",playerAliases).in("opponent_name",opponentAliases).eq("as_of_date",date)
     .or(`valid_until.is.null,valid_until.gt.${new Date().toISOString()}`);
   if(error)return new Map<string,StoredEvidence>();
-  return new Map<string,StoredEvidence>((data??[]).map((row:StoredEvidence)=>[codeOf(row.metric_code),row] as [string,StoredEvidence]));
+  const byCode=new Map<string,StoredEvidence[]>();
+  for(const row of (data??[]) as StoredEvidence[]){
+    if(!evidencePairMatches(row.player_name,row.opponent_name,player,opponent))continue;
+    const code=codeOf(row.metric_code);
+    byCode.set(code,[...(byCode.get(code)??[]),row]);
+  }
+  const out=new Map<string,StoredEvidence>();
+  for(const [code,rows] of byCode){
+    // Fail closed if legacy aliases resolve to more than one persisted record.
+    if(rows.length===1)out.set(code,rows[0]);
+  }
+  return out;
 }
 function sourcesOf(row:StoredEvidence|undefined):MetricFinding["sources"]{return Array.isArray(row?.sources)?row!.sources!:[];}
 
