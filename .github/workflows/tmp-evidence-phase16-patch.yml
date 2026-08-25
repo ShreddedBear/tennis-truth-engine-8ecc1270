@@ -1,0 +1,55 @@
+name: Temporary Evidence Phase16 Patch
+
+on:
+  push:
+    branches: [repair/evidence-coverage-phase16-proof-contract]
+    paths: ['.github/workflows/tmp-evidence-phase16-patch.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/evidence-coverage-phase16-proof-contract
+      - name: Apply exact Evidence Coverage contract repairs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          diagnostic = Path('src/lib/evidence-coverage-runtime-diagnostic.server.ts')
+          text = diagnostic.read_text()
+          old = 'else{bucket="EVIDENCE_WIRING_FAILURE";reason="No provider-independent structured source-family path is registered for this metric.";}'
+          new = 'else{bucket="SOURCE_MISSING";reason="No provider-independent structured source-family path is registered for this metric.";}'
+          if old not in text:
+              raise SystemExit('expected diagnostic bucket string not found')
+          diagnostic.write_text(text.replace(old, new, 1))
+
+          test = Path('src/lib/evidence-coverage-runtime-diagnostic.test.ts')
+          text = test.read_text()
+          anchor = '  it("prevents dense market/PBP rows from crowding other evidence families", () => {'
+          addition = '''  it("classifies an absent provider-independent source path as SOURCE_MISSING", () => {\n    expect(diagnostic).toContain('else{bucket="SOURCE_MISSING";reason="No provider-independent structured source-family path is registered for this metric.";}');\n    expect(diagnostic).toContain('bucket="EVIDENCE_WIRING_FAILURE";reason="Sufficient admissible observations exist but did not become a usable deterministic/stored finding."');\n  });\n\n'''
+          if anchor not in text:
+              raise SystemExit('expected diagnostic test anchor not found')
+          test.write_text(text.replace(anchor, addition + anchor, 1))
+
+          workflow = Path('.github/workflows/evidence-coverage-repair-diagnostic.yml')
+          text = workflow.read_text()
+          anchor = '      - repair/evidence-coverage-phase14-bsd-deterministic\n'
+          addition = anchor + '      - repair/evidence-coverage-phase16-proof-contract\n'
+          if 'repair/evidence-coverage-phase16-proof-contract' not in text:
+              if anchor not in text:
+                  raise SystemExit('expected diagnostic workflow branch anchor not found')
+              text = text.replace(anchor, addition, 1)
+              workflow.write_text(text)
+          PY
+      - name: Commit repairs
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts .github/workflows/evidence-coverage-repair-diagnostic.yml
+          git commit -m 'Classify missing source paths correctly in Evidence Coverage'
+          git push origin HEAD:repair/evidence-coverage-phase16-proof-contract
