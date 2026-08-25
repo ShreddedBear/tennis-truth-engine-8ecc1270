@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Capture freshly published Phase 23 diagnostic
+      - name: Capture Phase 23 failure buckets
         shell: bash
         run: |
           set -euo pipefail
@@ -28,23 +28,19 @@ jobs:
           r=d.get('report') or d.get('result') or d.get('data') or d.get('diagnostic') or d
           compact={'schema_version':r.get('schema_version'),'generated_at':r.get('generated_at'),'sampling':r.get('sampling'),'matches':[]}
           for m in r.get('matches',[]):
-              credited=[]
+              credited=[]; missing=[]
               for x in m.get('metrics',[]):
-                  if not x.get('pair_credited'): continue
-                  credited.append({
-                    'code':x.get('metric_code'),'name':x.get('metric_name'),'family':x.get('deterministic_family'),
-                    'p1':x.get('p1_treatment'),'p2':x.get('p2_treatment'),
-                    'source_p1':x.get('credited_source_p1'),'source_p2':x.get('credited_source_p2'),
-                    'stored_p1':x.get('stored_p1'),'stored_p2':x.get('stored_p2'),
-                    'stored_p1_family':x.get('stored_p1_family'),'stored_p2_family':x.get('stored_p2_family'),
-                    'stored_p1_source_count':x.get('stored_p1_source_count'),'stored_p2_source_count':x.get('stored_p2_source_count'),
-                    'stored_p1_reliability':x.get('stored_p1_reliability'),'stored_p2_reliability':x.get('stored_p2_reliability'),
-                    'stored_p1_has_sample':x.get('stored_p1_has_sample'),'stored_p2_has_sample':x.get('stored_p2_has_sample')})
-              compact['matches'].append({'id':m.get('id'),'pair':m.get('pair'),'coverage':m.get('coverage'),'false_green_guard':m.get('false_green_guard'),'sampling_source':m.get('sampling_source'),'date_source':m.get('date_source'),'credited':credited,'failure_buckets':m.get('failure_buckets')})
-          json.dump(compact,open('diagnostics/evidence-coverage-phase22-summary.json','w'),indent=2,sort_keys=True)
+                  row={'code':x.get('metric_code'),'name':x.get('metric_name'),'family':x.get('deterministic_family'),'expected':x.get('source_expected'),'warehouse_observation_count':x.get('warehouse_observation_count'),'bucket':x.get('failure_bucket'),'reason':x.get('reason'),'p1':x.get('p1_treatment'),'p2':x.get('p2_treatment'),'source_p1':x.get('credited_source_p1'),'source_p2':x.get('credited_source_p2')}
+                  if x.get('pair_credited'):
+                      row.update({'stored_p1':x.get('stored_p1'),'stored_p2':x.get('stored_p2'),'stored_p1_family':x.get('stored_p1_family'),'stored_p2_family':x.get('stored_p2_family'),'stored_p1_source_count':x.get('stored_p1_source_count'),'stored_p2_source_count':x.get('stored_p2_source_count'),'stored_p1_reliability':x.get('stored_p1_reliability'),'stored_p2_reliability':x.get('stored_p2_reliability'),'stored_p1_has_sample':x.get('stored_p1_has_sample'),'stored_p2_has_sample':x.get('stored_p2_has_sample')})
+                      credited.append(row)
+                  elif x.get('failure_bucket') in ('INGESTION_MISSING','SOURCE_MISSING','EVIDENCE_WIRING_FAILURE','RECONSTRUCTION_FAILURE','COVERAGE_CREDIT_FAILURE'):
+                      missing.append(row)
+              compact['matches'].append({'id':m.get('id'),'pair':m.get('pair'),'coverage':m.get('coverage'),'false_green_guard':m.get('false_green_guard'),'sampling_source':m.get('sampling_source'),'date_source':m.get('date_source'),'credited':credited,'missing':missing,'failure_buckets':m.get('failure_buckets')})
+          json.dump(compact,open('diagnostics/evidence-coverage-phase23-buckets.json','w'),indent=2,sort_keys=True)
           PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add diagnostics/evidence-coverage-phase22-summary.json
-          git commit -m 'Record freshly published Phase 23 Evidence Coverage provenance'
+          git add diagnostics/evidence-coverage-phase23-buckets.json
+          git commit -m 'Record Phase 23 Evidence Coverage failure buckets'
           git push
