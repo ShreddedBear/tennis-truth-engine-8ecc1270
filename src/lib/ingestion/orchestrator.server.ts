@@ -38,6 +38,19 @@ export function assertMeaningfulIngestion(sourceId: SourceId, result: IngestionR
   }
 }
 
+function ingestionErrorMessage(err: unknown) {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const value = err as Record<string, unknown>;
+    const fields = ["message", "code", "details", "hint"]
+      .map((key) => [key, value[key]] as const)
+      .filter(([, field]) => field !== undefined && field !== null && String(field).trim());
+    if (fields.length) return fields.map(([key, field]) => `${key}=${String(field)}`).join(" | ");
+    try { return JSON.stringify(value); } catch {}
+  }
+  return String(err);
+}
+
 async function runTracked<T extends IngestionResult>(sourceId: SourceId, jobType: string, fn: () => Promise<T>) {
   const { data: run, error } = await db.from("source_ingestion_runs").insert({ source_id: sourceId, job_type: jobType, status: "RUNNING", started_at: new Date().toISOString() }).select("id").single();
   if (error) throw error;
@@ -48,7 +61,7 @@ async function runTracked<T extends IngestionResult>(sourceId: SourceId, jobType
     await db.from("source_ingestion_runs").update({ status: "COMPLETE", records_seen: written, records_inserted: written, metadata: result, completed_at: new Date().toISOString() }).eq("id", run.id);
     return result;
   } catch (err) {
-    await db.from("source_ingestion_runs").update({ status: "FAILED", error_message: err instanceof Error ? err.message : String(err), completed_at: new Date().toISOString() }).eq("id", run.id);
+    await db.from("source_ingestion_runs").update({ status: "FAILED", error_message: ingestionErrorMessage(err), completed_at: new Date().toISOString() }).eq("id", run.id);
     throw err;
   }
 }
