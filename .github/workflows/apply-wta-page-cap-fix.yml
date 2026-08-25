@@ -1,0 +1,43 @@
+name: Apply WTA Page Cap Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apply-wta-page-cap.flag
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply exact WTA-only pagination cap patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B repair/wta-full-official-pagination origin/main
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/ingestion/tour-results-schedule.server.ts')
+          s=p.read_text()
+          old='''if(Number.isFinite(entries) && entries>0) expectedPages=Math.min(100,Math.ceil(entries/(Number.isFinite(reportedPageSize)&&reportedPageSize>0?reportedPageSize:pageSize)));\n      else if(Number.isFinite(reportedPages) && reportedPages>0) expectedPages=Math.min(100,reportedPages);'''
+          new='''if(Number.isFinite(entries) && entries>0) expectedPages=Math.min(250,Math.ceil(entries/(Number.isFinite(reportedPageSize)&&reportedPageSize>0?reportedPageSize:pageSize)));\n      else if(Number.isFinite(reportedPages) && reportedPages>0) expectedPages=Math.min(250,reportedPages);'''
+          if old not in s:
+              raise SystemExit('Expected WTA pagination block not found; refusing broad edit')
+          s2=s.replace(old,new,1)
+          if s2.count('Math.min(250') != 2:
+              raise SystemExit('Unexpected WTA patch count; refusing commit')
+          p.write_text(s2)
+          PY
+          git diff --check
+          git diff -- src/lib/ingestion/tour-results-schedule.server.ts
+          git add src/lib/ingestion/tour-results-schedule.server.ts
+          git commit -m "Raise WTA Official pagination safety ceiling"
+          git push --force-with-lease origin repair/wta-full-official-pagination
