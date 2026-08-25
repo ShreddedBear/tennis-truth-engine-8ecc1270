@@ -1,4 +1,4 @@
-name: Temporary Evidence Coverage Phase 22 Capture
+name: Temporary Evidence Coverage Phase 24 Capture
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Capture Phase 23 ingestion-missing metrics
+      - name: Capture published Phase 24 diagnostic
         shell: bash
         run: |
           set -euo pipefail
@@ -26,17 +26,19 @@ jobs:
           import json
           d=json.load(open('/tmp/ecov.json'))
           r=d.get('report') or d.get('result') or d.get('data') or d.get('diagnostic') or d
-          out={'schema_version':r.get('schema_version'),'generated_at':r.get('generated_at'),'matches':[]}
+          out={'schema_version':r.get('schema_version'),'generated_at':r.get('generated_at'),'sampling':r.get('sampling'),'matches':[]}
           for m in r.get('matches',[]):
-              rows=[]
+              missing=[]
+              credited=[]
               for x in m.get('metrics',[]):
-                  if x.get('failure_bucket')!='INGESTION_MISSING': continue
-                  rows.append({'code':x.get('metric_code'),'name':x.get('metric_name'),'expected':x.get('source_expected'),'warehouse_observation_count':x.get('warehouse_observation_count'),'reason':x.get('reason')})
-              out['matches'].append({'id':m.get('id'),'pair':m.get('pair'),'rows':rows})
-          json.dump(out,open('diagnostics/evidence-coverage-phase23-ingestion-missing.json','w'),indent=2,sort_keys=True)
+                  row={'code':x.get('metric_code'),'name':x.get('metric_name'),'bucket':x.get('failure_bucket'),'expected':x.get('source_expected'),'warehouse_observation_count':x.get('warehouse_observation_count'),'reason':x.get('reason'),'p1':x.get('p1_treatment'),'p2':x.get('p2_treatment'),'pair_credited':x.get('pair_credited'),'source_p1':x.get('credited_source_p1'),'source_p2':x.get('credited_source_p2')}
+                  if x.get('pair_credited'): credited.append(row)
+                  elif x.get('failure_bucket'): missing.append(row)
+              out['matches'].append({'id':m.get('id'),'pair':m.get('pair'),'sampling_source':m.get('sampling_source'),'date_source':m.get('date_source'),'coverage':m.get('coverage'),'false_green_guard':m.get('false_green_guard'),'failure_buckets':m.get('failure_buckets'),'credited':credited,'missing':missing})
+          json.dump(out,open('diagnostics/evidence-coverage-phase24-production.json','w'),indent=2,sort_keys=True)
           PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add diagnostics/evidence-coverage-phase23-ingestion-missing.json
-          git commit -m 'Record Phase 23 ingestion-missing metrics'
+          git add diagnostics/evidence-coverage-phase24-production.json
+          git commit -m 'Record published Phase 24 Evidence Coverage diagnostic'
           git push
