@@ -142,6 +142,14 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(hotPathIndexes).toContain("metric_evidence_pair_date_exact_idx");
   });
 
+  it("surfaces persisted evidence provenance for coverage validation", () => {
+    expect(diagnostic).toContain('value_text,evidence_family,sources,reliability,sample_label');
+    expect(diagnostic).toContain('stored_p1_family:p1Stored?.evidence_family??null');
+    expect(diagnostic).toContain('stored_p2_family:p2Stored?.evidence_family??null');
+    expect(diagnostic).toContain('stored_p1_source_count:Array.isArray(p1Stored?.sources)?p1Stored.sources.length:0');
+    expect(diagnostic).toContain('stored_p2_source_count:Array.isArray(p2Stored?.sources)?p2Stored.sources.length:0');
+  });
+
   it("bounds runtime diagnostic database concurrency", () => {
     expect(diagnostic).toContain("DIAGNOSTIC_QUERY_CONCURRENCY = 6");
     expect(diagnostic).toContain("deterministicBatch");
@@ -178,7 +186,7 @@ describe("coverage fallback precedence requires real side values", () => {
   it("does not let an unavailable deterministic row block certified local evidence", () => {
     expect(diagnostic).toContain('function chooseEvidenceSide(');
     expect(diagnostic).toContain('candidates.find(candidate=>usableEvidenceSide(candidate.treatment,candidate.value))');
-    expect(diagnostic).toContain('select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family")');
+    expect(diagnostic).toContain('select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family,sources,reliability,sample_label")');
     expect(diagnostic).toContain('p1Usable=usableEvidenceSide(p1Treatment,p1Chosen.value)');
     expect(diagnostic).toContain('credited_source_p1:p1Usable?p1Chosen.source:null');
   });
