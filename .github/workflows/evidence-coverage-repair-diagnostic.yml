@@ -24,6 +24,9 @@ jobs:
   baseline:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,6 +34,17 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Verify diagnostic database access
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "SUPABASE_URL is not available to this diagnostic."
+            exit 2
+          fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY is not available to this diagnostic."
+            echo "A real evidence baseline cannot be measured without read access to source_observations, metric_evidence_store, matches, and audit results."
+            exit 2
+          fi
       - name: Install dependencies
         run: bun install
       - name: Run provider-independent 81-metric baseline
