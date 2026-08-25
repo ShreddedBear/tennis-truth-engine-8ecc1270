@@ -93,6 +93,7 @@ describe("runtime evidence coverage diagnostic", () => {
 
   it("uses exact canonical ranking evidence only as a conservative main-tour sampling fallback", () => {
     expect(diagnostic).toContain("classifyFromExactRankingEvidence");
+    expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");
     expect(diagnostic).toContain('eq("observation_type","RANKING")');
     expect(diagnostic).toContain('in("player_name",names)');
     expect(diagnostic).toContain('"matches_plus_rankings"');
@@ -102,9 +103,19 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toMatch(/challenger\|wta\\s\*125\|wta125\|125k/);
   });
 
+  it("falls back to ranking-proven persisted metric-evidence pairs when match tables have no pairs", () => {
+    expect(diagnostic).toContain('from("metric_evidence_store").select("player_name,opponent_name,as_of_date")');
+    expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");
+    expect(diagnostic).toContain('sampling_source:"metric_evidence_store"');
+    expect(diagnostic).toContain('date_source:"persisted_as_of_date"');
+    expect(diagnostic).toContain("seenPairs");
+    expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');
+    expect(diagnostic).toContain("ranking-proven persisted evidence pairs");
+  });
+
   it("documents representative classes that cannot be sampled from current persisted production data", () => {
     expect(diagnostic).toContain("missing_class_reasons");
-    expect(diagnostic).toContain("No real persisted ${id} match with sufficient tour context");
+    expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair");
   });
 
   it("classifies an absent provider-independent source path as SOURCE_MISSING", () => {
