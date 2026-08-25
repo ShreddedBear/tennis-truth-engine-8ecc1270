@@ -107,6 +107,11 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("No real persisted ${id} match with sufficient tour context");
   });
 
+  it("classifies an absent provider-independent source path as SOURCE_MISSING", () => {
+    expect(diagnostic).toContain('else{bucket="SOURCE_MISSING";reason="No provider-independent structured source-family path is registered for this metric.";}');
+    expect(diagnostic).toContain('bucket="EVIDENCE_WIRING_FAILURE";reason="Sufficient admissible observations exist but did not become a usable deterministic/stored finding."');
+  });
+
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
     expect(bridge).toContain('eq("observation_type", "MARKET")');
     expect(bridge).toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
