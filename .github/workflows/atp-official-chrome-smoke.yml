@@ -19,25 +19,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          URL='https://www.atptour.com/en/scores/results-archive?year=2025'
           google-chrome --version
-          timeout 90s google-chrome \
-            --headless=new \
-            --no-sandbox \
-            --disable-dev-shm-usage \
-            --disable-blink-features=AutomationControlled \
-            --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36' \
-            --virtual-time-budget=15000 \
-            --dump-dom "$URL" > atp.html
-          echo "bytes=$(wc -c < atp.html)"
-          grep -qi 'Results Archive' atp.html
-          if grep -qiE 'Just a moment|cf-chl|captcha|Attention Required' atp.html; then
-            echo 'Cloudflare challenge detected' >&2
-            exit 2
-          fi
-          if ! grep -qiE '/en/scores/archive/|Singles Winner|TOURNAMENT RESULTS' atp.html; then
-            echo 'ATP official content was not rendered' >&2
-            head -c 2000 atp.html >&2 || true
-            exit 3
-          fi
-          echo 'ATP Official Chromium transport succeeded.'
+          fetch_page() {
+            local name="$1" url="$2" expect="$3"
+            timeout 90s google-chrome \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --disable-blink-features=AutomationControlled \
+              --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36' \
+              --virtual-time-budget=15000 \
+              --dump-dom "$url" > "$name.html"
+            echo "$name bytes=$(wc -c < "$name.html")"
+            if grep -qiE 'Just a moment|cf-chl|captcha|Attention Required' "$name.html"; then
+              echo "Cloudflare challenge detected for $name" >&2
+              exit 2
+            fi
+            if ! grep -qiE "$expect" "$name.html"; then
+              echo "ATP official content was not rendered for $name" >&2
+              head -c 2000 "$name.html" >&2 || true
+              exit 3
+            fi
+          }
+          fetch_page main 'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=atp' '/en/scores/archive/|Singles Winner|TOURNAMENT RESULTS'
+          fetch_page challenger 'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=ch' '/en/scores/archive/|Challenger|Singles Winner'
+          fetch_page rankings 'https://www.atptour.com/en/rankings/singles' 'Rankings|Rank|Points|Player'
+          echo 'ATP Official Chromium transport succeeded for Main, Challenger, and rankings.'
