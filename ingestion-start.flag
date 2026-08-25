@@ -1,4 +1,4 @@
-start=2026-08-25T12:20:00Z
+start=2026-08-25T12:23:15Z
 sources=atp,wta,atp_challenger,atp_rankings,wta_rankings
-reason=capture_bridge_structured_challenger_failure_and_continue_repair
-nonce=17
+reason=validate_deployed_bridge_error_detail_and_continue_repair
+nonce=18
