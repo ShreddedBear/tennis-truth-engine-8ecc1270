@@ -1,0 +1,192 @@
+{
+  "generated_at": "2026-08-25T21:25:57.635Z",
+  "matches": [
+    {
+      "coverage": {
+        "one_sided": 4,
+        "p1": 4,
+        "p1_percent": 4.94,
+        "p2": 0,
+        "p2_percent": 0,
+        "pair": 0,
+        "pair_percent": 0
+      },
+      "coverage_credit_codes": [
+        "001",
+        "005",
+        "012",
+        "028"
+      ],
+      "date_source": "verified_index_date",
+      "failure_buckets": {
+        "COVERAGE_CREDIT_FAILURE": 4,
+        "INGESTION_MISSING": 24,
+        "SOURCE_MISSING": 53
+      },
+      "false_green_guard": {
+        "false_green_metric_count": 0,
+        "one_sided_metric_count": 4,
+        "passed": true
+      },
+      "id": "ATP_MAIN",
+      "ingestion_missing_codes": [
+        "014",
+        "015",
+        "016",
+        "019",
+        "021",
+        "024",
+        "025",
+        "030",
+        "033",
+        "036",
+        "040",
+        "042",
+        "043",
+        "044",
+        "060",
+        "062",
+        "064",
+        "069",
+        "071",
+        "075",
+        "076",
+        "077",
+        "079",
+        "081"
+      ],
+      "normalization_failure_codes": [],
+      "pair": "Alejandro Tabilo vs Tiago Torres",
+      "query_failure_codes": [],
+      "reconstruction_failure_codes": [],
+      "sampling_source": "verified_pbp_index",
+      "wiring_failure_codes": []
+    },
+    {
+      "coverage": {
+        "one_sided": 0,
+        "p1": 4,
+        "p1_percent": 4.94,
+        "p2": 4,
+        "p2_percent": 4.94,
+        "pair": 4,
+        "pair_percent": 4.94
+      },
+      "coverage_credit_codes": [],
+      "date_source": "verified_index_date",
+      "failure_buckets": {
+        "INGESTION_MISSING": 24,
+        "SOURCE_MISSING": 53
+      },
+      "false_green_guard": {
+        "false_green_metric_count": 0,
+        "one_sided_metric_count": 0,
+        "passed": true
+      },
+      "id": "WTA_MAIN",
+      "ingestion_missing_codes": [
+        "014",
+        "015",
+        "016",
+        "019",
+        "021",
+        "024",
+        "025",
+        "030",
+        "033",
+        "036",
+        "040",
+        "042",
+        "043",
+        "044",
+        "060",
+        "062",
+        "064",
+        "069",
+        "071",
+        "075",
+        "076",
+        "077",
+        "079",
+        "081"
+      ],
+      "normalization_failure_codes": [],
+      "pair": "Fiona Ferro vs Erika Andreeva",
+      "query_failure_codes": [],
+      "reconstruction_failure_codes": [],
+      "sampling_source": "verified_pbp_index",
+      "wiring_failure_codes": []
+    },
+    {
+      "coverage": {
+        "one_sided": 0,
+        "p1": 4,
+        "p1_percent": 4.94,
+        "p2": 4,
+        "p2_percent": 4.94,
+        "pair": 4,
+        "pair_percent": 4.94
+      },
+      "coverage_credit_codes": [],
+      "date_source": "verified_index_date",
+      "failure_buckets": {
+        "INGESTION_MISSING": 24,
+        "SOURCE_MISSING": 53
+      },
+      "false_green_guard": {
+        "false_green_metric_count": 0,
+        "one_sided_metric_count": 0,
+        "passed": true
+      },
+      "id": "ATP_CHALLENGER",
+      "ingestion_missing_codes": [
+        "014",
+        "015",
+        "016",
+        "019",
+        "021",
+        "024",
+        "025",
+        "030",
+        "033",
+        "036",
+        "040",
+        "042",
+        "043",
+        "044",
+        "060",
+        "062",
+        "064",
+        "069",
+        "071",
+        "075",
+        "076",
+        "077",
+        "079",
+        "081"
+      ],
+      "normalization_failure_codes": [],
+      "pair": "Leandro Riedi vs Yunchaokete Bu",
+      "query_failure_codes": [],
+      "reconstruction_failure_codes": [],
+      "sampling_source": "verified_pbp_index",
+      "wiring_failure_codes": []
+    }
+  ],
+  "sampling": {
+    "missing_class_reasons": {},
+    "missing_classes": [],
+    "requested_classes": [
+      "ATP_MAIN",
+      "WTA_MAIN",
+      "ATP_CHALLENGER"
+    ],
+    "sampled_classes": [
+      "ATP_MAIN",
+      "WTA_MAIN",
+      "ATP_CHALLENGER"
+    ],
+    "source": "REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_PERSISTED_PAIR_VERIFIED_INDEX_AND_CERTIFIED_LOCAL_FALLBACK"
+  },
+  "schema_version": 9
+}
