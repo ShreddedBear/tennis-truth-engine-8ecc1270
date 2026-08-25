@@ -1,4 +1,4 @@
-start=2026-08-25T09:32:00Z
+start=2026-08-25T09:33:00Z
 sources=atp,wta,atp_challenger,atp_rankings,wta_rankings
-reason=validate_oidc_transfer_fix_on_lovable_connected_repo
-nonce=8
+reason=validate_published_oidc_transfer_fix
+nonce=9
