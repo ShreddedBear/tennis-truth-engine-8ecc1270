@@ -40,6 +40,8 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toMatch(/pair_credited\s*:\s*pairUsable/);
     expect(diagnostic).toContain("pair_percent");
     expect(diagnostic).toContain("false_green_guard");
+    expect(diagnostic).toMatch(/falseGreens=details\.filter\(r=>r\.one_sided_usable&&r\.pair_credited\)\.length/);
+    expect(diagnostic).toContain("passed:falseGreens===0");
   });
 
   it("uses the same safe legacy-alias firewall in diagnostic and deterministic paths", () => {
@@ -87,6 +89,22 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
     expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
     expect(diagnostic).toMatch(/requested_classes\s*:\s*\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"\]/);
+  });
+
+  it("uses exact canonical ranking evidence only as a conservative main-tour sampling fallback", () => {
+    expect(diagnostic).toContain("classifyFromExactRankingEvidence");
+    expect(diagnostic).toContain('eq("observation_type","RANKING")');
+    expect(diagnostic).toContain('in("player_name",names)');
+    expect(diagnostic).toContain('"matches_plus_rankings"');
+    expect(diagnostic).toContain("status===\"AMBIGUOUS\"");
+    expect(diagnostic).toContain("status===\"QUERY_FAILED\"");
+    expect(diagnostic).toContain("status===\"UNRESOLVED\"");
+    expect(diagnostic).toMatch(/challenger\|wta\\s\*125\|wta125\|125k/);
+  });
+
+  it("documents representative classes that cannot be sampled from current persisted production data", () => {
+    expect(diagnostic).toContain("missing_class_reasons");
+    expect(diagnostic).toContain("No real persisted ${id} match with sufficient tour context");
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
