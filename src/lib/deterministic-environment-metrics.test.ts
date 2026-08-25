@@ -19,9 +19,9 @@ describe("deterministic environment metric layer", () => {
     expect(calculator).toContain('shared match environment');
   });
 
-  it("runs environment calculation before live fallback", () => {
+  it("runs environment calculation before unresolved live fallback", () => {
     const deterministicIndex = researcher.indexOf("deterministicEnvironmentMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament})");
-    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:missing})");
+    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);
   });
