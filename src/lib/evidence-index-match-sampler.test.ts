@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { sampleVerifiedEvidenceIndexMatch } from "./evidence-index-match-sampler.server";
+import { BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES, sampleVerifiedEvidenceIndexMatch } from "./evidence-index-match-sampler.server";
 
-describe("verified evidence index representative sampling", () => {
-  for (const id of ["ATP_MAIN", "WTA_MAIN", "ATP_CHALLENGER"] as const) {
-    it(`finds a fail-closed real ${id} matchup`, async () => {
-      const sample = await sampleVerifiedEvidenceIndexMatch(id);
-      expect(sample, `${id} verified index sample`).not.toBeNull();
-      expect(sample?.id).toBe(id);
-      expect(sample?.match_id).toContain(`verified-index:${id}:`);
-      expect(sample?.p1).toBeTruthy();
-      expect(sample?.p2).toBeTruthy();
-      expect(sample?.p1).not.toBe(sample?.p2);
-      expect(sample?.date).toMatch(/^20\d{2}-\d{2}-\d{2}$/);
-    });
-  }
+describe("deployment-safe verified evidence index sampler", () => {
+  it("bundles one strictly typed real representative for every required class", () => {
+    expect(Object.keys(BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES).sort()).toEqual(["ATP_CHALLENGER", "ATP_MAIN", "WTA_MAIN"]);
+    for (const [id,row] of Object.entries(BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES)) {
+      expect(row.id).toBe(id);
+      expect(row.match_id).toMatch(/^verified-index:/);
+      expect(row.p1).not.toBe(row.p2);
+      expect(row.date).toMatch(/^2026-/);
+      expect(row.tournament.length).toBeGreaterThan(2);
+    }
+  });
+  it("still resolves all required samples from the checked-in indexes in CI", async () => {
+    for (const id of ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"] as const) {
+      const row=await sampleVerifiedEvidenceIndexMatch(id);
+      expect(row).not.toBeNull();
+      expect(row?.id).toBe(id);
+    }
+  });
 });

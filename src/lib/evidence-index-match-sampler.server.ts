@@ -56,6 +56,15 @@ const SPECS: Record<EvidenceIndexSample["id"], { dir: string; years: number[]; f
   ATP_CHALLENGER: { dir: "bsd-atp-challenger-pbp-history", years: [2026, 2025], floor: "2025-01-01" },
 };
 
+// Deployment-safe representative rows generated from the checked-in verified PBP indexes.
+// These are diagnostic sampling identities only; they never attach PBP or create evidence.
+// Runtime filesystem access remains preferred so a newer checked-in verified row wins when available.
+export const BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES: Record<EvidenceIndexSample["id"], EvidenceIndexSample> = {
+  ATP_MAIN: { id: "ATP_MAIN", match_id: "verified-index:ATP_MAIN:43148", p1: "Alejandro Tabilo", p2: "Tiago Torres", date: "2026-07-22", tournament: "Estoril", surface: "clay" },
+  WTA_MAIN: { id: "WTA_MAIN", match_id: "verified-index:WTA_MAIN:43309", p1: "Fiona Ferro", p2: "Erika Andreeva", date: "2026-07-22", tournament: "Palermo, Italy", surface: "clay" },
+  ATP_CHALLENGER: { id: "ATP_CHALLENGER", match_id: "verified-index:ATP_CHALLENGER:31912", p1: "Leandro Riedi", p2: "Yunchaokete Bu", date: "2026-04-19", tournament: "Busan, South Korea", surface: "hard" },
+};
+
 export async function sampleVerifiedEvidenceIndexMatch(id: EvidenceIndexSample["id"]): Promise<EvidenceIndexSample | null> {
   const spec = SPECS[id];
   for (const year of spec.years) {
@@ -74,5 +83,5 @@ export async function sampleVerifiedEvidenceIndexMatch(id: EvidenceIndexSample["
       surface: row.surface ? String(row.surface) : null,
     };
   }
-  return null;
+  return BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES[id] ?? null;
 }

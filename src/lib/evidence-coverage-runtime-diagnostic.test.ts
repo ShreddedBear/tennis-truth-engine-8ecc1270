@@ -113,6 +113,14 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("ranking-proven persisted evidence pairs");
   });
 
+  it("prefers deployment-safe verified match samples before synthetic persisted-pair fallback", () => {
+    expect(diagnostic).toContain("Prefer a real, strictly classified verified-index match before synthetic persisted-pair sampling.");
+    const verifiedPriority = diagnostic.indexOf('const row=await sampleVerifiedEvidenceIndexMatch(id);');
+    const persistedFallback = diagnostic.indexOf('const persisted=await db.from("metric_evidence_store")');
+    expect(verifiedPriority).toBeGreaterThan(-1);
+    expect(persistedFallback).toBeGreaterThan(verifiedPriority);
+  });
+
   it("documents representative classes that cannot be sampled from current persisted production data", () => {
     expect(diagnostic).toContain("missing_class_reasons");
     expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair");
