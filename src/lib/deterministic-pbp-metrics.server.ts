@@ -4,7 +4,7 @@ import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alia
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
 const db = supabaseAdmin as any;
-const SUPPORTED = new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
+const SUPPORTED = new Set(["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
 
 type Row = {
   source_id: string | null;

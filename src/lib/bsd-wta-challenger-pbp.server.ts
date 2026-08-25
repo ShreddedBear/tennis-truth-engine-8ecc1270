@@ -4,7 +4,7 @@ import { policyForMetric } from "./metric-source-family-policy";
 
 const COVERAGE_START = "2025-01-01";
 const APPROVED_INDEX = join(process.cwd(), "data", "metrics", "pbp", "wta_challenger", "approved-index.jsonl");
-const PBP_CODES = new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
+const PBP_CODES = new Set(["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
 
 type MetricLike = { code: string; name: string };
 type ApprovedRow = { tour?:string; year?:number; match_id?:string|number; date?:string; tournament?:string; player1?:string; player2?:string; metrics?:{ set_scores?:Array<[number,number]>; match_winner_slot?:"player1"|"player2"|string; total_games?:number; total_points?:number; breaks?:number }; status?:string };
