@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Capture published diagnostic
+      - name: Capture published diagnostic after Phase 23 merge
         shell: bash
         run: |
           set -euo pipefail
@@ -46,5 +46,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add diagnostics/evidence-coverage-phase22-summary.json
-          git commit -m 'Record post-Phase-22 Evidence Coverage provenance'
+          git commit -m 'Record post-Phase-23 Evidence Coverage provenance'
           git push
