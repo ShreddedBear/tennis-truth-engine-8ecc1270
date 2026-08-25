@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { appendMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
+const source = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8").replace(/\s+/g, " ");
+
 describe("source observation metric bridge", () => {
   it("preserves strict family separation before observations reach research", () => {
     const resultRow = { source_id: "atp", observation_type: "MATCH_RESULT_OR_SCHEDULE", observation_key: "match_record" };
@@ -23,12 +25,16 @@ describe("source observation metric bridge", () => {
   });
 
   it("isolates failed database lanes and gives each player a separate family budget", () => {
-    const source = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8").replace(/\s+/g, " ");
     expect(source).toContain("p1Aliases");
     expect(source).toContain("p2Aliases");
     for (const lane of ["p1_other", "p2_other", "p1_market", "p2_market", "p1_pbp", "p2_pbp", "shared"]) expect(source).toContain(`name: \"${lane}\"`);
     expect(source).toContain("lane.result.error ? []");
     expect(source).toContain("packet._query_errors = laneFailures");
-    expect(source).toContain("own bounded query");
+  });
+
+  it("never forwards unrelated tournament weather into live fallback", () => {
+    expect(source).toContain("tournament?: string | null");
+    expect(source).toContain('if (family === "ENVIRONMENT") return Boolean(tournament && row.tournament === tournament)');
+    expect(source).toContain("Environment observations are usable only when scoped to the explicit tournament");
   });
 });
