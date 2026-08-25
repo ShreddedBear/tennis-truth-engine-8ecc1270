@@ -8,7 +8,6 @@ describe("source observation metric bridge", () => {
     const resultRow = { source_id: "atp", observation_type: "MATCH_RESULT_OR_SCHEDULE", observation_key: "match_record" };
     const rankingRow = { source_id: "atp", observation_type: "RANKING", observation_key: "ranking_snapshot" };
     const marketRow = { source_id: "odds_api", observation_type: "MARKET", observation_key: "h2h_decimal_odds" };
-
     expect(metricAllowsObservation("062", resultRow)).toBe(false);
     expect(metricAllowsObservation("069", resultRow)).toBe(false);
     expect(metricAllowsObservation("062", rankingRow)).toBe(true);
@@ -17,28 +16,19 @@ describe("source observation metric bridge", () => {
   });
 
   it("adds an explicit no-cross-family instruction to fallback context", () => {
-    const context = appendMetricObservationContext("base", {
-      "028": {
-        metric_name: "Scheduling Context",
-        allowed_families: ["RESULTS_SCHEDULE"],
-        sufficient_families: [],
-        support_only_families: ["RESULTS_SCHEDULE"],
-        observations: [],
-      },
-    });
-
+    const context = appendMetricObservationContext("base", { "028": { metric_name: "Scheduling Context", allowed_families: ["RESULTS_SCHEDULE"], sufficient_families: [], support_only_families: ["RESULTS_SCHEDULE"], observations: [] } });
     expect(context).toContain("WAREHOUSE_OBSERVATION_CONTEXT");
     expect(context).toContain("never borrow an observation family from another metric");
     expect(context).toContain("support-only families");
   });
 
-  it("isolates failed database lanes instead of discarding successful evidence families", () => {
+  it("isolates failed database lanes and gives each player a separate family budget", () => {
     const source = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8").replace(/\s+/g, " ");
-    expect(source).toContain("laneFailures");
-    expect(source).toContain("otherResult.error ? [] : otherResult.data");
-    expect(source).toContain("marketResult.error ? [] : marketResult.data");
-    expect(source).toContain("pbpResult.error ? [] : pbpResult.data");
-    expect(source).toContain("sharedResult.error ? [] : sharedResult.data");
+    expect(source).toContain("p1Aliases");
+    expect(source).toContain("p2Aliases");
+    for (const lane of ["p1_other", "p2_other", "p1_market", "p2_market", "p1_pbp", "p2_pbp", "shared"]) expect(source).toContain(`name: \"${lane}\"`);
+    expect(source).toContain("lane.result.error ? []");
     expect(source).toContain("packet._query_errors = laneFailures");
+    expect(source).toContain("own bounded query");
   });
 });
