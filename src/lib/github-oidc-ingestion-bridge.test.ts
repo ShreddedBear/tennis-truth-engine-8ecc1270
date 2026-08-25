@@ -7,7 +7,8 @@ const workflow = fs.readFileSync(".github/workflows/historical-hard-pull.yml", "
 
 describe("Lovable-managed warehouse ingestion bridge", () => {
   it("pins GitHub OIDC to main plus one tightly scoped ops validation PR", () => {
-    expect(verifier).toContain('dashawnkillzz-sketch/tennis-truth-engine');
+    expect(verifier).toContain('bearisscool-maker/tennis-truth-engine-8ecc1270');
+    expect(verifier).not.toContain('dashawnkillzz-sketch/tennis-truth-engine');
     expect(verifier).toContain('refs/heads/main');
     expect(verifier).toContain('const WORKFLOW_PATH = ".github/workflows/historical-hard-pull.yml"');
     expect(verifier).toContain('OPS_VALIDATION_HEAD = "ops/historical-hard-pull-validation"');

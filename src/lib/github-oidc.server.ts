@@ -1,5 +1,5 @@
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
-const EXPECTED_REPOSITORY = "dashawnkillzz-sketch/tennis-truth-engine";
+const EXPECTED_REPOSITORY = "bearisscool-maker/tennis-truth-engine-8ecc1270";
 const EXPECTED_AUDIENCE = "tennis-truth-engine-warehouse-ingestion";
 const WORKFLOW_PATH = ".github/workflows/historical-hard-pull.yml";
 const EXPECTED_MAIN_WORKFLOW_REF = `${EXPECTED_REPOSITORY}/${WORKFLOW_PATH}@refs/heads/main`;
