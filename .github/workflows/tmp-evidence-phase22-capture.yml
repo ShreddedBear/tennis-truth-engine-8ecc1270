@@ -1,0 +1,46 @@
+name: Temporary Evidence Coverage Phase 22 Capture
+
+on:
+  push:
+    branches: [diagnostic/evidence-coverage-phase22]
+    paths: ['.github/workflows/tmp-evidence-phase22-capture.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture published diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1'
+          code=$(curl -sS -L --max-time 180 -o /tmp/ecov.json -w '%{http_code}' "$url")
+          test "$code" = "200"
+          mkdir -p diagnostics
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/ecov.json'))
+          r=d.get('report') or d.get('result') or d.get('data') or d.get('diagnostic') or d
+          out={'sampling':r.get('sampling'),'matches':[]}
+          for m in r.get('matches',[]):
+              details=m.get('metrics',[])
+              out['matches'].append({
+                  'id':m.get('id'),'pair':m.get('pair'),'coverage':m.get('coverage'),'false_green_guard':m.get('false_green_guard'),
+                  'failure_buckets':m.get('failure_buckets'),'sampling_source':m.get('sampling_source'),'date_source':m.get('date_source'),
+                  'ingestion_missing':[x for x in details if x.get('failure_bucket')=='INGESTION_MISSING'],
+                  'source_missing':[x for x in details if x.get('failure_bucket')=='SOURCE_MISSING'],
+                  'wiring_missing':[x for x in details if x.get('failure_bucket')=='EVIDENCE_WIRING_FAILURE'],
+                  'reconstruction_missing':[x for x in details if x.get('failure_bucket')=='RECONSTRUCTION_FAILURE'],
+                  'credit_missing':[x for x in details if x.get('failure_bucket')=='COVERAGE_CREDIT_FAILURE']})
+          json.dump(out,open('diagnostics/evidence-coverage-phase22.json','w'),indent=2,sort_keys=True)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/evidence-coverage-phase22.json
+          git commit -m 'Record live Evidence Coverage Phase 22 diagnostic'
+          git push
