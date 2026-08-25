@@ -25,7 +25,7 @@ jobs:
           import json
           d=json.load(open('/tmp/ecov.json'))
           print('wrapper_keys=',sorted(d.keys()))
-          r=d.get('result') or d.get('data') or d.get('diagnostic') or d
+          r=d.get('report') or d.get('result') or d.get('data') or d.get('diagnostic') or d
           print('ok=',d.get('ok'))
           print('schema_version=',r.get('schema_version'))
           print('metrics=',r.get('metrics'))
