@@ -1,0 +1,43 @@
+name: ATP Official Chrome Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/atp-official-chrome-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Test ATP Official through real Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://www.atptour.com/en/scores/results-archive?year=2025'
+          google-chrome --version
+          timeout 90s google-chrome \
+            --headless=new \
+            --no-sandbox \
+            --disable-dev-shm-usage \
+            --disable-blink-features=AutomationControlled \
+            --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36' \
+            --virtual-time-budget=15000 \
+            --dump-dom "$URL" > atp.html
+          echo "bytes=$(wc -c < atp.html)"
+          grep -qi 'Results Archive' atp.html
+          if grep -qiE 'Just a moment|cf-chl|captcha|Attention Required' atp.html; then
+            echo 'Cloudflare challenge detected' >&2
+            exit 2
+          fi
+          if ! grep -qiE '/en/scores/archive/|Singles Winner|TOURNAMENT RESULTS' atp.html; then
+            echo 'ATP official content was not rendered' >&2
+            head -c 2000 atp.html >&2 || true
+            exit 3
+          fi
+          echo 'ATP Official Chromium transport succeeded.'
