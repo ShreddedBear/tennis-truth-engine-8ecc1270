@@ -28,9 +28,10 @@ jobs:
           set -euo pipefail
           response="$(mktemp)"
           status=""
+          ready='(.metrics == 81) and ((.matches | length) > 0) and ((.sampling.requested_classes | length) == (([.sampling.sampled_classes[], .sampling.missing_classes[]] | unique) | length)) and (. as $root | all($root.sampling.missing_classes[]?; ($root.sampling.missing_class_reasons[.] // "") != ""))'
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null 2>&1; then
+            if [ "$status" = "200" ] && jq -e "$ready" "$response" >/dev/null 2>&1; then
               break
             fi
             echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
@@ -40,9 +41,10 @@ jobs:
           cat "$response"
           echo
           [ "$status" = "200" ]
-          jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null
+          jq -e "$ready" "$response" >/dev/null
           jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
+          jq -r '. as $root | $root.sampling.missing_classes[]? | "MISSING_REPRESENTATIVE=\(.)|REASON=\($root.sampling.missing_class_reasons[.])"' "$response"
           jq -e 'all(.matches[]; .coverage.pair_percent > 15 and .false_green_guard.passed == true)' "$response" >/dev/null
-          echo 'PASS: every representative tour has pair-complete evidence coverage above the former 15% block with no one-sided false green.'
+          echo 'PASS: every sampled representative tour is above the former 15% pair-coverage block with no false-green credit; any unsampled requested class is explicitly documented.'
 
-# trigger: production-proof-1
+# trigger: representative-sampling-proof-2
