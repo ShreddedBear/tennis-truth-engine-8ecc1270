@@ -27,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           response="$(mktemp)"
+          report="$(mktemp)"
           status=""
           structurally_ready='def sampled($id): (.sampling.sampled_classes // []) | index($id) != null;
             def missing_with_reason($id):
@@ -38,8 +39,11 @@ jobs:
             and (sampled("ATP_CHALLENGER") or missing_with_reason("ATP_CHALLENGER"))'
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e "$structurally_ready" "$response" >/dev/null 2>&1; then
-              break
+            if [ "$status" = "200" ] && jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null 2>&1; then
+              jq '.report // .' "$response" > "$report"
+              if jq -e "$structurally_ready" "$report" >/dev/null 2>&1; then
+                break
+              fi
             fi
             echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
             sleep 20
@@ -48,8 +52,10 @@ jobs:
           cat "$response"
           echo
           [ "$status" = "200" ]
-          jq -e "$structurally_ready" "$response" >/dev/null
-          jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(",")) + "|MISSING_REASONS=" + ((.missing_class_reasons // {})|tojson)' "$response"
-          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$response"
-          jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$response" >/dev/null
+          jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null
+          jq '.report // .' "$response" > "$report"
+          jq -e "$structurally_ready" "$report" >/dev/null
+          jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(",")) + "|MISSING_REASONS=" + ((.missing_class_reasons // {})|tojson)' "$report"
+          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$report"
+          jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$report" >/dev/null
           echo 'PASS: production diagnostic has valid representative sampling or explicit missing-class proof, and no one-sided evidence was credited as pair-complete.'
