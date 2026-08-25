@@ -44,4 +44,12 @@ jobs:
           fetch_page main 'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=atp' '/en/scores/archive/|Singles Winner|TOURNAMENT RESULTS'
           fetch_page challenger 'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=ch' '/en/scores/archive/|Challenger|Singles Winner'
           fetch_page rankings 'https://www.atptour.com/en/rankings/singles' 'Rankings|Rank|Points|Player'
-          echo 'ATP Official Chromium transport succeeded for Main, Challenger, and rankings.'
+
+      - name: Probe WTA Official tournament API
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://api.wtatennis.com/tennis/tournaments/?page=0&pageSize=500&excludeLevels=ITF&from=2025-08-24&to=2026-08-24'
+          curl --fail-with-body --silent --show-error "$URL" -o wta.json
+          jq '{pageInfo, count:(.content|length), levels:(.content|map(.tournamentGroup.level)|unique), sample:(.content[:3]|map({group:.tournamentGroup,year,title,startDate,endDate,surface}))}' wta.json
+          test "$(jq '.content|length' wta.json)" -gt 0
