@@ -10,6 +10,7 @@ on:
       - repair/evidence-coverage-phase4
       - repair/evidence-coverage-phase5
       - repair/evidence-coverage-phase6
+      - repair/evidence-coverage-phase6-sampling
       - repair/evidence-coverage-phase7
       - repair/evidence-coverage-phase8
       - repair/evidence-coverage-phase9
