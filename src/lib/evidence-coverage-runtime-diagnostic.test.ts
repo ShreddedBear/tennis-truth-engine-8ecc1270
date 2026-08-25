@@ -39,7 +39,9 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toMatch(/bucket\s*=\s*"COVERAGE_CREDIT_FAILURE"/);
     expect(diagnostic).toMatch(/pair_credited\s*:\s*pairUsable/);
     expect(diagnostic).toContain("pair_percent");
-    expect(diagnostic).toContain("false_green_guard");
+    expect(diagnostic).toContain("falseGreenCount");
+    expect(diagnostic).toContain("false_green_metric_count");
+    expect(diagnostic).toMatch(/passed\s*:\s*falseGreenCount\s*===\s*0/);
   });
 
   it("uses the same safe legacy-alias firewall in diagnostic and deterministic paths", () => {
@@ -87,6 +89,22 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
     expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
     expect(diagnostic).toMatch(/requested_classes\s*:\s*\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"\]/);
+  });
+
+  it("recovers tour classification from conservative warehouse context when upload metadata is null", () => {
+    expect(diagnostic).toContain('eq("observation_type","TOURNAMENT_SCHEDULE")');
+    expect(diagnostic).toContain('eq("observation_type","RANKING")');
+    expect(diagnostic).toContain("warehouse_tournament_schedule");
+    expect(diagnostic).toContain("warehouse_wta_rankings");
+    expect(diagnostic).toContain('source.includes("atp challenger")');
+    expect(diagnostic).toContain('source.includes("atp tour")');
+    expect(diagnostic).not.toContain('return{id:"ATP_MAIN",source:"warehouse_wta_rankings"}');
+  });
+
+  it("documents representative classes that cannot be sampled instead of inventing one", () => {
+    expect(diagnostic).toContain("missing_class_reasons");
+    expect(diagnostic).toContain("NO_REAL_PERSISTED_REPRESENTATIVE_MATCH_OR_PAIRED_WAREHOUSE_OBSERVATION");
+    expect(diagnostic).toContain("sampling_errors");
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
