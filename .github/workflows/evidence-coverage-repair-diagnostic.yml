@@ -19,6 +19,7 @@ on:
       - repair/evidence-coverage-phase15-ranking-context
       - repair/evidence-coverage-phase16-proof-contract
       - repair/evidence-coverage-phase17-integrated
+      - repair/evidence-coverage-phase19-result-orientation
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
