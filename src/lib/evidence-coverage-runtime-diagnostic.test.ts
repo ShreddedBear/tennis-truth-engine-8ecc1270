@@ -104,26 +104,30 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("falls back to ranking-proven persisted metric-evidence pairs when match tables have no pairs", () => {
-    expect(diagnostic).toContain('from("metric_evidence_store").select("player_name,opponent_name,as_of_date")');
+    expect(diagnostic).toContain('from("metric_evidence_store").select("player_name,opponent_name,as_of_date,metric_code,value_text,evidence_family")');
     expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");
     expect(diagnostic).toContain('sampling_source:"metric_evidence_store"');
     expect(diagnostic).toContain('date_source:"persisted_as_of_date"');
-    expect(diagnostic).toContain("seenPairs");
+    expect(diagnostic).toContain("grouped=new Map");
+    expect(diagnostic).toContain("persistedSurface");
     expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');
     expect(diagnostic).toContain("ranking-proven persisted evidence pairs");
   });
 
-  it("prefers deployment-safe verified match samples before synthetic persisted-pair fallback", () => {
-    expect(diagnostic).toContain("Prefer a real, strictly classified verified-index match before synthetic persisted-pair sampling.");
-    const verifiedPriority = diagnostic.indexOf('const row=await sampleVerifiedEvidenceIndexMatch(id);');
-    const persistedFallback = diagnostic.indexOf('const persisted=await db.from("metric_evidence_store")');
-    expect(verifiedPriority).toBeGreaterThan(-1);
-    expect(persistedFallback).toBeGreaterThan(verifiedPriority);
+  it("separates current evidence coverage sampling from verified historical class proof", () => {
+    expect(diagnostic).toContain("Current persisted evidence snapshots are the primary coverage sample for main tours.");
+    expect(diagnostic).toContain('select("player_name,opponent_name,as_of_date,metric_code,value_text,evidence_family")');
+    expect(diagnostic).toContain("persistedSurface(rows)");
+    expect(diagnostic).toContain("class_proof");
+    const persistedPriority = diagnostic.indexOf('const persisted=await db.from("metric_evidence_store")');
+    const verifiedFallback = diagnostic.indexOf('const row=await sampleVerifiedEvidenceIndexMatch(id);', persistedPriority);
+    expect(persistedPriority).toBeGreaterThan(-1);
+    expect(verifiedFallback).toBeGreaterThan(persistedPriority);
   });
 
   it("documents representative classes that cannot be sampled from current persisted production data", () => {
     expect(diagnostic).toContain("missing_class_reasons");
-    expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair");
+    expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, ranking-proven current evidence snapshot, or verified PBP index match");
   });
 
   it("classifies an absent provider-independent source path as SOURCE_MISSING", () => {
