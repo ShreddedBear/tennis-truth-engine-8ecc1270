@@ -1,0 +1,58 @@
+name: Temporary Phase 23 Provenance Patch
+
+on:
+  push:
+    branches: [repair/evidence-coverage-phase23-provenance]
+    paths: ['.github/workflows/tmp-phase23-provenance-patch.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Patch diagnostic provenance visibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/evidence-coverage-runtime-diagnostic.server.ts')
+          s=p.read_text()
+          old='db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family").eq("as_of_date",match.date)'
+          new='db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,evidence_family,sources,reliability,sample_label").eq("as_of_date",match.date)'
+          if old not in s: raise SystemExit('stored evidence select contract not found')
+          s=s.replace(old,new,1)
+          old2='stored_p1:Boolean(p1Stored),stored_p2:Boolean(p2Stored),p1_treatment:p1Treatment,p2_treatment:p2Treatment'
+          new2='stored_p1:Boolean(p1Stored),stored_p2:Boolean(p2Stored),stored_p1_family:p1Stored?.evidence_family??null,stored_p2_family:p2Stored?.evidence_family??null,stored_p1_source_count:Array.isArray(p1Stored?.sources)?p1Stored.sources.length:0,stored_p2_source_count:Array.isArray(p2Stored?.sources)?p2Stored.sources.length:0,stored_p1_reliability:p1Stored?.reliability??null,stored_p2_reliability:p2Stored?.reliability??null,stored_p1_has_sample:Boolean(p1Stored?.sample_label),stored_p2_has_sample:Boolean(p2Stored?.sample_label),p1_treatment:p1Treatment,p2_treatment:p2Treatment'
+          if old2 not in s: raise SystemExit('diagnostic detail contract not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+
+          t=Path('src/lib/evidence-coverage-runtime-diagnostic.test.ts')
+          x=t.read_text()
+          marker='  it("bounds runtime diagnostic database concurrency", () => {'
+          test='''  it("surfaces persisted evidence provenance for coverage validation", () => {\n    expect(diagnostic).toContain('evidence_family,sources,reliability,sample_label');\n    expect(diagnostic).toContain('stored_p1_family:p1Stored?.evidence_family??null');\n    expect(diagnostic).toContain('stored_p2_family:p2Stored?.evidence_family??null');\n    expect(diagnostic).toContain('stored_p1_source_count:Array.isArray(p1Stored?.sources)?p1Stored.sources.length:0');\n    expect(diagnostic).toContain('stored_p2_source_count:Array.isArray(p2Stored?.sources)?p2Stored.sources.length:0');\n  });\n\n'''
+          if marker not in x: raise SystemExit('test insertion marker not found')
+          x=x.replace(marker,test+marker,1)
+          t.write_text(x)
+          PY
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Targeted Evidence Coverage tests
+        run: bun test src/lib/evidence-coverage-runtime-diagnostic.test.ts
+      - name: Production build
+        run: bun run build
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+          git commit -m 'Expose persisted Evidence Coverage provenance'
+          git push
