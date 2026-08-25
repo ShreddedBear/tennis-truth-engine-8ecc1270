@@ -6,10 +6,14 @@ const route = fs.readFileSync("src/routes/api/warehouse-ingest.ts", "utf8");
 const workflow = fs.readFileSync(".github/workflows/historical-hard-pull.yml", "utf8");
 
 describe("Lovable-managed warehouse ingestion bridge", () => {
-  it("pins GitHub OIDC to the repository, main branch, and ingestion workflow", () => {
+  it("pins GitHub OIDC to main plus one tightly scoped ops validation PR", () => {
     expect(verifier).toContain('dashawnkillzz-sketch/tennis-truth-engine');
     expect(verifier).toContain('refs/heads/main');
-    expect(verifier).toContain('.github/workflows/historical-hard-pull.yml@refs/heads/main');
+    expect(verifier).toContain('const WORKFLOW_PATH = ".github/workflows/historical-hard-pull.yml"');
+    expect(verifier).toContain('OPS_VALIDATION_HEAD = "ops/historical-hard-pull-validation"');
+    expect(verifier).toContain('claims.event_name === "pull_request"');
+    expect(verifier).toContain('claims.base_ref !== "refs/heads/main"');
+    expect(verifier).toContain('claims.ref?.startsWith("refs/pull/")');
     expect(verifier).toContain('tennis-truth-engine-warehouse-ingestion');
   });
 
