@@ -1,0 +1,46 @@
+name: Evidence Coverage Production Proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/evidence-coverage-production-proof.yml'
+      - 'src/routes/api/evidence-coverage-diagnostic.ts'
+      - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
+      - 'src/lib/warehouse-first-researcher.server.ts'
+      - 'src/lib/source-observation-metric-bridge.server.ts'
+      - 'src/lib/metric-source-family-policy.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for production diagnostic and prove pair coverage
+        shell: bash
+        env:
+          URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          status=""
+          for attempt in $(seq 1 30); do
+            status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
+            if [ "$status" = "200" ] && jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null 2>&1; then
+              break
+            fi
+            echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
+            sleep 20
+          done
+          echo "HTTP status: $status"
+          cat "$response"
+          echo
+          [ "$status" = "200" ]
+          jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null
+          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
+          jq -e 'all(.matches[]; .coverage.pair_percent > 15 and .false_green_guard.passed == true)' "$response" >/dev/null
+          echo 'PASS: every representative tour has pair-complete evidence coverage above the former 15% block with no one-sided false green.'
