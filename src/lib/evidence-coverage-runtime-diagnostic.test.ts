@@ -19,24 +19,25 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain('buildMetricObservationContext');
   });
 
-  it("uses all nine required failure buckets in its contract", () => {
+  it("actively classifies all nine required failure buckets", () => {
     for (const bucket of [
       "SOURCE_MISSING", "INGESTION_MISSING", "IDENTITY_MATCH_FAILURE", "EVIDENCE_QUERY_FAILURE",
       "NORMALIZATION_FAILURE", "EVIDENCE_WIRING_FAILURE", "RECONSTRUCTION_FAILURE",
       "COVERAGE_CREDIT_FAILURE", "GENUINELY_UNAVAILABLE",
-    ]) expect(diagnostic).toContain(bucket);
+    ]) expect(diagnostic).toContain(`bucket=\"${bucket}\"`);
   });
 
-  it("does not let an empty app matches table misclassify all evidence as identity failure", () => {
-    expect(diagnostic).toContain("blocks_evidence_classification: false");
-    expect(diagnostic).toContain('bucket = "INGESTION_MISSING"');
+  it("does not let an empty app matches table block warehouse evidence classification", () => {
+    expect(diagnostic).toContain('sampling_source: "source_observations"');
+    expect(diagnostic).toContain("canonicalIdentityBlocked");
+    expect(diagnostic).toContain('bucket="INGESTION_MISSING"');
   });
 
   it("fails closed on one-sided evidence instead of producing a false green", () => {
-    expect(diagnostic).toContain("const pairUsable = p1Usable && p2Usable");
-    expect(diagnostic).toContain("const oneSidedUsable = p1Usable !== p2Usable");
-    expect(diagnostic).toContain('bucket = "COVERAGE_CREDIT_FAILURE"');
-    expect(diagnostic).toContain("pair_credited: pairUsable");
+    expect(diagnostic).toContain("pairUsable=p1Usable&&p2Usable");
+    expect(diagnostic).toContain("oneSidedUsable=p1Usable!==p2Usable");
+    expect(diagnostic).toContain('bucket="COVERAGE_CREDIT_FAILURE"');
+    expect(diagnostic).toContain("pair_credited:pairUsable");
     expect(diagnostic).toContain("pair_percent");
     expect(diagnostic).toContain("false_green_guard");
   });
@@ -71,14 +72,15 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
   });
 
-  it("samples real production matches even when event_level or scheduled_date is null", () => {
-    expect(diagnostic).toContain("representativeMatches");
+  it("keeps ATP Main, WTA Main and ATP Challenger eligible when event_level or scheduled_date is null", () => {
     expect(diagnostic).toContain("hydrateParsedHints");
-    expect(diagnostic).toContain('order("created_at", { ascending: false })');
-    expect(diagnostic).not.toContain('.not("scheduled_date", "is", null)');
+    expect(diagnostic).toContain("hydrateTournamentHints");
+    expect(diagnostic).toContain('from("tournaments")');
+    expect(diagnostic).toContain('order("created_at",{ascending:false})');
+    expect(diagnostic).not.toContain('.not("scheduled_date","is",null)');
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
-    expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
-    expect(diagnostic).toContain('requested_classes: ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"]');
+    expect(diagnostic).toContain('from("source_observations")');
+    expect(diagnostic).toContain('requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"]');
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
