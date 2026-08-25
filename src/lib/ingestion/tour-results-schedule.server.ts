@@ -55,6 +55,14 @@ function embeddedJson(html:string):unknown[] {
   }
   return values;
 }
+function parseHttpPayloads(body:string, contentType:string):unknown[] {
+  const trimmed=body.trim();
+  const looksJson=contentType.toLowerCase().includes("json") || trimmed.startsWith("{") || trimmed.startsWith("[");
+  if (looksJson && trimmed) {
+    try { return [JSON.parse(trimmed)]; } catch {}
+  }
+  return embeddedJson(body);
+}
 
 function levelText(obj:Record<string,unknown>) {
   return first(obj,["level","Level","eventLevel","EventLevel","category","Category","tournamentLevel","TournamentLevel","type","Type","TournamentClass","tournamentClass"]);
@@ -123,8 +131,8 @@ async function fetchStructured(source:TourSource,url:string) {
   if (!res.ok) throw new Error(`${res.url||url} returned ${res.status}`);
   const effectiveUrl=res.url||url;
   const contentType=res.headers.get("content-type")??"";
-  if (contentType.includes("application/json")) return {payloads:[await res.json()],url:effectiveUrl};
-  return {payloads:embeddedJson(await res.text()),url:effectiveUrl};
+  const body=await res.text();
+  return {payloads:parseHttpPayloads(body,contentType),url:effectiveUrl};
 }
 
 async function writeRows(rows:Observation[]) {
