@@ -20,9 +20,18 @@ describe("runtime evidence coverage diagnostic", () => {
     ]) expect(diagnostic).toContain(bucket);
   });
 
+  it("fails closed on one-sided evidence instead of producing a false green", () => {
+    expect(diagnostic).toContain("const pairUsable = p1Usable && p2Usable");
+    expect(diagnostic).toContain("const oneSidedUsable = p1Usable !== p2Usable");
+    expect(diagnostic).toContain('bucket = "COVERAGE_CREDIT_FAILURE"');
+    expect(diagnostic).toContain("pair_credited: pairUsable");
+    expect(diagnostic).toContain("pair_percent");
+    expect(diagnostic).toContain("false_green_guard");
+  });
+
   it("keeps the temporary endpoint obscure and no-store", () => {
     expect(route).toContain("DIAGNOSTIC_KEY");
-    expect(route).toContain('cache-control": "no-store"');
+    expect(route).toContain('cache-control\": \"no-store\"');
     expect(route).toContain("runEvidenceCoverageRuntimeDiagnostic");
   });
 });
