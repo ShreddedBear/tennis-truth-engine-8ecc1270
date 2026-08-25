@@ -1,0 +1,86 @@
+{
+  "ATP_CHALLENGER": {
+    "available_flag": true,
+    "category": "challenger",
+    "circuit": "ATP",
+    "date": "2026-04-19T07:00:00+00:00",
+    "games": 26,
+    "games_with_break_field": 26,
+    "games_with_server": 26,
+    "malformed_point_rows": 0,
+    "match_id": 31912,
+    "pbp_http": 200,
+    "player_ids": [
+      785,
+      268
+    ],
+    "players": [
+      "Leandro Riedi",
+      "Yunchaokete Bu"
+    ],
+    "points": 133,
+    "round": null,
+    "structurally_present": true,
+    "surface": "hard",
+    "tournament": "Busan, South Korea",
+    "valid_point_rows": 133,
+    "winner_id": 785,
+    "year": 2026
+  },
+  "ATP_MAIN": {
+    "available_flag": true,
+    "category": "atp_250",
+    "circuit": "ATP",
+    "date": "2026-07-22T16:30:00+00:00",
+    "games": 20,
+    "games_with_break_field": 20,
+    "games_with_server": 20,
+    "malformed_point_rows": 0,
+    "match_id": 43148,
+    "pbp_http": 200,
+    "player_ids": [
+      208,
+      1610
+    ],
+    "players": [
+      "Alejandro Tabilo",
+      "Tiago Torres"
+    ],
+    "points": 111,
+    "round": null,
+    "structurally_present": true,
+    "surface": "clay",
+    "tournament": "Estoril",
+    "valid_point_rows": 111,
+    "winner_id": 1610,
+    "year": 2026
+  },
+  "WTA_MAIN": {
+    "available_flag": true,
+    "category": "wta_250",
+    "circuit": "WTA",
+    "date": "2026-07-22T18:05:00+00:00",
+    "games": 19,
+    "games_with_break_field": 19,
+    "games_with_server": 19,
+    "malformed_point_rows": 0,
+    "match_id": 43309,
+    "pbp_http": 200,
+    "player_ids": [
+      1131,
+      78
+    ],
+    "players": [
+      "Fiona Ferro",
+      "Erika Andreeva"
+    ],
+    "points": 108,
+    "round": null,
+    "structurally_present": true,
+    "surface": "clay",
+    "tournament": "Palermo, Italy",
+    "valid_point_rows": 108,
+    "winner_id": 1131,
+    "year": 2026
+  }
+}
