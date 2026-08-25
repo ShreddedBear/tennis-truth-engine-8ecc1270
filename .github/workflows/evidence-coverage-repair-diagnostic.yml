@@ -6,6 +6,11 @@ on:
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/evidence-coverage-baseline.ts
+      - .github/workflows/evidence-coverage-repair-diagnostic.yml
   workflow_dispatch:
 
 permissions:
@@ -22,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: repair/evidence-coverage
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'repair/evidence-coverage' }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -30,7 +35,13 @@ jobs:
         run: bun install
       - name: Run provider-independent 81-metric baseline
         run: bun scripts/evidence-coverage-baseline.ts
+      - name: Upload baseline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-coverage-baseline
+          path: data/audit/evidence-coverage-baseline.json
       - name: Commit machine-readable baseline
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
