@@ -1,0 +1,55 @@
+name: ATP Official Chrome Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/atp-official-chrome-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Test ATP Official through real Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          google-chrome --version
+          fetch_page() {
+            local name="$1" url="$2" expect="$3"
+            timeout 90s google-chrome \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --disable-blink-features=AutomationControlled \
+              --user-agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36' \
+              --virtual-time-budget=15000 \
+              --dump-dom "$url" > "$name.html"
+            echo "$name bytes=$(wc -c < "$name.html")"
+            if grep -qiE 'Just a moment|cf-chl|captcha|Attention Required' "$name.html"; then
+              echo "Cloudflare challenge detected for $name" >&2
+              exit 2
+            fi
+            if ! grep -qiE "$expect" "$name.html"; then
+              echo "ATP official content was not rendered for $name" >&2
+              head -c 2000 "$name.html" >&2 || true
+              exit 3
+            fi
+          }
+          fetch_page main 'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=atp' '/en/scores/archive/|Singles Winner|TOURNAMENT RESULTS'
+          fetch_page challenger 'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=ch' '/en/scores/archive/|Challenger|Singles Winner'
+          fetch_page rankings 'https://www.atptour.com/en/rankings/singles' 'Rankings|Rank|Points|Player'
+
+      - name: Probe WTA Official tournament API
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://api.wtatennis.com/tennis/tournaments/?page=0&pageSize=500&excludeLevels=ITF&from=2025-08-24&to=2026-08-24'
+          curl --fail-with-body --silent --show-error "$URL" -o wta.json
+          jq '{pageInfo, count:(.content|length), levels:(.content|map(.tournamentGroup.level)|unique), sample:(.content[:3]|map({group:.tournamentGroup,year,title,startDate,endDate,surface}))}' wta.json
+          test "$(jq '.content|length' wta.json)" -gt 0
