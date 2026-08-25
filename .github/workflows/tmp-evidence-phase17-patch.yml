@@ -1,0 +1,60 @@
+name: Temporary Evidence Phase17 Patch
+
+on:
+  push:
+    branches: [repair/evidence-coverage-phase17-pbp-score-state]
+    paths: ['.github/workflows/tmp-evidence-phase17-patch.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/evidence-coverage-phase17-pbp-score-state
+      - name: Add metric 016 to guarded PBP lanes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+            'src/lib/metric-source-family-policy.ts': (
+              'const PBP_METRICS = new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);',
+              'const PBP_METRICS = new Set(["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);',
+            ),
+            'src/lib/deterministic-pbp-metrics.server.ts': (
+              'const SUPPORTED = new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);',
+              'const SUPPORTED = new Set(["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);',
+            ),
+            'src/lib/deterministic-pbp-metrics.test.ts': (
+              'for (const code of ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"])',
+              'for (const code of ["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"])',
+            ),
+          }
+          for path, (old, new) in replacements.items():
+            p = Path(path); text = p.read_text()
+            if old not in text: raise SystemExit(f'expected string not found in {path}')
+            p.write_text(text.replace(old, new, 1))
+
+          for path in [
+            'src/lib/bsd-atp-main-pbp.server.ts',
+            'src/lib/bsd-wta-main-pbp.server.ts',
+            'src/lib/bsd-atp-challenger-pbp.server.ts',
+            'src/lib/bsd-wta-challenger-pbp.server.ts',
+          ]:
+            p = Path(path); text = p.read_text()
+            old = 'new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"])'
+            new = 'new Set(["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"])'
+            if old not in text: raise SystemExit(f'expected PBP code set not found in {path}')
+            p.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/metric-source-family-policy.ts src/lib/deterministic-pbp-metrics.server.ts src/lib/deterministic-pbp-metrics.test.ts src/lib/bsd-*-pbp.server.ts
+          git commit -m 'Recover Point-by-Point score-state evidence'
+          git push origin HEAD:repair/evidence-coverage-phase17-pbp-score-state
