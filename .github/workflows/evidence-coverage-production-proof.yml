@@ -44,3 +44,5 @@ jobs:
           jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
           jq -e 'all(.matches[]; .coverage.pair_percent > 15 and .false_green_guard.passed == true)' "$response" >/dev/null
           echo 'PASS: every representative tour has pair-complete evidence coverage above the former 15% block with no one-sided false green.'
+
+# trigger: production-proof-1
