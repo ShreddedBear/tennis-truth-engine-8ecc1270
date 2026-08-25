@@ -153,3 +153,11 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(route).toContain("runEvidenceCoverageRuntimeDiagnostic");
   });
 });
+describe("verified PBP index sampling fallback", () => {
+  it("uses strict verified index matches only after database sampling is exhausted", () => {
+    expect(diagnostic).toContain('sampleVerifiedEvidenceIndexMatch(id)');
+    expect(diagnostic).toContain('sampling_source:"verified_pbp_index"');
+    expect(diagnostic).toContain('date_source:"verified_index_date"');
+    expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');
+  });
+});

@@ -9,6 +9,7 @@ import { deterministicPbpMetric } from "./deterministic-pbp-metrics.server";
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
+import { sampleVerifiedEvidenceIndexMatch } from "./evidence-index-match-sampler.server";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -20,7 +21,7 @@ type RepresentativeId = "ATP_MAIN"|"WTA_MAIN"|"ATP_CHALLENGER";
 type MatchCandidate = { id:string; player1_name:string; player2_name:string; tournament_name:string|null; event_level:string|null; scheduled_date:string|null; surface:string|null; round:string|null; created_at:string; active_summary_version_id:string|null; parsed_tournament?:string|null; parsed_event_level?:string|null; parsed_tour?:string|null; parsed_date?:string|null; parsed_surface?:string|null; parsed_round?:string|null };
 type ObservationCandidate = { source_id:string|null; source_name:string|null; player_name:string|null; opponent_name:string|null; tournament:string|null; event_date:string|null; surface:string|null; observation_type:string|null; sample_label:string|null };
 type PersistedPairCandidate = { player_name:string|null; opponent_name:string|null; as_of_date:string|null };
-type RepresentativeMatch = { id:RepresentativeId; match_id:string; p1:string; p2:string; date:string; date_source:"scheduled_date"|"parsed_summary"|"created_at"|"warehouse_event_date"|"persisted_as_of_date"; tournament:string; context:string; event_level:string|null; surface:string|null; sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store" };
+type RepresentativeMatch = { id:RepresentativeId; match_id:string; p1:string; p2:string; date:string; date_source:"scheduled_date"|"parsed_summary"|"created_at"|"warehouse_event_date"|"persisted_as_of_date"|"verified_index_date"; tournament:string; context:string; event_level:string|null; surface:string|null; sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store"|"verified_pbp_index" };
 type LocalResult = Awaited<ReturnType<typeof deterministic>>;
 
 function classifyText(level:unknown,tournament:unknown,source:unknown=""):RepresentativeId|null {
@@ -105,6 +106,14 @@ async function representativeMatches():Promise<{matches:RepresentativeMatch[];mi
       for(let index=0;index<rows.length&&missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN");index++){const row=rows[index];const inferred=await classifyPairFromExactRankingEvidence(row.player_name!,row.opponent_name!);if(inferred&&missing().includes(inferred))selected.push(persistedPairRepresentative(inferred,row,index));}
     }
   }
+  if(missing().length){
+    for(const id of missing()){
+      const row=await sampleVerifiedEvidenceIndexMatch(id);
+      if(!row)continue;
+      const level=id.replaceAll("_"," ");
+      selected.push({id,match_id:row.match_id,p1:row.p1,p2:row.p2,date:row.date,date_source:"verified_index_date",tournament:row.tournament,context:[`Tournament: ${row.tournament}`,`Level: ${level}`,`Tour: ${level}`,row.surface?`Surface: ${row.surface}`:null,`Date: ${row.date}`].filter(Boolean).join(" | "),event_level:level,surface:row.surface,sampling_source:"verified_pbp_index"});
+    }
+  }
   const missingClasses=missing(),missing_class_reasons:Partial<Record<RepresentativeId,string>>={};
   for(const id of missingClasses)missing_class_reasons[id]=`No real persisted ${id} match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair was available for diagnostic sampling.`;
   return {matches:selected,missing_classes:missingClasses,missing_class_reasons};
@@ -115,7 +124,7 @@ async function activeMetrics():Promise<Metric[]>{const {data:doc,error:docError}
 async function deterministic(metric:Metric,match:RepresentativeMatch){const runners=[()=>deterministicRankingMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicRulesContextMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,context:match.context}),()=>deterministicEnvironmentMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament}),()=>deterministicMarketMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicResultsScheduleMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament})];const errors:string[]=[];for(const runner of runners){try{const row=await runner();if(row)return{row,errors};}catch(error){errors.push(error instanceof Error?error.message:String(error));}}return{row:null,errors};}
 async function deterministicBatch(metrics:Metric[],match:RepresentativeMatch){const out=new Map<string,LocalResult>();for(let i=0;i<metrics.length;i+=DIAGNOSTIC_QUERY_CONCURRENCY){const chunk=metrics.slice(i,i+DIAGNOSTIC_QUERY_CONCURRENCY);const rows=await Promise.all(chunk.map(async metric=>[codeOf(metric.code),await deterministic(metric,match)] as const));for(const [code,result] of rows)out.set(code,result);}return out;}
 
-export async function runEvidenceCoverageRuntimeDiagnostic(){const metrics=await activeMetrics();if(metrics.length!==81)throw new Error(`Expected 81 active metrics, found ${metrics.length}`);const sample=await representativeMatches();if(!sample.matches.length)throw new Error("No real persisted matches, paired warehouse observations, or ranking-proven persisted evidence pairs were available for evidence coverage sampling");const matches:any[]=[];
+export async function runEvidenceCoverageRuntimeDiagnostic(){const metrics=await activeMetrics();if(metrics.length!==81)throw new Error(`Expected 81 active metrics, found ${metrics.length}`);const sample=await representativeMatches();if(!sample.matches.length)throw new Error("No real persisted matches, paired warehouse observations, ranking-proven persisted evidence pairs, or verified PBP index matches were available for evidence coverage sampling");const matches:any[]=[];
   for(const sampled of sample.matches){
     const identities=await resolveCanonicalEvidencePair(sampled.p1,sampled.p2);
     const match:RepresentativeMatch={...sampled,p1:identities.p1.canonical,p2:identities.p2.canonical};
