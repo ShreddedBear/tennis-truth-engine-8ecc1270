@@ -9,6 +9,7 @@ on:
       - repair/evidence-coverage-phase3
       - repair/evidence-coverage-phase4
       - repair/evidence-coverage-phase5
+      - repair/evidence-coverage-phase6
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
@@ -27,6 +28,8 @@ on:
       - src/lib/deterministic-results-schedule-metrics.test.ts
       - src/lib/deterministic-market-metrics.server.ts
       - src/lib/deterministic-market-metrics.test.ts
+      - src/lib/deterministic-pbp-metrics.server.ts
+      - src/lib/deterministic-pbp-metrics.test.ts
       - src/lib/deterministic-environment-metrics.server.ts
       - src/lib/deterministic-rules-context-metric.server.ts
       - src/lib/bsd-atp-main-pbp.server.ts
@@ -55,6 +58,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Validate evidence identity firewall
         run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+      - name: Validate deterministic PBP evidence
+        run: bunx vitest run src/lib/deterministic-pbp-metrics.test.ts
       - name: Validate full regression suite
         run: bunx vitest run
       - name: Explain production-data execution boundary
