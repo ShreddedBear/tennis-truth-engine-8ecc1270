@@ -28,7 +28,7 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("does not let an empty app matches table block warehouse evidence classification", () => {
-    expect(diagnostic).toContain('sampling_source: "source_observations"');
+    expect(diagnostic).toContain('sampling_source:"source_observations"');
     expect(diagnostic).toContain("canonicalIdentityBlocked");
     expect(diagnostic).toContain('bucket="INGESTION_MISSING"');
   });
