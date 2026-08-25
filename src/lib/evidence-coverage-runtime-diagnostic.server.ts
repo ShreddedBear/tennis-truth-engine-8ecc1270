@@ -10,6 +10,7 @@ import { deterministicRulesContextMetric } from "./deterministic-rules-context-m
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
+const DIAGNOSTIC_QUERY_CONCURRENCY = 6;
 
 type FailureBucket =
   | "SOURCE_MISSING"
@@ -23,6 +24,7 @@ type FailureBucket =
   | "GENUINELY_UNAVAILABLE";
 
 type Metric = { code: string; name: string; body: string | null };
+type LocalResult = Awaited<ReturnType<typeof deterministic>>;
 
 const REPRESENTATIVE_MATCHES = [
   { id: "ATP_MAIN", p1: "Arthur Fils", p2: "Flavio Cobolli", date: "2026-08-22", tournament: "Cincinnati Open", context: "Tournament: Cincinnati Open | Level: ATP Masters 1000 | Tour: ATP Main | Surface: hard | Date: 2026-08-22" },
@@ -60,6 +62,16 @@ async function deterministic(metric: Metric, match: typeof REPRESENTATIVE_MATCHE
   return { row: null, errors };
 }
 
+async function deterministicBatch(metrics: Metric[], match: typeof REPRESENTATIVE_MATCHES[number]) {
+  const out = new Map<string, LocalResult>();
+  for (let i = 0; i < metrics.length; i += DIAGNOSTIC_QUERY_CONCURRENCY) {
+    const chunk = metrics.slice(i, i + DIAGNOSTIC_QUERY_CONCURRENCY);
+    const rows = await Promise.all(chunk.map(async (metric) => [codeOf(metric.code), await deterministic(metric, match)] as const));
+    for (const [code, result] of rows) out.set(code, result);
+  }
+  return out;
+}
+
 export async function runEvidenceCoverageRuntimeDiagnostic() {
   const metrics = await activeMetrics();
   if (metrics.length !== 81) throw new Error(`Expected 81 active metrics, found ${metrics.length}`);
@@ -79,6 +91,7 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     const storedRows = storedResult.status === "fulfilled" ? storedResult.value.data ?? [] : [];
     const packetError = packetResult.status === "rejected" ? String(packetResult.reason) : null;
     const packet = packetResult.status === "fulfilled" ? packetResult.value as Record<string, any> : {};
+    const localByCode = await deterministicBatch(metrics, match);
 
     const details: any[] = [];
     for (const metric of metrics) {
@@ -87,7 +100,7 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
       const entry = packet[code] ?? null;
       const p1Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && evidencePairMatches(r.player_name, r.opponent_name, match.p1, match.p2)) ?? null;
       const p2Stored = storedRows.find((r: any) => codeOf(r.metric_code) === code && evidencePairMatches(r.player_name, r.opponent_name, match.p2, match.p1)) ?? null;
-      const local = await deterministic(metric, match);
+      const local = localByCode.get(code) ?? { row: null, errors: [] };
       const p1Treatment = String(p1Stored?.treatment ?? local.row?.p1_treatment ?? "UNAVAILABLE");
       const p2Treatment = String(p2Stored?.treatment ?? local.row?.p2_treatment ?? "UNAVAILABLE");
       const p1Usable = USABLE.has(p1Treatment);
@@ -140,5 +153,5 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     });
   }
 
-  return { schema_version: 3, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
+  return { schema_version: 4, generated_at: new Date().toISOString(), metrics: metrics.length, matches };
 }
