@@ -34,7 +34,7 @@ type StoredEvidence = {
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
 function asOfDate(context:string|null|undefined){const match=String(context??"").match(/\b(20\d{2}-\d{2}-\d{2})\b/);return match?.[1]??new Date().toISOString().slice(0,10);}
-function tournamentFromContext(context:string|null|undefined){const text=String(context??"");const match=text.match(/(?:^|[·|\n])\s*tournament\s+([^·|\n]+)/i);return match?.[1]?.trim()||null;}
+function tournamentFromContext(context:string|null|undefined){const text=String(context??"");const match=text.match(/(?:^|[·|\n])\s*tournament\s*(?::|=)?\s*([^·|\n]+)/i);return match?.[1]?.trim()||null;}
 function ttlHours(code:string){if(["062","064","069","071","075","076","081"].includes(code))return 12;if(["012","028","077","079"].includes(code))return 24;if(["015","019"].includes(code))return 6;return 168;}
 function fullyUsableFinding(row:MetricFinding|undefined){return Boolean(row&&USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value);}
 function unambiguousStoredRow(rows:StoredEvidence[]){
