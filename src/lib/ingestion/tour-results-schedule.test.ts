@@ -38,6 +38,15 @@ describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
     expect(adapter).toContain("Cloudflare challenge");
   });
 
+  it("queries the WTA Official calendar for the configured historical window", () => {
+    const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
+    expect(adapter).toContain("target.pullback_start");
+    expect(adapter).toContain("target.pullback_end");
+    expect(adapter).toContain('excludeLevels:"ITF"');
+    expect(adapter).toContain('from,to');
+    expect(adapter).toContain("WTA_TOURNAMENT_API");
+  });
+
   it("keeps WTA 125 and ITF events out of WTA Main", () => {
     const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
     expect(adapter).toContain('/\\b125\\b|wta\\s*125|challenger|itf/i');

@@ -220,13 +220,20 @@ async function fetchWtaOfficial(target:Target,configuredUrl:string) {
   if(pageRows.size) return {rows:[...pageRows.values()],pages:1,seen:objects.length};
 
   const rows=new Map<string,Observation>(); let pages=1,seen=objects.length;
+  const from=target.pullback_start ?? `${targetYears(target)[0]}-01-01`;
+  const years=targetYears(target);
+  const to=target.pullback_end ?? `${years[years.length-1]}-12-31`;
   for(let page=0;page<10;page++) {
-    const apiUrl=`${WTA_TOURNAMENT_API}?page=${page}&pageSize=500`; const res=await request(apiUrl); if(!res.ok) throw new Error(`${apiUrl} returned ${res.status}`);
+    const params=new URLSearchParams({page:String(page),pageSize:"100",excludeLevels:"ITF",from,to});
+    const apiUrl=`${WTA_TOURNAMENT_API}/?${params.toString()}`;
+    const res=await request(apiUrl); if(!res.ok) throw new Error(`${apiUrl} returned ${res.status}`);
     const payload=await res.json() as unknown; const parsed=wtaApiRows(target,apiUrl,payload); for(const row of parsed) rows.set(row.source_record_key,row); pages++; seen+=parsed.length;
     if(payload && typeof payload === "object" && !Array.isArray(payload)) {
-      const root=payload as Record<string,unknown>; const info=root.pageInfo as Record<string,unknown>|undefined; const total=Number(info?.numPages);
-      if(Number.isFinite(total) && page+1>=total) break;
-      const content=root.content; if(Array.isArray(content) && content.length===0) break;
+      const root=payload as Record<string,unknown>; const info=root.pageInfo as Record<string,unknown>|undefined;
+      const content=root.content; if(!Array.isArray(content) || content.length===0) break;
+      const totalPages=Number(info?.numPages); if(Number.isFinite(totalPages) && totalPages>0 && page+1>=totalPages) break;
+      const numEntries=Number(info?.numEntries); const pageSize=Number(info?.pageSize);
+      if(Number.isFinite(numEntries) && Number.isFinite(pageSize) && pageSize>0 && (page+1)*pageSize>=numEntries) break;
     } else break;
   }
   return {rows:[...rows.values()],pages,seen};
