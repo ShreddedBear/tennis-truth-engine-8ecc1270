@@ -1,4 +1,4 @@
-name: Temporary Evidence Coverage Phase 24 Summary
+name: Temporary Evidence Coverage Verified Index Inspect
 
 on:
   push:
@@ -14,34 +14,29 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Summarize published Phase 24 diagnostic
+        with:
+          fetch-depth: 1
+      - name: Extract exact verified index rows
         shell: bash
         run: |
           set -euo pipefail
-          url='https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1'
-          code=$(curl -sS -L --max-time 180 -o /tmp/ecov.json -w '%{http_code}' "$url")
-          test "$code" = "200"
           mkdir -p diagnostics
           python - <<'PY'
           import json
-          d=json.load(open('/tmp/ecov.json'))
-          r=d.get('report') or d.get('result') or d.get('data') or d.get('diagnostic') or d
-          out={'schema_version':r.get('schema_version'),'generated_at':r.get('generated_at'),'sampling':r.get('sampling'),'matches':[]}
-          for m in r.get('matches',[]):
-              ing=[]; credit=[]; q=[]; norm=[]; wire=[]; recon=[]
-              for x in m.get('metrics',[]):
-                  b=x.get('failure_bucket'); code=x.get('metric_code')
-                  if b=='INGESTION_MISSING': ing.append(code)
-                  elif b=='COVERAGE_CREDIT_FAILURE': credit.append(code)
-                  elif b=='EVIDENCE_QUERY_FAILURE': q.append(code)
-                  elif b=='NORMALIZATION_FAILURE': norm.append(code)
-                  elif b=='EVIDENCE_WIRING_FAILURE': wire.append(code)
-                  elif b=='RECONSTRUCTION_FAILURE': recon.append(code)
-              out['matches'].append({'id':m.get('id'),'pair':m.get('pair'),'sampling_source':m.get('sampling_source'),'date_source':m.get('date_source'),'coverage':m.get('coverage'),'false_green_guard':m.get('false_green_guard'),'failure_buckets':m.get('failure_buckets'),'ingestion_missing_codes':ing,'coverage_credit_codes':credit,'query_failure_codes':q,'normalization_failure_codes':norm,'wiring_failure_codes':wire,'reconstruction_failure_codes':recon})
-          json.dump(out,open('diagnostics/evidence-coverage-phase24-summary.json','w'),indent=2,sort_keys=True)
+          specs=[
+            ('ATP_MAIN','data/audit/bsd-atp-main-pbp-history/2026/results.json',43148),
+            ('WTA_MAIN','data/audit/bsd-wta-main-pbp-history/2026/results.json',43309),
+            ('ATP_CHALLENGER','data/audit/bsd-atp-challenger-pbp-history/2026/results.json',31912),
+          ]
+          out={}
+          for cls,path,mid in specs:
+            rows=json.load(open(path))
+            row=next((r for r in rows if str(r.get('match_id'))==str(mid)),None)
+            out[cls]=row
+          json.dump(out,open('diagnostics/evidence-coverage-phase24-index-rows.json','w'),indent=2,sort_keys=True)
           PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add diagnostics/evidence-coverage-phase24-summary.json
-          git commit -m 'Record Phase 24 production class summary'
+          git add diagnostics/evidence-coverage-phase24-index-rows.json
+          git commit -m 'Record verified index representative row details'
           git push
