@@ -23,7 +23,6 @@ type ObservationRow = {
   window_end: string | null;
 };
 type LaneFailure = { lane: string; families: ObservationFamily[]; message: string };
-
 type Lane = { name: string; families: ObservationFamily[]; result: { data: any[] | null; error: { message: string } | null } };
 
 function codeOf(value: unknown) {
@@ -45,10 +44,6 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
     .order("event_date", { ascending: false });
 
-  // Family isolation prevents PBP/market density from crowding other evidence.
-  // Side isolation prevents a high-volume player from consuming the shared LIMIT
-  // before the opponent's rows are reached. Every player/family lane gets its
-  // own bounded query and a failure in one lane never erases successful lanes.
   const [p1Other, p2Other, p1Market, p2Market, p1Pbp, p2Pbp, sharedResult] = await Promise.all([
     base().in("player_name", p1Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
     base().in("player_name", p2Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
@@ -80,14 +75,20 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   return { rows: deduped, laneFailures };
 }
 
-export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; }) {
+export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; tournament?: string | null; }) {
   const { rows, laneFailures } = await loadCandidateRows(args.p1, args.p2, args.asOfDate);
+  const tournament = String(args.tournament ?? "").trim();
   const packet: Record<string, unknown> = {};
   if (laneFailures.length) packet._query_errors = laneFailures;
   for (const metric of args.metrics) {
     const code = codeOf(metric.code);
     const policy = policyForMetric(code);
-    const allowed = rows.filter((row) => metricAllowsObservation(code, row));
+    const allowed = rows.filter((row) => {
+      if (!metricAllowsObservation(code, row)) return false;
+      const family = observationFamily(row);
+      if (family === "ENVIRONMENT") return Boolean(tournament && row.tournament === tournament);
+      return true;
+    });
     if (!allowed.length) continue;
     const families = unique(allowed.map((row) => observationFamily(row)).filter(Boolean));
     const supportOnly = policy.support_only_families ?? [];
@@ -99,6 +100,6 @@ export async function buildMetricObservationContext(args: { metrics: MetricLike[
 
 export function appendMetricObservationContext(baseContext: string | null | undefined, packet: Record<string, unknown>) {
   if (!Object.keys(packet).length) return baseContext ?? "";
-  const appendix = `\n\nWAREHOUSE_OBSERVATION_CONTEXT\n${JSON.stringify(packet)}\nEND_WAREHOUSE_OBSERVATION_CONTEXT\nRules: use only observations listed under the requested metric code; never borrow an observation family from another metric; support-only families may inform reconstruction but cannot alone justify DIRECT treatment or a complete metric answer. Warehouse lane query errors are diagnostic metadata and never authorize evidence borrowing or fabricated findings.`;
+  const appendix = `\n\nWAREHOUSE_OBSERVATION_CONTEXT\n${JSON.stringify(packet)}\nEND_WAREHOUSE_OBSERVATION_CONTEXT\nRules: use only observations listed under the requested metric code; never borrow an observation family from another metric; support-only families may inform reconstruction but cannot alone justify DIRECT treatment or a complete metric answer. Environment observations are usable only when scoped to the explicit tournament. Warehouse lane query errors are diagnostic metadata and never authorize evidence borrowing or fabricated findings.`;
   return `${baseContext ?? ""}${appendix}`;
 }
