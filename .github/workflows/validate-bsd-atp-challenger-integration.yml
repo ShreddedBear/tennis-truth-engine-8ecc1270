@@ -42,7 +42,7 @@ jobs:
           grep -q 'POINT_BY_POINT' src/lib/bsd-atp-challenger-pbp.server.ts
 
           grep -q 'buildBsdAtpChallengerPbpContext' src/lib/warehouse-first-researcher.server.ts
-          grep -q 'bsdPbp.packet' src/lib/warehouse-first-researcher.server.ts
+          grep -q 'bsdAtpChallengerPbp.packet' src/lib/warehouse-first-researcher.server.ts
           grep -q '_bsd_atp_challenger_pbp_status' src/lib/warehouse-first-researcher.server.ts
 
           grep -q 'PBP_METRICS' src/lib/metric-source-family-policy.ts
