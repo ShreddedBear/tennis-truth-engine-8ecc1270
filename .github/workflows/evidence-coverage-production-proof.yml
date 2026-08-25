@@ -59,3 +59,5 @@ jobs:
           jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$report"
           jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$report" >/dev/null
           echo 'PASS: production diagnostic has valid representative sampling or explicit missing-class proof, and no one-sided evidence was credited as pair-complete.'
+
+# Manual retrigger marker: 2026-08-25 phase-14 published production proof.
