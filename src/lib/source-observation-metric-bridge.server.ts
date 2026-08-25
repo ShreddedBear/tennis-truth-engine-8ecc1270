@@ -39,16 +39,25 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
   const base = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
-    .order("event_date", { ascending: false }).limit(1000);
-  // Query matchup-specific aliases separately from shared observations. This
-  // recovers legacy surname-only rows without scanning unrelated player data and
-  // keeps the identity firewall fail-closed (no fuzzy/edit-distance matching).
-  const [playerResult, sharedResult] = await Promise.all([
-    base().in("player_name", aliases),
-    base().is("player_name", null),
+    .order("event_date", { ascending: false });
+
+  // Dense PBP and market snapshots can contain thousands of rows for one player.
+  // A single global LIMIT used to let those families crowd rankings/results/rules
+  // out of the candidate packet. Keep independent bounded lanes so every
+  // admissible family gets a fair chance to reach metric wiring.
+  const [otherResult, marketResult, pbpResult, sharedResult] = await Promise.all([
+    base().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    base().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
+    base().in("player_name", aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
+    base().is("player_name", null).limit(1000),
   ]);
-  if (playerResult.error || sharedResult.error) return [] as ObservationRow[];
-  const rows = [...((playerResult.data ?? []) as ObservationRow[]), ...((sharedResult.data ?? []) as ObservationRow[])];
+  if (otherResult.error || marketResult.error || pbpResult.error || sharedResult.error) return [] as ObservationRow[];
+  const rows = [
+    ...((otherResult.data ?? []) as ObservationRow[]),
+    ...((marketResult.data ?? []) as ObservationRow[]),
+    ...((pbpResult.data ?? []) as ObservationRow[]),
+    ...((sharedResult.data ?? []) as ObservationRow[]),
+  ];
   const seen = new Set<string>();
   return rows.filter((row) => {
     const key = [row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value,row.numeric_value].join("|");
