@@ -1,4 +1,4 @@
-name: Temporary Evidence Coverage Verified Index Inspect
+name: Temporary Evidence Coverage Pair Intersection
 
 on:
   push:
@@ -14,29 +14,35 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Extract exact verified index rows
+      - name: Find persisted high-coverage pairs in verified indexes
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p diagnostics
           python - <<'PY'
-          import json
-          specs=[
-            ('ATP_MAIN','data/audit/bsd-atp-main-pbp-history/2026/results.json',43148),
-            ('WTA_MAIN','data/audit/bsd-wta-main-pbp-history/2026/results.json',43309),
-            ('ATP_CHALLENGER','data/audit/bsd-atp-challenger-pbp-history/2026/results.json',31912),
-          ]
-          out={}
-          for cls,path,mid in specs:
-            rows=json.load(open(path))
-            row=next((r for r in rows if str(r.get('match_id'))==str(mid)),None)
-            out[cls]=row
-          json.dump(out,open('diagnostics/evidence-coverage-phase24-index-rows.json','w'),indent=2,sort_keys=True)
+          import json,glob,os
+          wanted={
+            tuple(sorted(x)) for x in [
+              ('Flavio Cobolli','Arthur Fils'),
+              ('Frances Tiafoe','Brandon Nakashima'),
+              ('Jessica Pegula','Iga Swiatek'),
+              ('Coco Gauff','Sara Bejlek'),
+            ]
+          }
+          out=[]
+          for path in glob.glob('data/audit/bsd-*-pbp-history/*/results.json'):
+            try: rows=json.load(open(path))
+            except Exception: continue
+            for r in rows:
+              ps=r.get('players') or []
+              if len(ps)<2: continue
+              key=tuple(sorted((str(ps[0]),str(ps[1]))))
+              if key in wanted and r.get('structurally_present') is True:
+                out.append({'path':path,**r})
+          json.dump(out,open('diagnostics/evidence-coverage-pair-index-intersection.json','w'),indent=2,sort_keys=True)
           PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add diagnostics/evidence-coverage-phase24-index-rows.json
-          git commit -m 'Record verified index representative row details'
+          git add diagnostics/evidence-coverage-pair-index-intersection.json
+          git commit -m 'Record high-coverage pair index intersection'
           git push
