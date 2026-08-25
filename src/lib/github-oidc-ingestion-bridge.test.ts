@@ -24,7 +24,17 @@ describe("Lovable-managed warehouse ingestion bridge", () => {
     expect(route).toContain('"atp_challenger"');
     expect(route).toContain('"atp_rankings"');
     expect(route).toContain('"wta_rankings"');
-    expect(route).toContain('runHistoricalHardPull(uniqueSources)');
+    expect(route).toContain('runHistoricalHardPull(uniqueSources, { officialSnapshots })');
+  });
+
+  it("accepts browser snapshots only for the ATP Official sources and validates them again server-side", () => {
+    expect(route).toContain('new Set<SourceId>(["atp", "atp_challenger", "atp_rankings"])');
+    expect(route).toContain('input.encoding!=="gzip-base64"');
+    expect(route).toContain('requested.has(source)');
+    expect(workflow).toContain('google-chrome');
+    expect(workflow).toContain('www.atptour.com/en/scores/results-archive');
+    expect(workflow).toContain('www.atptour.com/en/rankings/singles');
+    expect(workflow).toContain('--data-binary "@$BODY_FILE"');
   });
 
   it("does not export Lovable Supabase admin credentials to GitHub Actions", () => {
@@ -33,5 +43,6 @@ describe("Lovable-managed warehouse ingestion bridge", () => {
     expect(workflow).toContain('/api/warehouse-ingest');
     expect(workflow).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(workflow).not.toContain('SUPABASE_URL:');
+    expect(workflow).not.toContain('PROTENNISLIVE_API_KEY');
   });
 });
