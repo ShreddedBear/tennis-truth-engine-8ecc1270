@@ -19,10 +19,23 @@ describe("deterministic PBP evidence", () => {
     expect(calc).toContain("the missing side is not synthesized or credited");
   });
 
-  it("runs deterministic PBP before live fallback", () => {
-    const deterministicIndex = researcher.indexOf("deterministicPbpMetric({metricCode:metric.code,p1,p2,asOfDate:date})");
-    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
+  it("recovers only already tour-guarded BSD PBP packets as conservative partial evidence", () => {
+    expect(calc).toContain("deterministicPbpMetricFromPacket");
+    expect(calc).toContain('row?.family === "POINT_BY_POINT"');
+    expect(calc).toContain("deterministic tour-guarded BSD PBP");
+    expect(researcher).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket})");
+    expect(researcher).toContain("buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdWtaChallengerPbpContext({metrics:liveMissing,p1,p2");
+  });
+
+  it("uses pair-complete deterministic BSD recovery before the live researcher", () => {
+    const deterministicIndex = researcher.indexOf("deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket})");
+    const remainingIndex = researcher.indexOf("remainingLiveMissing=liveMissing.filter");
+    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
-    expect(liveIndex).toBeGreaterThan(deterministicIndex);
+    expect(remainingIndex).toBeGreaterThan(deterministicIndex);
+    expect(liveIndex).toBeGreaterThan(remainingIndex);
   });
 });
