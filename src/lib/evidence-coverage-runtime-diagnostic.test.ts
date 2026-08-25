@@ -6,6 +6,7 @@ const route = readFileSync("src/routes/api/evidence-coverage-diagnostic.ts", "ut
 const ranking = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
 const schedule = readFileSync("src/lib/deterministic-results-schedule-metrics.server.ts", "utf8");
 const market = readFileSync("src/lib/deterministic-market-metrics.server.ts", "utf8");
+const pbp = readFileSync("src/lib/deterministic-pbp-metrics.server.ts", "utf8");
 const bridge = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8");
 const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
 const canonical = readFileSync("src/lib/evidence-canonical-identity.server.ts", "utf8");
@@ -52,6 +53,12 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(market).toContain("evidencePairMatches");
   });
 
+  it("keeps runtime diagnosis aligned with deterministic PBP recovery", () => {
+    expect(pbp).toContain("deterministicPbpMetric");
+    expect(diagnostic).toContain('import { deterministicPbpMetric } from "./deterministic-pbp-metrics.server"');
+    expect(diagnostic).toContain("deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date})");
+  });
+
   it("resolves surname-only identities from warehouse evidence only and propagates canonical names through every evidence lane", () => {
     expect(canonical).toContain("uniqueCanonicalWarehouseIdentity");
     expect(canonical).toContain('from("source_observations")');
@@ -64,6 +71,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(researcher).toContain("lookup(codes,p1,p2,date)");
     expect(researcher).toContain("deterministicRankingMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("deterministicMarketMetric({metricCode:metric.code,p1,p2");
+    expect(researcher).toContain("deterministicPbpMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("buildMetricObservationContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2");
