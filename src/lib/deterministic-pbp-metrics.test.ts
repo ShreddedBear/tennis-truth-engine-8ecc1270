@@ -6,7 +6,7 @@ const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", 
 
 describe("deterministic PBP evidence", () => {
   it("is restricted to metrics that explicitly allow point-by-point evidence", () => {
-    for (const code of ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]) {
+    for (const code of ["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]) {
       expect(calc).toContain(`\"${code}\"`);
     }
     expect(calc).toContain("metricAllowsObservation(code, row)");
