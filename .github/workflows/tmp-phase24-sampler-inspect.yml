@@ -1,0 +1,22 @@
+name: Temporary Phase 24 Sampler Inspect
+
+on:
+  push:
+    branches: [repair/evidence-coverage-phase24-sampler]
+    paths: ['.github/workflows/tmp-phase24-sampler-inspect.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Print verified index samples
+        run: |
+          bun -e 'import {sampleVerifiedEvidenceIndexMatch} from "./src/lib/evidence-index-match-sampler.server.ts"; for (const id of ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"] as const) console.log(id, JSON.stringify(await sampleVerifiedEvidenceIndexMatch(id)))'
