@@ -30,7 +30,7 @@ type GithubOidcClaims = {
   workflow_ref?: string;
 };
 
-type Jwks = { keys?: JsonWebKey[] };
+type Jwks = { keys?: Array<JsonWebKey & { kid?: string }> };
 
 function audienceMatches(aud: string | string[] | undefined): boolean {
   return Array.isArray(aud) ? aud.includes(EXPECTED_AUDIENCE) : aud === EXPECTED_AUDIENCE;
@@ -92,7 +92,7 @@ export async function verifyGithubActionsOidc(token: string): Promise<GithubOidc
   );
   const signingInput = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
   const signature = decodeBase64Url(encodedSignature);
-  const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, signingInput);
+  const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature as unknown as BufferSource, signingInput as unknown as BufferSource);
   if (!valid) throw new Error("Invalid GitHub OIDC signature");
 
   return claims;

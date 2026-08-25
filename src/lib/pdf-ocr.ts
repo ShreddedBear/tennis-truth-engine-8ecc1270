@@ -44,7 +44,7 @@ export async function ocrPdfLocally(
       canvas.height = Math.ceil(viewport.height);
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) throw new Error("Could not create OCR canvas");
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
       const result = await worker.recognize(canvas);
       pages.push((result.data.text ?? "").replace(/\r/g, "").trim());
       canvas.width = 1;

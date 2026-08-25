@@ -91,13 +91,13 @@ export async function applyOpponentWinPathwaysMetric(
         const family = pathwayFamily(code);
         return family ? `${family}:${String(row["classification"] ?? "")}` : null;
       })
-      .filter((x): x is string => !!x);
+      .filter((x) => !!x) as string[];
 
     const realisticFamilies = new Set(
       rows
         .filter((row) => ["REALISTIC", "STRONG"].includes(String(row["classification"] ?? "")))
         .map((row) => pathwayFamily(String(row["pathway_code"] ?? "")))
-        .filter((x): x is string => !!x),
+        .filter((x) => !!x) as string[],
     );
 
     return {
