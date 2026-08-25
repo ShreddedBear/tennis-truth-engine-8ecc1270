@@ -6,59 +6,45 @@ on:
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
+      - src/lib/evidence-player-alias.ts
+      - src/lib/evidence-player-alias.test.ts
+      - src/lib/source-observation-metric-bridge.server.ts
+      - src/lib/warehouse-first-researcher.server.ts
   pull_request:
     branches: [main]
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
+      - src/lib/evidence-player-alias.ts
+      - src/lib/evidence-player-alias.test.ts
+      - src/lib/source-observation-metric-bridge.server.ts
+      - src/lib/warehouse-first-researcher.server.ts
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: evidence-coverage-repair-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  baseline:
+  diagnostic-code:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'repair/evidence-coverage' }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - name: Verify diagnostic database access
-        run: |
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "SUPABASE_SERVICE_ROLE_KEY is not available to this diagnostic."
-            echo "The public Supabase URL is already committed in .env; only the server-side service-role credential is missing."
-            echo "A real evidence baseline cannot be measured without read access to source_observations, metric_evidence_store, matches, and audit results."
-            exit 2
-          fi
       - name: Install dependencies
-        run: bun install
-      - name: Run provider-independent 81-metric baseline
-        run: bun scripts/evidence-coverage-baseline.ts
-      - name: Upload baseline artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: evidence-coverage-baseline
-          path: data/audit/evidence-coverage-baseline.json
-      - name: Commit machine-readable baseline
-        if: github.event_name != 'pull_request'
+        run: bun install --frozen-lockfile
+      - name: Validate evidence identity firewall
+        run: bun test src/lib/evidence-player-alias.test.ts
+      - name: Validate full regression suite
+        run: bun test
+      - name: Explain production-data execution boundary
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/audit/evidence-coverage-baseline.json
-          if git diff --cached --quiet; then
-            echo "Baseline unchanged"
-            exit 0
-          fi
-          git commit -m "Persist evidence coverage baseline [skip ci]"
-          git push origin HEAD:repair/evidence-coverage
+          echo "Production Supabase credentials are Lovable-managed and are intentionally not copied into GitHub Actions."
+          echo "Real production evidence counts/baselines are inspected through the Lovable project database connection."
+          echo "This workflow validates the diagnostic and downstream repair code without weakening credential boundaries."
