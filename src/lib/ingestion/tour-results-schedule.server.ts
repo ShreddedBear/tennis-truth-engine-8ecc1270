@@ -228,8 +228,8 @@ async function fetchWtaOfficial(target:Target,configuredUrl:string) {
       const reportedPages=Number(info?.numPages ?? info?.totalPages);
       const entries=Number(info?.numEntries ?? info?.totalEntries);
       const reportedPageSize=Number(info?.pageSize);
-      if(Number.isFinite(entries) && entries>0) expectedPages=Math.min(100,Math.ceil(entries/(Number.isFinite(reportedPageSize)&&reportedPageSize>0?reportedPageSize:pageSize)));
-      else if(Number.isFinite(reportedPages) && reportedPages>0) expectedPages=Math.min(100,reportedPages);
+      if(Number.isFinite(entries) && entries>0) expectedPages=Math.min(250,Math.ceil(entries/(Number.isFinite(reportedPageSize)&&reportedPageSize>0?reportedPageSize:pageSize)));
+      else if(Number.isFinite(reportedPages) && reportedPages>0) expectedPages=Math.min(250,reportedPages);
       if(Array.isArray(content) && content.length===0) break;
       if(page+1>=expectedPages) break;
     } else break;
