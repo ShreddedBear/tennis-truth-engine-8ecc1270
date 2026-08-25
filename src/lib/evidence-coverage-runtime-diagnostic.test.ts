@@ -16,7 +16,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).not.toContain("finalMetricWiringResearcher");
     expect(diagnostic).not.toMatch(/\.(insert|update|delete|upsert)\(/);
     expect(diagnostic).toContain('from("metric_evidence_store")');
-    expect(diagnostic).toContain('buildMetricObservationContext');
+    expect(diagnostic).toContain("buildMetricObservationContext");
   });
 
   it("uses all nine required failure buckets in its contract", () => {
@@ -28,15 +28,15 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("does not let an empty app matches table misclassify all evidence as identity failure", () => {
-    expect(diagnostic).toContain("blocks_evidence_classification: false");
-    expect(diagnostic).toContain('bucket = "INGESTION_MISSING"');
+    expect(diagnostic).toMatch(/blocks_evidence_classification\s*:\s*false/);
+    expect(diagnostic).toMatch(/bucket\s*=\s*"INGESTION_MISSING"/);
   });
 
   it("fails closed on one-sided evidence instead of producing a false green", () => {
-    expect(diagnostic).toContain("const pairUsable = p1Usable && p2Usable");
-    expect(diagnostic).toContain("const oneSidedUsable = p1Usable !== p2Usable");
-    expect(diagnostic).toContain('bucket = "COVERAGE_CREDIT_FAILURE"');
-    expect(diagnostic).toContain("pair_credited: pairUsable");
+    expect(diagnostic).toMatch(/pairUsable\s*=\s*p1Usable\s*&&\s*p2Usable/);
+    expect(diagnostic).toMatch(/oneSidedUsable\s*=\s*p1Usable\s*!==\s*p2Usable/);
+    expect(diagnostic).toMatch(/bucket\s*=\s*"COVERAGE_CREDIT_FAILURE"/);
+    expect(diagnostic).toMatch(/pair_credited\s*:\s*pairUsable/);
     expect(diagnostic).toContain("pair_percent");
     expect(diagnostic).toContain("false_green_guard");
   });
@@ -78,7 +78,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).not.toContain('.not("scheduled_date", "is", null)');
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
     expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
-    expect(diagnostic).toContain('requested_classes: ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"]');
+    expect(diagnostic).toMatch(/requested_classes\s*:\s*\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"\]/);
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
