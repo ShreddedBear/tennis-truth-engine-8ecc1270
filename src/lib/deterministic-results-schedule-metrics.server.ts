@@ -12,12 +12,17 @@ type PlayerComponents = { matches_14d:number; matches_30d:number; matches_52w:nu
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
 function daysBetween(a:string,b:string){return Math.floor((new Date(`${b}T00:00:00Z`).getTime()-new Date(`${a}T00:00:00Z`).getTime())/86_400_000);}
 function parseText(row:Observation){if(!row.text_value)return{} as Record<string,unknown>;try{return JSON.parse(row.text_value) as Record<string,unknown>;}catch{return{};}}
-function isMatch(row:Observation){return row.observation_key==="match_record"&&!!row.event_date&&!!row.player_name;}
+function isMatch(row:Observation){return row.observation_key==="match_record"&&!!row.event_date&&!!row.player_name&&!!row.opponent_name;}
 function sources(rows:Observation[]):SourceRef[]{const seen=new Set<string>();const out:SourceRef[]=[];for(const row of rows){if(!row.source_name)continue;const key=`${row.source_name}|${row.source_url??""}`;if(seen.has(key))continue;seen.add(key);out.push({source_name:row.source_name,url:row.source_url,retrieved_at:null});}return out;}
-function hasPlayerEvidence(player:string,opponent:string,rows:Observation[]){return rows.some(r=>isMatch(r)&&evidenceNameMatches(r.player_name,player,opponent));}
+function containsPlayer(row:Observation,player:string,opponent:string){return isMatch(row)&&(evidenceNameMatches(row.player_name,player,opponent)||evidenceNameMatches(row.opponent_name,player,opponent));}
+function hasPlayerEvidence(player:string,opponent:string,rows:Observation[]){return rows.some(r=>containsPlayer(r,player,opponent));}
+function dedupeRows(rows:Observation[]){const seen=new Set<string>();return rows.filter(row=>{const key=[row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value].join("|");if(seen.has(key))return false;seen.add(key);return true;});}
 
 function componentsFor(player:string,opponent:string,rows:Observation[],asOfDate:string,tournament:string|null):PlayerComponents{
-  const playerRows=rows.filter(r=>evidenceNameMatches(r.player_name,player,opponent)&&isMatch(r));
+  // MATCH_RESULT_OR_SCHEDULE ingestion persists the source's native player1/player2
+  // orientation. Treat a canonical player appearing on either side as their own
+  // match evidence; never synthesize a reciprocal warehouse row.
+  const playerRows=rows.filter(r=>containsPlayer(r,player,opponent));
   const recent=(days:number)=>playerRows.filter(r=>r.event_date&&daysBetween(r.event_date,asOfDate)>=0&&daysBetween(r.event_date,asOfDate)<=days);
   const r14=recent(14),r30=recent(30),r52w=recent(364),dates=playerRows.map(r=>r.event_date!).sort().reverse(),last=dates[0]??null;
   const sameTournament=tournament?playerRows.filter(r=>r.tournament===tournament&&r.event_date&&daysBetween(r.event_date,asOfDate)>=0&&daysBetween(r.event_date,asOfDate)<=365*5):[];
@@ -33,19 +38,23 @@ export async function deterministicResultsScheduleMetric(args:{metricCode:string
   const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-5);
   const select="source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label";
   const base=()=>db.from("source_observations").select(select).gte("event_date",start.toISOString().slice(0,10)).lte("event_date",args.asOfDate).order("event_date",{ascending:false}).limit(1500);
-  const [p1Result,p2Result,sharedResult]=await Promise.all([
+  const [p1AsPlayer,p1AsOpponent,p2AsPlayer,p2AsOpponent,sharedResult]=await Promise.all([
     base().in("player_name",safeEvidenceAliases(args.p1,args.p2)),
+    base().in("opponent_name",safeEvidenceAliases(args.p1,args.p2)).eq("observation_type","MATCH_RESULT_OR_SCHEDULE"),
     base().in("player_name",safeEvidenceAliases(args.p2,args.p1)),
+    base().in("opponent_name",safeEvidenceAliases(args.p2,args.p1)).eq("observation_type","MATCH_RESULT_OR_SCHEDULE"),
     base().is("player_name",null),
   ]);
-  const rows=([
-    ...((p1Result.error?[]:p1Result.data??[]) as Observation[]),
-    ...((p2Result.error?[]:p2Result.data??[]) as Observation[]),
+  const rows=dedupeRows([
+    ...((p1AsPlayer.error?[]:p1AsPlayer.data??[]) as Observation[]),
+    ...((p1AsOpponent.error?[]:p1AsOpponent.data??[]) as Observation[]),
+    ...((p2AsPlayer.error?[]:p2AsPlayer.data??[]) as Observation[]),
+    ...((p2AsOpponent.error?[]:p2AsOpponent.data??[]) as Observation[]),
     ...((sharedResult.error?[]:sharedResult.data??[]) as Observation[]),
   ]).filter(row=>metricAllowsObservation(code,row));
   const p1HasEvidence=hasPlayerEvidence(args.p1,args.p2,rows),p2HasEvidence=hasPlayerEvidence(args.p2,args.p1,rows);
   if(!p1HasEvidence&&!p2HasEvidence)return null;
   const c1=componentsFor(args.p1,args.p2,rows,args.asOfDate,args.tournament??null),c2=componentsFor(args.p2,args.p1,rows,args.asOfDate,args.tournament??null);
   const p1=p1HasEvidence?valueFor(code,c1):null,p2=p2HasEvidence?valueFor(code,c2):null;
-  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1HasEvidence?"PARTIAL":"UNAVAILABLE",p2_treatment:p2HasEvidence?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic warehouse components through ${args.asOfDate}; p1_evidence=${p1HasEvidence}; p2_evidence=${p2HasEvidence}`,unavailable_reason:p1HasEvidence&&p2HasEvidence?null:"Results/schedule evidence is one-sided; missing-side zeroes are not synthesized or credited.",sources:sources(rows)};
+  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1HasEvidence?"PARTIAL":"UNAVAILABLE",p2_treatment:p2HasEvidence?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic warehouse components through ${args.asOfDate}; p1_evidence=${p1HasEvidence}; p2_evidence=${p2HasEvidence}; native_match_orientation_normalized=true`,unavailable_reason:p1HasEvidence&&p2HasEvidence?null:"Results/schedule evidence is one-sided; missing-side zeroes are not synthesized or credited.",sources:sources(rows)};
 }
