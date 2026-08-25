@@ -15,6 +15,7 @@ on:
       - repair/evidence-coverage-phase9
       - repair/evidence-coverage-phase10
       - repair/evidence-coverage-phase11-sampling
+      - repair/evidence-coverage-phase14-bsd-deterministic
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
