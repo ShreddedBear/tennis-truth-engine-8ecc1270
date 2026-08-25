@@ -24,4 +24,17 @@ describe("deterministic results/schedule calculators", () => {
   it("filters every warehouse row through the metric source-family gate", () => {
     expect(source).toMatch(/metricAllowsObservation\(code\s*,\s*row\)/);
   });
+
+  it("treats native player1 and player2 orientations symmetrically", () => {
+    expect(compact).toContain("containsPlayer");
+    expect(compact).toContain('evidenceNameMatches(row.player_name,player,opponent)||evidenceNameMatches(row.opponent_name,player,opponent)');
+    expect(compact).toContain('.in("opponent_name",safeEvidenceAliases(args.p1,args.p2)).eq("observation_type","MATCH_RESULT_OR_SCHEDULE")');
+    expect(compact).toContain('.in("opponent_name",safeEvidenceAliases(args.p2,args.p1)).eq("observation_type","MATCH_RESULT_OR_SCHEDULE")');
+    expect(compact).toContain("native_match_orientation_normalized=true");
+  });
+
+  it("deduplicates a match returned through multiple symmetric lanes", () => {
+    expect(compact).toContain("dedupeRows");
+    expect(compact).toContain("if(seen.has(key))return false");
+  });
 });
