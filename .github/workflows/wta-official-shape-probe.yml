@@ -1,0 +1,38 @@
+name: WTA Official Shape Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - wta-shape-probe.flag
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect public WTA response keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe() {
+            local label="$1" url="$2"
+            echo "=== $label ==="
+            file="$(mktemp)"
+            status="$(curl -sS -L -o "$file" -w '%{http_code}' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' "$url")"
+            echo "status=$status bytes=$(wc -c < "$file" | xargs)"
+            if jq -e . "$file" >/dev/null 2>&1; then
+              echo "root_type=$(jq -r 'type' "$file")"
+              jq -r 'if type=="object" then "root_keys=" + (keys|join(",")) else "array_length=" + (length|tostring) end' "$file"
+              jq -c 'if type=="array" then .[0:2] elif (.content|type)=="array" then {pageInfo:.pageInfo,content:(.content[0:2])} else . end' "$file" | head -c 12000
+              echo
+            else
+              echo "non_json_preview=$(head -c 800 "$file" | tr '\n' ' ')"
+            fi
+            rm -f "$file"
+          }
+          probe tournaments 'https://api.wtatennis.com/tennis/tournaments?page=0&pageSize=5'
+          probe rankings 'https://api.wtatennis.com/tennis/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=5'
