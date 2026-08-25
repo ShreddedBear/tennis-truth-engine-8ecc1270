@@ -1,0 +1,208 @@
+{
+  "matches": [
+    {
+      "coverage": {
+        "one_sided": 0,
+        "p1": 8,
+        "p1_percent": 9.88,
+        "p2": 8,
+        "p2_percent": 9.88,
+        "pair": 8,
+        "pair_percent": 9.88
+      },
+      "credited": [
+        {
+          "code": "001",
+          "family": null,
+          "name": "Surface Strength",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "005",
+          "family": null,
+          "name": "Interpretation rules",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "012",
+          "family": null,
+          "name": "Fatigue/Workload",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "014",
+          "family": "RANKING",
+          "name": "Ranking Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "021",
+          "family": null,
+          "name": "Surface & Environmental Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "028",
+          "family": null,
+          "name": "Scheduling/Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "062",
+          "family": "RANKING",
+          "name": "Motivation / Stakes",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "069",
+          "family": "RANKING",
+          "name": "Stakes / Career Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        }
+      ],
+      "date_source": "persisted_as_of_date",
+      "failure_buckets": {
+        "INGESTION_MISSING": 20,
+        "SOURCE_MISSING": 53
+      },
+      "id": "WTA_MAIN",
+      "pair": "Jessica Pegula vs Iga Swiatek",
+      "sampling_source": "metric_evidence_store"
+    },
+    {
+      "coverage": {
+        "one_sided": 0,
+        "p1": 8,
+        "p1_percent": 9.88,
+        "p2": 8,
+        "p2_percent": 9.88,
+        "pair": 8,
+        "pair_percent": 9.88
+      },
+      "credited": [
+        {
+          "code": "001",
+          "family": null,
+          "name": "Surface Strength",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "005",
+          "family": null,
+          "name": "Interpretation rules",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "012",
+          "family": null,
+          "name": "Fatigue/Workload",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "014",
+          "family": "RANKING",
+          "name": "Ranking Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "021",
+          "family": null,
+          "name": "Surface & Environmental Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "028",
+          "family": null,
+          "name": "Scheduling/Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "062",
+          "family": "RANKING",
+          "name": "Motivation / Stakes",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        },
+        {
+          "code": "069",
+          "family": "RANKING",
+          "name": "Stakes / Career Context",
+          "p1": "PARTIAL",
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
+        }
+      ],
+      "date_source": "persisted_as_of_date",
+      "failure_buckets": {
+        "INGESTION_MISSING": 20,
+        "SOURCE_MISSING": 53
+      },
+      "id": "ATP_MAIN",
+      "pair": "Flavio Cobolli vs Arthur Fils",
+      "sampling_source": "metric_evidence_store"
+    }
+  ],
+  "sampling": {
+    "missing_class_reasons": {
+      "ATP_CHALLENGER": "No real persisted ATP_CHALLENGER match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair was available for diagnostic sampling."
+    },
+    "missing_classes": [
+      "ATP_CHALLENGER"
+    ],
+    "requested_classes": [
+      "ATP_MAIN",
+      "WTA_MAIN",
+      "ATP_CHALLENGER"
+    ],
+    "sampled_classes": [
+      "WTA_MAIN",
+      "ATP_MAIN"
+    ],
+    "source": "REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_OR_PERSISTED_PAIR_FALLBACK"
+  }
+}

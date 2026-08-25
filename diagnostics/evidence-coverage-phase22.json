@@ -17,56 +17,72 @@
           "family": null,
           "name": "Surface Strength",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "005",
           "family": null,
           "name": "Interpretation rules",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "012",
           "family": null,
           "name": "Fatigue/Workload",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "014",
           "family": "RANKING",
           "name": "Ranking Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "021",
           "family": null,
           "name": "Surface & Environmental Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "028",
           "family": null,
           "name": "Scheduling/Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "062",
           "family": "RANKING",
           "name": "Motivation / Stakes",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "069",
           "family": "RANKING",
           "name": "Stakes / Career Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         }
       ],
       "date_source": "persisted_as_of_date",
@@ -1392,56 +1408,72 @@
           "family": null,
           "name": "Surface Strength",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "005",
           "family": null,
           "name": "Interpretation rules",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "012",
           "family": null,
           "name": "Fatigue/Workload",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "014",
           "family": "RANKING",
           "name": "Ranking Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "021",
           "family": null,
           "name": "Surface & Environmental Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "028",
           "family": null,
           "name": "Scheduling/Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "062",
           "family": "RANKING",
           "name": "Motivation / Stakes",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         },
         {
           "code": "069",
           "family": "RANKING",
           "name": "Stakes / Career Context",
           "p1": "PARTIAL",
-          "p2": "PARTIAL"
+          "p2": "PARTIAL",
+          "stored_p1": true,
+          "stored_p2": true
         }
       ],
       "date_source": "persisted_as_of_date",
