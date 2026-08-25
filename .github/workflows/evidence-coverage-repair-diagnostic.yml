@@ -2,10 +2,13 @@ name: Evidence Coverage Repair Diagnostic
 
 on:
   push:
-    branches: [repair/evidence-coverage]
+    branches:
+      - repair/evidence-coverage
+      - repair/evidence-coverage-phase2
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
+      - supabase/migrations/*evidence*.sql
       - src/lib/evidence-player-alias.ts
       - src/lib/evidence-player-alias.test.ts
       - src/lib/source-observation-metric-bridge.server.ts
