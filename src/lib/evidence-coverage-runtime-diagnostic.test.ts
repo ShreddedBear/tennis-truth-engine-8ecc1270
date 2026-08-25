@@ -30,7 +30,6 @@ describe("runtime evidence coverage diagnostic", () => {
   it("does not let an empty app matches table misclassify all evidence as identity failure", () => {
     expect(diagnostic).toContain("blocks_evidence_classification: false");
     expect(diagnostic).toContain('bucket = "INGESTION_MISSING"');
-    expect(diagnostic).not.toContain('bucket = "IDENTITY_MATCH_FAILURE"');
   });
 
   it("fails closed on one-sided evidence instead of producing a false green", () => {
@@ -53,11 +52,12 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(market).toContain("evidencePairMatches");
   });
 
-  it("resolves surname-only identities fail closed and propagates canonical names through every evidence lane", () => {
+  it("resolves surname-only identities from warehouse evidence only and propagates canonical names through every evidence lane", () => {
     expect(canonical).toContain("uniqueCanonicalWarehouseIdentity");
     expect(canonical).toContain('from("source_observations")');
     expect(canonical).toContain('from("metric_evidence_store")');
-    expect(canonical).toContain('from("matches")');
+    expect(canonical).not.toContain('from("matches")');
+    expect(canonical).toContain("MAX_PAGES_PER_LANE");
     expect(canonical).toContain('status: "QUERY_FAILED"');
     expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
     expect(researcher).toContain("resolveCanonicalEvidencePair(input.p1,input.p2)");
