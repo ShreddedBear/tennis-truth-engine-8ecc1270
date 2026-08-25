@@ -12,6 +12,13 @@ describe("deterministic environment metric layer", () => {
     expect(calculator).toContain('.eq("observation_type", "ENVIRONMENT")');
   });
 
+  it("fails closed without tournament identity and scopes weather to the exact tournament", () => {
+    expect(calculator).toContain('const tournament = String(args.tournament ?? "").trim()');
+    expect(calculator).toContain('if (!tournament) return null');
+    expect(calculator).toContain('.eq("tournament", tournament)');
+    expect(researcher).toContain('tournament\\s*(?::|=)?\\s*([^·|\\n]+)');
+  });
+
   it("keeps shared environment evidence partial", () => {
     expect(calculator).toContain('p1_treatment: "PARTIAL"');
     expect(calculator).toContain('p2_treatment: "PARTIAL"');
