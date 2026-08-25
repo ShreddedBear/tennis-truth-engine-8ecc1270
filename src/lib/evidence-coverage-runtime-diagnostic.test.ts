@@ -6,6 +6,8 @@ const route = readFileSync("src/routes/api/evidence-coverage-diagnostic.ts", "ut
 const ranking = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
 const schedule = readFileSync("src/lib/deterministic-results-schedule-metrics.server.ts", "utf8");
 const market = readFileSync("src/lib/deterministic-market-metrics.server.ts", "utf8");
+const bridge = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8");
+const hotPathIndexes = readFileSync("supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
 
 describe("runtime evidence coverage diagnostic", () => {
   it("is read-only and provider-independent", () => {
@@ -47,6 +49,24 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(schedule).toContain("evidenceNameMatches");
     expect(market).toContain("safeEvidenceAliases");
     expect(market).toContain("evidencePairMatches");
+  });
+
+  it("prevents dense market/PBP rows from crowding other evidence families", () => {
+    expect(bridge).toContain('eq("observation_type", "MARKET")');
+    expect(bridge).toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
+    expect(bridge).toContain('not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")');
+  });
+
+  it("indexes the exact predicates used by the evidence read path", () => {
+    expect(hotPathIndexes).toContain("source_observations_player_date_exact_idx");
+    expect(hotPathIndexes).toContain("source_observations_pair_date_exact_idx");
+    expect(hotPathIndexes).toContain("source_observations_shared_date_idx");
+    expect(hotPathIndexes).toContain("metric_evidence_pair_date_exact_idx");
+  });
+
+  it("bounds runtime diagnostic database concurrency", () => {
+    expect(diagnostic).toContain("DIAGNOSTIC_QUERY_CONCURRENCY = 6");
+    expect(diagnostic).toContain("deterministicBatch");
   });
 
   it("keeps the temporary endpoint obscure and no-store", () => {
