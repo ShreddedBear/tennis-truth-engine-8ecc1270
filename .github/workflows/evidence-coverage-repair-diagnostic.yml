@@ -11,6 +11,7 @@ on:
       - repair/evidence-coverage-phase5
       - repair/evidence-coverage-phase6
       - repair/evidence-coverage-phase7
+      - repair/evidence-coverage-phase8
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
@@ -22,6 +23,7 @@ on:
       - src/lib/source-observation-metric-bridge.test.ts
       - src/lib/warehouse-first-researcher.server.ts
       - src/lib/evidence-finding-selection.test.ts
+      - src/lib/persisted-evidence-alias-dedupe.test.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
       - src/lib/evidence-coverage-runtime-diagnostic.test.ts
       - src/lib/deterministic-ranking-metrics.server.ts
@@ -64,6 +66,8 @@ jobs:
         run: bunx vitest run src/lib/deterministic-pbp-metrics.test.ts
       - name: Validate pair-complete selection priority
         run: bunx vitest run src/lib/evidence-finding-selection.test.ts
+      - name: Validate persisted alias dedupe
+        run: bunx vitest run src/lib/persisted-evidence-alias-dedupe.test.ts
       - name: Validate full regression suite
         run: bunx vitest run
       - name: Explain production-data execution boundary
