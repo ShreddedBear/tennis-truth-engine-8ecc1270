@@ -118,7 +118,7 @@ export const warehouseFirstResearcher: Researcher = {
     let liveRows:MetricFinding[]=[];
     if(liveMissing.length){
       const [warehousePacket,bsdAtpChallengerPbp,bsdAtpMainPbp,bsdWtaMainPbp,bsdWtaChallengerPbp]=await Promise.all([
-        buildMetricObservationContext({metrics:liveMissing,p1,p2,asOfDate:date}),
+        buildMetricObservationContext({metrics:liveMissing,p1,p2,asOfDate:date,tournament}),
         buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
