@@ -29,13 +29,14 @@ describe("source observation metric bridge", () => {
     for (const lane of ["p1_other", "p2_other", "p1_match_as_opponent", "p2_match_as_opponent", "p1_market", "p2_market", "p1_pbp", "p2_pbp", "shared"]) expect(source).toContain(`name: \"${lane}\"`);
     expect(source).toContain("lane.result.error ? []");
     expect(source).toContain("packet._query_errors = laneFailures");
-    expect(source).toContain("own bounded query");
+    expect(source).toContain(".limit(1000)");
   });
 
   it("recovers official match rows when a target is stored as native player2", () => {
     const source = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8").replace(/\s+/g, " ");
-    expect(source).toContain('.in("opponent_name", p1Aliases).eq("observation_type", "MATCH_RESULT_OR_SCHEDULE")');
-    expect(source).toContain('.in("opponent_name", p2Aliases).eq("observation_type", "MATCH_RESULT_OR_SCHEDULE")');
-    expect(source).toContain("without manufacturing a reciprocal warehouse row");
+    expect(source).toContain('.in("opponent_name", p1Aliases).eq("observation_type", "MATCH_RESULT_OR_SCHEDULE").limit(1000)');
+    expect(source).toContain('.in("opponent_name", p2Aliases).eq("observation_type", "MATCH_RESULT_OR_SCHEDULE").limit(1000)');
+    expect(source).toContain('name: "p1_match_as_opponent"');
+    expect(source).toContain('name: "p2_match_as_opponent"');
   });
 });
