@@ -57,10 +57,11 @@ describe("newly-green end-to-end coverage audit", () => {
       expect(compact).toContain(calculator.replace(/\s+/g, ""));
     }
 
-    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})";
+    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})";
     const liveIndex = compact.indexOf(liveCall);
     expect(liveIndex).toBeGreaterThan(-1);
     expect(compact).toContain("constliveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
+    expect(compact).toContain("constremainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     for (const calculator of [
       "deterministicRankingMetric({",
       "deterministicRulesContextMetric({",
@@ -91,18 +92,21 @@ describe("newly-green end-to-end coverage audit", () => {
     }
   });
 
-  it("certifies the three runtime BSD PBP adapters are wired into warehouse execution", () => {
+  it("certifies the runtime BSD PBP adapters and deterministic recovery are wired into warehouse execution", () => {
     const compact = warehouse.replace(/\s+/g, "");
     for (const builder of [
       "buildBsdAtpMainPbpContext({",
       "buildBsdAtpChallengerPbpContext({",
       "buildBsdWtaMainPbpContext({",
+      "buildBsdWtaChallengerPbpContext({",
     ]) {
       expect(compact).toContain(builder.replace(/\s+/g, ""));
     }
+    expect(compact).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket})");
     expect(compact).toContain("_bsd_atp_main_pbp_status");
     expect(compact).toContain("_bsd_atp_challenger_pbp_status");
     expect(compact).toContain("_bsd_wta_main_pbp_status");
+    expect(compact).toContain("_bsd_wta_challenger_pbp_status");
   });
 
   it("certifies WTA Challenger/WTA 125 approved-index integration and final quarantine result", () => {
