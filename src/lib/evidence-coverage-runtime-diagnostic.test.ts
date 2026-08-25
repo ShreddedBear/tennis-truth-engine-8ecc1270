@@ -172,3 +172,14 @@ describe("certified provider-independent local evidence bridge", () => {
     expect(diagnostic).toContain('schema_version:9');
   });
 });
+
+
+describe("coverage fallback precedence requires real side values", () => {
+  it("does not let an unavailable deterministic row block certified local evidence", () => {
+    expect(diagnostic).toContain('function chooseEvidenceSide(');
+    expect(diagnostic).toContain('candidates.find(candidate=>usableEvidenceSide(candidate.treatment,candidate.value))');
+    expect(diagnostic).toContain('select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family")');
+    expect(diagnostic).toContain('p1Usable=usableEvidenceSide(p1Treatment,p1Chosen.value)');
+    expect(diagnostic).toContain('credited_source_p1:p1Usable?p1Chosen.source:null');
+  });
+});
