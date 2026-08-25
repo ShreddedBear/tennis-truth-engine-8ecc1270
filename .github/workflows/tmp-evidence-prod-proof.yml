@@ -24,24 +24,17 @@ jobs:
           python - <<'PY'
           import json
           d=json.load(open('/tmp/ecov.json'))
-          print('wrapper_keys=',sorted(d.keys()))
           r=d.get('report') or d.get('result') or d.get('data') or d.get('diagnostic') or d
-          print('ok=',d.get('ok'))
-          print('schema_version=',r.get('schema_version'))
-          print('metrics=',r.get('metrics'))
           print('sampling=',json.dumps(r.get('sampling'),sort_keys=True))
           matches=r.get('matches',[])
-          print('match_count=',len(matches))
           for m in matches:
-              print('MATCH',m.get('id'),m.get('pair'),'sampling_source=',m.get('sampling_source'),'date_source=',m.get('date_source'))
-              print('CANONICAL',json.dumps(m.get('canonical_identity_resolution'),sort_keys=True))
+              print('MATCH',m.get('id'),m.get('pair'))
               print('COVERAGE',json.dumps(m.get('coverage'),sort_keys=True))
               print('FALSE_GREEN',json.dumps(m.get('false_green_guard'),sort_keys=True))
-              print('BUCKETS',json.dumps(m.get('failure_buckets'),sort_keys=True))
-              interesting=[x for x in m.get('metrics',[]) if x.get('metric_code') in {'014','016'}]
-              print('INTERESTING',json.dumps(interesting,sort_keys=True))
-          if not matches:
-              raise SystemExit('diagnostic returned no representative matches')
-          if any(not (m.get('false_green_guard') or {}).get('passed') for m in matches):
-              raise SystemExit('false-green guard failed')
+              details=m.get('metrics',[])
+              for bucket in ['INGESTION_MISSING','SOURCE_MISSING','EVIDENCE_WIRING_FAILURE','RECONSTRUCTION_FAILURE','COVERAGE_CREDIT_FAILURE']:
+                  rows=[{'code':x.get('metric_code'),'name':x.get('metric_name'),'expected':x.get('source_expected'),'warehouse':x.get('warehouse_observation_count'),'reason':x.get('reason')} for x in details if x.get('failure_bucket')==bucket]
+                  print(bucket,json.dumps(rows,sort_keys=True))
+          if not matches: raise SystemExit('diagnostic returned no representative matches')
+          if any(not (m.get('false_green_guard') or {}).get('passed') for m in matches): raise SystemExit('false-green guard failed')
           PY
