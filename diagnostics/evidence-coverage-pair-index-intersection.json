@@ -1,0 +1,147 @@
+[
+  {
+    "available_flag": true,
+    "category": "atp_500",
+    "circuit": "ATP",
+    "date": "2026-02-28T03:45:00+00:00",
+    "games": 32,
+    "games_with_break_field": 32,
+    "games_with_server": 32,
+    "malformed_point_rows": 0,
+    "match_id": 27835,
+    "path": "data/audit/bsd-atp-main-pbp-history/2026/results.json",
+    "pbp_http": 200,
+    "player_ids": [
+      256,
+      223
+    ],
+    "players": [
+      "Frances Tiafoe",
+      "Brandon Nakashima"
+    ],
+    "points": 176,
+    "round": null,
+    "structurally_present": true,
+    "surface": "hard",
+    "tournament": "Acapulco",
+    "valid_point_rows": 176,
+    "winner_id": 256,
+    "year": 2026
+  },
+  {
+    "available_flag": true,
+    "category": "atp_250",
+    "circuit": "ATP",
+    "date": "2025-04-06T01:35:00+00:00",
+    "games": 23,
+    "games_with_break_field": 23,
+    "games_with_server": 23,
+    "malformed_point_rows": 0,
+    "match_id": 3247,
+    "path": "data/audit/bsd-atp-main-pbp-history/2025/results.json",
+    "pbp_http": 200,
+    "player_ids": [
+      223,
+      256
+    ],
+    "players": [
+      "Brandon Nakashima",
+      "Frances Tiafoe"
+    ],
+    "points": 119,
+    "round": null,
+    "structurally_present": true,
+    "surface": "clay",
+    "tournament": "Houston",
+    "valid_point_rows": 119,
+    "winner_id": 256,
+    "year": 2025
+  },
+  {
+    "available_flag": true,
+    "category": "masters_1000",
+    "circuit": "ATP",
+    "date": "2025-04-09T11:10:00+00:00",
+    "games": 18,
+    "games_with_break_field": 18,
+    "games_with_server": 18,
+    "malformed_point_rows": 0,
+    "match_id": 3308,
+    "path": "data/audit/bsd-atp-main-pbp-history/2025/results.json",
+    "pbp_http": 200,
+    "player_ids": [
+      413,
+      87
+    ],
+    "players": [
+      "Flavio Cobolli",
+      "Arthur Fils"
+    ],
+    "points": 89,
+    "round": null,
+    "structurally_present": true,
+    "surface": "clay",
+    "tournament": "Monte Carlo",
+    "valid_point_rows": 89,
+    "winner_id": 87,
+    "year": 2025
+  },
+  {
+    "available_flag": true,
+    "category": "wta_1000",
+    "circuit": "WTA",
+    "date": "2026-05-13T11:00:00+00:00",
+    "games": 15,
+    "games_with_break_field": 15,
+    "games_with_server": 15,
+    "malformed_point_rows": 0,
+    "match_id": 34005,
+    "path": "data/audit/bsd-wta-main-pbp-history/2026/results.json",
+    "pbp_http": 200,
+    "player_ids": [
+      505,
+      524
+    ],
+    "players": [
+      "Jessica Pegula",
+      "Iga Swiatek"
+    ],
+    "points": 75,
+    "round": null,
+    "structurally_present": true,
+    "surface": "clay",
+    "tournament": "WTA 1000 Rome",
+    "valid_point_rows": 75,
+    "winner_id": 524,
+    "year": 2026
+  },
+  {
+    "available_flag": true,
+    "category": "wta_500",
+    "circuit": "WTA",
+    "date": "2025-06-28T11:30:00+00:00",
+    "games": 22,
+    "games_with_break_field": 22,
+    "games_with_server": 22,
+    "malformed_point_rows": 0,
+    "match_id": 6187,
+    "path": "data/audit/bsd-wta-main-pbp-history/2025/results.json",
+    "pbp_http": 200,
+    "player_ids": [
+      505,
+      524
+    ],
+    "players": [
+      "Jessica Pegula",
+      "Iga Swiatek"
+    ],
+    "points": 116,
+    "round": null,
+    "structurally_present": true,
+    "surface": "grass",
+    "tournament": "Bad Homburg",
+    "valid_point_rows": 116,
+    "winner_id": 505,
+    "year": 2025
+  }
+]
