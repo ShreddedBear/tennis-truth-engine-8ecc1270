@@ -1,0 +1,43 @@
+name: Evidence Coverage Repair Diagnostic
+
+on:
+  push:
+    branches: [repair/evidence-coverage]
+    paths:
+      - scripts/evidence-coverage-baseline.ts
+      - .github/workflows/evidence-coverage-repair-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: evidence-coverage-repair-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/evidence-coverage
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Run provider-independent 81-metric baseline
+        run: bun scripts/evidence-coverage-baseline.ts
+      - name: Commit machine-readable baseline
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/audit/evidence-coverage-baseline.json
+          if git diff --cached --quiet; then
+            echo "Baseline unchanged"
+            exit 0
+          fi
+          git commit -m "Persist evidence coverage baseline [skip ci]"
+          git push origin HEAD:repair/evidence-coverage
