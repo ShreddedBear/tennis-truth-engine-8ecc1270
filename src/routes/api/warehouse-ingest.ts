@@ -28,6 +28,19 @@ function json(data: unknown, status = 200) {
   });
 }
 
+function bridgeErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const value = error as Record<string, unknown>;
+    const fields = ["message", "code", "details", "hint"]
+      .map((key) => [key, value[key]] as const)
+      .filter(([, field]) => field !== undefined && field !== null && String(field).trim());
+    if (fields.length) return fields.map(([key, field]) => `${key}=${String(field)}`).join(" | ");
+    try { return JSON.stringify(value); } catch {}
+  }
+  return String(error);
+}
+
 function base64Bytes(value:string) {
   const binary=atob(value);
   const bytes=new Uint8Array(binary.length);
@@ -90,7 +103,7 @@ export const Route = createFileRoute("/api/warehouse-ingest")({
           return json({ ok: true, sources: uniqueSources, result });
         } catch (error) {
           console.error("[warehouse-ingest] ingestion failed", error);
-          return json({ ok: false, error: error instanceof Error ? error.message : "Warehouse ingestion failed" }, 500);
+          return json({ ok: false, error: bridgeErrorMessage(error) }, 500);
         }
       },
     },
