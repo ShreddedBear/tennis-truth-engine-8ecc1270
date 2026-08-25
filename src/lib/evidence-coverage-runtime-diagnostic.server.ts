@@ -101,6 +101,16 @@ async function representativeMatches():Promise<{matches:RepresentativeMatch[];mi
     if(fallback.error&&primary.error)throw new Error(`production sampling failed: matches=${primary.error.message}; source_observations=${fallback.error.message}`);
     if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const row=rows.find(r=>r.player_name&&r.opponent_name&&r.event_date&&r.player_name!==r.opponent_name&&classifyText(r.sample_label,r.tournament,`${r.source_id} ${r.source_name}`)===id);if(row)selected.push(observationRepresentative(id,row,rows.indexOf(row)));}}
   }
+  // Prefer a real, strictly classified verified-index match before synthetic persisted-pair sampling.
+  // This keeps representative validation tied to an actual match and also survives deployments that omit data/ files.
+  if(missing().length){
+    for(const id of missing()){
+      const row=await sampleVerifiedEvidenceIndexMatch(id);
+      if(!row)continue;
+      const level=id.replaceAll("_"," ");
+      selected.push({id,match_id:row.match_id,p1:row.p1,p2:row.p2,date:row.date,date_source:"verified_index_date",tournament:row.tournament,context:[`Tournament: ${row.tournament}`,`Level: ${level}`,`Tour: ${level}`,row.surface?`Surface: ${row.surface}`:null,`Date: ${row.date}`].filter(Boolean).join(" | "),event_level:level,surface:row.surface,sampling_source:"verified_pbp_index"});
+    }
+  }
   if(missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN")){
     const persisted=await db.from("metric_evidence_store").select("player_name,opponent_name,as_of_date").not("player_name","is",null).not("opponent_name","is",null).not("as_of_date","is",null).order("as_of_date",{ascending:false}).limit(1000);
     if(!persisted.error){
