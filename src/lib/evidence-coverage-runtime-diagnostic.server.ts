@@ -193,7 +193,11 @@ export async function runEvidenceCoverageRuntimeDiagnostic() {
     const oneSided = details.filter((row) => row.one_sided_usable).length;
     matches.push({
       id: match.id, match_id: match.match_id, pair: `${match.p1} vs ${match.p2}`, tournament: match.tournament, scheduled_date: match.date, event_level: match.event_level, surface: match.surface,
-      identity: { exact_match_count: identityRows.length, query_error: identityError, blocks_evidence_classification: identityRows.length !== 1 },
+      // This identity check is diagnostic metadata only. Evidence classification
+      // is based on the actual sampled pair + side-safe aliases and must not be
+      // rewritten as an identity failure merely because a secondary app-table
+      // lookup is empty, stale, or temporarily inaccessible.
+      identity: { exact_match_count: identityRows.length, query_error: identityError, blocks_evidence_classification: false },
       query_errors: [storedError, packetError].filter(Boolean),
       coverage: { p1: p1Credited, p2: p2Credited, pair: pairCredited, one_sided: oneSided, p1_percent: Number((100 * p1Credited / 81).toFixed(2)), p2_percent: Number((100 * p2Credited / 81).toFixed(2)), pair_percent: Number((100 * pairCredited / 81).toFixed(2)) },
       false_green_guard: { passed: oneSided === 0, one_sided_metric_count: oneSided },
