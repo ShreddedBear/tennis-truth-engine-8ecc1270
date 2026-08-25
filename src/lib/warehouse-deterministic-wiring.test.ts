@@ -8,15 +8,16 @@ describe("warehouse deterministic calculator wiring", () => {
   it("runs deterministic results/schedule calculations before live fallback", () => {
     expect(researcher).toContain('import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server"');
     const deterministicIndex = compact.indexOf("deterministicResultsScheduleMetric({");
-    const liveIndex = compact.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
+    const liveIndex = compact.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);
   });
 
   it("removes fully usable local findings from live fallback", () => {
     expect(compact).toContain("constliveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
+    expect(compact).toContain("constremainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     expect(compact).toContain("USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value");
-    expect(compact).toContain("metrics:liveMissing");
+    expect(compact).toContain("metrics:remainingLiveMissing");
   });
 
   it("does not let a live unavailable result erase deterministic warehouse evidence", () => {
