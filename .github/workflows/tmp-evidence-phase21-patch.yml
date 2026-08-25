@@ -1,0 +1,82 @@
+name: Temporary Evidence Phase21 Patch
+
+on:
+  push:
+    branches: [repair/evidence-coverage-phase21-persisted-pair-sampling]
+    paths: ['.github/workflows/tmp-evidence-phase21-patch.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/evidence-coverage-phase21-persisted-pair-sampling
+      - name: Add persisted evidence pair sampling fallback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/lib/evidence-coverage-runtime-diagnostic.server.ts')
+          text = path.read_text()
+
+          old = 'type ObservationCandidate = { source_id:string|null; source_name:string|null; player_name:string|null; opponent_name:string|null; tournament:string|null; event_date:string|null; surface:string|null; observation_type:string|null; sample_label:string|null };\ntype RepresentativeMatch = { id:RepresentativeId; match_id:string; p1:string; p2:string; date:string; date_source:"scheduled_date"|"parsed_summary"|"created_at"|"warehouse_event_date"; tournament:string; context:string; event_level:string|null; surface:string|null; sampling_source:"matches"|"source_observations"|"matches_plus_rankings" };'
+          new = 'type ObservationCandidate = { source_id:string|null; source_name:string|null; player_name:string|null; opponent_name:string|null; tournament:string|null; event_date:string|null; surface:string|null; observation_type:string|null; sample_label:string|null };\ntype PersistedPairCandidate = { player_name:string|null; opponent_name:string|null; as_of_date:string|null };\ntype RepresentativeMatch = { id:RepresentativeId; match_id:string; p1:string; p2:string; date:string; date_source:"scheduled_date"|"parsed_summary"|"created_at"|"warehouse_event_date"|"persisted_as_of_date"; tournament:string; context:string; event_level:string|null; surface:string|null; sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store" };'
+          if old not in text: raise SystemExit('type block not found')
+          text = text.replace(old,new,1)
+
+          old = 'function observationRepresentative(id:RepresentativeId,row:ObservationCandidate,index:number):RepresentativeMatch {\n  const tournament=row.tournament??`${id} warehouse match`,date=row.event_date!,surface=row.surface??null,level=id.replaceAll("_"," ");\n  return {id,match_id:`warehouse:${id}:${index}`,p1:row.player_name!,p2:row.opponent_name!,date,date_source:"warehouse_event_date",tournament,context:[`Tournament: ${tournament}`,`Level: ${level}`,`Tour: ${level}`,surface?`Surface: ${surface}`:null,`Date: ${date}`].filter(Boolean).join(" | "),event_level:level,surface,sampling_source:"source_observations"};\n}\n'
+          new = old + 'function persistedPairRepresentative(id:RepresentativeId,row:PersistedPairCandidate,index:number):RepresentativeMatch {\n  const date=row.as_of_date!,level=id.replaceAll("_"," "),tournament=`${id} persisted evidence pair`;\n  return {id,match_id:`metric-evidence:${id}:${index}`,p1:row.player_name!,p2:row.opponent_name!,date,date_source:"persisted_as_of_date",tournament,context:[`Evidence sample: persisted metric pair`,`Level: ${level}`,`Tour: ${level}`,`Date: ${date}`].join(" | "),event_level:level,surface:null,sampling_source:"metric_evidence_store"};\n}\n'
+          if old not in text: raise SystemExit('observation representative block not found')
+          text = text.replace(old,new,1)
+
+          old = '''async function classifyFromExactRankingEvidence(row:MatchCandidate):Promise<"ATP_MAIN"|"WTA_MAIN"|null> {\n  const tournament=String(row.tournament_name??row.parsed_tournament??"");\n  if(/challenger|wta\\s*125|wta125|125k/i.test(tournament))return null;\n  const identities=await resolveCanonicalEvidencePair(row.player1_name,row.player2_name);\n  if([identities.p1.status,identities.p2.status].some(status=>status==="AMBIGUOUS"||status==="QUERY_FAILED"||status==="UNRESOLVED"))return null;\n  const names=[identities.p1.canonical,identities.p2.canonical];\n  const {data,error}=await db.from("source_observations").select("player_name,source_name,source_id,observation_type").eq("observation_type","RANKING").in("player_name",names).limit(100);\n  if(error)return null;\n  const sideTour=(name:string)=>{const tours=[...new Set((data??[]).filter((r:any)=>r.player_name===name).map((r:any)=>rankingTour(`${r.source_id??""} ${r.source_name??""}`)).filter(Boolean))];return tours.length===1?tours[0]:null;};\n  const p1Tour=sideTour(names[0]),p2Tour=sideTour(names[1]);\n  return p1Tour&&p1Tour===p2Tour?p1Tour:null;\n}\n'''
+          new = '''async function classifyPairFromExactRankingEvidence(p1:string,p2:string):Promise<"ATP_MAIN"|"WTA_MAIN"|null> {\n  const identities=await resolveCanonicalEvidencePair(p1,p2);\n  if([identities.p1.status,identities.p2.status].some(status=>status==="AMBIGUOUS"||status==="QUERY_FAILED"||status==="UNRESOLVED"))return null;\n  const names=[identities.p1.canonical,identities.p2.canonical];\n  const {data,error}=await db.from("source_observations").select("player_name,source_name,source_id,observation_type").eq("observation_type","RANKING").in("player_name",names).limit(100);\n  if(error)return null;\n  const sideTour=(name:string)=>{const tours=[...new Set((data??[]).filter((r:any)=>r.player_name===name).map((r:any)=>rankingTour(`${r.source_id??""} ${r.source_name??""}`)).filter(Boolean))];return tours.length===1?tours[0]:null;};\n  const p1Tour=sideTour(names[0]),p2Tour=sideTour(names[1]);\n  return p1Tour&&p1Tour===p2Tour?p1Tour:null;\n}\nasync function classifyFromExactRankingEvidence(row:MatchCandidate):Promise<"ATP_MAIN"|"WTA_MAIN"|null> {\n  const tournament=String(row.tournament_name??row.parsed_tournament??"");\n  if(/challenger|wta\\s*125|wta125|125k/i.test(tournament))return null;\n  return classifyPairFromExactRankingEvidence(row.player1_name,row.player2_name);\n}\n'''
+          if old not in text: raise SystemExit('ranking classifier block not found')
+          text = text.replace(old,new,1)
+
+          old = '''  if(missing().length){\n    const fallback=await db.from("source_observations").select("source_id,source_name,player_name,opponent_name,tournament,event_date,surface,observation_type,sample_label").not("player_name","is",null).not("opponent_name","is",null).not("event_date","is",null).order("event_date",{ascending:false}).limit(5000);\n    if(fallback.error&&primary.error)throw new Error(`production sampling failed: matches=${primary.error.message}; source_observations=${fallback.error.message}`);\n    if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const row=rows.find(r=>r.player_name&&r.opponent_name&&r.event_date&&r.player_name!==r.opponent_name&&classifyText(r.sample_label,r.tournament,`${r.source_id} ${r.source_name}`)===id);if(row)selected.push(observationRepresentative(id,row,rows.indexOf(row)));}}\n  }\n  const missingClasses=missing(),missing_class_reasons:Partial<Record<RepresentativeId,string>>={};\n  for(const id of missingClasses)missing_class_reasons[id]=`No real persisted ${id} match with sufficient tour context and no qualifying paired warehouse observation were available for diagnostic sampling.`;\n'''
+          new = '''  if(missing().length){\n    const fallback=await db.from("source_observations").select("source_id,source_name,player_name,opponent_name,tournament,event_date,surface,observation_type,sample_label").not("player_name","is",null).not("opponent_name","is",null).not("event_date","is",null).order("event_date",{ascending:false}).limit(5000);\n    if(fallback.error&&primary.error)throw new Error(`production sampling failed: matches=${primary.error.message}; source_observations=${fallback.error.message}`);\n    if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const row=rows.find(r=>r.player_name&&r.opponent_name&&r.event_date&&r.player_name!==r.opponent_name&&classifyText(r.sample_label,r.tournament,`${r.source_id} ${r.source_name}`)===id);if(row)selected.push(observationRepresentative(id,row,rows.indexOf(row)));}}\n  }\n  if(missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN")){\n    const persisted=await db.from("metric_evidence_store").select("player_name,opponent_name,as_of_date").not("player_name","is",null).not("opponent_name","is",null).not("as_of_date","is",null).order("as_of_date",{ascending:false}).limit(1000);\n    if(!persisted.error){\n      const seenPairs=new Set<string>();\n      const rows=((persisted.data??[]) as PersistedPairCandidate[]).filter(row=>{const p1=String(row.player_name??"").trim(),p2=String(row.opponent_name??"").trim(),date=String(row.as_of_date??"").trim();if(!p1||!p2||!date||p1===p2)return false;const key=`${[p1,p2].sort().join("|")}|${date}`;if(seenPairs.has(key))return false;seenPairs.add(key);return true;});\n      for(let index=0;index<rows.length&&missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN");index++){const row=rows[index];const inferred=await classifyPairFromExactRankingEvidence(row.player_name!,row.opponent_name!);if(inferred&&missing().includes(inferred))selected.push(persistedPairRepresentative(inferred,row,index));}\n    }\n  }\n  const missingClasses=missing(),missing_class_reasons:Partial<Record<RepresentativeId,string>>={};\n  for(const id of missingClasses)missing_class_reasons[id]=`No real persisted ${id} match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair was available for diagnostic sampling.`;\n'''
+          if old not in text: raise SystemExit('sampling fallback block not found')
+          text = text.replace(old,new,1)
+
+          old = 'if(!sample.matches.length)throw new Error("No real persisted matches or paired warehouse observations were available for evidence coverage sampling")'
+          new = 'if(!sample.matches.length)throw new Error("No real persisted matches, paired warehouse observations, or ranking-proven persisted evidence pairs were available for evidence coverage sampling")'
+          if old not in text: raise SystemExit('no sample error not found')
+          text = text.replace(old,new,1)
+
+          old = 'const identityPromise=match.sampling_source!=="source_observations"?db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").eq("id",match.match_id).limit(1):Promise.resolve({data:[],error:null});'
+          new = 'const identityBackedByMatch=match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings";const identityPromise=identityBackedByMatch?db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").eq("id",match.match_id).limit(1):Promise.resolve({data:[],error:null});'
+          if old not in text: raise SystemExit('identity promise not found')
+          text = text.replace(old,new,1)
+
+          old = 'source:"REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_FALLBACK"'
+          new = 'source:"REAL_PERSISTED_MATCHES_WITH_WAREHOUSE_OR_PERSISTED_PAIR_FALLBACK"'
+          if old not in text: raise SystemExit('sampling source label not found')
+          text = text.replace(old,new,1)
+          path.write_text(text)
+
+          test = Path('src/lib/evidence-coverage-runtime-diagnostic.test.ts')
+          t = test.read_text()
+          anchor = '  it("documents representative classes that cannot be sampled from current persisted production data", () => {'
+          addition = '''  it("falls back to ranking-proven persisted metric-evidence pairs when match tables have no pairs", () => {\n    expect(diagnostic).toContain('from("metric_evidence_store").select("player_name,opponent_name,as_of_date")');\n    expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");\n    expect(diagnostic).toContain('sampling_source:"metric_evidence_store"');\n    expect(diagnostic).toContain('date_source:"persisted_as_of_date"');\n    expect(diagnostic).toContain("seenPairs");\n    expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');\n    expect(diagnostic).toContain("ranking-proven persisted evidence pairs");\n  });\n\n'''
+          if anchor not in t: raise SystemExit('test anchor not found')
+          t = t.replace(anchor,addition+anchor,1)
+          t = t.replace('expect(diagnostic).toContain("classifyFromExactRankingEvidence");','expect(diagnostic).toContain("classifyFromExactRankingEvidence");\n    expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");',1)
+          t = t.replace('expect(diagnostic).toContain("No real persisted ${id} match with sufficient tour context");','expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, or ranking-proven persisted metric-evidence pair");',1)
+          test.write_text(t)
+          PY
+      - name: Run diagnostic regression tests
+        run: |
+          npm ci
+          npx vitest run src/lib/evidence-coverage-runtime-diagnostic.test.ts src/lib/evidence-player-alias.test.ts src/lib/deterministic-ranking-metrics.test.ts src/lib/deterministic-results-schedule-metrics.test.ts
+      - name: Commit repair
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+          git commit -m 'Sample ranking-proven persisted evidence pairs'
+          git push origin HEAD:repair/evidence-coverage-phase21-persisted-pair-sampling
