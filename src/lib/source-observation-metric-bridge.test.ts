@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { appendMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { metricAllowsObservation } from "./metric-source-family-policy";
@@ -29,5 +30,15 @@ describe("source observation metric bridge", () => {
     expect(context).toContain("WAREHOUSE_OBSERVATION_CONTEXT");
     expect(context).toContain("never borrow an observation family from another metric");
     expect(context).toContain("support-only families");
+  });
+
+  it("isolates failed database lanes instead of discarding successful evidence families", () => {
+    const source = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8").replace(/\s+/g, " ");
+    expect(source).toContain("laneFailures");
+    expect(source).toContain("otherResult.error ? [] : otherResult.data");
+    expect(source).toContain("marketResult.error ? [] : marketResult.data");
+    expect(source).toContain("pbpResult.error ? [] : pbpResult.data");
+    expect(source).toContain("sharedResult.error ? [] : sharedResult.data");
+    expect(source).toContain("packet._query_errors = laneFailures");
   });
 });
