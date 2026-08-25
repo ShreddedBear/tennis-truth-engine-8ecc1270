@@ -20,6 +20,18 @@ type Row = {
   sample_label: string | null;
 };
 
+type PacketObservation = {
+  family?: string | null;
+  source?: string | null;
+  url?: string | null;
+  player?: string | null;
+  opponent?: string | null;
+  event_date?: string | null;
+  key?: string | null;
+  value?: unknown;
+  sample?: string | null;
+};
+
 function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
@@ -64,6 +76,87 @@ function valueText(value: ReturnType<typeof summary>) {
     `keys=${value.observed_keys.join(",") || "NA"}`,
     `window=${value.first_date ?? "NA"}→${value.last_date ?? "NA"}`,
   ].join("; ");
+}
+
+function packetSideSummary(player: string, opponent: string, rows: PacketObservation[]) {
+  const side = rows.filter(row => evidenceNameMatches(row.player, player, opponent));
+  if (!side.length) return null;
+  const dates = side.map(row => row.event_date).filter((v): v is string => Boolean(v)).sort();
+  const keys = [...new Set(side.map(row => String(row.key ?? "")).filter(Boolean))].slice(0, 12);
+  const pointTotals = side.map(row => Number((row.value as any)?.totalPoints)).filter(Number.isFinite);
+  const gameTotals = side.map(row => Number((row.value as any)?.gamesObserved)).filter(Number.isFinite);
+  return {
+    observations: side.length,
+    point_rows: pointTotals.reduce((a, b) => a + b, 0),
+    games: gameTotals.reduce((a, b) => a + b, 0),
+    observed_keys: keys,
+    first_date: dates[0] ?? null,
+    last_date: dates.at(-1) ?? null,
+  };
+}
+
+function packetValueText(value: ReturnType<typeof packetSideSummary>) {
+  if (!value) return null;
+  return [
+    `pbp_matches=${value.observations}`,
+    `point_rows=${value.point_rows}`,
+    `games=${value.games}`,
+    `keys=${value.observed_keys.join(",") || "NA"}`,
+    `window=${value.first_date ?? "NA"}→${value.last_date ?? "NA"}`,
+  ].join("; ");
+}
+
+/**
+ * Convert an already tour-guarded BSD PBP observation packet into the same
+ * conservative PARTIAL evidence contract used for persisted warehouse PBP.
+ * This is deliberately pure/read-only: it never guesses a player side and it
+ * requires observations for each side independently before pair credit exists.
+ */
+export function deterministicPbpMetricFromPacket(args: {
+  metricCode: unknown;
+  p1: string;
+  p2: string;
+  asOfDate: string;
+  packet: Record<string, unknown>;
+}): MetricFinding | null {
+  const code = codeOf(args.metricCode);
+  if (!SUPPORTED.has(code)) return null;
+  const entry = (args.packet?.[code] ?? null) as { observations?: PacketObservation[] } | null;
+  const rows = Array.isArray(entry?.observations)
+    ? entry!.observations!.filter(row => row?.family === "POINT_BY_POINT" && (!row.event_date || row.event_date <= args.asOfDate))
+    : [];
+  if (!rows.length) return null;
+  const p1Summary = packetSideSummary(args.p1, args.p2, rows);
+  const p2Summary = packetSideSummary(args.p2, args.p1, rows);
+  const p1 = packetValueText(p1Summary);
+  const p2 = packetValueText(p2Summary);
+  if (!p1 && !p2) return null;
+  const p1Available = Boolean(p1);
+  const p2Available = Boolean(p2);
+  const seen = new Set<string>();
+  const sources: SourceRef[] = [];
+  for (const row of rows) {
+    const sourceName = String(row.source ?? "").trim();
+    if (!sourceName) continue;
+    const url = row.url ? String(row.url) : null;
+    const key = `${sourceName}|${url ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sources.push({ source_name: sourceName, url, retrieved_at: null });
+  }
+  return {
+    metric_code: code,
+    p1_value: p1,
+    p2_value: p2,
+    p1_treatment: p1Available ? "PARTIAL" : "UNAVAILABLE",
+    p2_treatment: p2Available ? "PARTIAL" : "UNAVAILABLE",
+    differential: null,
+    evidence_family: "POINT_BY_POINT",
+    reliability: 80,
+    sample: `deterministic tour-guarded BSD PBP through ${args.asOfDate}; p1_evidence=${p1Available}; p2_evidence=${p2Available}`,
+    unavailable_reason: p1Available && p2Available ? "PBP supplies objective partial components only; shot/biomechanical or other non-observed portions are not inferred." : "BSD PBP evidence is one-sided; the missing side is not synthesized or credited.",
+    sources,
+  };
 }
 
 export async function deterministicPbpMetric(args: {
