@@ -26,6 +26,8 @@ on:
       - src/lib/source-observation-metric-bridge.server.ts
       - src/lib/source-observation-metric-bridge.test.ts
       - src/lib/warehouse-first-researcher.server.ts
+      - src/lib/warehouse-deterministic-wiring.test.ts
+      - src/lib/newly-green-end-to-end-coverage-audit.test.ts
       - src/lib/evidence-finding-selection.test.ts
       - src/lib/persisted-evidence-alias-dedupe.test.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
@@ -41,6 +43,7 @@ on:
       - src/lib/deterministic-environment-metrics.server.ts
       - src/lib/deterministic-environment-metrics.test.ts
       - src/lib/deterministic-rules-context-metric.server.ts
+      - src/lib/deterministic-rules-context-metric.test.ts
       - src/lib/bsd-atp-main-pbp.server.ts
       - src/lib/bsd-wta-main-pbp.server.ts
       - src/lib/bsd-atp-challenger-pbp.server.ts
