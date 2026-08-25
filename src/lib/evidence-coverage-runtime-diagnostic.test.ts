@@ -7,6 +7,8 @@ const ranking = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", 
 const schedule = readFileSync("src/lib/deterministic-results-schedule-metrics.server.ts", "utf8");
 const market = readFileSync("src/lib/deterministic-market-metrics.server.ts", "utf8");
 const bridge = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8");
+const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
+const canonical = readFileSync("src/lib/evidence-canonical-identity.server.ts", "utf8");
 const hotPathIndexes = readFileSync("supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
 
 describe("runtime evidence coverage diagnostic", () => {
@@ -49,6 +51,34 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(schedule).toContain("evidenceNameMatches");
     expect(market).toContain("safeEvidenceAliases");
     expect(market).toContain("evidencePairMatches");
+  });
+
+  it("resolves surname-only identities fail closed and propagates canonical names through every evidence lane", () => {
+    expect(canonical).toContain("uniqueCanonicalWarehouseIdentity");
+    expect(canonical).toContain('from("source_observations")');
+    expect(canonical).toContain('from("metric_evidence_store")');
+    expect(canonical).toContain('from("matches")');
+    expect(canonical).toContain('status: "QUERY_FAILED"');
+    expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
+    expect(researcher).toContain("resolveCanonicalEvidencePair(input.p1,input.p2)");
+    expect(researcher).toContain("lookup(codes,p1,p2,date)");
+    expect(researcher).toContain("deterministicRankingMetric({metricCode:metric.code,p1,p2");
+    expect(researcher).toContain("deterministicMarketMetric({metricCode:metric.code,p1,p2");
+    expect(researcher).toContain("deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2");
+    expect(researcher).toContain("buildMetricObservationContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
+  });
+
+  it("samples real production matches even when event_level or scheduled_date is null", () => {
+    expect(diagnostic).toContain("representativeMatches");
+    expect(diagnostic).toContain("hydrateParsedHints");
+    expect(diagnostic).toContain('order("created_at", { ascending: false })');
+    expect(diagnostic).not.toContain('.not("scheduled_date", "is", null)');
+    expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
+    expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
+    expect(diagnostic).toContain('requested_classes: ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"]');
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
