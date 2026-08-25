@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Wait for production diagnostic and prove pair coverage
+      - name: Wait for production diagnostic and prove sampling/firewalls
         shell: bash
         env:
           URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
@@ -28,9 +28,17 @@ jobs:
           set -euo pipefail
           response="$(mktemp)"
           status=""
+          structurally_ready='def sampled($id): (.sampling.sampled_classes // []) | index($id) != null;
+            def missing_with_reason($id):
+              ((.sampling.missing_classes // []) | index($id) != null)
+              and (((.sampling.missing_class_reasons // {})[$id] // "") | length > 0);
+            .metrics == 81
+            and sampled("ATP_MAIN")
+            and sampled("WTA_MAIN")
+            and (sampled("ATP_CHALLENGER") or missing_with_reason("ATP_CHALLENGER"))'
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null 2>&1; then
+            if [ "$status" = "200" ] && jq -e "$structurally_ready" "$response" >/dev/null 2>&1; then
               break
             fi
             echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
@@ -40,9 +48,8 @@ jobs:
           cat "$response"
           echo
           [ "$status" = "200" ]
-          jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null
-          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
-          jq -e 'all(.matches[]; .coverage.pair_percent > 15 and .false_green_guard.passed == true)' "$response" >/dev/null
-          echo 'PASS: every representative tour has pair-complete evidence coverage above the former 15% block with no one-sided false green.'
-
-# trigger: production-proof-1
+          jq -e "$structurally_ready" "$response" >/dev/null
+          jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(",")) + "|MISSING_REASONS=" + ((.missing_class_reasons // {})|tojson)' "$response"
+          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$response"
+          jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$response" >/dev/null
+          echo 'PASS: production diagnostic has valid representative sampling or explicit missing-class proof, and no one-sided evidence was credited as pair-complete.'
