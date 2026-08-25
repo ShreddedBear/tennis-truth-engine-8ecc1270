@@ -11,6 +11,7 @@ on:
       - supabase/migrations/*evidence*.sql
       - src/lib/evidence-player-alias.ts
       - src/lib/evidence-player-alias.test.ts
+      - src/lib/evidence-canonical-identity.server.ts
       - src/lib/source-observation-metric-bridge.server.ts
       - src/lib/warehouse-first-researcher.server.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
@@ -47,5 +48,5 @@ jobs:
       - name: Explain production-data execution boundary
         run: |
           echo "Production Supabase credentials are Lovable-managed and are intentionally not copied into GitHub Actions."
-          echo "Real production evidence counts/baselines are inspected through the Lovable project database connection."
+          echo "Real production evidence counts/baselines are inspected through the production diagnostic endpoint without copying credentials into CI."
           echo "This workflow validates the diagnostic and downstream repair code without weakening credential boundaries."
