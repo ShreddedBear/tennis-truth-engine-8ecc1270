@@ -8,6 +8,7 @@ on:
       - repair/evidence-coverage-phase2-integrated
       - repair/evidence-coverage-phase3
       - repair/evidence-coverage-phase4
+      - repair/evidence-coverage-phase5
     paths:
       - scripts/evidence-coverage-baseline.ts
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
@@ -28,6 +29,10 @@ on:
       - src/lib/deterministic-market-metrics.test.ts
       - src/lib/deterministic-environment-metrics.server.ts
       - src/lib/deterministic-rules-context-metric.server.ts
+      - src/lib/bsd-atp-main-pbp.server.ts
+      - src/lib/bsd-wta-main-pbp.server.ts
+      - src/lib/bsd-atp-challenger-pbp.server.ts
+      - src/lib/bsd-wta-challenger-pbp.server.ts
   workflow_dispatch:
 
 permissions:
