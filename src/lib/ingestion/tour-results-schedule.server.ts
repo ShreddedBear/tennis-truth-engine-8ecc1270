@@ -4,6 +4,7 @@ import { assertObservationFamily } from "../metric-source-family-policy";
 const db = supabaseAdmin as any;
 
 type TourSource = "atp" | "wta" | "atp_challenger";
+export type OfficialTourSnapshot = { source: "atp" | "atp_challenger"; url: string; html: string };
 type Target = { id:string; source_id:TourSource; target_key:string; pullback_start:string|null; pullback_end:string|null; config:Record<string,unknown>|null };
 type Observation = {
   source_id:string; source_name:string; source_url:string; source_record_key:string;
@@ -132,7 +133,19 @@ async function request(url:string) {
 
 function atpArchiveUrl(source:"atp"|"atp_challenger",year:number) {
   const base=`https://www.atptour.com/en/scores/results-archive?year=${year}`;
-  return source === "atp_challenger" ? `${base}&tournamentType=ch` : base;
+  return source === "atp_challenger" ? `${base}&tournamentType=ch` : `${base}&tournamentType=atp`;
+}
+function validateAtpSnapshot(source:"atp"|"atp_challenger",target:Target,snapshot:OfficialTourSnapshot) {
+  if(snapshot.source!==source) throw new Error(`ATP Official snapshot source mismatch: expected ${source}, got ${snapshot.source}`);
+  const parsed=new URL(snapshot.url);
+  if(parsed.protocol!=="https:" || parsed.hostname!=="www.atptour.com" || !parsed.pathname.endsWith("/scores/results-archive")) throw new Error(`Invalid ATP Official snapshot URL: ${snapshot.url}`);
+  const year=Number(parsed.searchParams.get("year"));
+  if(!targetYears(target).includes(year)) throw new Error(`ATP Official snapshot year ${year} is outside target window`);
+  const type=(parsed.searchParams.get("tournamentType")??"").toLowerCase();
+  if(source==="atp_challenger" && type!=="ch") throw new Error("ATP Challenger snapshot must use tournamentType=ch");
+  if(source==="atp" && type==="ch") throw new Error("ATP Main snapshot cannot use Challenger tournamentType=ch");
+  if(!snapshot.html || snapshot.html.length<1000) throw new Error(`ATP Official snapshot was empty or implausibly small: ${snapshot.url}`);
+  if(/Just a moment|cf-chl|captcha|Attention Required/i.test(snapshot.html)) throw new Error(`ATP Official snapshot contained a Cloudflare challenge: ${snapshot.url}`);
 }
 function humanizeSlug(slug:string) { return decodeURIComponent(slug).replace(/-/g," ").replace(/\b\w/g,(c)=>c.toUpperCase()); }
 function parseAtpArchive(source:"atp"|"atp_challenger",target:Target,url:string,html:string):Observation[] {
@@ -152,13 +165,21 @@ function parseAtpArchive(source:"atp"|"atp_challenger",target:Target,url:string,
       text_value:JSON.stringify({tournament,year,results_url:absolute,competition_level:level}), numeric_value:null, sample_label:level,
       window_start:target.pullback_start, window_end:target.pullback_end,
       raw_payload:{tournament_slug:slug,tournament_id:tournamentId,year,results_url:absolute,context},
-      provenance:{target_key:target.target_key,tour:source,competition_level:level,extraction:"official_atp_results_archive_html"},
+      provenance:{target_key:target.target_key,tour:source,competition_level:level,extraction:"official_atp_results_archive_browser_snapshot"},
     });
   }
   return rows;
 }
 
-async function fetchAtpOfficial(source:"atp"|"atp_challenger",target:Target) {
+async function fetchAtpOfficial(source:"atp"|"atp_challenger",target:Target,snapshots:OfficialTourSnapshot[]) {
+  if(snapshots.length) {
+    const rows:Observation[]=[]; let seen=0;
+    for(const snapshot of snapshots) {
+      validateAtpSnapshot(source,target,snapshot);
+      const parsed=parseAtpArchive(source,target,snapshot.url,snapshot.html); seen+=parsed.length; rows.push(...parsed);
+    }
+    return {rows,pages:snapshots.length,seen};
+  }
   const rows:Observation[]=[]; let pages=0,seen=0;
   for(const year of targetYears(target)) {
     const url=atpArchiveUrl(source,year); const res=await request(url); if(!res.ok) throw new Error(`${url} returned ${res.status}`);
@@ -223,12 +244,13 @@ async function writeRows(rows:Observation[]) {
   return persisted;
 }
 
-export async function ingestTourResultsAndSchedules(source:TourSource) {
+export async function ingestTourResultsAndSchedules(source:TourSource,snapshots:OfficialTourSnapshot[] = []) {
   const {data:targets,error}=await db.from("ingestion_targets").select("id,source_id,target_key,pullback_start,pullback_end,config").eq("source_id",source).eq("enabled",true); if(error) throw error;
   let observationsWritten=0,pagesRead=0,structuredObjectsSeen=0;
   for (const target of (targets??[]) as Target[]) {
     const config=target.config??{}; const configuredUrl=typeof config.url === "string" && config.url ? config.url : DEFAULT_URLS[source];
-    const fetched=source === "wta" ? await fetchWtaOfficial(target,configuredUrl) : await fetchAtpOfficial(source,target);
+    const sourceSnapshots=snapshots.filter(snapshot=>snapshot.source===source);
+    const fetched=source === "wta" ? await fetchWtaOfficial(target,configuredUrl) : await fetchAtpOfficial(source,target,sourceSnapshots);
     pagesRead+=fetched.pages; structuredObjectsSeen+=fetched.seen; observationsWritten+=await writeRows(fetched.rows);
     await db.from("ingestion_targets").update({last_ingested_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",target.id);
   }
