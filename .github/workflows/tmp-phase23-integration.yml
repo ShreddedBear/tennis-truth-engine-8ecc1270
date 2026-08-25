@@ -32,11 +32,15 @@ jobs:
 
           t=Path('src/lib/evidence-coverage-runtime-diagnostic.test.ts')
           ts=t.read_text()
+          old_assert='select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family")'
+          new_assert='select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family,sources,reliability,sample_label")'
+          ts=ts.replace(old_assert,new_assert)
           marker='  it("bounds runtime diagnostic database concurrency", () => {'
           block='''  it("surfaces persisted evidence provenance for coverage validation", () => {\n    expect(diagnostic).toContain('value_text,evidence_family,sources,reliability,sample_label');\n    expect(diagnostic).toContain('stored_p1_family:p1Stored?.evidence_family??null');\n    expect(diagnostic).toContain('stored_p2_family:p2Stored?.evidence_family??null');\n    expect(diagnostic).toContain('stored_p1_source_count:Array.isArray(p1Stored?.sources)?p1Stored.sources.length:0');\n    expect(diagnostic).toContain('stored_p2_source_count:Array.isArray(p2Stored?.sources)?p2Stored.sources.length:0');\n  });\n\n'''
           if block.strip() not in ts:
               if marker not in ts: raise SystemExit('test marker not found')
-              t.write_text(ts.replace(marker,block+marker,1))
+              ts=ts.replace(marker,block+marker,1)
+          t.write_text(ts)
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Targeted Evidence Coverage tests
