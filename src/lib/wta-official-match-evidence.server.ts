@@ -3,7 +3,7 @@ import { buildTrustedInternalFinding } from "./trusted-internal-evidence";
 
 const BASE = "https://api.wtatennis.com/tennis";
 const RANKED = `${BASE}/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=500`;
-const SUPPORTED = new Set(["005", "008", "009", "010", "011", "012", "013", "020", "028", "030", "068"]);
+const SUPPORTED = new Set(["005", "006", "007", "008", "009", "010", "011", "012", "013", "020", "028", "030", "068", "080"]);
 
 type PlayerRef = { id?: string | number; fullName?: string };
 type RankingRow = { player?: PlayerRef };
@@ -84,6 +84,12 @@ type SideSummary = {
   sameLevelWinPct: number | null;
   sameTournamentMatches: number;
   sameTournamentWinPct: number | null;
+  avgOpponentRankLast10: number | null;
+  bestRankedRecentWin: number | null;
+  top20WinPct: number | null;
+  top50WinPct: number | null;
+  top100WinPct: number | null;
+  badLossRateRank100Plus: number | null;
   sourceUrls: string[];
 };
 
@@ -167,13 +173,18 @@ function summarize(history: History, asOfDate: string, context: string): SideSum
   const last10=rows.slice(0,10), switches=last10.slice(1).filter((r,i)=>norm(r.TournamentName??r.tournament?.title)!==norm(last10[i].TournamentName??last10[i].tournament?.title)).length;
   const sameLevel=rows.filter(r=>allowedMainLevel(r.tournament?.tournamentGroup?.level??r.TournamentLevel) && !norm(levelMatch).includes("125"));
   const sameTournament=tournament?rows.filter(r=>norm(r.TournamentName??r.tournament?.title).includes(norm(tournament))||norm(tournament).includes(norm(r.TournamentName??r.tournament?.title))):[];
-  const sourceUrls=history.urls;
-  return {matches:rows.length,wins,winPct:pct(wins,rows.length)!,last5WinPct:recentPct(5),last10WinPct:recentPct(10),setsWon,setsPlayed:totalSets,setWinPct:pct(setsWon,totalSets),last5SetWinPct:setRecentPct(5),last10SetWinPct:setRecentPct(10),set1WinPct:pct(set1.filter(([a,b])=>a>b).length,set1.length),set2WinPct:pct(set2.filter(([a,b])=>a>b).length,set2.length),decidingSetWinPct:pct(deciding.filter(([a,b])=>a>b).length,deciding.length),decidingSetsPlayed:deciding.length,winAfterLosingSet1Pct:pct(lost1.filter(x=>x.won).length,lost1.length),winAfterWinningSet1Pct:pct(won1.filter(x=>x.won).length,won1.length),secondSetAfterLosingSet1WinPct:pct(lost1.filter(x=>x.sets[1]&&x.sets[1][0]>x.sets[1][1]).length,lost1.filter(x=>x.sets[1]).length),straightSetMatchWinPct:pct(straightWins,rows.length),comebackWinPct:pct(lost1.filter(x=>x.won).length,lost1.length),tiebreakWinPct:pct(tbs.filter(([a,b])=>a>b).length,tbs.length),tiebreaksPlayed:tbs.length,performanceVariance:variance(setMargins),floorCeilingRange:setMargins.length?Math.max(...setMargins)-Math.min(...setMargins):null,matches7:d7,matches14:d14,matches28:d28,sets14,threeSetters14:three14,qualifying14:qual14,daysSinceLastMatch:dates[0]?dayDiff(dates[0],asOfDate):null,recentInterMatchGapDays:gaps[0]??null,tournamentSwitchesLast10:switches,currentStreakSigned:streak,longestWinStreak:longest,longestLayoffDays:gaps.length?Math.max(...gaps):null,layoffs30:gaps.filter(g=>g>=30).length,layoffs60:gaps.filter(g=>g>=60).length,layoffs90:gaps.filter(g=>g>=90).length,returnAfterLayoffWinPct:pct(returns.filter(x=>x.gap>=30&&x.won).length,returns.filter(x=>x.gap>=30).length),sameLevelMatches:sameLevel.length,sameLevelWinPct:pct(sameLevel.filter(r=>playerWon(r,history.playerId)).length,sameLevel.length),sameTournamentMatches:sameTournament.length,sameTournamentWinPct:pct(sameTournament.filter(r=>playerWon(r,history.playerId)).length,sameTournament.length),sourceUrls};
+  const opponentRank=(r:MatchRow)=>{const side=String(r.player_1??"").trim()===history.playerId?1:String(r.player_2??"").trim()===history.playerId?2:null;const value=side===1?r.rank_2:side===2?r.rank_1:null;const n=Number(value);return Number.isFinite(n)&&n>0?n:null};
+  const ranked=rows.map((r,i)=>({rank:opponentRank(r),won:winFlags[i]})).filter((x):x is {rank:number;won:boolean}=>x.rank!=null);
+  const recentRanks=ranked.slice(0,10).map(x=>x.rank), winningRanks=ranked.filter(x=>x.won).map(x=>x.rank);
+  const bucket=(maxRank:number)=>{const x=ranked.filter(v=>v.rank<=maxRank);return pct(x.filter(v=>v.won).length,x.length)};
+  const weakLosses=ranked.filter(x=>x.rank>=100), sourceUrls=history.urls;
+  return {matches:rows.length,wins,winPct:pct(wins,rows.length)!,last5WinPct:recentPct(5),last10WinPct:recentPct(10),setsWon,setsPlayed:totalSets,setWinPct:pct(setsWon,totalSets),last5SetWinPct:setRecentPct(5),last10SetWinPct:setRecentPct(10),set1WinPct:pct(set1.filter(([a,b])=>a>b).length,set1.length),set2WinPct:pct(set2.filter(([a,b])=>a>b).length,set2.length),decidingSetWinPct:pct(deciding.filter(([a,b])=>a>b).length,deciding.length),decidingSetsPlayed:deciding.length,winAfterLosingSet1Pct:pct(lost1.filter(x=>x.won).length,lost1.length),winAfterWinningSet1Pct:pct(won1.filter(x=>x.won).length,won1.length),secondSetAfterLosingSet1WinPct:pct(lost1.filter(x=>x.sets[1]&&x.sets[1][0]>x.sets[1][1]).length,lost1.filter(x=>x.sets[1]).length),straightSetMatchWinPct:pct(straightWins,rows.length),comebackWinPct:pct(lost1.filter(x=>x.won).length,lost1.length),tiebreakWinPct:pct(tbs.filter(([a,b])=>a>b).length,tbs.length),tiebreaksPlayed:tbs.length,performanceVariance:variance(setMargins),floorCeilingRange:setMargins.length?Math.max(...setMargins)-Math.min(...setMargins):null,matches7:d7,matches14:d14,matches28:d28,sets14,threeSetters14:three14,qualifying14:qual14,daysSinceLastMatch:dates[0]?dayDiff(dates[0],asOfDate):null,recentInterMatchGapDays:gaps[0]??null,tournamentSwitchesLast10:switches,currentStreakSigned:streak,longestWinStreak:longest,longestLayoffDays:gaps.length?Math.max(...gaps):null,layoffs30:gaps.filter(g=>g>=30).length,layoffs60:gaps.filter(g=>g>=60).length,layoffs90:gaps.filter(g=>g>=90).length,returnAfterLayoffWinPct:pct(returns.filter(x=>x.gap>=30&&x.won).length,returns.filter(x=>x.gap>=30).length),sameLevelMatches:sameLevel.length,sameLevelWinPct:pct(sameLevel.filter(r=>playerWon(r,history.playerId)).length,sameLevel.length),sameTournamentMatches:sameTournament.length,sameTournamentWinPct:pct(sameTournament.filter(r=>playerWon(r,history.playerId)).length,sameTournament.length),avgOpponentRankLast10:mean(recentRanks),bestRankedRecentWin:winningRanks.length?Math.min(...winningRanks):null,top20WinPct:bucket(20),top50WinPct:bucket(50),top100WinPct:bucket(100),badLossRateRank100Plus:pct(weakLosses.filter(x=>!x.won).length,weakLosses.length),sourceUrls};
 }
 
 function fmt(v:number|null, digits=1){return v==null?"NA":v.toFixed(digits)}
 function metricValue(code:string,s:SideSummary){switch(code){
   case"005":return `last5_win_pct=${fmt(s.last5WinPct)}; last10_win_pct=${fmt(s.last10WinPct)}; last5_set_win_pct=${fmt(s.last5SetWinPct)}; last10_set_win_pct=${fmt(s.last10SetWinPct)}; set_win_pct=${fmt(s.setWinPct)}; sample_matches=${s.matches}`;
+  case"006":return `official_opponent_rank_avg_last10=${fmt(s.avgOpponentRankLast10)}; best_ranked_recent_win=${fmt(s.bestRankedRecentWin,0)}; win_pct_vs_top20=${fmt(s.top20WinPct)}; win_pct_vs_top50=${fmt(s.top50WinPct)}; win_pct_vs_top100=${fmt(s.top100WinPct)}; loss_rate_vs_rank100_plus=${fmt(s.badLossRateRank100Plus)}`;
   case"008":return `set1_win_pct=${fmt(s.set1WinPct)}; set2_win_pct=${fmt(s.set2WinPct)}; deciding_set_win_pct=${fmt(s.decidingSetWinPct)}; deciding_sets_played=${s.decidingSetsPlayed}; win_after_losing_set1_pct=${fmt(s.winAfterLosingSet1Pct)}; win_after_winning_set1_pct=${fmt(s.winAfterWinningSet1Pct)}; second_set_after_losing_set1_win_pct=${fmt(s.secondSetAfterLosingSet1WinPct)}`;
   case"009":return `win_after_losing_set1_pct=${fmt(s.comebackWinPct)}; tiebreak_win_pct=${fmt(s.tiebreakWinPct)}; tiebreaks_played=${s.tiebreaksPlayed}`;
   case"010":return `straight_set_match_win_pct=${fmt(s.straightSetMatchWinPct)}; all_match_denominator=${s.matches}`;
@@ -184,8 +195,19 @@ function metricValue(code:string,s:SideSummary){switch(code){
   case"028":return `matches_last_14_days=${s.matches14}; matches_last_28_days=${s.matches28}; days_since_last_match=${fmt(s.daysSinceLastMatch,0)}; recent_inter_match_gap_days=${fmt(s.recentInterMatchGapDays,0)}; tournament_switches_last10=${s.tournamentSwitchesLast10}`;
   case"030":return s.sameTournamentMatches?`same_tournament_matches=${s.sameTournamentMatches}; same_tournament_win_pct=${fmt(s.sameTournamentWinPct)}`:null;
   case"068":return `current_streak_signed=${s.currentStreakSigned}; longest_win_streak_observed=${s.longestWinStreak}`;
+  case"080":return `official_opponent_rank_avg_last10=${fmt(s.avgOpponentRankLast10)}; best_ranked_recent_win=${fmt(s.bestRankedRecentWin,0)}; win_pct_vs_top20=${fmt(s.top20WinPct)}; win_pct_vs_top50=${fmt(s.top50WinPct)}; win_pct_vs_top100=${fmt(s.top100WinPct)}`;
   default:return null;
 }}
+
+function commonOpponentPair(a:History|null,b:History|null,asOfDate:string){
+  if(!a||!b)return null;
+  const cutoff=new Date(`${asOfDate}T00:00:00Z`);cutoff.setUTCDate(cutoff.getUTCDate()-370);const min=cutoff.toISOString().slice(0,10);
+  const usable=(h:History)=>h.matches.filter(r=>String(r.StartDate).slice(0,10)>=min&&r.opponent?.fullName&&allowedMainLevel(r.tournament?.tournamentGroup?.level??r.TournamentLevel));
+  const group=(h:History)=>{const m=new Map<string,{name:string;matches:number;wins:number}>();for(const r of usable(h)){const k=norm(r.opponent?.fullName),old=m.get(k)??{name:String(r.opponent?.fullName),matches:0,wins:0};old.matches++;if(playerWon(r,h.playerId))old.wins++;m.set(k,old);}return m};
+  const am=group(a),bm=group(b),keys=[...am.keys()].filter(k=>bm.has(k));if(!keys.length)return null;
+  const av=keys.reduce((n,k)=>n+am.get(k)!.matches,0),aw=keys.reduce((n,k)=>n+am.get(k)!.wins,0),bv=keys.reduce((n,k)=>n+bm.get(k)!.matches,0),bw=keys.reduce((n,k)=>n+bm.get(k)!.wins,0);
+  return {p1:`direct_common_opponents=${keys.length}; common_opponent_matches=${av}; common_opponent_wins=${aw}; common_opponent_losses=${av-aw}; common_opponent_win_pct=${fmt(pct(aw,av))}; opponents=${keys.slice(0,8).map(k=>am.get(k)!.name).join(",")}`,p2:`direct_common_opponents=${keys.length}; common_opponent_matches=${bv}; common_opponent_wins=${bw}; common_opponent_losses=${bv-bw}; common_opponent_win_pct=${fmt(pct(bw,bv))}; opponents=${keys.slice(0,8).map(k=>bm.get(k)!.name).join(",")}`,sample:keys.length};
+}
 function refs(urls:string[]):SourceRef[]{return urls.map(url=>({source_name:"WTA Official Match History",url,retrieved_at:new Date().toISOString()}))}
 
 export async function officialWtaMetricRows(args:{p1:string;p2:string;context:string;metrics:Array<{code:string;name:string;body:string|null}>}):Promise<MetricFinding[]|null>{
@@ -194,5 +216,5 @@ export async function officialWtaMetricRows(args:{p1:string;p2:string;context:st
   const [a,b]=await Promise.all([loadHistory(args.p1,asOfDate),loadHistory(args.p2,asOfDate)]);
   const [sa,sb]=[a?summarize(a,asOfDate,args.context):null,b?summarize(b,asOfDate,args.context):null];
   if(!sa&&!sb)return null;
-  return args.metrics.map(metric=>{const code=codeOf(metric.code);if(!SUPPORTED.has(code))return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:null,p2:null,evidence_family:null,reliability:90,unavailable_reason:"Official WTA match history is not an allowed source for this metric family",persistedSources:[]});const av=sa?metricValue(code,sa):null,bv=sb?metricValue(code,sb):null;const sources=[...(sa?refs(sa.sourceUrls):[]),...(sb?refs(sb.sourceUrls):[])].filter((s,i,x)=>x.findIndex(v=>v.url===s.url)===i);return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:av?{player:args.p1,value:av,treatment:"PARTIAL",sample:sa?.matches??null,sources:sa?refs(sa.sourceUrls):[]}:null,p2:bv?{player:args.p2,value:bv,treatment:"PARTIAL",sample:sb?.matches??null,sources:sb?refs(sb.sourceUrls):[]}:null,evidence_family:"WTA_OFFICIAL_MATCH_HISTORY",reliability:90,unavailable_reason:av||bv?"Official WTA results reconstruct only explicitly supported match/set/workload components; game/point-only components remain unavailable.":"No qualifying WTA Main match-history component was available for this metric",persistedSources:sources});});
+  const common=commonOpponentPair(a,b,asOfDate);return args.metrics.map(metric=>{const code=codeOf(metric.code);if(!SUPPORTED.has(code))return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:null,p2:null,evidence_family:null,reliability:90,unavailable_reason:"Official WTA match history is not an allowed source for this metric family",persistedSources:[]});const av=code==="007"?common?.p1??null:sa?metricValue(code,sa):null,bv=code==="007"?common?.p2??null:sb?metricValue(code,sb):null;const sources=[...(sa?refs(sa.sourceUrls):[]),...(sb?refs(sb.sourceUrls):[])].filter((s,i,x)=>x.findIndex(v=>v.url===s.url)===i);const sample=code==="007"?common?.sample??null:null;return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:av?{player:args.p1,value:av,treatment:"PARTIAL",sample:sample??sa?.matches??null,sources:sa?refs(sa.sourceUrls):[]}:null,p2:bv?{player:args.p2,value:bv,treatment:"PARTIAL",sample:sample??sb?.matches??null,sources:sb?refs(sb.sourceUrls):[]}:null,evidence_family:code==="007"?"WTA_OFFICIAL_COMMON_OPPONENT_NETWORK":"WTA_OFFICIAL_MATCH_HISTORY",reliability:90,unavailable_reason:av||bv?"Official WTA results reconstruct only explicitly supported match/set/ranking/workload components; game/point-only components remain unavailable.":"No qualifying WTA Main match-history component was available for this metric",persistedSources:sources});});
 }
