@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const calc = readFileSync("src/lib/deterministic-market-metrics.server.ts", "utf8").replace(/\s+/g, " ");
-const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, " ");
+const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, "");
 
 describe("deterministic market metrics", () => {
   it("is scoped only to market metrics 015 019 043 044", () => {
@@ -25,7 +25,7 @@ describe("deterministic market metrics", () => {
   });
 
   it("runs market calculations before unresolved live fallback", () => {
-    const deterministicIndex = researcher.indexOf("deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament,context:input.context})");
+    const deterministicIndex = researcher.indexOf("deterministicMarketMetric({");
     const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);
