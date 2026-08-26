@@ -6,7 +6,7 @@ import { deterministicRankingMetric } from "./deterministic-ranking-metrics.serv
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
-import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
+import { evidencePairMatches } from "./evidence-player-alias";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
@@ -21,6 +21,7 @@ type StoredEvidence = {
   metric_code:string;
   player_name:string;
   opponent_name:string|null;
+  as_of_date:string;
   treatment:MetricFinding["p1_treatment"];
   value_text:string|null;
   reliability:number|null;
@@ -29,6 +30,8 @@ type StoredEvidence = {
   sources:MetricFinding["sources"]|null;
   unavailable_reason:string|null;
   valid_until:string|null;
+  computed_at:string|null;
+  updated_at:string|null;
 };
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
@@ -36,25 +39,44 @@ function asOfDate(context:string|null|undefined){const match=String(context??"")
 function tournamentFromContext(context:string|null|undefined){const text=String(context??"");const match=text.match(/(?:^|[·|\n])\s*tournament\s+([^·|\n]+)/i);return match?.[1]?.trim()||null;}
 function ttlHours(code:string){if(["062","064","069","071","075","076","081"].includes(code))return 12;if(["012","028","077","079"].includes(code))return 24;if(["015","019"].includes(code))return 6;return 168;}
 function fullyUsableFinding(row:MetricFinding|undefined){return Boolean(row&&USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value);}
+function rowTime(row:StoredEvidence){return Date.parse(row.updated_at??row.computed_at??`${row.as_of_date}T00:00:00Z`)||0;}
 
 async function lookup(metricCodes:string[],player:string,opponent:string,date:string):Promise<Map<string,StoredEvidence>>{
   if(!metricCodes.length)return new Map<string,StoredEvidence>();
-  const playerAliases=safeEvidenceAliases(player,opponent);
-  const opponentAliases=safeEvidenceAliases(opponent,player);
+
+  // Do not pre-filter on display-name equality. The canonical identity resolver
+  // has already searched stable player IDs first; persisted evidence can still
+  // contain legacy aliases, surname-only names, normalized variants, or either
+  // uploaded player order. Pull the bounded metric/date slice and apply the
+  // fail-closed identity firewall in-process.
   const {data,error}=await db.from("metric_evidence_store")
-    .select("metric_code,player_name,opponent_name,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until")
-    .in("metric_code",metricCodes).in("player_name",playerAliases).in("opponent_name",opponentAliases).eq("as_of_date",date)
-    .or(`valid_until.is.null,valid_until.gt.${new Date().toISOString()}`);
+    .select("metric_code,player_name,opponent_name,as_of_date,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until,computed_at,updated_at")
+    .in("metric_code",metricCodes)
+    .lte("as_of_date",date)
+    .order("as_of_date",{ascending:false})
+    .limit(5000);
   if(error)return new Map<string,StoredEvidence>();
+
   const byCode=new Map<string,StoredEvidence[]>();
   for(const row of (data??[]) as StoredEvidence[]){
     if(!evidencePairMatches(row.player_name,row.opponent_name,player,opponent))continue;
     const code=codeOf(row.metric_code);
     byCode.set(code,[...(byCode.get(code)??[]),row]);
   }
+
   const out=new Map<string,StoredEvidence>();
   for(const [code,rows] of byCode){
-    if(rows.length===1)out.set(code,rows[0]);
+    const sorted=[...rows].sort((a,b)=>b.as_of_date.localeCompare(a.as_of_date)||rowTime(b)-rowTime(a));
+    if(!sorted.length)continue;
+    const newestDate=sorted[0].as_of_date;
+    const newest=sorted.filter(row=>row.as_of_date===newestDate);
+    if(newest.length===1){out.set(code,newest[0]);continue;}
+
+    // Duplicate physical rows are safe only when they agree semantically. A
+    // conflicting same-date context remains unresolved rather than borrowing
+    // evidence from the wrong tournament/surface.
+    const signatures=new Set(newest.map(row=>JSON.stringify([row.treatment,row.value_text,row.evidence_family])));
+    if(signatures.size===1)out.set(code,newest.sort((a,b)=>rowTime(b)-rowTime(a))[0]);
   }
   return out;
 }
@@ -85,8 +107,6 @@ export const warehouseFirstResearcher: Researcher = {
   ...finalMetricWiringResearcher,
   async metrics(input){
     const identities=await resolveCanonicalEvidencePair(input.p1,input.p2);
-    // Canonicalize the request object itself so every downstream lane receives
-    // the same proven pair while preserving the established wiring contract.
     input={...input,p1:identities.p1.canonical,p2:identities.p2.canonical};
     const {p1,p2,metrics}=input;
     const date=asOfDate(input.context);
