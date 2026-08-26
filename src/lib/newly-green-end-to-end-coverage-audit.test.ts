@@ -5,14 +5,15 @@ import { policyForMetric } from "./metric-source-family-policy";
 const warehouse = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
 
 // These are the source families that made the original newly-green contract
-// legitimate. Task 13 can add other recoverable families as support-only, but
-// it must never remove these required families or silently promote new support
-// families to sufficient evidence.
+// legitimate. Task 17 supersedes the old 021 environmental mapping: Elo Delta
+// is reconstructed from chronological results + surface, not weather.
+// Task 13 can add other recoverable families as support-only, but it must never
+// remove required families or silently promote new support families to sufficient evidence.
 const REQUIRED_FAMILIES: Record<string, string[]> = {
   "012": ["RESULTS_SCHEDULE"],
   "015": ["MARKET"],
   "019": ["MARKET"],
-  "021": ["ENVIRONMENT"],
+  "021": ["RESULTS_SCHEDULE"],
   "024": ["POINT_BY_POINT"],
   "025": ["POINT_BY_POINT"],
   "028": ["RESULTS_SCHEDULE"],
