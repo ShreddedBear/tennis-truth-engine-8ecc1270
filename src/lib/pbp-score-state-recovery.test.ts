@@ -1,0 +1,128 @@
+import { describe, expect, it } from "vitest";
+import { metricHasRequiredPbpFields, reconstructPbpScoreState, TASK18B_METRIC_CODES } from "./pbp-score-state-recovery";
+import { deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.server";
+
+const completePayload = {
+  available: true,
+  sets: [
+    { games: [
+      { server: "player1", points: [
+        { winner:"player1", ace:true },
+        { winner:"player2", double_fault:true },
+        { winner:"player1" },
+        { winner:"player2" },
+        { winner:"player1" },
+        { winner:"player2" },
+        { winner:"player1" },
+        { winner:"player1" },
+      ]},
+      { server: "player2", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+      { server: "player1", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+      { server: "player2", points: [
+        { winner:"player2" },{ winner:"player2" },{ winner:"player2" },{ winner:"player2" },
+      ]},
+      { server: "player1", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+      { server: "player2", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+      { server: "player1", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+      { server: "player2", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+      { server: "player1", points: [
+        { winner:"player1" },{ winner:"player1" },{ winner:"player1" },{ winner:"player1" },
+      ]},
+    ]},
+  ],
+};
+
+describe("Task 18B deterministic PBP recovery", () => {
+  it("owns exactly the requested 18 metric codes", () => {
+    expect([...TASK18B_METRIC_CODES].sort()).toEqual(["002","003","004","009","026","027","031","032","033","036","037","038","039","040","069","070","071","079"].sort());
+  });
+
+  it("reconstructs player-oriented service, return, break-point, deuce and point-total metrics", () => {
+    const r = reconstructPbpScoreState(completePayload);
+    expect(r.valid).toBe(true);
+    expect(r.field_support.server).toBe(true);
+    expect(r.field_support.point_winner).toBe(true);
+    expect(r.field_support.set_boundary).toBe(true);
+    expect(r.derived.player1["026"]?.value.service_games).toBeGreaterThan(0);
+    expect(r.derived.player1["027"]?.value.breaks).toBeGreaterThan(0);
+    expect(r.derived.player1["033"]?.value.return_points_won).toBeGreaterThan(0);
+    expect(r.derived.player1["036"]?.value.break_points_faced).toBeGreaterThanOrEqual(0);
+    expect(r.derived.player1["037"]?.value.break_points_converted).toBeGreaterThan(0);
+    expect(r.derived.player1["040"]?.value.deuce_points).toBeGreaterThan(0);
+    expect(r.derived.player1["069"]?.value.points_won).toBeGreaterThan(r.derived.player2["069"]?.value.points_won as number);
+  });
+
+  it("keeps Serve Profile and Return Profile PARTIAL because serve number is absent", () => {
+    const r = reconstructPbpScoreState(completePayload);
+    expect(r.derived.player1["002"]?.treatment).toBe("PARTIAL");
+    expect(r.derived.player1["003"]?.treatment).toBe("PARTIAL");
+    expect(r.field_support.serve_number).toBe(false);
+  });
+
+  it("only credits ace/DF metrics when their indicators are actually encoded", () => {
+    const withIndicators = reconstructPbpScoreState(completePayload);
+    expect(metricHasRequiredPbpFields(withIndicators,"031","player1")).toBe(true);
+    expect(metricHasRequiredPbpFields(withIndicators,"032","player1")).toBe(true);
+    const noIndicators = reconstructPbpScoreState({ sets:[{games:[{server:"player1",points:[{winner:"player1"},{winner:"player1"},{winner:"player1"},{winner:"player1"}]}]}] });
+    expect(metricHasRequiredPbpFields(noIndicators,"031","player1")).toBe(false);
+    expect(metricHasRequiredPbpFields(noIndicators,"032","player1")).toBe(false);
+  });
+
+  it("rejects incomplete PBP instead of manufacturing missing winners", () => {
+    const r = reconstructPbpScoreState({ sets:[{ games:[{server:"player1",points:[{score:"15-0"},{score:"30-0"}]}] }] });
+    expect(r.valid).toBe(false);
+    expect(Object.keys(r.derived.player1)).toHaveLength(0);
+  });
+
+  it("does not infer shot-level fields from score-only PBP", () => {
+    const r = reconstructPbpScoreState(completePayload);
+    expect(r.field_support.rally_length).toBe(false);
+    expect(r.field_support.shot_type).toBe(false);
+    expect(r.field_support.shot_placement).toBe(false);
+    expect(r.field_support.handedness).toBe(false);
+  });
+
+  it("does not award set-sequence metrics when set boundaries are absent", () => {
+    const r = reconstructPbpScoreState({ games:[
+      {server:"player1",points:[{winner:"player1"},{winner:"player1"},{winner:"player1"},{winner:"player1"}]},
+      {server:"player2",points:[{winner:"player1"},{winner:"player1"},{winner:"player1"},{winner:"player1"}]},
+    ]});
+    expect(r.valid).toBe(true);
+    expect(r.field_support.set_boundary).toBe(false);
+    expect(r.derived.player1["070"]).toBeUndefined();
+    expect(r.derived.player1["071"]).toBeUndefined();
+    expect(r.derived.player1["009"]?.treatment).toBe("PARTIAL");
+    expect(r.derived.player1["079"]?.treatment).toBe("PARTIAL");
+  });
+
+  it("requires correct player orientation and pair-complete metric evidence", () => {
+    const r = reconstructPbpScoreState(completePayload);
+    const obs = (player:string, side:"player1"|"player2") => ({ family:"POINT_BY_POINT", source:"fixture", player, opponent:player==="Alpha"?"Beta":"Alpha", event_date:"2026-08-01", value:{derived:r.derived[side]} });
+    const packet = { "033": { observations:[obs("Alpha","player1"),obs("Beta","player2")] } };
+    const finding = deterministicPbpMetricFromPacket({metricCode:"033",p1:"Alpha",p2:"Beta",asOfDate:"2026-08-02",packet});
+    expect(finding?.p1_treatment).toBe("RECONSTRUCTED");
+    expect(finding?.p2_treatment).toBe("RECONSTRUCTED");
+    expect(finding?.sample).toContain("pair_complete=true");
+  });
+
+  it("keeps one-sided packet evidence unavailable on the missing side", () => {
+    const r = reconstructPbpScoreState(completePayload);
+    const packet = { "033": { observations:[{family:"POINT_BY_POINT",source:"fixture",player:"Alpha",opponent:"Beta",event_date:"2026-08-01",value:{derived:r.derived.player1}}] } };
+    const finding = deterministicPbpMetricFromPacket({metricCode:"033",p1:"Alpha",p2:"Beta",asOfDate:"2026-08-02",packet});
+    expect(finding?.p1_treatment).toBe("RECONSTRUCTED");
+    expect(finding?.p2_treatment).toBe("UNAVAILABLE");
+    expect(finding?.sample).toContain("pair_complete=false");
+  });
+});
