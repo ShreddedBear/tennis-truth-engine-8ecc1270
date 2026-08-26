@@ -45,7 +45,7 @@ jobs:
 
           RANKED="$(mktemp)"
           curl --fail --silent --show-error --location "$BASE/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=500" -o "$RANKED"
-          PEGULA_ID="$(jq -r '.content[]? | select(((.player.fullName // "")|ascii_downcase)=="jessica pegula") | .player.id' "$RANKED" | head -n1)"
+          PEGULA_ID="$(jq -r '(.content // .)[]? | select(((.player.fullName // "")|ascii_downcase)=="jessica pegula") | .player.id' "$RANKED" | head -n1)"
           echo "PEGULA_ID=$PEGULA_ID"
           test -n "$PEGULA_ID" || { echo 'Jessica Pegula ID not found in official rankings payload'; exit 1; }
           rm -f "$RANKED"
