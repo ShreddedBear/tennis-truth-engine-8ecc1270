@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
+import { repositoryResultsRows } from "./repository-results-history.server";
 import {
   buildCanonicalEvidenceMatchIdentity,
   classifyEvidenceTourFamily,
@@ -105,8 +106,8 @@ function observationTourFamily(row: Observation) {
   return classifyEvidenceTourFamily(row.sample_label,row.tournament,row.source_id,row.source_name,row.observation_type,row.observation_key,row.text_value,stringifyHint(row.raw_payload),stringifyHint(row.provenance));
 }
 
-function inferExpectedFamily(args: { tourFamily?: EvidenceTourFamily | null; tour?: string | null; eventLevel?: string | null; tournament?: string | null }, rows: Observation[], p1: string, p2: string) {
-  const explicit = args.tourFamily ?? classifyEvidenceTourFamily(args.tour,args.eventLevel,args.tournament);
+function inferExpectedFamily(args: { tourFamily?: EvidenceTourFamily | null; tour?: string | null; eventLevel?: string | null; tournament?: string | null; context?: string | null }, rows: Observation[], p1: string, p2: string) {
+  const explicit = args.tourFamily ?? classifyEvidenceTourFamily(args.tour,args.eventLevel,args.tournament,args.context);
   if (explicit) return explicit;
   const families = new Set<EvidenceTourFamily>();
   for (const row of rows) {
@@ -164,7 +165,7 @@ async function playerObservationRows(p1:string,p2:string,start:string,asOfDate:s
   const dedup=new Map<string,Observation>();for(const result of results)for(const row of(result.data??[])as Observation[]){const key=String(row.id??[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|"));dedup.set(key,row);}return[...dedup.values()];
 }
 
-export async function deterministicResultsScheduleMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;tournament?:string|null;round?:string|null;tour?:string|null;tourFamily?:EvidenceTourFamily|null;eventLevel?:string|null;}):Promise<MetricFinding|null>{
+export async function deterministicResultsScheduleMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;tournament?:string|null;round?:string|null;tour?:string|null;tourFamily?:EvidenceTourFamily|null;eventLevel?:string|null;context?:string|null;}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;
   const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-5);const startDate=start.toISOString().slice(0,10);
   const select="id,source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label,raw_payload,provenance";
@@ -172,13 +173,18 @@ export async function deterministicResultsScheduleMetric(args:{metricCode:string
   const historySelect="id,canonical_key,player1_name,player2_name,player1_id,player2_id,tournament_name,event_level,round,scheduled_date,scheduled_local_at,scheduled_utc_at";
   const[playerRowsResult,sharedResult,historyResult]=await Promise.all([playerObservationRows(args.p1,args.p2,startDate,args.asOfDate,select),db.from("source_observations").select(select).gte("event_date",startDate).lte("event_date",args.asOfDate).is("player_name",null).order("event_date",{ascending:false}).limit(2000),db.from("matches").select(historySelect).in("player1_name",aliases).in("player2_name",aliases).order("created_at",{ascending:false}).limit(2000)]);
   if(!playerRowsResult||sharedResult.error||historyResult.error)return null;
-  const rows=([...playerRowsResult,...(sharedResult.data??[])]as Observation[]).filter(row=>metricAllowsObservation(code,row));
+  let rows=([...playerRowsResult,...(sharedResult.data??[])]as Observation[]).filter(row=>metricAllowsObservation(code,row));
   const expectedFamily=inferExpectedFamily(args,rows,args.p1,args.p2),historyRows=(historyResult.data??[])as MatchHistoryRow[];
+  if(expectedFamily){
+    rows.push(...repositoryResultsRows(args.p1,expectedFamily,args.asOfDate),...repositoryResultsRows(args.p2,expectedFamily,args.asOfDate));
+    const seen=new Set<string>();
+    rows=rows.filter(row=>{const key=[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|");if(seen.has(key))return false;seen.add(key);return true;});
+  }
   const playerRows=rows.filter(r=>(evidenceNameMatches(r.player_name,args.p1,args.p2)||evidenceNameMatches(r.player_name,args.p2,args.p1))&&(!expectedFamily||evidenceTourCompatible(expectedFamily,observationTourFamily(r))));
   const currentHistory=currentEventHistoryRows(historyRows,{p1:args.p1,p2:args.p2,asOfDate:args.asOfDate,tournament:args.tournament,round:args.round},expectedFamily);
   if(!playerRows.length&&!currentHistory.length)return null;
   const uniqueHistory=currentHistory.length===1?currentHistory[0]:null;
   const canonicalMatch=buildCanonicalEvidenceMatchIdentity({player1StableId:uniqueHistory?.player1_id,player2StableId:uniqueHistory?.player2_id,player1Name:args.p1,player2Name:args.p2,tournament:args.tournament??uniqueHistory?.tournament_name,date:args.asOfDate,round:args.round??uniqueHistory?.round,tour:expectedFamily,eventLevel:args.eventLevel??uniqueHistory?.event_level});
   const c1=componentsFor(args.p1,args.p2,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),c2=componentsFor(args.p2,args.p1,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),p1=valueFor(code,c1),p2=valueFor(code,c2);if(!p1||!p2)return null;
-  return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse components through ${args.asOfDate}; tour_family=${expectedFamily??"UNRESOLVED"}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)};
+  return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse/repository components through ${args.asOfDate}; tour_family=${expectedFamily??"UNRESOLVED"}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)};
 }
