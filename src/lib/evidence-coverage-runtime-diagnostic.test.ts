@@ -189,7 +189,7 @@ describe("certified provider-independent local evidence bridge", () => {
     expect(diagnostic).toContain('certifyMetricFinding(enforceFiveMetricWiring(metrics[index],row))');
     expect(diagnostic).toContain('internal=certifiedLocalByCode.get(code)??null');
     expect(diagnostic).toContain('local_internal_p1:Boolean(internal?.p1_value)');
-    expect(diagnostic).toContain('schema_version:9');
+    expect(diagnostic).toContain('schema_version:10');
   });
 });
 
@@ -201,5 +201,14 @@ describe("coverage fallback precedence requires real side values", () => {
     expect(diagnostic).toContain('select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family,sources,reliability,sample_label")');
     expect(diagnostic).toContain('p1Usable=usableEvidenceSide(p1Treatment,p1Chosen.value)');
     expect(diagnostic).toContain('credited_source_p1:p1Usable?p1Chosen.source:null');
+  });
+});
+
+describe("completion-sweep historical fallback bridge", () => {
+  it("reuses only the provider-independent historical fallback in the runtime diagnostic", () => {
+    expect(diagnostic).toContain("completionSweepHistoricalFinding");
+    expect(diagnostic).toContain("historicalLocalByCode");
+    expect(diagnostic).toContain("historical_local_p1");
+    expect(diagnostic).toContain("schema_version:10");
   });
 });
