@@ -62,7 +62,9 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(canonical).toContain('status: "QUERY_FAILED"');
     expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
     expect(researcher).toContain("resolveCanonicalEvidencePair(input.p1,input.p2)");
-    expect(researcher).toContain("lookup(codes,p1,p2,date)");
+    expect(researcher).toContain("lookup(codes,p1,p2,date,input.context,tournament,surface)");
+    expect(researcher).toContain("lookup(codes,p2,p1,date,input.context,tournament,surface)");
+    expect(researcher).toContain("storedContextCompatible");
     expect(researcher).toContain("deterministicRankingMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("deterministicMarketMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2");
