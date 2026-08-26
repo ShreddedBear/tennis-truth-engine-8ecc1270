@@ -16,6 +16,7 @@ on:
       - src/lib/evidence-player-alias.test.ts
       - src/lib/evidence-canonical-identity.server.ts
       - src/lib/evidence-match-identity.ts
+      - src/lib/evidence-match-identity.test.ts
       - src/lib/repository-results-history.server.ts
       - src/lib/metric-source-family-policy.ts
       - src/lib/metric-source-family-policy.test.ts
@@ -65,7 +66,7 @@ jobs:
       - name: Build and validate isolated four-tour repository history
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Validate evidence identity firewall
-        run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+        run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-match-identity.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
       - name: Validate full regression suite
         run: bunx vitest run
       - name: Explain production-data execution boundary
