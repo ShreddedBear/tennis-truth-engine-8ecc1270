@@ -18,7 +18,7 @@ export async function deterministicHistoricalResultsMetric(args:{metricCode:stri
   if(!repositoryHistoryAvailable(args.p1,family)||!repositoryHistoryAvailable(args.p2,family))return null;
   const p1Rows=repositoryResultsRows(args.p1,family,args.asOfDate,{strictBefore:true});const p2Rows=repositoryResultsRows(args.p2,family,args.asOfDate,{strictBefore:true});if(!p1Rows.length||!p2Rows.length)return null;
   const allObs=[...p1Rows,...p2Rows];const rows=historicalRows(allObs);const surface=args.surface??contextSurface(args.context);const p1=canonicalKey(args.p1),p2=canonicalKey(args.p2);if(!p1||!p2||p1===p2)return null;
-  const a=deriveHistoricalResultMetric({code,player:p1,opponent:p2,rows,asOfDate:args.asOfDate,surface});const b=deriveHistoricalResultMetric({code,player:p2,opponent:p1,rows,asOfDate:args.asOfDate,surface});if(!a||!b)return null;
+  const a=deriveHistoricalResultMetric({code,player:p1,opponent:p2,rows,asOfDate:args.asOfDate,surface});const b=deriveHistoricalResultMetric({code,player:p2,opponent:p1,rows,asOfDate:args.asOfDate,surface});if(!a||!b||a.sampleSize<=0||b.sampleSize<=0)return null;
   const treatment=code==="057"?"PARTIAL":"RECONSTRUCTED";if(a.treatment!==treatment||b.treatment!==treatment)return null;
   const canonical=buildCanonicalEvidenceMatchIdentity({player1Name:args.p1,player2Name:args.p2,tournament:args.tournament,date:args.asOfDate,tour:family});
   const provenance={metric:code,tour_family:family,target_match:canonical.key,surface,cutoff:`strictly before ${args.asOfDate}`,p1:{raw_inputs:a.rawInputs,transformation:a.transformation,output:a.value,sample_size:a.sampleSize},p2:{raw_inputs:b.rawInputs,transformation:b.transformation,output:b.value,sample_size:b.sampleSize}};
