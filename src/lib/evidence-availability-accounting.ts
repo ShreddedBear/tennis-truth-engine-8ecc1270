@@ -95,3 +95,61 @@ export function summarizeRecoverableCeiling(classes: EvidenceAvailabilityClass[]
     maximum_recoverable_ceiling_percent: pct(total - genuinelyUnavailable),
   };
 }
+
+function classFromRuntimeMetric(match: any, metric: any): EvidenceAvailabilityClass {
+  if (metric.pair_credited) {
+    return classifyEvidenceAvailability({
+      pairCredited: true,
+      p1Credited: Boolean(metric.p1_credited),
+      p2Credited: Boolean(metric.p2_credited),
+      p1Treatment: metric.p1_treatment,
+      p2Treatment: metric.p2_treatment,
+    });
+  }
+  if (metric.failure_bucket === "IDENTITY_MATCH_FAILURE") return "CANONICAL_IDENTITY_FAILURE";
+  if (metric.failure_bucket === "EVIDENCE_QUERY_FAILURE" || metric.failure_bucket === "NORMALIZATION_FAILURE") return "DB_EVIDENCE_LOOKUP_FAILURE";
+  if (metric.failure_bucket === "COVERAGE_CREDIT_FAILURE") return "PARTIALLY_POPULATED";
+  if (match?.sampling_source === "matches" && match?.identity?.exact_match_count !== 1) return "MATCH_JOIN_FAILURE";
+  if (!match?.id) return "TOUR_CLASSIFICATION_FAILURE";
+
+  const expected = new Set<string>(metric.source_expected ?? []);
+  // EVIDENCE_WIRING_FAILURE and RECONSTRUCTION_FAILURE are emitted only after
+  // admissible observations were actually found. That lets us distinguish a
+  // stranded PBP/market record from a source that truly does not exist.
+  if (["EVIDENCE_WIRING_FAILURE", "RECONSTRUCTION_FAILURE"].includes(metric.failure_bucket)) {
+    if (expected.has("POINT_BY_POINT")) return "PBP_EXISTS_NOT_WIRED";
+    if (expected.has("MARKET")) return "MARKET_EXISTS_NOT_WIRED";
+    if (expected.has("RESULTS_SCHEDULE")) return "REPOSITORY_EVIDENCE_NOT_EXPOSED";
+  }
+  return "GENUINELY_UNAVAILABLE";
+}
+
+export function enrichEvidenceCoverageAccounting<T extends Record<string, any>>(report: T) {
+  const matches = (report.matches ?? []).map((match: any) => {
+    const metrics = (match.metrics ?? []).map((metric: any) => ({
+      ...metric,
+      availability_class: classFromRuntimeMetric(match, metric),
+    }));
+    const classes = metrics.map((metric: any) => metric.availability_class as EvidenceAvailabilityClass);
+    const byClass: Record<string, number> = {};
+    for (const value of classes) byClass[value] = (byClass[value] ?? 0) + 1;
+    return {
+      ...match,
+      metrics,
+      availability_accounting: {
+        by_class: byClass,
+        ...summarizeRecoverableCeiling(classes),
+      },
+    };
+  });
+  const allClasses = matches.flatMap((match: any) => match.metrics.map((metric: any) => metric.availability_class as EvidenceAvailabilityClass));
+  return {
+    ...report,
+    metric_family_audit: allMetricFamilyAudit(),
+    availability_accounting: {
+      scope: "FOUR_TOUR_REPRESENTATIVE_METRICS",
+      ...summarizeRecoverableCeiling(allClasses),
+    },
+    matches,
+  };
+}
