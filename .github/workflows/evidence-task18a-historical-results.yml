@@ -1,6 +1,6 @@
 name: Evidence Coverage Task 18A Historical Results
 
-# Current-main revalidation trigger retained intentionally.
+# Current-main revalidation trigger retained intentionally (pre-Task-19 reconciliation).
 on:
   workflow_dispatch:
   push:
