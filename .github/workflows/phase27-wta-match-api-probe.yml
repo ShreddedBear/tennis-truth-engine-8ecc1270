@@ -16,28 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Discover WTA tournament identifiers and candidate match endpoints
+      - name: Probe WTA official match endpoints
         shell: bash
         run: |
           set -euo pipefail
           BASE='https://api.wtatennis.com/tennis'
-          TOURS="$(mktemp)"
-          curl --fail --silent --show-error --location "$BASE/tournaments?page=0&pageSize=500" -o "$TOURS"
-
-          echo '=== TOURNAMENT SHAPE ==='
-          jq -c '{keys:(keys),pageInfo:(.pageInfo // null),first:(.content[0] // null)}' "$TOURS" | head -c 16000 || true
-          echo
-
-          CANDIDATE="$(jq -c '[.content[] | select(((.year // .tournamentYear // .seasonYear // 0)|tonumber?) >= 2025) | select((((.tournamentGroup.level // .level // .levelName // .levelLabel // "")|tostring)|test("125|challenger|ITF";"i")|not))][0]' "$TOURS")"
-          echo "CANDIDATE=$CANDIDATE"
-
-          GROUP_ID="$(echo "$CANDIDATE" | jq -r '.tournamentGroup.id // .tournamentGroup.groupId // .tournamentGroupId // .groupId // .id // empty')"
-          YEAR="$(echo "$CANDIDATE" | jq -r '.year // .tournamentYear // .seasonYear // empty')"
-          TOURNAMENT_ID="$(echo "$CANDIDATE" | jq -r '.id // .tournamentId // empty')"
-          TITLE="$(echo "$CANDIDATE" | jq -r '.title // .tournamentName // .name // empty')"
-          echo "DISCOVERED group_id=$GROUP_ID tournament_id=$TOURNAMENT_ID year=$YEAR title=$TITLE"
-          test -n "$GROUP_ID" || { echo 'No group id discovered'; exit 1; }
-          test -n "$YEAR" || YEAR=2026
+          # Australian Open has stable tournamentGroup.id=901 in the official API.
+          # Probe a known recent edition so pagination/order cannot hide the candidate.
+          GROUP_ID=901
+          YEAR=2026
 
           probe() {
             local url="$1"
@@ -47,24 +34,28 @@ jobs:
             ctype="$(jq -r 'type' "$body" 2>/dev/null || echo non-json)"
             echo "PROBE|$status|$ctype|$url"
             if jq . "$body" >/dev/null 2>&1; then
-              jq -c 'if type=="object" then {keys:(keys),pageInfo:(.pageInfo // null),contentType:(.content|type? // null),contentCount:(.content|length? // null),first:(.content[0] // null)} elif type=="array" then {count:length,first:(.[0] // null)} else . end' "$body" | head -c 10000 || true
+              jq -c 'if type=="object" then {keys:(keys),pageInfo:(.pageInfo // null),contentType:(.content|type? // null),contentCount:(.content|length? // null),first:(.content[0] // null)} elif type=="array" then {count:length,first:(.[0] // null)} else . end' "$body" | head -c 12000 || true
               echo
             else
-              head -c 500 "$body" || true
+              head -c 800 "$body" || true
               echo
             fi
             rm -f "$body"
           }
 
+          # Verify year-filter behavior on the tournament endpoint first.
+          probe "$BASE/tournaments?year=$YEAR&page=0&pageSize=10"
+          probe "$BASE/tournaments?tournamentGroupId=$GROUP_ID&year=$YEAR&page=0&pageSize=10"
+
           for URL in \
             "$BASE/matches?tournamentGroupId=$GROUP_ID&year=$YEAR&page=0&pageSize=10" \
-            "$BASE/matches?tournamentId=$TOURNAMENT_ID&page=0&pageSize=10" \
             "$BASE/tournaments/$GROUP_ID/$YEAR/matches?page=0&pageSize=10" \
             "$BASE/tournaments/$GROUP_ID/matches?year=$YEAR&page=0&pageSize=10" \
-            "$BASE/tournaments/$TOURNAMENT_ID/matches?page=0&pageSize=10" \
             "$BASE/tournament/$GROUP_ID/$YEAR/matches?page=0&pageSize=10" \
             "$BASE/matches?groupId=$GROUP_ID&year=$YEAR&page=0&pageSize=10" \
-            "$BASE/matches?year=$YEAR&page=0&pageSize=10"
+            "$BASE/matches?year=$YEAR&page=0&pageSize=10" \
+            "$BASE/tournaments/$GROUP_ID/$YEAR" \
+            "$BASE/tournament/$GROUP_ID/$YEAR"
           do
             probe "$URL"
           done
