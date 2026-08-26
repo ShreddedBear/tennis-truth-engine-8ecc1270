@@ -19,13 +19,24 @@ on:
       - repair/evidence-coverage-phase15-ranking-context
       - repair/evidence-coverage-phase16-proof-contract
       - repair/evidence-coverage-phase17-integrated
+      - repair/evidence-coverage-task13-16-final
     paths:
       - scripts/evidence-coverage-baseline.ts
+      - scripts/build-runtime-tennis-index.mjs
+      - data/public/production-history/wta_challenger/**
+      - data/public/tennismylife-challenger/normalized/**
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
       - supabase/migrations/*evidence*.sql
+      - src/routes/api/evidence-coverage-diagnostic.ts
+      - src/lib/evidence-availability-accounting.ts
+      - src/lib/evidence-availability-accounting.test.ts
       - src/lib/evidence-player-alias.ts
       - src/lib/evidence-player-alias.test.ts
       - src/lib/evidence-canonical-identity.server.ts
+      - src/lib/evidence-match-identity.ts
+      - src/lib/repository-results-history.server.ts
+      - src/lib/metric-source-family-policy.ts
+      - src/lib/metric-source-family-policy.test.ts
       - src/lib/source-observation-metric-bridge.server.ts
       - src/lib/source-observation-metric-bridge.test.ts
       - src/lib/warehouse-first-researcher.server.ts
@@ -64,6 +75,8 @@ jobs:
   diagnostic-code:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -71,12 +84,16 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Build and validate isolated four-tour repository history
+        run: node scripts/build-runtime-tennis-index.mjs
       - name: Validate evidence identity firewall
         run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
       - name: Validate deterministic PBP evidence
         run: bunx vitest run src/lib/deterministic-pbp-metrics.test.ts
       - name: Validate tournament-scoped environment evidence
         run: bunx vitest run src/lib/deterministic-environment-metrics.test.ts
+      - name: Validate source-vs-software accounting
+        run: bunx vitest run src/lib/evidence-availability-accounting.test.ts src/lib/metric-source-family-policy.test.ts
       - name: Validate pair-complete selection priority
         run: bunx vitest run src/lib/evidence-finding-selection.test.ts
       - name: Validate persisted alias dedupe
