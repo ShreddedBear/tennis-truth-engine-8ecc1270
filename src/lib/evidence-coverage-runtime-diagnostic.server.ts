@@ -79,7 +79,7 @@ async function classifyPairFromExactRankingEvidence(p1:string,p2:string):Promise
   const names=[identities.p1.canonical,identities.p2.canonical];
   const {data,error}=await db.from("source_observations").select("player_name,source_name,source_id,observation_type").eq("observation_type","RANKING").in("player_name",names).limit(100);
   if(error)return null;
-  const sideTour=(name:string)=>{const tours=[...new Set((data??[]).filter((r:any)=>r.player_name===name).map((r:any)=>rankingTour(`${r.source_id??""} ${r.source_name??""}`)).filter(Boolean))];return tours.length===1?tours[0]:null;};
+  const sideTour=(name:string):"ATP_MAIN"|"WTA_MAIN"|null=>{const tours=[...new Set((data??[]).filter((r:any)=>r.player_name===name).map((r:any)=>rankingTour(`${r.source_id??""} ${r.source_name??""}`)).filter(Boolean))] as ("ATP_MAIN"|"WTA_MAIN")[];return tours.length===1?tours[0]!:null;};
   const p1Tour=sideTour(names[0]),p2Tour=sideTour(names[1]);
   return p1Tour&&p1Tour===p2Tour?p1Tour:null;
 }
@@ -89,7 +89,7 @@ async function classifyFromExactRankingEvidence(row:MatchCandidate):Promise<"ATP
   return classifyPairFromExactRankingEvidence(row.player1_name,row.player2_name);
 }
 
-async function representativeMatches():Promise<{matches:RepresentativeMatch[];missing_classes:RepresentativeId[];missing_class_reasons:Partial<Record<RepresentativeId,string>>}> {
+async function representativeMatches():Promise<{matches:RepresentativeMatch[];missing_classes:RepresentativeId[];missing_class_reasons:Partial<Record<RepresentativeId,string>>;class_proof:Partial<Record<RepresentativeId,unknown>>}> {
   const wanted:RepresentativeId[]=["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"],selected:RepresentativeMatch[]=[];
   const primary=await db.from("matches").select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round,created_at,active_summary_version_id").not("player1_name","is",null).not("player2_name","is",null).order("created_at", { ascending: false }).limit(1500);
   let candidates:MatchCandidate[]=[];
