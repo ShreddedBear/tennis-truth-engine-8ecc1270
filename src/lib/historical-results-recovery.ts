@@ -75,7 +75,7 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
   const reconstruction=(value:string,sampleSize:number,rawInputs:Record<string,unknown>,transformation:string,treatment:Treatment="RECONSTRUCTED"):HistoricalDerivation=>({value,treatment,sampleSize,rawInputs,transformation});
 
   if(code==="006"){
-    const h2h=complete.filter(r=>r.opponent===args.opponent);const w=h2h.filter(r=>r.won).length;
+    const h2h=complete.filter(r=>r.opponent===args.opponent);if(!h2h.length)return null;const w=h2h.filter(r=>r.won).length;
     return reconstruction(`h2h_matches=${h2h.length}; h2h_wins=${w}; h2h_losses=${h2h.length-w}; h2h_win_pct=${pct(w,h2h.length)??"NA"}`,h2h.length,{historical_matches_scanned:complete.length,canonical_opponent:args.opponent},"Filter canonical prior results to the opponent pair and count realized winner orientation.");
   }
   if(code==="010"){
@@ -83,8 +83,8 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
     return reconstruction(`scored_wins=${score.wins}; straight_set_wins=${score.straightWins}; straight_set_win_pct=${score.straightWinPct??"NA"}; same_surface_straight_set_win_pct=${ss.straightWinPct??"NA"}`,score.matches,{scored_matches:score.matches,surface:args.surface??null},"Classify completed wins with zero sets lost; separately repeat on the target surface when present.");
   }
   if(code==="011"){
-    if(!score.matches)return null;const winSeries=complete.map(r=>r.won?1:0);const setMargins=scoredRows.map(r=>r.setsFor!-r.setsAgainst!);
-    return reconstruction(`match_win_pct=${record.winPct??"NA"}; result_variance=${variance(winSeries)}; set_margin_variance=${variance(setMargins)}; straight_win_pct=${score.straightWinPct??"NA"}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}; tiebreak_set_pct=${pct(score.tiebreakSets,score.sets)??"NA"}`,score.matches,{completed_matches:complete.length,scored_matches:score.matches,set_count:score.sets},"Measure floor/volatility from realized match outcomes and scored-set margin, straight-set, blowout and tiebreak distributions.");
+    if(!score.matches||!score.sets)return null;const winSeries=complete.map(r=>r.won?1:0);const setMargins=scoredRows.map(r=>r.setsFor!-r.setsAgainst!);
+    return reconstruction(`match_win_pct=${record.winPct??"NA"}; result_variance=${variance(winSeries)}; set_margin_variance=${variance(setMargins)}; straight_win_pct=${score.straightWinPct??"NA"}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}; tiebreak_set_pct=${pct(score.tiebreakSets,score.sets)??"NA"}`,score.matches,{completed_matches:complete.length,scored_matches:score.matches,set_count:score.sets},"Measure floor/volatility from realized match outcomes and observed game-level set margins, straight-set, blowout and tiebreak distributions. Full reconstruction requires preserved per-set game scores.");
   }
   if(code==="013"){
     const opponentHistory=args.rows.filter(r=>r.player===args.opponent&&r.date<args.asOfDate&&isCompleted(r));const theirs=new Set(opponentHistory.map(r=>r.opponent));const common=complete.filter(r=>r.opponent!==args.opponent&&theirs.has(r.opponent)&&quality(r)!==null);if(!common.length)return null;const w=common.filter(r=>r.won).length;
@@ -138,7 +138,7 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
     const dates=[...new Set(complete.map(r=>r.date))].sort();if(dates.length<2)return null;const gaps=dates.slice(1).map((d,i)=>dayDiff(dates[i],d));const one=gaps.filter(x=>x<=1).length,two=gaps.filter(x=>x<=2).length;return reconstruction(`transitions=${gaps.length}; rest_le_1d=${one}; rest_le_1d_rate_pct=${pct(one,gaps.length)??"NA"}; rest_le_2d=${two}; rest_le_2d_rate_pct=${pct(two,gaps.length)??"NA"}`,gaps.length,{chronological_dates:dates.slice(-200),rest_day_gaps:gaps.slice(-200)},"Sort unique prior match dates chronologically and calculate day gaps; report one-day and two-day shortfall rates without treating missing dates as zero rest.");
   }
   if(code==="080"){
-    if(!score.matches)return null;const winSeries=complete.map(r=>r.won?1:0),setMargins=scoredRows.map(r=>r.setsFor!-r.setsAgainst!),gameMargins=scoredRows.flatMap(r=>r.setScores.map(([a,b])=>a-b));return reconstruction(`completed_matches=${complete.length}; result_variance=${variance(winSeries)}; set_margin_variance=${variance(setMargins)}; game_margin_variance=${variance(gameMargins)}`,score.matches,{match_outcomes:winSeries.slice(-200),set_margins:setMargins.slice(-200),game_margins:gameMargins.slice(-400)},"Compute population variance of prior binary match outcomes and observed set/game margins; missing score components are excluded, never zero-filled.");
+    if(!score.matches||!score.sets)return null;const winSeries=complete.map(r=>r.won?1:0),setMargins=scoredRows.map(r=>r.setsFor!-r.setsAgainst!),gameMargins=scoredRows.flatMap(r=>r.setScores.map(([a,b])=>a-b));return reconstruction(`completed_matches=${complete.length}; result_variance=${variance(winSeries)}; set_margin_variance=${variance(setMargins)}; game_margin_variance=${variance(gameMargins)}`,score.matches,{match_outcomes:winSeries.slice(-200),set_margins:setMargins.slice(-200),game_margins:gameMargins.slice(-400)},"Compute population variance of prior binary match outcomes and observed set/game margins. Full reconstruction requires preserved per-set game scores; missing score components are never zero-filled.");
   }
   return null;
 }
