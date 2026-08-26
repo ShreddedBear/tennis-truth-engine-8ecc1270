@@ -37,5 +37,12 @@ describe("deterministic results/schedule calculators", () => {
     expect(source).toContain("evidenceDateCompatible");
     expect(source).toContain("evidenceTourCompatible");
     expect(source).toContain("buildCanonicalEvidenceMatchIdentity");
+    expect(source).toContain("if(!expectedFamily)return null");
+  });
+
+  it("fails closed when more than one production-history match can satisfy the join", () => {
+    expect(source).toContain("uniqueCurrentEventHistoryRows");
+    expect(source).toContain("candidates.length===1?candidates:[]");
+    expect(source).toContain("if(currentHistory.length>1)return null");
   });
 });
