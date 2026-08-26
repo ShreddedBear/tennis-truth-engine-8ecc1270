@@ -19,7 +19,7 @@ on:
       - '.github/workflows/evidence-task18a-historical-results.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: evidence-task18a-${{ github.ref }}
@@ -40,6 +40,16 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Audit repository source schemas
         run: node scripts/task18a-source-schema-audit.mjs
+      - name: Persist source schema audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/evidence-coverage/task18a-source-schema-audit.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/evidence-coverage/task18a-source-schema-audit.json
+          git commit -m 'Task 18A: record repository source schemas'
+          git push origin HEAD:repair/evidence-coverage-task18a-historical-results
       - name: Build four-tour repository evidence index
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Task 18A reconstruction and false-green tests
