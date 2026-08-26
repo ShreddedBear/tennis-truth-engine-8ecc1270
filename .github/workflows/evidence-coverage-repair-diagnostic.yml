@@ -7,11 +7,17 @@ on:
       - repair/evidence-coverage-phase2
     paths:
       - scripts/evidence-coverage-baseline.ts
+      - scripts/build-runtime-tennis-index.mjs
+      - data/public/production-history/wta_challenger/**
+      - data/public/tennismylife-challenger/normalized/**
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
       - supabase/migrations/*evidence*.sql
       - src/lib/evidence-player-alias.ts
       - src/lib/evidence-player-alias.test.ts
       - src/lib/evidence-canonical-identity.server.ts
+      - src/lib/evidence-match-identity.ts
+      - src/lib/repository-results-history.server.ts
+      - src/lib/metric-source-family-policy.ts
       - src/lib/source-observation-metric-bridge.server.ts
       - src/lib/warehouse-first-researcher.server.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
@@ -41,6 +47,8 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Build and validate isolated four-tour repository history
+        run: node scripts/build-runtime-tennis-index.mjs
       - name: Validate evidence identity firewall
         run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
       - name: Validate full regression suite
