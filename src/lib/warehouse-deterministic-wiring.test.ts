@@ -29,4 +29,10 @@ describe("warehouse deterministic calculator wiring", () => {
     expect(compact).toContain("evidence_family:row.evidence_family");
     expect(compact).toContain("treatment:row.p1_treatment");
   });
+
+  it("deduplicates approved PBP observations by source and match identity", () => {
+    expect(compact).toContain('if(row?.family==="POINT_BY_POINT"&&matchId)return`PBP|${row?.source??""}|${matchId}`');
+    expect(compact).toContain("if(seen.has(key))returnfalse");
+    expect(compact).toContain("seen.add(key)");
+  });
 });
