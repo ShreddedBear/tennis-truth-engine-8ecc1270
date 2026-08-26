@@ -7,6 +7,7 @@ on:
       - repair/evidence-coverage-task18a-historical-results
     paths:
       - 'scripts/build-runtime-tennis-index.mjs'
+      - 'scripts/task18a-cell-accounting.ts'
       - 'src/lib/historical-results-recovery.ts'
       - 'src/lib/historical-results-recovery.test.ts'
       - 'src/lib/deterministic-historical-results-metrics.server.ts'
@@ -40,6 +41,8 @@ jobs:
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Task 18A reconstruction and false-green tests
         run: bunx vitest run src/lib/historical-results-recovery.test.ts src/lib/deterministic-historical-results-metrics.test.ts
+      - name: Production four-tour cell accounting
+        run: bun scripts/task18a-cell-accounting.ts
       - name: Identity and match foundations
         run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-match-identity.test.ts
       - name: Existing results and evidence accounting foundations
