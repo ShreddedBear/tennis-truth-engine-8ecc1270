@@ -89,7 +89,7 @@ async function classifyFromExactRankingEvidence(row:MatchCandidate):Promise<"ATP
   return classifyPairFromExactRankingEvidence(row.player1_name,row.player2_name);
 }
 
-async function representativeMatches():Promise<{matches:RepresentativeMatch[];missing_classes:RepresentativeId[];missing_class_reasons:Partial<Record<RepresentativeId,string>>}> {
+async function representativeMatches():Promise<{matches:RepresentativeMatch[];missing_classes:RepresentativeId[];missing_class_reasons:Partial<Record<RepresentativeId,string>>;class_proof:Partial<Record<RepresentativeId,unknown>>}> {
   const wanted:RepresentativeId[]=["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"],selected:RepresentativeMatch[]=[];
   const primary=await db.from("matches").select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round,created_at,active_summary_version_id").not("player1_name","is",null).not("player2_name","is",null).order("created_at", { ascending: false }).limit(1500);
   let candidates:MatchCandidate[]=[];
