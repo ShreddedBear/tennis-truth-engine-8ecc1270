@@ -7,6 +7,7 @@ on:
       - repair/evidence-coverage-task18a-historical-results
     paths:
       - 'scripts/build-runtime-tennis-index.mjs'
+      - 'scripts/task18a-source-schema-audit.mjs'
       - 'scripts/task18a-cell-accounting.ts'
       - 'src/lib/historical-results-recovery.ts'
       - 'src/lib/historical-results-recovery.test.ts'
@@ -37,6 +38,8 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Audit repository source schemas
+        run: node scripts/task18a-source-schema-audit.mjs
       - name: Build four-tour repository evidence index
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Task 18A reconstruction and false-green tests
