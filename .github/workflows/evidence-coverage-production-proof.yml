@@ -3,61 +3,91 @@ name: Evidence Coverage Production Proof
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - repair/evidence-coverage-phase2
     paths:
       - '.github/workflows/evidence-coverage-production-proof.yml'
       - 'src/routes/api/evidence-coverage-diagnostic.ts'
       - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
+      - 'src/lib/evidence-availability-accounting.ts'
+      - 'src/lib/evidence-player-alias.ts'
+      - 'src/lib/evidence-canonical-identity.server.ts'
+      - 'src/lib/evidence-match-identity.ts'
+      - 'src/lib/repository-results-history.server.ts'
       - 'src/lib/warehouse-first-researcher.server.ts'
       - 'src/lib/source-observation-metric-bridge.server.ts'
       - 'src/lib/metric-source-family-policy.ts'
+      - 'src/lib/deterministic-ranking-metrics.server.ts'
+      - 'src/lib/deterministic-results-schedule-metrics.server.ts'
+      - 'src/lib/deterministic-market-metrics.server.ts'
+      - 'src/lib/deterministic-environment-metrics.server.ts'
+      - 'src/lib/deterministic-rules-context-metric.server.ts'
+      - 'src/lib/deterministic-pbp-metrics.server.ts'
+      - 'src/lib/bsd-atp-main-pbp.server.ts'
+      - 'src/lib/bsd-wta-main-pbp.server.ts'
+      - 'src/lib/bsd-atp-challenger-pbp.server.ts'
+      - 'src/lib/bsd-wta-challenger-pbp.server.ts'
+      - 'src/generated/tennis-runtime-index.ts'
 
 permissions:
   contents: read
+
+concurrency:
+  group: evidence-coverage-production-proof-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   proof:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Wait for production diagnostic and prove sampling/firewalls
+      - name: Probe Lovable-managed production diagnostic
         shell: bash
         env:
           URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
         run: |
           set -euo pipefail
           response="$(mktemp)"
-          report="$(mktemp)"
           status=""
-          structurally_ready='def sampled($id): (.sampling.sampled_classes // []) | index($id) != null;
-            def missing_with_reason($id):
-              ((.sampling.missing_classes // []) | index($id) != null)
-              and (((.sampling.missing_class_reasons // {})[$id] // "") | length > 0);
-            .metrics == 81
-            and sampled("ATP_MAIN")
-            and sampled("WTA_MAIN")
-            and (sampled("ATP_CHALLENGER") or missing_with_reason("ATP_CHALLENGER"))'
+          requested='["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]'
+          expected_ids='["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]'
+
+          contract_ready() {
+            [ "$status" = "200" ] \
+              && jq -e --argjson requested "$requested" --argjson expected_ids "$expected_ids" '
+                .ok == true
+                and .report.metrics == 81
+                and ((.report.sampling.requested_classes // []) == $requested)
+                and ((.report.matches | length) == 4)
+                and (([.report.matches[].id] | sort) == $expected_ids)
+                and ((.report.metric_family_audit | length) == 81)
+                and (.report.availability_accounting.maximum_recoverable_ceiling_percent >= 0)
+                and (.report.availability_accounting.maximum_recoverable_ceiling_percent <= 100)
+                and (.report.availability_accounting.software_loss_percent >= 0)
+                and (.report.availability_accounting.genuine_source_unavailability_percent >= 0)
+                and all(.report.matches[]; .false_green_guard.passed == true)
+                and all(.report.matches[]; (.coverage.pair_percent // 0) >= 0 and (.coverage.pair_percent // 0) <= 100)
+              ' "$response" >/dev/null 2>&1
+          }
+
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null 2>&1; then
-              jq '.report // .' "$response" > "$report"
-              if jq -e "$structurally_ready" "$report" >/dev/null 2>&1; then
-                break
-              fi
+            if contract_ready; then
+              break
             fi
-            echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
+            classes="$(jq -c '.report.sampling.requested_classes // []' "$response" 2>/dev/null || echo '[]')"
+            ids="$(jq -c '[.report.matches[]?.id] | sort' "$response" 2>/dev/null || echo '[]')"
+            echo "Production diagnostic not at current four-tour contract (attempt=$attempt status=$status requested=$classes ids=$ids); retrying..."
             sleep 20
           done
+
           echo "HTTP status: $status"
           cat "$response"
           echo
-          [ "$status" = "200" ]
-          jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null
-          jq '.report // .' "$response" > "$report"
-          jq -e "$structurally_ready" "$report" >/dev/null
-          jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(",")) + "|MISSING_REASONS=" + ((.missing_class_reasons // {})|tojson)' "$report"
-          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$report"
-          jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$report" >/dev/null
-          echo 'PASS: production diagnostic has valid representative sampling or explicit missing-class proof, and no one-sided evidence was credited as pair-complete.'
+          contract_ready
 
-# Manual retrigger marker: 2026-08-26 post-Phase-27b hard-pull persistence proof.
+          jq -r '.report.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) ceiling=\(.availability_accounting.maximum_recoverable_ceiling_percent)% false_green_pass=\(.false_green_guard.passed)"' "$response"
+          echo 'PASS: Lovable-managed production diagnostic exposes all 81 metrics, all four tour families, software-vs-source accounting, and the recoverable ceiling with the false-green guard intact.'
+
+# trigger: production-proof-four-tour-current-contract
