@@ -144,15 +144,20 @@ function currentEventHistoryRows(rows:MatchHistoryRow[],args:{p1:string;p2:strin
   });
 }
 
+function uniqueCurrentEventHistoryRows(rows:MatchHistoryRow[],args:{p1:string;p2:string;asOfDate:string;tournament?:string|null;round?:string|null},expectedFamily:EvidenceTourFamily|null){
+  const candidates=currentEventHistoryRows(rows,args,expectedFamily);
+  return candidates.length===1?candidates:[];
+}
+
 function componentsFor(player:string,opponent:string,rows:Observation[],asOfDate:string,tournament:string|null,expectedFamily:EvidenceTourFamily|null,historyRows:MatchHistoryRow[],round?:string|null):PlayerComponents{
-  const playerRows=rows.filter(r=>evidenceNameMatches(r.player_name,player,opponent)&&isMatch(r)&&(!expectedFamily||evidenceTourCompatible(expectedFamily,observationTourFamily(r))));
+  const playerRows=rows.filter(r=>evidenceNameMatches(r.player_name,player,opponent)&&isMatch(r)&&evidenceTourCompatible(expectedFamily,observationTourFamily(r)));
   const recent=(days:number)=>playerRows.filter(r=>r.event_date&&daysBetween(r.event_date,asOfDate)>=0&&daysBetween(r.event_date,asOfDate)<=days);
   const r14=recent(14),r30=recent(30),r52w=recent(364),dates=playerRows.map(r=>r.event_date!).sort().reverse(),last=dates[0]??null;
   const sameTournamentRows=tournament?playerRows.filter(r=>sameTournament(r.tournament,tournament)&&r.event_date&&daysBetween(r.event_date,asOfDate)<=365*5):[];
   let sameTournamentWins=0;for(const row of sameTournamentRows){const payload=parseText(row);if(evidenceNameMatches(String(payload.winner??""),player,opponent))sameTournamentWins+=1;}
   const qualifying=r14.filter(r=>/qual/i.test(String(r.sample_label??parseText(r).round??"")));
-  const direct=directScheduleRows(rows,tournament,expectedFamily),history=currentEventHistoryRows(historyRows,{p1:player,p2:opponent,asOfDate,tournament,round},expectedFamily);
-  const kind:ScheduleContextKind=direct.length?"DIRECT_EVENT_SCHEDULE":history.length?"MATCH_HISTORY_SCHEDULE_CONTEXT":"UNAVAILABLE";
+  const direct=directScheduleRows(rows,tournament,expectedFamily),history=uniqueCurrentEventHistoryRows(historyRows,{p1:player,p2:opponent,asOfDate,tournament,round},expectedFamily);
+  const kind:ScheduleContextKind=direct.length?"DIRECT_EVENT_SCHEDULE":history.length===1?"MATCH_HISTORY_SCHEDULE_CONTEXT":"UNAVAILABLE";
   return {matches_14d:r14.length,matches_30d:r30.length,matches_52w:r52w.length,days_since_last_match:last?daysBetween(last,asOfDate):null,distinct_tournaments_30d:new Set(r30.map(r=>normalizeEvidenceTournament(r.tournament)).filter(Boolean)).size,same_tournament_matches_5y:sameTournamentRows.length,same_tournament_wins_5y:sameTournamentWins,qualifying_matches_14d:qualifying.length,scheduled_current_event_rows:direct.length,match_history_schedule_rows:history.length,schedule_context_kind:kind};
 }
 
@@ -175,16 +180,16 @@ export async function deterministicResultsScheduleMetric(args:{metricCode:string
   if(!playerRowsResult||sharedResult.error||historyResult.error)return null;
   let rows=([...playerRowsResult,...(sharedResult.data??[])]as Observation[]).filter(row=>metricAllowsObservation(code,row));
   const expectedFamily=inferExpectedFamily(args,rows,args.p1,args.p2),historyRows=(historyResult.data??[])as MatchHistoryRow[];
-  if(expectedFamily){
-    rows.push(...repositoryResultsRows(args.p1,expectedFamily,args.asOfDate),...repositoryResultsRows(args.p2,expectedFamily,args.asOfDate));
-    const seen=new Set<string>();
-    rows=rows.filter(row=>{const key=[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|");if(seen.has(key))return false;seen.add(key);return true;});
-  }
-  const playerRows=rows.filter(r=>(evidenceNameMatches(r.player_name,args.p1,args.p2)||evidenceNameMatches(r.player_name,args.p2,args.p1))&&(!expectedFamily||evidenceTourCompatible(expectedFamily,observationTourFamily(r))));
+  if(!expectedFamily)return null;
+  rows.push(...repositoryResultsRows(args.p1,expectedFamily,args.asOfDate),...repositoryResultsRows(args.p2,expectedFamily,args.asOfDate));
+  const seen=new Set<string>();
+  rows=rows.filter(row=>{const key=[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|");if(seen.has(key))return false;seen.add(key);return true;});
+  const playerRows=rows.filter(r=>(evidenceNameMatches(r.player_name,args.p1,args.p2)||evidenceNameMatches(r.player_name,args.p2,args.p1))&&evidenceTourCompatible(expectedFamily,observationTourFamily(r)));
   const currentHistory=currentEventHistoryRows(historyRows,{p1:args.p1,p2:args.p2,asOfDate:args.asOfDate,tournament:args.tournament,round:args.round},expectedFamily);
+  if(currentHistory.length>1)return null;
   if(!playerRows.length&&!currentHistory.length)return null;
   const uniqueHistory=currentHistory.length===1?currentHistory[0]:null;
   const canonicalMatch=buildCanonicalEvidenceMatchIdentity({player1StableId:uniqueHistory?.player1_id,player2StableId:uniqueHistory?.player2_id,player1Name:args.p1,player2Name:args.p2,tournament:args.tournament??uniqueHistory?.tournament_name,date:args.asOfDate,round:args.round??uniqueHistory?.round,tour:expectedFamily,eventLevel:args.eventLevel??uniqueHistory?.event_level});
   const c1=componentsFor(args.p1,args.p2,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),c2=componentsFor(args.p2,args.p1,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),p1=valueFor(code,c1),p2=valueFor(code,c2);if(!p1||!p2)return null;
-  return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse/repository components through ${args.asOfDate}; tour_family=${expectedFamily??"UNRESOLVED"}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)};
+  return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse/repository components through ${args.asOfDate}; tour_family=${expectedFamily}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)};
 }
