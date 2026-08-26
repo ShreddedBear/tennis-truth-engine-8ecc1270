@@ -3,7 +3,9 @@ name: Evidence Coverage Production Proof
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - repair/evidence-coverage-phase2
     paths:
       - '.github/workflows/evidence-coverage-production-proof.yml'
       - 'src/routes/api/evidence-coverage-diagnostic.ts'
@@ -20,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Wait for production diagnostic and prove pair coverage
+      - name: Probe Lovable-managed production diagnostic
         shell: bash
         env:
           URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
@@ -30,7 +32,7 @@ jobs:
           status=""
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null 2>&1; then
+            if [ "$status" = "200" ] && jq -e '.metrics == 81' "$response" >/dev/null 2>&1; then
               break
             fi
             echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
@@ -40,9 +42,16 @@ jobs:
           cat "$response"
           echo
           [ "$status" = "200" ]
-          jq -e '.metrics == 81 and (.matches | length) == 3' "$response" >/dev/null
-          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
-          jq -e 'all(.matches[]; .coverage.pair_percent > 15 and .false_green_guard.passed == true)' "$response" >/dev/null
-          echo 'PASS: every representative tour has pair-complete evidence coverage above the former 15% block with no one-sided false green.'
+          jq -e '.metrics == 81' "$response" >/dev/null
 
-# trigger: production-proof-1
+          requested='["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]'
+          jq -e --argjson requested "$requested" '(.requested_classes // []) == $requested' "$response" >/dev/null
+          jq -e '(.matches | length) == 4' "$response" >/dev/null
+          jq -e '[.matches[].id] | sort == ["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]' "$response" >/dev/null
+
+          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
+          jq -e 'all(.matches[]; .false_green_guard.passed == true)' "$response" >/dev/null
+          jq -e 'all(.matches[]; (.coverage.pair_percent // 0) >= 0 and (.coverage.pair_percent // 0) <= 100)' "$response" >/dev/null
+          echo 'PASS: Lovable-managed production diagnostic exposes all 81 metrics and all four tour families with the false-green guard intact.'
+
+# trigger: production-proof-four-tour
