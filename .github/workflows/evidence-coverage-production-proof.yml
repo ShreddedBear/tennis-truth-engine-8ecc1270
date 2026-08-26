@@ -11,12 +11,31 @@ on:
       - 'src/routes/api/evidence-coverage-diagnostic.ts'
       - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
       - 'src/lib/evidence-availability-accounting.ts'
+      - 'src/lib/evidence-player-alias.ts'
+      - 'src/lib/evidence-canonical-identity.server.ts'
+      - 'src/lib/evidence-match-identity.ts'
+      - 'src/lib/repository-results-history.server.ts'
       - 'src/lib/warehouse-first-researcher.server.ts'
       - 'src/lib/source-observation-metric-bridge.server.ts'
       - 'src/lib/metric-source-family-policy.ts'
+      - 'src/lib/deterministic-ranking-metrics.server.ts'
+      - 'src/lib/deterministic-results-schedule-metrics.server.ts'
+      - 'src/lib/deterministic-market-metrics.server.ts'
+      - 'src/lib/deterministic-environment-metrics.server.ts'
+      - 'src/lib/deterministic-rules-context-metric.server.ts'
+      - 'src/lib/deterministic-pbp-metrics.server.ts'
+      - 'src/lib/bsd-atp-main-pbp.server.ts'
+      - 'src/lib/bsd-wta-main-pbp.server.ts'
+      - 'src/lib/bsd-atp-challenger-pbp.server.ts'
+      - 'src/lib/bsd-wta-challenger-pbp.server.ts'
+      - 'src/generated/tennis-runtime-index.ts'
 
 permissions:
   contents: read
+
+concurrency:
+  group: evidence-coverage-production-proof-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   proof:
