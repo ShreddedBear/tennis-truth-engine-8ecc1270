@@ -31,31 +31,44 @@ jobs:
           set -euo pipefail
           response="$(mktemp)"
           status=""
+          requested='["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]'
+          expected_ids='["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]'
+
+          contract_ready() {
+            [ "$status" = "200" ] \
+              && jq -e --argjson requested "$requested" --argjson expected_ids "$expected_ids" '
+                .ok == true
+                and .report.metrics == 81
+                and ((.report.sampling.requested_classes // []) == $requested)
+                and ((.report.matches | length) == 4)
+                and (([.report.matches[].id] | sort) == $expected_ids)
+                and ((.report.metric_family_audit | length) == 81)
+                and (.report.availability_accounting.maximum_recoverable_ceiling_percent >= 0)
+                and (.report.availability_accounting.maximum_recoverable_ceiling_percent <= 100)
+                and (.report.availability_accounting.software_loss_percent >= 0)
+                and (.report.availability_accounting.genuine_source_unavailability_percent >= 0)
+                and all(.report.matches[]; .false_green_guard.passed == true)
+                and all(.report.matches[]; (.coverage.pair_percent // 0) >= 0 and (.coverage.pair_percent // 0) <= 100)
+              ' "$response" >/dev/null 2>&1
+          }
+
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e '.ok == true and .report.metrics == 81' "$response" >/dev/null 2>&1; then
+            if contract_ready; then
               break
             fi
-            echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
+            classes="$(jq -c '.report.sampling.requested_classes // []' "$response" 2>/dev/null || echo '[]')"
+            ids="$(jq -c '[.report.matches[]?.id] | sort' "$response" 2>/dev/null || echo '[]')"
+            echo "Production diagnostic not at current four-tour contract (attempt=$attempt status=$status requested=$classes ids=$ids); retrying..."
             sleep 20
           done
+
           echo "HTTP status: $status"
           cat "$response"
           echo
-          [ "$status" = "200" ]
-          jq -e '.ok == true and .report.metrics == 81' "$response" >/dev/null
-
-          requested='["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]'
-          jq -e --argjson requested "$requested" '(.report.sampling.requested_classes // []) == $requested' "$response" >/dev/null
-          jq -e '(.report.matches | length) == 4' "$response" >/dev/null
-          jq -e '[.report.matches[].id] | sort == ["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]' "$response" >/dev/null
-          jq -e '(.report.metric_family_audit | length) == 81' "$response" >/dev/null
-          jq -e '.report.availability_accounting.maximum_recoverable_ceiling_percent >= 0 and .report.availability_accounting.maximum_recoverable_ceiling_percent <= 100' "$response" >/dev/null
-          jq -e '.report.availability_accounting.software_loss_percent >= 0 and .report.availability_accounting.genuine_source_unavailability_percent >= 0' "$response" >/dev/null
+          contract_ready
 
           jq -r '.report.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) ceiling=\(.availability_accounting.maximum_recoverable_ceiling_percent)% false_green_pass=\(.false_green_guard.passed)"' "$response"
-          jq -e 'all(.report.matches[]; .false_green_guard.passed == true)' "$response" >/dev/null
-          jq -e 'all(.report.matches[]; (.coverage.pair_percent // 0) >= 0 and (.coverage.pair_percent // 0) <= 100)' "$response" >/dev/null
           echo 'PASS: Lovable-managed production diagnostic exposes all 81 metrics, all four tour families, software-vs-source accounting, and the recoverable ceiling with the false-green guard intact.'
 
-# trigger: production-proof-four-tour
+# trigger: production-proof-four-tour-current-contract
