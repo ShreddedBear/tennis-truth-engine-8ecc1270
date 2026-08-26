@@ -9,27 +9,23 @@ export type ObservationFamily =
 export type MetricSourcePolicy = { metric_code:string; allowed_families:ObservationFamily[]; sufficient_families:ObservationFamily[]; support_only_families?:ObservationFamily[] };
 
 // Task 13: source-family applicability across the complete 81-metric registry.
-// These sets describe evidence that can legitimately contribute to a metric;
-// they do NOT claim that a source is sufficient by itself or award coverage.
+// Applicability never awards coverage by itself; certified metric-specific
+// boundaries remain narrower where an existing contract already defines them.
 const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","007","008","009","010","011","012","018","020","023","026","027","028","030","031","034","035","037","038","039","041","045","055","064","068","071","076","077","080","081"]);
-const RANKING_METRICS=new Set(["014","020","023","030","038","039","047","055","062","068","069","080"]);
+const RANKING_METRICS=new Set(["014","020","023","038","039","047","055","062","068","069","080"]);
 const MARKET_METRICS=new Set(["015","019","039","043","044","047","057","073"]);
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 const PBP_METRICS=new Set(["002","003","008","009","010","011","016","018","022","024","025","026","027","032","033","034","036","037","040","041","042","043","044","045","046","051","052","053","054","059","060","079"]);
-const RULES_METRICS=new Set(["020","064","071","075","076"]);
+const RULES_METRICS=new Set(["020","064","075","076"]);
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
 export function policyForMetric(metricCode:unknown):MetricSourcePolicy{
  const code=codeOf(metricCode),allowed=new Set<ObservationFamily>(),sufficient=new Set<ObservationFamily>(),supportOnly=new Set<ObservationFamily>();
  if(RESULTS_SCHEDULE_METRICS.has(code))allowed.add("RESULTS_SCHEDULE");if(RANKING_METRICS.has(code))allowed.add("RANKING");if(MARKET_METRICS.has(code))allowed.add("MARKET");if(ENVIRONMENT_METRICS.has(code))allowed.add("ENVIRONMENT");if(PBP_METRICS.has(code))allowed.add("POINT_BY_POINT");if(RULES_METRICS.has(code))allowed.add("RULES_CONTEXT");
- // Only families with a deterministic contract proven sufficient on their own
- // are marked sufficient. Everything else remains support-only and cannot turn
- // a metric green merely because a raw observation exists.
  if(["015","019"].includes(code))sufficient.add("MARKET");if(code==="021")sufficient.add("ENVIRONMENT");if(["014","062","069"].includes(code))sufficient.add("RANKING");
  for(const family of allowed)if(!sufficient.has(family))supportOnly.add(family);
  return{metric_code:code,allowed_families:[...allowed],sufficient_families:[...sufficient],support_only_families:[...supportOnly]};
 }
-
 export function observationFamily(row:{source_id?:string|null;observation_type?:string|null;observation_key?:string|null}):ObservationFamily|null{
  const source=String(row.source_id??"").toLowerCase(),type=String(row.observation_type??"").toUpperCase(),key=String(row.observation_key??"").toLowerCase();
  const resultSources=new Set(["atp","wta","atp_challenger","wta_challenger","wta_125","tennisdata_wta_challenger","production_wta_125"]);
