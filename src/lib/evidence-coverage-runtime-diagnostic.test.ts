@@ -88,7 +88,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).not.toContain('.not("scheduled_date", "is", null)');
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
     expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
-    expect(diagnostic).toMatch(/requested_classes\s*:\s*\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"\]/);
+    expect(diagnostic).toMatch(/requested_classes\s*:\s*\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"\]/);
   });
 
   it("uses exact canonical ranking evidence only as a conservative main-tour sampling fallback", () => {
@@ -127,7 +127,7 @@ describe("runtime evidence coverage diagnostic", () => {
 
   it("documents representative classes that cannot be sampled from current persisted production data", () => {
     expect(diagnostic).toContain("missing_class_reasons");
-    expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, ranking-proven current evidence snapshot, or verified PBP index match");
+    expect(diagnostic).toContain("No real persisted ${id} match, qualifying paired warehouse observation, ranking-proven current evidence snapshot, or validated repository representative");
   });
 
   it("classifies an absent provider-independent source path as SOURCE_MISSING", () => {
@@ -176,7 +176,7 @@ describe("runtime evidence coverage diagnostic", () => {
 describe("verified PBP index sampling fallback", () => {
   it("uses strict verified index matches only after database sampling is exhausted", () => {
     expect(diagnostic).toContain('sampleVerifiedEvidenceIndexMatch(id)');
-    expect(diagnostic).toContain('sampling_source:"verified_pbp_index"');
+    expect(diagnostic).toContain('sampling_source:row.sampling_source');
     expect(diagnostic).toContain('date_source:"verified_index_date"');
     expect(diagnostic).toContain('match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings"');
   });
@@ -189,7 +189,7 @@ describe("certified provider-independent local evidence bridge", () => {
     expect(diagnostic).toContain('certifyMetricFinding(enforceFiveMetricWiring(metrics[index],row))');
     expect(diagnostic).toContain('internal=certifiedLocalByCode.get(code)??null');
     expect(diagnostic).toContain('local_internal_p1:Boolean(internal?.p1_value)');
-    expect(diagnostic).toContain('schema_version:10');
+    expect(diagnostic).toContain('schema_version:11');
   });
 });
 
@@ -209,6 +209,6 @@ describe("completion-sweep historical fallback bridge", () => {
     expect(diagnostic).toContain("completionSweepHistoricalFinding");
     expect(diagnostic).toContain("historicalLocalByCode");
     expect(diagnostic).toContain("historical_local_p1");
-    expect(diagnostic).toContain("schema_version:10");
+    expect(diagnostic).toContain("schema_version:11");
   });
 });
