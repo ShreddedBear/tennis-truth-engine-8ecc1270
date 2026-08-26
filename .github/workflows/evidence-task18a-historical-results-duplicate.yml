@@ -1,7 +1,5 @@
-name: Evidence Coverage Task 18A Historical Results — Duplicate Check
+name: Evidence Coverage Task 18A Historical Results — Read Only Revalidation
 
-# Independent duplicate validation run. Intentionally does not share concurrency
-# with the original Task 18A workflow, so neither run cancels the other.
 on:
   workflow_dispatch:
   push:
@@ -21,16 +19,16 @@ on:
       - '.github/workflows/evidence-task18a-historical-results-duplicate.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: evidence-task18a-duplicate-${{ github.ref }}
+  group: evidence-task18a-readonly-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
@@ -42,16 +40,6 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Audit repository source schemas
         run: node scripts/task18a-source-schema-audit.mjs
-      - name: Persist source schema audit
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- docs/evidence-coverage/task18a-source-schema-audit.json; then exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/evidence-coverage/task18a-source-schema-audit.json
-          git commit -m 'Task 18A duplicate check: record repository source schemas'
-          git push origin HEAD:${{ github.ref_name }}
       - name: Build four-tour repository evidence index
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Task 18A reconstruction and false-green tests
