@@ -37,4 +37,10 @@ test = replace(
     "repository sample source assertion",
 )
 test = replace(test, 'schema_version:10', 'schema_version:11', "schema version")
+test = replace(
+    test,
+    '/requested_classes\\s*:\\s*\\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"\\]/',
+    '/requested_classes\\s*:\\s*\\["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"\\]/',
+    "four-tour requested-class regex",
+)
 TEST.write_text(test)
