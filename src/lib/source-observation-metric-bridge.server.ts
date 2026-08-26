@@ -1,6 +1,11 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
+import { classifyEvidenceTourFamily } from "./evidence-match-identity";
+import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
+import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
+import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
+import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
 
 const db = supabaseAdmin as any;
 
@@ -40,23 +45,19 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   const datedBase = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
     .order("event_date", { ascending: false });
-  const nullDateBase = () => db.from("source_observations").select(select)
-    .is("event_date", null);
+  const nullDateBase = () => db.from("source_observations").select(select).is("event_date", null);
 
-  // Keep family lanes independent so dense PBP/market rows cannot crowd out
-  // rankings/results. Also retain identity-bearing observations whose event date
-  // is NULL: a nullable scheduling field is diagnostic metadata, not a reason to
-  // erase otherwise valid evidence. Null-date rows remain bounded and must still
-  // pass the same player/family policy filters downstream.
-  const [otherResult, marketResult, pbpResult, sharedResult, nullDatePlayerResult, nullDateSharedResult] = await Promise.all([
+  // PBP is intentionally excluded from the generic warehouse lane. Evidence Coverage
+  // receives PBP only through the tour-scoped BSD bridges below, so quarantined or
+  // ambiguous records cannot become evidence merely because they exist in a table.
+  const [otherResult, marketResult, sharedResult, nullDatePlayerResult, nullDateSharedResult] = await Promise.all([
     datedBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
     datedBase().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
-    datedBase().in("player_name", aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
-    datedBase().is("player_name", null).limit(1000),
-    nullDateBase().in("player_name", aliases).limit(1000),
-    nullDateBase().is("player_name", null).limit(500),
+    datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP)").limit(1000),
+    nullDateBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP)").limit(1000),
+    nullDateBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP)").limit(500),
   ]);
-  const results = [otherResult, marketResult, pbpResult, sharedResult, nullDatePlayerResult, nullDateSharedResult];
+  const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult, nullDateSharedResult];
   if (results.some((result) => result.error)) return [] as ObservationRow[];
   const rows = results.flatMap((result) => (result.data ?? []) as ObservationRow[]);
   const seen = new Set<string>();
@@ -68,18 +69,56 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   });
 }
 
-export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; }) {
-  const rows = await loadCandidateRows(args.p1, args.p2, args.asOfDate);
-  const packet: Record<string, unknown> = {};
+async function approvedPbpPacket(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; context?: string | null }) {
+  const tour = classifyEvidenceTourFamily(args.context);
+  if (!tour) return {} as Record<string, any>;
+  const input = { metrics: args.metrics, p1: args.p1, p2: args.p2, asOfDate: args.asOfDate, context: args.context };
+  if (tour === "ATP_MAIN") return (await buildBsdAtpMainPbpContext(input)).packet as Record<string, any>;
+  if (tour === "WTA_MAIN") return (await buildBsdWtaMainPbpContext(input)).packet as Record<string, any>;
+  if (tour === "ATP_CHALLENGER") return (await buildBsdAtpChallengerPbpContext(input)).packet as Record<string, any>;
+  return (await buildBsdWtaChallengerPbpContext(input)).packet as Record<string, any>;
+}
+
+function mergePacketEntry(base: any, pbp: any) {
+  if (!base) return pbp;
+  if (!pbp) return base;
+  const observations = [...(base.observations ?? []), ...(pbp.observations ?? [])];
+  const seen = new Set<string>();
+  const deduped = observations.filter((row: any) => {
+    const value = row?.value ?? {};
+    const matchId = value?.match_id ?? String(row?.url ?? "").match(/\/matches\/(\d+)\//)?.[1] ?? "";
+    const key = [row?.family,row?.source,matchId,row?.player,row?.opponent,row?.player1,row?.player2,row?.event_date,row?.key].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return {
+    ...base,
+    observed_families: unique([...(base.observed_families ?? []), ...(pbp.observed_families ?? [])]),
+    direct_satisfaction_allowed: Boolean(base.direct_satisfaction_allowed || pbp.direct_satisfaction_allowed),
+    observations: deduped.slice(0, 80),
+    pbp_tour_guard: pbp.tour_guard ?? null,
+  };
+}
+
+export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; context?: string | null; }) {
+  const [rows, pbpPacket] = await Promise.all([
+    loadCandidateRows(args.p1, args.p2, args.asOfDate),
+    approvedPbpPacket(args),
+  ]);
+  const packet: Record<string, any> = {};
   for (const metric of args.metrics) {
     const code = codeOf(metric.code);
     const policy = policyForMetric(code);
     const allowed = rows.filter((row) => metricAllowsObservation(code, row));
-    if (!allowed.length) continue;
-    const families = unique(allowed.map((row) => observationFamily(row)).filter(Boolean));
-    const supportOnly = policy.support_only_families ?? [];
-    const sufficient = policy.sufficient_families ?? [];
-    packet[code] = { metric_name: metric.name, allowed_families: policy.allowed_families, sufficient_families: sufficient, support_only_families: supportOnly, observed_families: families, direct_satisfaction_allowed: families.some((family) => sufficient.includes(family!)), observations: allowed.slice(0, 80).map(compactObservation) };
+    if (allowed.length) {
+      const families = unique(allowed.map((row) => observationFamily(row)).filter(Boolean));
+      const supportOnly = policy.support_only_families ?? [];
+      const sufficient = policy.sufficient_families ?? [];
+      packet[code] = { metric_name: metric.name, allowed_families: policy.allowed_families, sufficient_families: sufficient, support_only_families: supportOnly, observed_families: families, direct_satisfaction_allowed: families.some((family) => sufficient.includes(family!)), observations: allowed.slice(0, 80).map(compactObservation) };
+    }
+    packet[code] = mergePacketEntry(packet[code], pbpPacket[code]);
+    if (!packet[code]) delete packet[code];
   }
   return packet;
 }
