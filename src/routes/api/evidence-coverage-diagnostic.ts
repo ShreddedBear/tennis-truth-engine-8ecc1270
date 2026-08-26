@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { runEvidenceCoverageRuntimeDiagnostic } from "@/lib/evidence-coverage-runtime-diagnostic.server";
+import { enrichEvidenceCoverageAccounting } from "@/lib/evidence-availability-accounting";
 
 const DIAGNOSTIC_KEY = "ECOV-20260825-b6f1";
 
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/api/evidence-coverage-diagnostic")({
         if (url.searchParams.get("key") !== DIAGNOSTIC_KEY) return json({ ok: false }, 404);
         try {
           const report = await runEvidenceCoverageRuntimeDiagnostic();
-          return json({ ok: true, report });
+          return json({ ok: true, report: enrichEvidenceCoverageAccounting(report) });
         } catch (error) {
           return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
         }
