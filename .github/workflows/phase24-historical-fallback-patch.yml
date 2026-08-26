@@ -51,6 +51,13 @@ jobs:
       - name: Add regression coverage
         shell: bash
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/evidence-coverage-runtime-diagnostic.test.ts')
+          s=p.read_text()
+          s=s.replace("expect(diagnostic).toContain('schema_version:9');", "expect(diagnostic).toContain('schema_version:10');")
+          p.write_text(s)
+          PY
           cat >> src/lib/evidence-coverage-runtime-diagnostic.test.ts <<'TS'
 
           describe("completion-sweep historical fallback bridge", () => {
