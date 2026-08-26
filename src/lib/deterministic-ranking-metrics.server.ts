@@ -34,6 +34,9 @@ function rowCircuit(row:Row):"ATP"|"WTA"|null{
   const family=classifyEvidenceTourFamily(row.source_id,row.source_name,row.sample_label,row.observation_type,row.observation_key,row.text_value);
   if(family==="ATP_MAIN"||family==="ATP_CHALLENGER")return "ATP";
   if(family==="WTA_MAIN"||family==="WTA_CHALLENGER")return "WTA";
+  const hint=[row.source_id,row.source_name,row.sample_label].filter(Boolean).join(" ").toLowerCase();
+  if(/\batp\b/.test(hint))return "ATP";
+  if(/\bwta\b/.test(hint))return "WTA";
   return null;
 }
 function expectedCircuit(context:string|null|undefined,rows:Row[]):"ATP"|"WTA"|null{
@@ -61,13 +64,17 @@ async function rankingRows(p1:string,p2:string,start:string,asOfDate:string){
 
 export async function deterministicRankingMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;context?:string|null}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);
-  // ATP Main and ATP Challenger share ATP rankings; WTA Main and WTA 125 share
-  // WTA rankings. Circuit compatibility is explicit and unresolved/mixed
-  // ranking sources fail closed rather than borrowing across ATP/WTA.
+  // ATP Main + ATP Challenger share ATP rankings. WTA Main + WTA Challenger/
+  // WTA 125 share WTA rankings; there is intentionally no separate Challenger
+  // ranking namespace. Cross-circuit borrowing fails closed.
   const fetched=await rankingRows(args.p1,args.p2,start.toISOString().slice(0,10),args.asOfDate);if(!fetched)return null;
   const circuit=expectedCircuit(args.context,fetched);if(!circuit)return null;
   const rows=fetched.filter(r=>metricAllowsObservation(code,r)&&rowCircuit(r)===circuit);if(!rows.length)return null;
-  const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate);const p1=value(code,s1),p2=value(code,s2);if(!p1||!p2)return null;
-  const unavailableReason=code==="014"?null:"Subjective motivation/private pressure components are not inferred from ranking data.";
-  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ${circuit} ranking history through ${args.asOfDate}`,unavailable_reason:unavailableReason,sources:sourceRefs(rows)};
+  const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate);
+  const p1=value(code,s1),p2=value(code,s2),p1Available=Boolean(p1),p2Available=Boolean(p2);
+  if(!p1Available&&!p2Available)return null;
+  const unavailableReason=!p1Available||!p2Available
+    ?"Ranking evidence is one-sided; the missing side is not synthesized or credited."
+    :code==="014"?null:"Subjective motivation/private pressure components are not inferred from ranking data.";
+  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1Available?"PARTIAL":"UNAVAILABLE",p2_treatment:p2Available?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ${circuit} ranking history through ${args.asOfDate}`,unavailable_reason:unavailableReason,sources:sourceRefs(rows)};
 }
