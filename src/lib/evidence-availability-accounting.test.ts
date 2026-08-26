@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allMetricFamilyAudit, classifyEvidenceAvailability, summarizeRecoverableCeiling } from "./evidence-availability-accounting";
+import { allMetricFamilyAudit, classifyEvidenceAvailability, enrichEvidenceCoverageAccounting, summarizeRecoverableCeiling } from "./evidence-availability-accounting";
 
 describe("evidence availability accounting", () => {
   it("audits every metric code 001 through 081 exactly once", () => {
@@ -36,5 +36,22 @@ describe("evidence availability accounting", () => {
     expect(summary.software_loss_percent).toBe(40);
     expect(summary.genuine_source_unavailability_percent).toBe(20);
     expect(summary.maximum_recoverable_ceiling_percent).toBe(80);
+  });
+
+  it("enriches each representative independently and publishes the 81-code audit", () => {
+    const enriched = enrichEvidenceCoverageAccounting({
+      matches: [{
+        id: "WTA_CHALLENGER",
+        sampling_source: "source_observations",
+        metrics: [
+          { metric_code:"024", pair_credited:false, p1_credited:false, p2_credited:false, source_expected:["POINT_BY_POINT"], failure_bucket:"RECONSTRUCTION_FAILURE" },
+          { metric_code:"062", pair_credited:true, p1_credited:true, p2_credited:true, p1_treatment:"RECONSTRUCTED", p2_treatment:"RECONSTRUCTED", source_expected:["RANKING"], failure_bucket:null },
+        ],
+      }],
+    });
+    expect(enriched.metric_family_audit).toHaveLength(81);
+    expect(enriched.matches[0].metrics[0].availability_class).toBe("PBP_EXISTS_NOT_WIRED");
+    expect(enriched.matches[0].metrics[1].availability_class).toBe("EVIDENCE_RETRIEVES_CORRECTLY");
+    expect(enriched.matches[0].availability_accounting.maximum_recoverable_ceiling_percent).toBe(100);
   });
 });
