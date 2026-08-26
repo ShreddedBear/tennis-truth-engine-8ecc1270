@@ -5,52 +5,38 @@ on:
     branches:
       - repair/evidence-coverage
       - repair/evidence-coverage-phase2
-      - repair/evidence-coverage-phase2-integrated
-      - repair/evidence-coverage-phase3
-      - repair/evidence-coverage-phase4
-      - repair/evidence-coverage-phase5
-      - repair/evidence-coverage-phase6
-      - repair/evidence-coverage-phase7
-      - repair/evidence-coverage-phase8
-      - repair/evidence-coverage-phase9
-      - repair/evidence-coverage-phase10
-      - repair/evidence-coverage-phase11-sampling
-      - repair/evidence-coverage-phase14-bsd-deterministic
-      - repair/evidence-coverage-phase15-ranking-context
-      - repair/evidence-coverage-phase16-proof-contract
-      - repair/evidence-coverage-phase17-integrated
+      - repair/evidence-coverage-task12-16-integrated
     paths:
       - scripts/evidence-coverage-baseline.ts
+      - scripts/build-runtime-tennis-index.mjs
+      - data/public/production-history/wta_challenger/**
+      - data/public/tennismylife-challenger/normalized/**
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
       - supabase/migrations/*evidence*.sql
       - src/lib/evidence-player-alias.ts
       - src/lib/evidence-player-alias.test.ts
       - src/lib/evidence-canonical-identity.server.ts
+      - src/lib/evidence-match-identity.ts
+      - src/lib/repository-results-history.server.ts
+      - src/lib/metric-source-family-policy.ts
+      - src/lib/metric-source-family-policy.test.ts
       - src/lib/source-observation-metric-bridge.server.ts
-      - src/lib/source-observation-metric-bridge.test.ts
       - src/lib/warehouse-first-researcher.server.ts
-      - src/lib/warehouse-deterministic-wiring.test.ts
-      - src/lib/newly-green-end-to-end-coverage-audit.test.ts
-      - src/lib/evidence-finding-selection.test.ts
-      - src/lib/persisted-evidence-alias-dedupe.test.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
       - src/lib/evidence-coverage-runtime-diagnostic.test.ts
+      - src/lib/newly-green-end-to-end-coverage-audit.test.ts
       - src/lib/deterministic-ranking-metrics.server.ts
       - src/lib/deterministic-ranking-metrics.test.ts
       - src/lib/deterministic-results-schedule-metrics.server.ts
       - src/lib/deterministic-results-schedule-metrics.test.ts
       - src/lib/deterministic-market-metrics.server.ts
       - src/lib/deterministic-market-metrics.test.ts
-      - src/lib/deterministic-pbp-metrics.server.ts
-      - src/lib/deterministic-pbp-metrics.test.ts
       - src/lib/deterministic-environment-metrics.server.ts
       - src/lib/deterministic-environment-metrics.test.ts
       - src/lib/deterministic-rules-context-metric.server.ts
       - src/lib/deterministic-rules-context-metric.test.ts
-      - src/lib/bsd-atp-main-pbp.server.ts
-      - src/lib/bsd-wta-main-pbp.server.ts
-      - src/lib/bsd-atp-challenger-pbp.server.ts
-      - src/lib/bsd-wta-challenger-pbp.server.ts
+      - src/lib/deterministic-pbp-metrics.server.ts
+      - src/lib/deterministic-pbp-metrics.test.ts
   workflow_dispatch:
 
 permissions:
@@ -64,6 +50,8 @@ jobs:
   diagnostic-code:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -71,16 +59,10 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Build and validate isolated four-tour repository history
+        run: node scripts/build-runtime-tennis-index.mjs
       - name: Validate evidence identity firewall
         run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
-      - name: Validate deterministic PBP evidence
-        run: bunx vitest run src/lib/deterministic-pbp-metrics.test.ts
-      - name: Validate tournament-scoped environment evidence
-        run: bunx vitest run src/lib/deterministic-environment-metrics.test.ts
-      - name: Validate pair-complete selection priority
-        run: bunx vitest run src/lib/evidence-finding-selection.test.ts
-      - name: Validate persisted alias dedupe
-        run: bunx vitest run src/lib/persisted-evidence-alias-dedupe.test.ts
       - name: Validate full regression suite
         run: bunx vitest run
       - name: Explain production-data execution boundary
