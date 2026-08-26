@@ -35,8 +35,12 @@ export function normalizeEvidenceTournament(value: unknown) {
   let normalized = normalizeEvidenceText(value);
   if (!normalized) return null;
   normalized = normalized
-    .replace(/\b(?:atp|wta)\s*(?:tour)?\b/g, " ")
     .replace(/\b(?:presented by|powered by)\b.*$/g, " ")
+    .replace(/\b20\d{2}\b/g, " ")
+    .replace(/\b(?:atp|wta)\s*(?:tour)?\b/g, " ")
+    .replace(/\b(?:wta\s*)?125\b|\b125k\b/g, " ")
+    .replace(/\bchallenger(?:\s+\d{2,3})?\b/g, " ")
+    .replace(/\b(?:250|500|1000)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return normalized || null;
