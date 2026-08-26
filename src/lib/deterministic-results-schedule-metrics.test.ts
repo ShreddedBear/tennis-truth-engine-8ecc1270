@@ -13,12 +13,29 @@ describe("deterministic results/schedule calculators", () => {
   });
 
   it("keeps deterministic results/schedule output PARTIAL rather than inventing a complete score", () => {
-    expect(source).toContain('p1_treatment: "PARTIAL"');
-    expect(source).toContain('p2_treatment: "PARTIAL"');
-    expect(source).toContain('evidence_family: "RESULTS_SCHEDULE"');
+    expect(source).toMatch(/p1_treatment:\s*"PARTIAL"/);
+    expect(source).toMatch(/p2_treatment:\s*"PARTIAL"/);
+    expect(source).toMatch(/evidence_family:\s*"RESULTS_SCHEDULE"/);
   });
 
   it("filters every warehouse row through the metric source-family gate", () => {
-    expect(source).toContain("metricAllowsObservation(code, row)");
+    expect(source).toMatch(/metricAllowsObservation\(code,\s*row\)/);
+  });
+
+  it("distinguishes direct schedules, match-history schedule context and true absence", () => {
+    expect(source).toContain("DIRECT_EVENT_SCHEDULE");
+    expect(source).toContain("MATCH_HISTORY_SCHEDULE_CONTEXT");
+    expect(source).toContain("UNAVAILABLE");
+    expect(source).toContain('from("matches")');
+    expect(source).toContain("scheduled_local_at");
+    expect(source).toContain("scheduled_utc_at");
+  });
+
+  it("normalizes event identity and enforces the four-tour contamination firewall", () => {
+    expect(source).toContain("normalizeEvidenceTournament");
+    expect(source).toContain("normalizeEvidenceRound");
+    expect(source).toContain("evidenceDateCompatible");
+    expect(source).toContain("evidenceTourCompatible");
+    expect(source).toContain("buildCanonicalEvidenceMatchIdentity");
   });
 });
