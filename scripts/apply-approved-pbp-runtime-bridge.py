@@ -70,7 +70,7 @@ test = replace_once(
 test = replace_once(
     test,
     'expect(diagnostic).toContain("deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date})");',
-    'expect(diagnostic).toContain("deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date})");\n    expect(diagnostic).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1:match.p1,p2:match.p2,asOfDate:match.date,packet})");\n    expect(diagnostic).toContain("source:\"repository_pbp\"");\n    expect(diagnostic).toContain("asOfDate:match.date,context:match.context");',
+    'expect(diagnostic).toContain("deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date})");\n    expect(diagnostic).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1:match.p1,p2:match.p2,asOfDate:match.date,packet})");\n    expect(diagnostic).toContain(\'source:"repository_pbp"\');\n    expect(diagnostic).toContain("asOfDate:match.date,context:match.context");',
     "runtime repository PBP assertions",
 )
 TEST.write_text(test)
