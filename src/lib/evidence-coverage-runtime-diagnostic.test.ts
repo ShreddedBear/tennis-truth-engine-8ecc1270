@@ -9,6 +9,7 @@ const market = readFileSync("src/lib/deterministic-market-metrics.server.ts", "u
 const bridge = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8");
 const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
 const canonical = readFileSync("src/lib/evidence-canonical-identity.server.ts", "utf8");
+const baseline = readFileSync("scripts/evidence-coverage-baseline.ts", "utf8");
 const hotPathIndexes = readFileSync("supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
 
 describe("runtime evidence coverage diagnostic", () => {
@@ -73,6 +74,14 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(researcher).toContain("buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdWtaChallengerPbpContext({metrics:liveMissing,p1,p2");
+  });
+
+  it("keeps all four tours in both baseline and runtime representative validation", () => {
+    expect(baseline).toContain('id:"ATP_MAIN_BASELINE"');
+    expect(baseline).toContain('id:"WTA_MAIN_BASELINE"');
+    expect(baseline).toContain('id:"ATP_CHALLENGER_BASELINE"');
+    expect(baseline).toContain('id:"WTA_CHALLENGER_BASELINE"');
+    expect(diagnostic).toContain('requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]');
   });
 
   it("keeps all four tours eligible when event_level, scheduled_date, or warehouse event_date is null", () => {
