@@ -10,6 +10,7 @@ on:
       - '.github/workflows/evidence-coverage-production-proof.yml'
       - 'src/routes/api/evidence-coverage-diagnostic.ts'
       - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
+      - 'src/lib/evidence-availability-accounting.ts'
       - 'src/lib/warehouse-first-researcher.server.ts'
       - 'src/lib/source-observation-metric-bridge.server.ts'
       - 'src/lib/metric-source-family-policy.ts'
@@ -32,7 +33,7 @@ jobs:
           status=""
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
-            if [ "$status" = "200" ] && jq -e '.metrics == 81' "$response" >/dev/null 2>&1; then
+            if [ "$status" = "200" ] && jq -e '.ok == true and .report.metrics == 81' "$response" >/dev/null 2>&1; then
               break
             fi
             echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
@@ -42,16 +43,19 @@ jobs:
           cat "$response"
           echo
           [ "$status" = "200" ]
-          jq -e '.metrics == 81' "$response" >/dev/null
+          jq -e '.ok == true and .report.metrics == 81' "$response" >/dev/null
 
           requested='["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]'
-          jq -e --argjson requested "$requested" '(.requested_classes // []) == $requested' "$response" >/dev/null
-          jq -e '(.matches | length) == 4' "$response" >/dev/null
-          jq -e '[.matches[].id] | sort == ["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]' "$response" >/dev/null
+          jq -e --argjson requested "$requested" '(.report.sampling.requested_classes // []) == $requested' "$response" >/dev/null
+          jq -e '(.report.matches | length) == 4' "$response" >/dev/null
+          jq -e '[.report.matches[].id] | sort == ["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]' "$response" >/dev/null
+          jq -e '(.report.metric_family_audit | length) == 81' "$response" >/dev/null
+          jq -e '.report.availability_accounting.maximum_recoverable_ceiling_percent >= 0 and .report.availability_accounting.maximum_recoverable_ceiling_percent <= 100' "$response" >/dev/null
+          jq -e '.report.availability_accounting.software_loss_percent >= 0 and .report.availability_accounting.genuine_source_unavailability_percent >= 0' "$response" >/dev/null
 
-          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_pass=\(.false_green_guard.passed)"' "$response"
-          jq -e 'all(.matches[]; .false_green_guard.passed == true)' "$response" >/dev/null
-          jq -e 'all(.matches[]; (.coverage.pair_percent // 0) >= 0 and (.coverage.pair_percent // 0) <= 100)' "$response" >/dev/null
-          echo 'PASS: Lovable-managed production diagnostic exposes all 81 metrics and all four tour families with the false-green guard intact.'
+          jq -r '.report.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) ceiling=\(.availability_accounting.maximum_recoverable_ceiling_percent)% false_green_pass=\(.false_green_guard.passed)"' "$response"
+          jq -e 'all(.report.matches[]; .false_green_guard.passed == true)' "$response" >/dev/null
+          jq -e 'all(.report.matches[]; (.coverage.pair_percent // 0) >= 0 and (.coverage.pair_percent // 0) <= 100)' "$response" >/dev/null
+          echo 'PASS: Lovable-managed production diagnostic exposes all 81 metrics, all four tour families, software-vs-source accounting, and the recoverable ceiling with the false-green guard intact.'
 
 # trigger: production-proof-four-tour
