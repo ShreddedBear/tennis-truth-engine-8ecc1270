@@ -45,11 +45,17 @@ describe("Task 18C rank/form/workload recovery",()=>{
     expect(computeHistoryMetric({...base,surface:"Grass",code:"001",family:"ATP_MAIN",lane:lane()})).toBeNull();
     expect(computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:lane()})?.treatment).toBe("RECONSTRUCTED");
   });
-  it("uses results/schedule, not weather, for Elo and workload",()=>{
+  it("uses results/schedule as the sole *sufficient* source for Elo and workload; weather is support-only for 021",()=>{
+    // Metric 021 is authoritatively "Surface & Environmental Context" (see
+    // authoritative-metric-catalog.ts), which genuinely names weather as an in-scope
+    // component alongside this file's own chronological-results Elo/surface replay.
+    // Weather may enrich 021 to at most PARTIAL; it can never substitute for the
+    // results-derived Elo replay this file performs.
     const schedule={source_id:"atp",observation_type:"MATCH_RESULT_OR_SCHEDULE",observation_key:"match_record"};
     const weather={source_id:"open_meteo",observation_type:"ENVIRONMENT",observation_key:"weather"};
-    expect(metricAllowsObservation("021",schedule)).toBe(true);expect(metricAllowsObservation("021",weather)).toBe(false);
+    expect(metricAllowsObservation("021",schedule)).toBe(true);expect(metricAllowsObservation("021",weather)).toBe(true);
     expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
+    expect(policyForMetric("021").support_only_families).toContain("ENVIRONMENT");
     expect(metricAllowsObservation("061",schedule)).toBe(true);expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");
   });
 });

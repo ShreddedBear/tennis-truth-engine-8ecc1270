@@ -25,10 +25,15 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("019", marketRow)).toBe(true);
   });
 
-  it("uses results/schedule rather than environment as the Task 17 Elo source", () => {
+  it("keeps results/schedule as the only sufficient source for metric 021, with environment as support-only", () => {
+    // Authoritative catalog code 021 is "Surface & Environmental Context" (see
+    // authoritative-metric-catalog.ts), which genuinely names weather/altitude as
+    // in-scope components alongside the chronological-results-derived Elo/surface
+    // components. Environment evidence alone must never promote 021 past PARTIAL.
     expect(metricAllowsObservation("021", matchRow)).toBe(true);
-    expect(metricAllowsObservation("021", weatherRow)).toBe(false);
+    expect(metricAllowsObservation("021", weatherRow)).toBe(true);
     expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
+    expect(policyForMetric("021").support_only_families).toContain("ENVIRONMENT");
     expect(metricAllowsObservation("071", weatherRow)).toBe(true);
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
   });

@@ -14,7 +14,16 @@ export type MetricSourcePolicy = { metric_code:string; allowed_families:Observat
 const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","030","031","034","035","037","038","039","041","045","046","049","050","051","052","053","054","055","056","057","058","059","061","064","068","071","076","077","080","081"]);
 const RANKING_METRICS=new Set(["013","014","020","023","038","039","047","055","058","062","068","069","080"]);
 const MARKET_METRICS=new Set(["015","019","039","043","044","047","057","073"]);
-const ENVIRONMENT_METRICS=new Set(["001","030","060","071","075"]);
+// "021" (authoritative catalog: "Surface & Environmental Context") was previously excluded
+// here under a pre-Task-17 assumption that code 021 was "Elo Delta" (a chronological-results
+// metric that weather would only contaminate). The real definition explicitly names weather
+// sensitivity and altitude as in-scope components, and deterministic-environment-metrics.server.ts
+// already computes and targets this exact code — it was simply never allowed through this
+// policy. RESULTS_SCHEDULE remains the only *sufficient* family for 021 (see below); this
+// only makes ENVIRONMENT support-only, so it can enrich but never single-handedly promote a 021
+// finding to DIRECT/RECONSTRUCTED. See authoritative-metric-catalog.ts and
+// metric-source-family-policy.test.ts.
+const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","026","027","031","032","033","034","036","037","038","039","040","041","042","043","044","045","046","051","052","053","054","059","060","069","070","071","079"]);
 const RULES_METRICS=new Set(["020","064","075","076"]);
 
