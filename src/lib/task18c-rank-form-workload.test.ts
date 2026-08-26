@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { computeHistoryMetric, laneMatchesBefore, type HistoryLane } from "./task18c-rank-form-workload";
+import { metricAllowsObservation, policyForMetric } from "./metric-source-family-policy";
 
 const row = (date: string, tournament: string, surface: string, opponent: string, won: 0 | 1, round = "R32", source = "fixture") =>
   [date, tournament, surface, opponent, won, round, source] as const;
@@ -94,6 +95,23 @@ describe("Task 18C deterministic rank/form/workload core", () => {
     const wta125Lane: HistoryLane = { "alice alpha": [row("2026-08-20", "WTA 125", "Hard", "Carol Gamma", 1)], "carol gamma": [row("2026-08-20", "WTA 125", "Hard", "Alice Alpha", 0)] };
     expect(computeHistoryMetric({ ...base, code: "005", family: "ATP_MAIN", lane: atpLane })).not.toBeNull();
     expect(computeHistoryMetric({ ...base, code: "005", family: "WTA_CHALLENGER", lane: wta125Lane })).toBeNull();
+  });
+});
+
+describe("Task 18C source-family false-green firewall", () => {
+  const schedule = { source_id: "atp", observation_type: "MATCH_RESULT_OR_SCHEDULE", observation_key: "match_record" };
+  const environment = { source_id: "open_meteo", observation_type: "ENVIRONMENT", observation_key: "weather" };
+
+  it("uses chronological results, not weather, as the sufficient Elo source family", () => {
+    expect(metricAllowsObservation("021", schedule)).toBe(true);
+    expect(metricAllowsObservation("021", environment)).toBe(false);
+    expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
+  });
+
+  it("allows result/schedule observations to support partial workload without treating them as complete", () => {
+    expect(metricAllowsObservation("061", schedule)).toBe(true);
+    expect(policyForMetric("061").sufficient_families).toEqual([]);
+    expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");
   });
 });
 
