@@ -26,7 +26,7 @@ describe("metric source family policy", () => {
   });
 
   it("keeps environmental evidence in environmental/context metrics only", () => {
-    expect(metricAllowsObservation("021", weatherRow)).toBe(true);
+    expect(metricAllowsObservation("021", weatherRow)).toBe(false);
     expect(metricAllowsObservation("071", weatherRow)).toBe(true);
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
     expect(metricAllowsObservation("015", weatherRow)).toBe(false);
