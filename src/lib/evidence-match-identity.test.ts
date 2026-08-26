@@ -21,10 +21,12 @@ describe("four-tour evidence identity", () => {
     expect(classifyEvidenceTourFamily("unknown event")).toBeNull();
   });
 
-  it("normalizes tournament, season decoration, round and local/UTC-adjacent dates", () => {
+  it("normalizes tournament season and tour-tier decorations", () => {
     expect(normalizeEvidenceTournament("WTA Tour — Miami Open")).toBe("miami open");
     expect(normalizeEvidenceTournament("Miami Open 2025")).toBe("miami open");
     expect(normalizeEvidenceTournament("2026 Miami Open presented by Itaú")).toBe("miami open");
+    expect(normalizeEvidenceTournament("WTA 125 Austin")).toBe("austin");
+    expect(normalizeEvidenceTournament("ATP Challenger 75 Cleveland")).toBe("cleveland");
     expect(normalizeEvidenceRound("QF")).toBe("quarterfinal");
     expect(evidenceDateCompatible("2026-08-25", "2026-08-26T00:30:00Z")).toBe(true);
     expect(evidenceDateCompatible("2026-08-23", "2026-08-26")).toBe(false);
