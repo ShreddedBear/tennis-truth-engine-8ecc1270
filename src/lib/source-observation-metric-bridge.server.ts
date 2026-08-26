@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { safeEvidenceAliases } from "./evidence-player-alias";
+import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily } from "./evidence-match-identity";
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
@@ -69,10 +69,40 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   });
 }
 
-async function approvedPbpPacket(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; context?: string | null }) {
-  const tour = classifyEvidenceTourFamily(args.context);
-  if (!tour) return {} as Record<string, any>;
-  const input = { metrics: args.metrics, p1: args.p1, p2: args.p2, asOfDate: args.asOfDate, context: args.context };
+function contextFromObservationRows(args: { p1: string; p2: string; asOfDate: string }, rows: ObservationRow[]) {
+  const exact = rows.filter((row) => row.event_date === args.asOfDate && (
+    evidencePairMatches(row.player_name, row.opponent_name, args.p1, args.p2) ||
+    evidencePairMatches(row.player_name, row.opponent_name, args.p2, args.p1)
+  ));
+  const classified = exact.map((row) => ({ row, tour: classifyEvidenceTourFamily(row.sample_label, row.tournament, row.source_id, row.source_name) })).filter((entry) => entry.tour);
+  const tours = unique(classified.map((entry) => entry.tour));
+  if (tours.length !== 1) return null;
+  const row = classified[0].row;
+  return [`Tournament: ${row.tournament ?? "unknown"}`, `Level: ${tours[0]!.replaceAll("_", " ")}`, `Tour: ${tours[0]!.replaceAll("_", " ")}`, row.surface ? `Surface: ${row.surface}` : null, `Date: ${args.asOfDate}`].filter(Boolean).join(" | ");
+}
+
+async function inferCanonicalMatchContext(args: { p1: string; p2: string; asOfDate: string }, rows: ObservationRow[]) {
+  const fromRows = contextFromObservationRows(args, rows);
+  if (fromRows) return fromRows;
+  const { data, error } = await db.from("matches")
+    .select("player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round")
+    .eq("scheduled_date", args.asOfDate).limit(250);
+  if (error) return null;
+  const matches = (data ?? []).filter((row: any) =>
+    evidencePairMatches(row.player1_name, row.player2_name, args.p1, args.p2) ||
+    evidencePairMatches(row.player1_name, row.player2_name, args.p2, args.p1));
+  const classified = matches.map((row: any) => ({ row, tour: classifyEvidenceTourFamily(row.event_level, row.tournament_name) })).filter((entry: any) => entry.tour);
+  const tours = unique(classified.map((entry: any) => entry.tour));
+  if (classified.length !== 1 || tours.length !== 1) return null;
+  const row = classified[0].row;
+  return [`Tournament: ${row.tournament_name ?? "unknown"}`, `Level: ${row.event_level ?? tours[0].replaceAll("_", " ")}`, `Tour: ${tours[0].replaceAll("_", " ")}`, row.surface ? `Surface: ${row.surface}` : null, `Date: ${args.asOfDate}`, row.round ? `Round: ${row.round}` : null].filter(Boolean).join(" | ");
+}
+
+async function approvedPbpPacket(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; context?: string | null }, rows: ObservationRow[]) {
+  const context = args.context ?? await inferCanonicalMatchContext(args, rows);
+  const tour = classifyEvidenceTourFamily(context);
+  if (!tour || !context) return {} as Record<string, any>;
+  const input = { metrics: args.metrics, p1: args.p1, p2: args.p2, asOfDate: args.asOfDate, context };
   if (tour === "ATP_MAIN") return (await buildBsdAtpMainPbpContext(input)).packet as Record<string, any>;
   if (tour === "WTA_MAIN") return (await buildBsdWtaMainPbpContext(input)).packet as Record<string, any>;
   if (tour === "ATP_CHALLENGER") return (await buildBsdAtpChallengerPbpContext(input)).packet as Record<string, any>;
@@ -102,10 +132,8 @@ function mergePacketEntry(base: any, pbp: any) {
 }
 
 export async function buildMetricObservationContext(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; context?: string | null; }) {
-  const [rows, pbpPacket] = await Promise.all([
-    loadCandidateRows(args.p1, args.p2, args.asOfDate),
-    approvedPbpPacket(args),
-  ]);
+  const rows = await loadCandidateRows(args.p1, args.p2, args.asOfDate);
+  const pbpPacket = await approvedPbpPacket(args, rows);
   const packet: Record<string, any> = {};
   for (const metric of args.metrics) {
     const code = codeOf(metric.code);
