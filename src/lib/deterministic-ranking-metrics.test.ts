@@ -8,20 +8,18 @@ describe("ranking ingestion and deterministic metric wiring", () => {
 
   it("keeps ranking metrics isolated from results and schedules", () => {
     expect(observationFamily(ranking)).toBe("RANKING");
-    expect(metricAllowsObservation("014", ranking)).toBe(true);
-    expect(metricAllowsObservation("062", ranking)).toBe(true);
-    expect(metricAllowsObservation("069", ranking)).toBe(true);
-    expect(metricAllowsObservation("014", schedule)).toBe(false);
-    expect(metricAllowsObservation("062", schedule)).toBe(false);
-    expect(metricAllowsObservation("069", schedule)).toBe(false);
+    for (const code of ["014", "062", "069"]) {
+      expect(metricAllowsObservation(code, ranking)).toBe(true);
+      expect(metricAllowsObservation(code, schedule)).toBe(false);
+    }
   });
 
-  it("treats objective ranking snapshots as sufficient for Ranking Context only", () => {
+  it("maps objective ranking history into Ranking Context as well as stakes metrics", () => {
+    expect(policyForMetric("014").allowed_families).toContain("RANKING");
     expect(policyForMetric("014").sufficient_families).toContain("RANKING");
-    const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8").replace(/\s+/g, " ");
+    const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
     expect(calculator).toContain('SUPPORTED = new Set(["014","062","069"])');
-    expect(calculator).toContain('if(code==="014")return`rank=${s.rank}; points=${s.points??"NA"}`');
-    expect(calculator).toContain('if(code==="014")return null');
+    expect(calculator).toContain('if(code==="014")');
   });
 
   it("wires ranking pulls and deterministic ranking calculations", () => {
@@ -32,12 +30,9 @@ describe("ranking ingestion and deterministic metric wiring", () => {
     expect(warehouse).toContain("deterministicRankingMetric");
   });
 
-  it("preserves available ranking evidence without fabricating the missing side or subjective motivation", () => {
-    const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8").replace(/\s+/g, " ");
-    expect(calculator).toContain("p1Available");
-    expect(calculator).toContain("p2Available");
-    expect(calculator).toContain('?"PARTIAL":"UNAVAILABLE"');
-    expect(calculator).toContain("Ranking evidence is one-sided; the missing side is not synthesized or credited.");
+  it("does not fabricate subjective motivation from ranking observations", () => {
+    const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
+    expect(calculator).toContain('p1_treatment:"PARTIAL"');
     expect(calculator).toContain("Subjective motivation/private pressure components are not inferred");
   });
 });

@@ -5,10 +5,11 @@ import { BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES, sampleVerifiedEvidenceIndexMat
 describe("Evidence Coverage four-tour representative diagnostic", () => {
   it("treats WTA 125 as a separate WTA Challenger family", () => {
     const diagnostic = readFileSync("src/lib/evidence-coverage-runtime-diagnostic.server.ts", "utf8");
-    expect(diagnostic).toContain('"ATP_MAIN"|"WTA_MAIN"|"ATP_CHALLENGER"|"WTA_CHALLENGER"');
+    const identity = readFileSync("src/lib/evidence-match-identity.ts", "utf8");
+    expect(diagnostic).toContain("type RepresentativeId = EvidenceTourFamily");
     expect(diagnostic).toContain('["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]');
-    expect(diagnostic).toContain('return "WTA_CHALLENGER"');
-    expect(diagnostic).toContain('schema_version:11');
+    expect(diagnostic).toContain("classifyEvidenceTourFamily");
+    expect(identity).toContain('return "WTA_CHALLENGER"');
   });
 
   it("has a firewall-validated WTA 125 repository representative", async () => {
@@ -24,9 +25,8 @@ describe("Evidence Coverage four-tour representative diagnostic", () => {
 
   it("requires all four tours in production proof", () => {
     const proof = readFileSync(".github/workflows/evidence-coverage-production-proof.yml", "utf8");
-    expect(proof).toContain('sampled("ATP_MAIN")');
-    expect(proof).toContain('sampled("WTA_MAIN")');
-    expect(proof).toContain('sampled("ATP_CHALLENGER")');
-    expect(proof).toContain('sampled("WTA_CHALLENGER")');
+    expect(proof).toContain('requested=\'["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]\'');
+    expect(proof).toContain('expected_ids=\'["ATP_CHALLENGER","ATP_MAIN","WTA_CHALLENGER","WTA_MAIN"]\'');
+    expect(proof).toContain("(.report.matches | length) == 4");
   });
 });

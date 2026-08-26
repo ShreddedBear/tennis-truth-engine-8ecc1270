@@ -15,13 +15,13 @@ describe("warehouse deterministic calculator wiring", () => {
 
   it("removes fully usable local findings from live fallback", () => {
     expect(compact).toContain("constliveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
-    expect(compact).toContain("constremainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     expect(compact).toContain("USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value");
+    expect(compact).toContain("constremainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     expect(compact).toContain("metrics:remainingLiveMissing");
   });
 
   it("does not let a live unavailable result erase deterministic warehouse evidence", () => {
-    expect(compact).toContain("?live:deterministic??live");
+    expect(compact).toContain("fullyUsableFinding(deterministic)?deterministic");
     expect(compact).toContain("USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment)");
   });
 

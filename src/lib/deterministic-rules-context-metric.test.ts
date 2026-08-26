@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const calc=readFileSync("src/lib/deterministic-rules-context-metric.server.ts","utf8");
 const ingestion=readFileSync("src/lib/ingestion/rules-context.server.ts","utf8");
-const researcher=readFileSync("src/lib/warehouse-first-researcher.server.ts","utf8");
+const researcher=readFileSync("src/lib/warehouse-first-researcher.server.ts","utf8").replace(/\s+/g,"");
 
 describe("metric 075 rules context wiring",()=>{
   it("uses only RULES_CONTEXT for metric 075",()=>{
