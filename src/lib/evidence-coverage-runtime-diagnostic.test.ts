@@ -70,6 +70,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(researcher).toContain("buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdWtaChallengerPbpContext({metrics:liveMissing,p1,p2");
   });
 
   it("keeps all four tours eligible when event_level, scheduled_date, or warehouse event_date is null", () => {
@@ -84,10 +85,14 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain('requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]');
   });
 
-  it("prevents dense market/PBP rows from crowding other evidence families", () => {
+  it("keeps generic PBP excluded and uses approved tour-scoped bridges", () => {
     expect(bridge).toContain('eq("observation_type", "MARKET")');
-    expect(bridge).toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
+    expect(bridge).not.toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
     expect(bridge).toContain('not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")');
+    expect(bridge).toContain('buildBsdAtpMainPbpContext');
+    expect(bridge).toContain('buildBsdWtaMainPbpContext');
+    expect(bridge).toContain('buildBsdAtpChallengerPbpContext');
+    expect(bridge).toContain('buildBsdWtaChallengerPbpContext');
     expect(bridge).toContain('is("event_date", null)');
   });
 
