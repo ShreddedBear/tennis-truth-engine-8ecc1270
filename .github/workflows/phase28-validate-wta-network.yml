@@ -1,0 +1,49 @@
+name: Phase 28 validate WTA network
+
+on:
+  push:
+    branches:
+      - repair/evidence-coverage-phase28-wta-network
+    paths:
+      - 'src/lib/wta-official-match-evidence.server.ts'
+      - '.github/workflows/phase28-validate-wta-network.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Live paired network proof
+        run: |
+          cat > src/lib/phase28-wta-network-live.test.ts <<'TS'
+          import {describe,it,expect} from "vitest";
+          import {officialWtaMetricRows} from "./wta-official-match-evidence.server";
+          const metrics=Array.from({length:81},(_,i)=>({code:String(i+1).padStart(3,"0"),name:`Metric ${String(i+1).padStart(3,"0")}`,body:null}));
+          const usable=(r:any)=>["DIRECT","RECONSTRUCTED","PARTIAL"].includes(String(r?.p1_treatment))&&["DIRECT","RECONSTRUCTED","PARTIAL"].includes(String(r?.p2_treatment))&&r?.p1_value!=null&&r?.p2_value!=null;
+          describe("phase28 WTA network",()=>{
+            it("adds opponent ranking and common-opponent evidence",async()=>{
+              const rows=await officialWtaMetricRows({p1:"Jessica Pegula",p2:"Iga Swiatek",context:"Tournament: US Open | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25",metrics});
+              const good=(rows??[]).filter(usable);const codes=good.map(r=>String(r.metric_code).padStart(3,"0"));
+              console.log(`PHASE28|PAIRED=${good.length}|CODES=${codes.join(',')}`);
+              expect(codes).toContain("006");expect(codes).toContain("007");expect(codes).toContain("080");
+              expect(good.length).toBeGreaterThanOrEqual(14);
+              const common=good.find(r=>String(r.metric_code).padStart(3,"0")==="007");
+              expect(String(common?.p1_value)).toContain("direct_common_opponents=");
+              expect(String(common?.p2_value)).toContain("direct_common_opponents=");
+            },30000);
+            it("retains tour firewalls",async()=>{
+              expect(await officialWtaMetricRows({p1:"Jessica Pegula",p2:"Iga Swiatek",context:"Tournament: WTA 125 | Level: WTA 125 | Tour: WTA 125 | Date: 2026-08-25",metrics})).toBeNull();
+              expect(await officialWtaMetricRows({p1:"Flavio Cobolli",p2:"Arthur Fils",context:"Tournament: ATP MAIN | Level: ATP MAIN | Tour: ATP MAIN | Date: 2026-08-25",metrics})).toBeNull();
+            });
+          });
+          TS
+          bunx vitest run src/lib/phase28-wta-network-live.test.ts --reporter=verbose
+          rm src/lib/phase28-wta-network-live.test.ts
+      - run: bunx vitest run
+      - run: bun run build
