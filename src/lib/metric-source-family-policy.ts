@@ -38,16 +38,10 @@ export function policyForMetric(metricCode: unknown): MetricSourcePolicy {
   if (PBP_METRICS.has(code)) allowed.add("POINT_BY_POINT");
   if (RULES_METRICS.has(code)) allowed.add("RULES_CONTEXT");
 
-  // Families that can directly satisfy an objective component without borrowing
-  // from another evidence family.
   if (["015", "019"].includes(code)) sufficient.add("MARKET");
   if (code === "021") sufficient.add("ENVIRONMENT");
   if (["062", "069"].includes(code)) sufficient.add("RANKING");
 
-  // Results/schedule observations are deliberately support-only for these metrics.
-  // They may supply dates, rounds, tournament, surface, qualifying/main-draw and
-  // workload context, but they must never masquerade as rankings, market, weather,
-  // point-by-point, or rules evidence.
   if (RESULTS_SCHEDULE_METRICS.has(code)) supportOnly.add("RESULTS_SCHEDULE");
   if (code === "030") supportOnly.add("ENVIRONMENT");
   if (code === "071") supportOnly.add("ENVIRONMENT");
@@ -75,10 +69,14 @@ export function observationFamily(row: { source_id?: string | null; observation_
   const type = String(row.observation_type ?? "").toUpperCase();
   const key = String(row.observation_key ?? "").toLowerCase();
 
-  // Source-specific ingestion types take precedence over generic key-name guesses.
-  // An ATP/WTA result row can never become a ranking row because a nested payload
-  // happens to contain words such as "ranking".
-  if (["atp", "wta", "atp_challenger"].includes(source) && ["MATCH_RESULT_OR_SCHEDULE", "TOURNAMENT_SCHEDULE"].includes(type)) {
+  // All four competition lanes are legitimate results/schedule evidence, but
+  // remain isolated records. Adding WTA Challenger/WTA 125 here only classifies
+  // its own observations; it does not allow one tour's row to satisfy another.
+  const resultSources = new Set([
+    "atp", "wta", "atp_challenger", "wta_challenger", "wta_125",
+    "tennisdata_wta_challenger", "production_wta_125",
+  ]);
+  if (resultSources.has(source) && ["MATCH_RESULT_OR_SCHEDULE", "TOURNAMENT_SCHEDULE"].includes(type)) {
     return "RESULTS_SCHEDULE";
   }
   if (type === "RANKING" || key.includes("ranking") || key.includes("rank_points")) return "RANKING";
