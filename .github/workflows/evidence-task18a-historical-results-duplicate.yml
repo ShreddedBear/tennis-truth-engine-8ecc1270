@@ -1,8 +1,8 @@
-name: Evidence Coverage Task 18A Historical Results — Read Only Revalidation
+name: Evidence Coverage Task 18A Historical Results — PR Revalidation
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     branches:
       - main
     paths:
@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: evidence-task18a-readonly-${{ github.ref }}
+  group: evidence-task18a-pr-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
