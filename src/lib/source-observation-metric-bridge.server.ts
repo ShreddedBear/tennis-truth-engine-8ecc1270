@@ -22,6 +22,7 @@ async function loadCandidateRows(player:string, opponent:string, asOfDate:string
   const select="source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
   const datedBase=()=>db.from("source_observations").select(select).gte("event_date",start.toISOString().slice(0,10)).lte("event_date",asOfDate).order("event_date",{ascending:false});
   const marketBase=()=>db.from("source_observations").select(select).eq("event_date", asOfDate).eq("observation_type", "MARKET").order("event_date",{ascending:false});
+  const nullDateBase=()=>db.from("source_observations").select(select).is("event_date", null);
   const emptyResult={data:[] as ObservationRow[],error:null};
 
   const laneResults=await Promise.all([
@@ -34,8 +35,10 @@ async function loadCandidateRows(player:string, opponent:string, asOfDate:string
     Promise.resolve(emptyResult),
     Promise.resolve(emptyResult),
     datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    nullDateBase().in("player_name", p1Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    nullDateBase().in("player_name", p2Aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
   ]);
-  const names=["p1_other","p2_other","p1_match_as_opponent","p2_match_as_opponent","p1_market","p2_market","p1_pbp","p2_pbp","shared"] as const;
+  const names=["p1_other","p2_other","p1_match_as_opponent","p2_match_as_opponent","p1_market","p2_market","p1_pbp","p2_pbp","shared","p1_null_date","p2_null_date"] as const;
   const lanes=names.map((name,index)=>({name,result:laneResults[index]}));
   const laneFailures=lanes.filter(lane=>lane.result.error).map(lane=>({lane:lane.name,error:lane.result.error?.message??"unknown query error"}));
   const genericLanes=lanes.filter(lane=>lane.name!=="p1_pbp"&&lane.name!=="p2_pbp");
