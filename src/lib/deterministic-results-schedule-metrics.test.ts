@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 describe("deterministic results/schedule calculators", () => {
   const source = readFileSync("src/lib/deterministic-results-schedule-metrics.server.ts", "utf8");
-  const compact = source.replace(/\s+/g, " ");
 
   it("only targets results/schedule metric codes", () => {
     for (const code of ["012", "028", "030", "064", "071", "076", "077", "081"]) {
@@ -13,28 +12,37 @@ describe("deterministic results/schedule calculators", () => {
     expect(source).not.toContain('SUPPORTED = new Set(["069"');
   });
 
-  it("keeps available results evidence partial and fails closed for a missing side", () => {
-    expect(compact).toContain("p1HasEvidence");
-    expect(compact).toContain("p2HasEvidence");
-    expect(compact).toContain('?"PARTIAL":"UNAVAILABLE"');
-    expect(compact).toContain('evidence_family:"RESULTS_SCHEDULE"');
-    expect(compact).toContain("missing-side zeroes are not synthesized or credited");
+  it("keeps deterministic results/schedule output PARTIAL rather than inventing a complete score", () => {
+    expect(source).toMatch(/p1_treatment:\s*"PARTIAL"/);
+    expect(source).toMatch(/p2_treatment:\s*"PARTIAL"/);
+    expect(source).toMatch(/evidence_family:\s*"RESULTS_SCHEDULE"/);
   });
 
   it("filters every warehouse row through the metric source-family gate", () => {
-    expect(source).toMatch(/metricAllowsObservation\(code\s*,\s*row\)/);
+    expect(source).toMatch(/metricAllowsObservation\(code,\s*row\)/);
   });
 
-  it("treats native player1 and player2 orientations symmetrically", () => {
-    expect(compact).toContain("containsPlayer");
-    expect(compact).toContain('evidenceNameMatches(row.player_name,player,opponent)||evidenceNameMatches(row.opponent_name,player,opponent)');
-    expect(compact).toContain('.in("opponent_name",safeEvidenceAliases(args.p1,args.p2)).eq("observation_type","MATCH_RESULT_OR_SCHEDULE")');
-    expect(compact).toContain('.in("opponent_name",safeEvidenceAliases(args.p2,args.p1)).eq("observation_type","MATCH_RESULT_OR_SCHEDULE")');
-    expect(compact).toContain("native_match_orientation_normalized=true");
+  it("distinguishes direct schedules, match-history schedule context and true absence", () => {
+    expect(source).toContain("DIRECT_EVENT_SCHEDULE");
+    expect(source).toContain("MATCH_HISTORY_SCHEDULE_CONTEXT");
+    expect(source).toContain("UNAVAILABLE");
+    expect(source).toContain('from("matches")');
+    expect(source).toContain("scheduled_local_at");
+    expect(source).toContain("scheduled_utc_at");
   });
 
-  it("deduplicates a match returned through multiple symmetric lanes", () => {
-    expect(compact).toContain("dedupeRows");
-    expect(compact).toContain("if(seen.has(key))return false");
+  it("normalizes event identity and enforces the four-tour contamination firewall", () => {
+    expect(source).toContain("normalizeEvidenceTournament");
+    expect(source).toContain("normalizeEvidenceRound");
+    expect(source).toContain("evidenceDateCompatible");
+    expect(source).toContain("evidenceTourCompatible");
+    expect(source).toContain("buildCanonicalEvidenceMatchIdentity");
+    expect(source).toContain("if(!expectedFamily)return null");
+  });
+
+  it("fails closed when more than one production-history match can satisfy the join", () => {
+    expect(source).toContain("uniqueCurrentEventHistoryRows");
+    expect(source).toContain("candidates.length===1?candidates:[]");
+    expect(source).toContain("if(currentHistory.length>1)return null");
   });
 });

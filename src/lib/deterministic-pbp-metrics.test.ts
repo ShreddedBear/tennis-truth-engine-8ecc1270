@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const calc = readFileSync("src/lib/deterministic-pbp-metrics.server.ts", "utf8").replace(/\s+/g, " ");
-const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, " ");
+const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, "");
 
 describe("deterministic PBP evidence", () => {
   it("is restricted to metrics that explicitly allow point-by-point evidence", () => {
