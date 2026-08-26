@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
+import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
 
 const db = supabaseAdmin as any;
 const SUPPORTED = new Set(["062","069"]);
@@ -24,6 +25,20 @@ function summary(player:string,opponent:string,rows:Row[],asOf:string){
 }
 function value(code:string,s:ReturnType<typeof summary>){if(!s)return null;if(code==="062")return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_30d=${s.rank_change_30d??"NA"}; rank_change_90d=${s.rank_change_90d??"NA"}`;return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_365d=${s.rank_change_365d??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;}
 
+function rowCircuit(row:Row):"ATP"|"WTA"|null{
+  const family=classifyEvidenceTourFamily(row.source_id,row.source_name,row.sample_label,row.observation_type,row.observation_key,row.text_value);
+  if(family==="ATP_MAIN"||family==="ATP_CHALLENGER")return "ATP";
+  if(family==="WTA_MAIN"||family==="WTA_CHALLENGER")return "WTA";
+  return null;
+}
+function expectedCircuit(context:string|null|undefined,rows:Row[]):"ATP"|"WTA"|null{
+  const family=classifyEvidenceTourFamily(context);
+  if(family==="ATP_MAIN"||family==="ATP_CHALLENGER")return "ATP";
+  if(family==="WTA_MAIN"||family==="WTA_CHALLENGER")return "WTA";
+  const circuits=new Set(rows.map(rowCircuit).filter((v):v is "ATP"|"WTA"=>Boolean(v)));
+  return circuits.size===1?[...circuits][0]:null;
+}
+
 async function rankingRows(p1:string,p2:string,start:string,asOfDate:string){
   const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];
   const results=await Promise.all(aliases.map(alias=>db.from("source_observations")
@@ -39,14 +54,14 @@ async function rankingRows(p1:string,p2:string,start:string,asOfDate:string){
   return [...dedup.values()];
 }
 
-export async function deterministicRankingMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string}):Promise<MetricFinding|null>{
+export async function deterministicRankingMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;context?:string|null}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);
-  // ATP Main and ATP Challenger share ATP ranking observations. WTA Main and
-  // WTA Challenger/WTA 125 share WTA ranking observations; there is no invented
-  // separate "WTA Challenger ranking" requirement. Canonical player identity
-  // and exact post-query matching keep the tours from borrowing player records.
+  // ATP Main and ATP Challenger share ATP rankings; WTA Main and WTA 125 share
+  // WTA rankings. Circuit compatibility is explicit and unresolved/mixed
+  // ranking sources fail closed rather than borrowing across ATP/WTA.
   const fetched=await rankingRows(args.p1,args.p2,start.toISOString().slice(0,10),args.asOfDate);if(!fetched)return null;
-  const rows=fetched.filter(r=>metricAllowsObservation(code,r));if(!rows.length)return null;
+  const circuit=expectedCircuit(args.context,fetched);if(!circuit)return null;
+  const rows=fetched.filter(r=>metricAllowsObservation(code,r)&&rowCircuit(r)===circuit);if(!rows.length)return null;
   const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate);const p1=value(code,s1),p2=value(code,s2);if(!p1||!p2)return null;
-  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ranking history through ${args.asOfDate}`,unavailable_reason:"Subjective motivation/private pressure components are not inferred from ranking data.",sources:sourceRefs(rows)};
+  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ${circuit} ranking history through ${args.asOfDate}`,unavailable_reason:"Subjective motivation/private pressure components are not inferred from ranking data.",sources:sourceRefs(rows)};
 }
