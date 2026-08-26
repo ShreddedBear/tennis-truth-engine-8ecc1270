@@ -1,0 +1,47 @@
+name: Phase 29 WTA ceiling audit
+
+on:
+  push:
+    branches:
+      - repair/evidence-coverage-phase29-wta-ceiling
+    paths:
+      - '.github/workflows/phase29-wta-ceiling-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Quantify post-Phase28 WTA evidence union
+        run: |
+          cat > src/lib/phase29-wta-ceiling.test.ts <<'TS'
+          import {describe,it,expect} from "vitest";
+          import {localMetricRows} from "./hybrid-audit-research.server";
+          import {officialWtaMetricRows} from "./wta-official-match-evidence.server";
+          import {certifyMetricFinding} from "./metric-certification";
+          import {enforceFiveMetricWiring} from "./completion-sweep-research.server";
+          const metrics=Array.from({length:81},(_,i)=>({code:String(i+1).padStart(3,"0"),name:`Metric ${String(i+1).padStart(3,"0")}`,body:null}));
+          const usable=new Set(["DIRECT","RECONSTRUCTED","PARTIAL"]);
+          const real=(r:any)=>usable.has(String(r?.p1_treatment))&&usable.has(String(r?.p2_treatment))&&r?.p1_value!=null&&String(r.p1_value).trim()!==""&&r?.p2_value!=null&&String(r.p2_value).trim()!=="";
+          describe("phase29 WTA ceiling",()=>{it("quantifies representative WTA Main",async()=>{
+            const p1="Jessica Pegula",p2="Iga Swiatek",context="Tournament: US Open | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25";
+            const local=localMetricRows(p1,p2,context,metrics).map((r,i)=>certifyMetricFinding(enforceFiveMetricWiring(metrics[i],r))).filter(real).map(r=>String(r.metric_code).padStart(3,"0"));
+            const official=(await officialWtaMetricRows({p1,p2,context,metrics})??[]).filter(real).map(r=>String(r.metric_code).padStart(3,"0"));
+            // These eight codes were proven as paired stored production evidence in the prior production-proof checkpoint.
+            const stored=["001","005","012","014","021","028","062","069"];
+            const liveUnion=[...new Set([...local,...official])].sort();
+            const provenUnion=[...new Set([...stored,...liveUnion])].sort();
+            console.log(`PHASE29|WTA_MAIN|LOCAL=${local.length}|OFFICIAL=${official.length}|LIVE_UNION=${liveUnion.length}|LIVE_PERCENT=${(100*liveUnion.length/81).toFixed(2)}|PROVEN_STORED_PLUS_LIVE=${provenUnion.length}|PROVEN_PERCENT=${(100*provenUnion.length/81).toFixed(2)}|LOCAL_CODES=${local.join(',')}|OFFICIAL_CODES=${official.join(',')}|UNION_CODES=${provenUnion.join(',')}`);
+            expect(official.length).toBeGreaterThanOrEqual(14);
+            expect(provenUnion.length).toBeGreaterThanOrEqual(19);
+          },30000)});
+          TS
+          bunx vitest run src/lib/phase29-wta-ceiling.test.ts --reporter=verbose
+          rm src/lib/phase29-wta-ceiling.test.ts
