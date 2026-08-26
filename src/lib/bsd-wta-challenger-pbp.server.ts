@@ -28,6 +28,35 @@ type ApprovedRow = {
 const norm = (value: unknown) => String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const codeOf = (value: unknown) => { const match = String(value ?? "").match(/(\d{1,3})$/); return match ? match[1].padStart(3, "0") : String(value ?? "").padStart(3, "0"); };
 
+/**
+ * WTA 125 production history uses compact display identities such as
+ * "Pohankova M." while the approved BSD PBP index carries full names. Resolve
+ * that representation only when the approved namespace contains exactly one
+ * matching full identity. Ambiguous initials fail closed.
+ */
+export function resolveUniqueApprovedWtaIdentity(input: string, approvedNames: string[]) {
+  const inputNorm = norm(input);
+  if (!inputNorm) return null;
+  const unique = [...new Map(approvedNames.filter(Boolean).map((name) => [norm(name), name])).values()];
+  const exact = unique.filter((name) => norm(name) === inputNorm);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
+
+  const tokens = inputNorm.split(" ").filter(Boolean);
+  if (tokens.length !== 2) return null;
+  let surname = "", initial = "";
+  if (tokens[1].length === 1) { surname = tokens[0]; initial = tokens[1]; }
+  else if (tokens[0].length === 1) { initial = tokens[0]; surname = tokens[1]; }
+  else return null;
+
+  const candidates = unique.filter((name) => {
+    const parts = norm(name).split(" ").filter(Boolean);
+    if (parts.length < 2) return false;
+    return parts.at(-1) === surname && parts[0]?.startsWith(initial);
+  });
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 function explicitWtaChallengerContext(context: string | null | undefined) {
   const text = norm(context);
   if (!text) return false;
@@ -62,47 +91,67 @@ export async function buildBsdWtaChallengerPbpContext(args: {
   }
 
   status.eligible = true;
-  const p1n = norm(args.p1), p2n = norm(args.p2);
   const approved = await loadApprovedIndex();
+  const approvedNames = approved.flatMap((row) => [String(row.player1 ?? ""), String(row.player2 ?? "")]).filter(Boolean);
+  const p1Canonical = resolveUniqueApprovedWtaIdentity(args.p1, approvedNames);
+  const p2Canonical = resolveUniqueApprovedWtaIdentity(args.p2, approvedNames);
+  const targets = [
+    p1Canonical ? { requested: args.p1, canonical: p1Canonical } : null,
+    p2Canonical ? { requested: args.p2, canonical: p2Canonical } : null,
+  ].filter((value): value is { requested: string; canonical: string } => Boolean(value));
+  const targetNorms = new Set(targets.map((target) => norm(target.canonical)));
+
   const rows = approved.filter((row) => {
     const date = String(row.date ?? "").slice(0, 10);
     if (!date || date > args.asOfDate) return false;
     const a = norm(row.player1), b = norm(row.player2);
-    return a === p1n || b === p1n || a === p2n || b === p2n;
+    return targetNorms.has(a) || targetNorms.has(b);
   }).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? ""))).slice(0, 40);
 
-  const observations = rows.map((row) => {
+  const observations: any[] = [];
+  const usedMatches = new Set<string>();
+  for (const row of rows) {
     const a = String(row.player1 ?? ""), b = String(row.player2 ?? "");
-    const metrics = row.metrics ?? {};
-    return {
-      family: "POINT_BY_POINT",
-      source: "BSD/Bzzoiro WTA Challenger approved PBP index",
-      url: null,
-      player1: a,
-      player2: b,
-      tournament: row.tournament ?? null,
-      event_date: String(row.date ?? "").slice(0, 10),
-      key: "bsd_wta_challenger_approved_pbp_summary",
-      value: {
-        match_id: row.match_id ?? null,
-        set_scores: metrics.set_scores ?? null,
-        match_winner_slot: metrics.match_winner_slot ?? null,
-        total_games: metrics.total_games ?? null,
-        total_points: metrics.total_points ?? null,
-        breaks: metrics.breaks ?? null,
-      },
-      sample: `${metrics.total_points ?? "NA"} points; ${metrics.total_games ?? "NA"} games; ${metrics.breaks ?? "NA"} breaks`,
-      provenance: {
-        tour: "WTA_CHALLENGER",
-        approved_only: true,
-        structural_validation: true,
-        match_identity_validation: true,
-        duplicate_protection: true,
-        rejected_records_reintroduced: false,
-      },
+    const an = norm(a), bn = norm(b), metrics = row.metrics ?? {};
+    const summary = {
+      totalPoints: Number.isFinite(Number(metrics.total_points)) ? Number(metrics.total_points) : null,
+      gamesObserved: Number.isFinite(Number(metrics.total_games)) ? Number(metrics.total_games) : null,
+      breaksWon: Number.isFinite(Number(metrics.breaks)) ? Number(metrics.breaks) : null,
+      setScores: metrics.set_scores ?? null,
+      matchWinnerSlot: metrics.match_winner_slot ?? null,
     };
-  });
-  status.matches_used = observations.length;
+    for (const target of targets) {
+      const tn = norm(target.canonical);
+      if (tn !== an && tn !== bn) continue;
+      const opponent = tn === an ? b : a;
+      observations.push({
+        family: "POINT_BY_POINT",
+        source: "BSD/Bzzoiro WTA Challenger approved PBP index",
+        url: null,
+        player: target.requested,
+        opponent,
+        player1: a,
+        player2: b,
+        tournament: row.tournament ?? null,
+        event_date: String(row.date ?? "").slice(0, 10),
+        key: "bsd_wta_challenger_approved_pbp_summary",
+        value: summary,
+        sample: `${summary.totalPoints ?? "NA"} points; ${summary.gamesObserved ?? "NA"} games; ${summary.breaksWon ?? "NA"} breaks`,
+        provenance: {
+          tour: "WTA_CHALLENGER",
+          approved_only: true,
+          structural_validation: true,
+          match_identity_validation: true,
+          unique_abbreviated_identity_resolution: norm(target.requested) !== norm(target.canonical),
+          canonical_player: target.canonical,
+          duplicate_protection: true,
+          rejected_records_reintroduced: false,
+        },
+      });
+      usedMatches.add(String(row.match_id ?? `${row.date}|${an}|${bn}`));
+    }
+  }
+  status.matches_used = usedMatches.size;
 
   const packet: Record<string, unknown> = {};
   for (const metric of args.metrics) {
@@ -122,6 +171,7 @@ export async function buildBsdWtaChallengerPbpContext(args: {
     };
   }
 
-  status.reason = observations.length ? "Approved WTA Challenger/WTA 125 PBP summaries attached to eligible metric codes." : "No approved WTA Challenger/WTA 125 PBP observations matched these players.";
+  if (!targets.length) status.reason = "No approved WTA Challenger identity matched these players; ambiguous abbreviated identities fail closed.";
+  else status.reason = observations.length ? "Approved WTA Challenger/WTA 125 PBP summaries attached to eligible metric codes." : "No approved WTA Challenger/WTA 125 PBP observations matched these players.";
   return { packet, status };
 }
