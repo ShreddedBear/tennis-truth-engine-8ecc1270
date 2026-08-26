@@ -41,6 +41,11 @@ jobs:
   diagnostic-code:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # The repository-wide Vitest graph currently exceeds Node's default
+      # ~2 GiB old-space ceiling on GitHub-hosted runners. Keep the full suite
+      # enabled and raise only the process heap rather than skipping tests.
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
