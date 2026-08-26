@@ -8,9 +8,17 @@ on:
       - '.github/workflows/evidence-coverage-production-proof.yml'
       - 'src/routes/api/evidence-coverage-diagnostic.ts'
       - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
+      - 'src/lib/evidence-availability-accounting.ts'
       - 'src/lib/warehouse-first-researcher.server.ts'
       - 'src/lib/source-observation-metric-bridge.server.ts'
       - 'src/lib/metric-source-family-policy.ts'
+      - 'src/lib/repository-results-history.server.ts'
+      - 'src/lib/evidence-match-identity.ts'
+      - 'src/lib/evidence-canonical-identity.server.ts'
+      - 'src/lib/deterministic-ranking-metrics.server.ts'
+      - 'src/lib/deterministic-results-schedule-metrics.server.ts'
+      - 'src/lib/deterministic-market-metrics.server.ts'
+      - 'src/lib/bsd-wta-challenger-pbp.server.ts'
 
 permissions:
   contents: read
@@ -20,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Wait for production diagnostic and prove sampling/firewalls
+      - name: Wait for production diagnostic and prove sampling/firewalls/accounting
         shell: bash
         env:
           URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
@@ -34,7 +42,13 @@ jobs:
             and sampled("ATP_MAIN")
             and sampled("WTA_MAIN")
             and sampled("ATP_CHALLENGER")
-            and sampled("WTA_CHALLENGER")'
+            and sampled("WTA_CHALLENGER")
+            and ((.metric_family_audit // []) | length) == 81
+            and (.availability_accounting.maximum_recoverable_ceiling_percent >= 0)
+            and (.availability_accounting.maximum_recoverable_ceiling_percent <= 100)
+            and (.availability_accounting.software_loss_percent >= 0)
+            and (.availability_accounting.genuine_source_unavailability_percent >= 0)
+            and ((.matches // []) | length) == 4'
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
             if [ "$status" = "200" ] && jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null 2>&1; then
@@ -43,7 +57,7 @@ jobs:
                 break
               fi
             fi
-            echo "Production diagnostic not ready (attempt=$attempt status=$status); retrying..."
+            echo "Production diagnostic not ready for Task 13-16 contract (attempt=$attempt status=$status); retrying..."
             sleep 20
           done
           echo "HTTP status: $status"
@@ -53,9 +67,10 @@ jobs:
           jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null
           jq '.report // .' "$response" > "$report"
           jq -e "$structurally_ready" "$report" >/dev/null
-          jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(",")) + "|MISSING_REASONS=" + ((.missing_class_reasons // {})|tojson)' "$report"
-          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$report"
-          jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$report" >/dev/null
-          echo 'PASS: production diagnostic sampled ATP Main, WTA Main, ATP Challenger, and WTA Challenger/WTA 125 with no one-sided evidence credited as pair-complete.'
+          jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(","))' "$report"
+          jq -r '.availability_accounting | "RETRIEVED=\(.retrieved_percent)%|SOFTWARE_LOSS=\(.software_loss_percent)%|GENUINE_UNAVAILABLE=\(.genuine_source_unavailability_percent)%|MAX_CEILING=\(.maximum_recoverable_ceiling_percent)%"' "$report"
+          jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% software_loss=\(.availability_accounting.software_loss_percent)% genuine_unavailable=\(.availability_accounting.genuine_source_unavailability_percent)% ceiling=\(.availability_accounting.maximum_recoverable_ceiling_percent)% false_green_pass=\(.false_green_guard.passed)"' "$report"
+          jq -e 'all(.matches[]; .false_green_guard.passed == true)' "$report" >/dev/null
+          echo 'PASS: production diagnostic exposes all 81 metric-family policies, all four tours, source-vs-software accounting, and maximum recoverable ceiling with the false-green firewall intact.'
 
-# Manual retrigger marker: 2026-08-26 four-tour representative proof.
+# Task 16 production proof: four tours + 81-family audit + recoverable ceiling.

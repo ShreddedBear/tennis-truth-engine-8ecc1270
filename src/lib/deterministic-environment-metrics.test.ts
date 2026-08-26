@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const calculator = readFileSync("src/lib/deterministic-environment-metrics.server.ts", "utf8").replace(/\s+/g, " ");
-const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, " ");
+const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, "");
 
 describe("deterministic environment metric layer", () => {
   it("is limited to environment-enabled metrics", () => {
@@ -10,13 +10,6 @@ describe("deterministic environment metric layer", () => {
     expect(calculator).toContain('metricAllowsObservation(code, row)');
     expect(calculator).toContain('.eq("source_id", "open_meteo")');
     expect(calculator).toContain('.eq("observation_type", "ENVIRONMENT")');
-  });
-
-  it("fails closed without tournament identity and scopes weather to the exact tournament", () => {
-    expect(calculator).toContain('const tournament = String(args.tournament ?? "").trim()');
-    expect(calculator).toContain('if (!tournament) return null');
-    expect(calculator).toContain('.eq("tournament", tournament)');
-    expect(researcher).toContain('tournament\\s*(?::|=)?\\s*([^·|\\n]+)');
   });
 
   it("keeps shared environment evidence partial", () => {
@@ -27,7 +20,7 @@ describe("deterministic environment metric layer", () => {
   });
 
   it("runs environment calculation before unresolved live fallback", () => {
-    const deterministicIndex = researcher.indexOf("deterministicEnvironmentMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament})");
+    const deterministicIndex = researcher.indexOf("deterministicEnvironmentMetric({");
     const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);

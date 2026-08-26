@@ -8,7 +8,7 @@ const schedule = readFileSync("src/lib/deterministic-results-schedule-metrics.se
 const market = readFileSync("src/lib/deterministic-market-metrics.server.ts", "utf8");
 const pbp = readFileSync("src/lib/deterministic-pbp-metrics.server.ts", "utf8");
 const bridge = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8");
-const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
+const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, "");
 const canonical = readFileSync("src/lib/evidence-canonical-identity.server.ts", "utf8");
 const hotPathIndexes = readFileSync("supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
 
@@ -70,15 +70,18 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(canonical).toContain('status: "QUERY_FAILED"');
     expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
     expect(researcher).toContain("resolveCanonicalEvidencePair(input.p1,input.p2)");
-    expect(researcher).toContain("lookup(codes,p1,p2,date)");
+    expect(researcher).toContain("lookup(codes,p1,p2,date,input.context,tournament,surface)");
+    expect(researcher).toContain("lookup(codes,p2,p1,date,input.context,tournament,surface)");
+    expect(researcher).toContain("storedContextCompatible");
     expect(researcher).toContain("deterministicRankingMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("deterministicMarketMetric({metricCode:metric.code,p1,p2");
-    expect(researcher).toContain("deterministicPbpMetric({metricCode:metric.code,p1,p2");
+    expect(researcher).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1,p2");
     expect(researcher).toContain("deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("buildMetricObservationContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2");
     expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildBsdWtaChallengerPbpContext({metrics:liveMissing,p1,p2");
   });
 
   it("samples real production matches even when event_level or scheduled_date is null", () => {
@@ -143,8 +146,13 @@ describe("runtime evidence coverage diagnostic", () => {
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
     expect(bridge).toContain('eq("observation_type", "MARKET")');
-    expect(bridge).toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
     expect(bridge).toContain('not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")');
+    expect(bridge).not.toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
+    expect(bridge).toContain("approvedPbpPacket");
+    expect(bridge).toContain("buildBsdAtpMainPbpContext");
+    expect(bridge).toContain("buildBsdWtaMainPbpContext");
+    expect(bridge).toContain("buildBsdAtpChallengerPbpContext");
+    expect(bridge).toContain("buildBsdWtaChallengerPbpContext");
   });
 
   it("indexes the exact predicates used by the evidence read path", () => {
@@ -182,7 +190,6 @@ describe("verified PBP index sampling fallback", () => {
   });
 });
 
-
 describe("certified provider-independent local evidence bridge", () => {
   it("runs local historical evidence through the existing exact-field and certification guards before coverage credit", () => {
     expect(diagnostic).toContain('localMetricRows(match.p1,match.p2,match.context,metrics)');
@@ -192,7 +199,6 @@ describe("certified provider-independent local evidence bridge", () => {
     expect(diagnostic).toContain('schema_version:11');
   });
 });
-
 
 describe("coverage fallback precedence requires real side values", () => {
   it("does not let an unavailable deterministic row block certified local evidence", () => {
