@@ -1,0 +1,40 @@
+name: Phase 25 evidence ceiling audit
+on:
+  push:
+    branches: [repair/evidence-coverage-phase25-ceiling-audit]
+    paths: ['.github/workflows/phase25-ceiling-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Quantify all currently certified historical recovery lanes
+        shell: bash
+        run: |
+          cat > src/lib/phase25-ceiling-audit.test.ts <<'TS'
+          import { describe, it, expect } from "vitest";
+          import { localMetricRows } from "./hybrid-audit-research.server";
+          import { completionSweepHistoricalFinding, enforceFiveMetricWiring } from "./completion-sweep-research.server";
+          import { certifyMetricFinding } from "./metric-certification";
+          const metrics=Array.from({length:81},(_,i)=>({code:String(i+1).padStart(3,"0"),name:`Metric ${String(i+1).padStart(3,"0")}`,body:null}));
+          const usable=new Set(["DIRECT","RECONSTRUCTED","PARTIAL"]);
+          const real=(r:any)=>usable.has(String(r?.p1_treatment))&&usable.has(String(r?.p2_treatment))&&r?.p1_value!=null&&String(r.p1_value).trim()!==""&&r?.p2_value!=null&&String(r.p2_value).trim()!=="";
+          const pairs=[
+            {label:"WTA_MAIN",p1:"Jessica Pegula",p2:"Iga Swiatek",context:"Tournament: WTA MAIN persisted evidence snapshot | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25",stored:["001","005","012","014","021","028","062","069"]},
+            {label:"ATP_MAIN",p1:"Flavio Cobolli",p2:"Arthur Fils",context:"Tournament: ATP MAIN persisted evidence snapshot | Level: ATP MAIN | Tour: ATP MAIN | Surface: hard | Date: 2026-08-25",stored:["001","005","012","014","021","028","062","069"]},
+            {label:"ATP_CHALLENGER",p1:"Leandro Riedi",p2:"Yunchaokete Bu",context:"Tournament: Busan, South Korea | Level: ATP CHALLENGER | Tour: ATP CHALLENGER | Surface: hard | Date: 2026-04-19",stored:[]},
+          ];
+          describe("phase25 ceiling audit",()=>{for(const pair of pairs)it(pair.label,()=>{
+            const local=localMetricRows(pair.p1,pair.p2,pair.context,metrics).map((r,i)=>certifyMetricFinding(enforceFiveMetricWiring(metrics[i],r))).filter(real).map(r=>String(r.metric_code).padStart(3,"0"));
+            const historical=metrics.map(m=>completionSweepHistoricalFinding({p1:pair.p1,p2:pair.p2,context:pair.context},m)).filter(real).map(r=>String(r!.metric_code).padStart(3,"0"));
+            const union=new Set([...pair.stored,...local,...historical]);
+            console.log(`PHASE25|${pair.label}|STORED=${pair.stored.length}|LOCAL=${local.length}|HISTORICAL=${historical.length}|UNION=${union.size}|PERCENT=${(100*union.size/81).toFixed(2)}|LOCAL_CODES=${local.join(',')}|HIST_CODES=${historical.join(',')}|UNION_CODES=${[...union].sort().join(',')}`);
+            expect(union.size).toBeGreaterThan(0);
+          },30000)});
+          TS
+          bunx vitest run src/lib/phase25-ceiling-audit.test.ts --reporter=verbose
