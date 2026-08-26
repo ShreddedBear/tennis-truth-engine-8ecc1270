@@ -18,10 +18,12 @@ describe("Task 18A historical/results recovery",()=>{
  it("reconstructs every full historical family from observed prior inputs",()=>{
    for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="057")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
-     expect(value,code).not.toBeNull();expect(value?.treatment,code).toBe("RECONSTRUCTED");expect(value?.sampleSize,code).toBeGreaterThanOrEqual(0);
+     expect(value,code).not.toBeNull();expect(value?.treatment,code).toBe("RECONSTRUCTED");expect(value?.sampleSize,code).toBeGreaterThan(0);
    }
  });
  it("keeps retirement/walkover evidence PARTIAL",()=>{const value=deriveHistoricalResultMetric({code:"057",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});expect(value?.treatment).toBe("PARTIAL");expect(value?.value).toContain("status_observed_matches");});
  it("does not leak future rows",()=>{const value=deriveHistoricalResultMetric({code:"058",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});expect(value?.sampleSize).toBe(5);expect(JSON.stringify(value?.rawInputs)).not.toContain("rank:1");});
  it("never zero-fills missing score evidence",()=>{const bare:HistoricalResultRow[]=[{date:"2026-08-01",player:"Alpha",opponent:"Beta",won:true,surface:"Hard",tournament:null,setsFor:null,setsAgainst:null,setScores:[],bestOf:null,opponentRank:null,opponentElo:null,status:null}];expect(deriveHistoricalResultMetric({code:"051",player:"Alpha",opponent:"Beta",rows:bare,asOfDate,surface:"Hard"})).toBeNull();expect(deriveHistoricalResultMetric({code:"057",player:"Alpha",opponent:"Beta",rows:bare,asOfDate,surface:"Hard"})).toBeNull();});
+ it("fails closed when no prior H2H exists",()=>{expect(deriveHistoricalResultMetric({code:"006",player:"Alpha",opponent:"NeverPlayed",rows,asOfDate,surface:"Hard"})).toBeNull();});
+ it("does not promote set-total-only history to game-score volatility evidence",()=>{const totalsOnly:HistoricalResultRow[]=[r("Alpha","X","2026-08-10",true,"Hard",2,0,[],{opponentRank:null,opponentElo:null}),r("Alpha","Y","2026-08-01",false,"Hard",1,2,[],{opponentRank:null,opponentElo:null})];expect(deriveHistoricalResultMetric({code:"011",player:"Alpha",opponent:"Beta",rows:totalsOnly,asOfDate,surface:"Hard"})).toBeNull();expect(deriveHistoricalResultMetric({code:"080",player:"Alpha",opponent:"Beta",rows:totalsOnly,asOfDate,surface:"Hard"})).toBeNull();});
 });
