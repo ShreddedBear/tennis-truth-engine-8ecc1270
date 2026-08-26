@@ -6,6 +6,7 @@ import { classifyEvidenceTourFamily, evidenceTourCompatible, normalizeEvidenceTo
 
 const db = supabaseAdmin as any;
 const MARKET_CODES = new Set(["015", "019", "043", "044"]);
+const from = "2020-06-06";
 
 type MarketRow = {
   source_id: string | null;
@@ -98,7 +99,7 @@ function fmtPct(v: number | null) { return v == null ? "n/a" : `${(v * 100).toFi
 function valueText(summary: ReturnType<typeof summarizeMarket>) { return [`avg_de_vig=${fmtPct(summary.avg_devig_probability)}`, `avg_raw=${fmtPct(summary.avg_raw_implied_probability)}`, `move=${fmtPct(summary.probability_movement)}`, `favorite_share=${fmtPct(summary.favorite_share)}`, `n=${summary.observations}`, `paired=${summary.paired_devig_observations}`].join("; "); }
 
 export async function deterministicMarketMetric(args: { metricCode: unknown; p1: string; p2: string; asOfDate: string; tournament?: string | null; context?: string | null; }): Promise<MetricFinding | null> {
-  const code = codeOf(args.metricCode); if (!MARKET_CODES.has(code)) return null;
+  const code = codeOf(args.metricCode); if (!MARKET_CODES.has(code) || args.asOfDate < from) return null;
   const [p1RowsRaw, p2RowsRaw] = await Promise.all([
     loadSide(args.p1, args.p2, args.asOfDate, args.tournament),
     loadSide(args.p2, args.p1, args.asOfDate, args.tournament),
