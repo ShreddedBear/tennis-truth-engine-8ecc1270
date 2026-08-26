@@ -1,0 +1,33 @@
+name: Validate Evidence Availability Observed Families
+
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-evidence-availability-observed-families.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bun and dependencies
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bun install
+      - name: Focused Task 15 regression
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bunx vitest run src/lib/evidence-availability-accounting.test.ts
+      - name: Full test suite
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bunx vitest run
+      - name: Build
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bun run build
