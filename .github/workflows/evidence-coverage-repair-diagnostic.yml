@@ -17,13 +17,19 @@ on:
       - src/lib/evidence-player-alias.test.ts
       - src/lib/evidence-canonical-identity.server.ts
       - src/lib/evidence-match-identity.ts
+      - src/lib/evidence-match-identity.test.ts
       - src/lib/repository-results-history.server.ts
       - src/lib/metric-source-family-policy.ts
       - src/lib/metric-source-family-policy.test.ts
       - src/lib/source-observation-metric-bridge.server.ts
       - src/lib/warehouse-first-researcher.server.ts
+      - src/lib/evidence-availability-accounting.ts
+      - src/lib/evidence-availability-accounting.test.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
       - src/lib/evidence-coverage-runtime-diagnostic.test.ts
+      - src/lib/evidence-coverage-four-tour-diagnostic.test.ts
+      - src/lib/evidence-index-match-sampler.server.ts
+      - src/lib/evidence-index-match-sampler.test.ts
       - src/lib/newly-green-end-to-end-coverage-audit.test.ts
       - src/lib/deterministic-ranking-metrics.server.ts
       - src/lib/deterministic-ranking-metrics.test.ts
@@ -37,6 +43,7 @@ on:
       - src/lib/deterministic-rules-context-metric.test.ts
       - src/lib/deterministic-pbp-metrics.server.ts
       - src/lib/deterministic-pbp-metrics.test.ts
+      - src/routes/api/evidence-coverage-diagnostic.ts
   workflow_dispatch:
 
 permissions:
@@ -61,8 +68,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build and validate isolated four-tour repository history
         run: node scripts/build-runtime-tennis-index.mjs
-      - name: Validate evidence identity firewall
-        run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+      - name: Validate evidence identity and four-tour firewalls
+        run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-match-identity.test.ts src/lib/evidence-index-match-sampler.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts src/lib/evidence-coverage-four-tour-diagnostic.test.ts src/lib/evidence-availability-accounting.test.ts
       - name: Validate full regression suite
         run: bunx vitest run
       - name: Explain production-data execution boundary
