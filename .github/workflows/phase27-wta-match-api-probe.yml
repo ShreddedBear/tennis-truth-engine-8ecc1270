@@ -21,8 +21,6 @@ jobs:
         run: |
           set -euo pipefail
           BASE='https://api.wtatennis.com/tennis'
-          # Australian Open has stable tournamentGroup.id=901 in the official API.
-          # Probe a known recent edition so pagination/order cannot hide the candidate.
           GROUP_ID=901
           YEAR=2026
 
@@ -34,7 +32,7 @@ jobs:
             ctype="$(jq -r 'type' "$body" 2>/dev/null || echo non-json)"
             echo "PROBE|$status|$ctype|$url"
             if jq . "$body" >/dev/null 2>&1; then
-              jq -c 'if type=="object" then {keys:(keys),pageInfo:(.pageInfo // null),contentType:(.content|type? // null),contentCount:(.content|length? // null),first:(.content[0] // null)} elif type=="array" then {count:length,first:(.[0] // null)} else . end' "$body" | head -c 12000 || true
+              jq -c 'if type=="object" then {keys:(keys),pageInfo:(.pageInfo // null),contentCount:(.content|length? // 0),matchesType:(.matches|type? // null),matchesCount:(.matches|length? // 0),firstContent:(.content[0] // null),firstMatch:(.matches[0] // null),tournament:(.tournament // null)} elif type=="array" then {count:length,first:(.[0] // null)} else . end' "$body" | head -c 24000 || true
               echo
             else
               head -c 800 "$body" || true
@@ -43,19 +41,6 @@ jobs:
             rm -f "$body"
           }
 
-          # Verify year-filter behavior on the tournament endpoint first.
-          probe "$BASE/tournaments?year=$YEAR&page=0&pageSize=10"
-          probe "$BASE/tournaments?tournamentGroupId=$GROUP_ID&year=$YEAR&page=0&pageSize=10"
-
-          for URL in \
-            "$BASE/matches?tournamentGroupId=$GROUP_ID&year=$YEAR&page=0&pageSize=10" \
-            "$BASE/tournaments/$GROUP_ID/$YEAR/matches?page=0&pageSize=10" \
-            "$BASE/tournaments/$GROUP_ID/matches?year=$YEAR&page=0&pageSize=10" \
-            "$BASE/tournament/$GROUP_ID/$YEAR/matches?page=0&pageSize=10" \
-            "$BASE/matches?groupId=$GROUP_ID&year=$YEAR&page=0&pageSize=10" \
-            "$BASE/matches?year=$YEAR&page=0&pageSize=10" \
-            "$BASE/tournaments/$GROUP_ID/$YEAR" \
-            "$BASE/tournament/$GROUP_ID/$YEAR"
-          do
-            probe "$URL"
-          done
+          probe "$BASE/tournaments?tournamentGroupId=$GROUP_ID&page=0&pageSize=100"
+          probe "$BASE/tournaments/$GROUP_ID/$YEAR"
+          probe "$BASE/tournaments/$GROUP_ID/$YEAR/matches?page=0&pageSize=10"
