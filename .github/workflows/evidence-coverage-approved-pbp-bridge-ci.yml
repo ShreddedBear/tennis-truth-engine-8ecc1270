@@ -8,6 +8,7 @@ on:
       - 'scripts/apply-approved-pbp-runtime-bridge.py'
       - 'src/lib/bsd-wta-challenger-pbp.server.ts'
       - 'src/lib/evidence-index-match-sampler.server.ts'
+      - 'src/lib/evidence-index-match-sampler.test.ts'
       - 'src/lib/evidence-coverage-approved-pbp-bridge.test.ts'
       - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
       - 'src/lib/evidence-coverage-runtime-diagnostic.test.ts'
