@@ -1,0 +1,44 @@
+name: Phase 26 local stat inventory
+on:
+  push:
+    branches: [repair/evidence-coverage-phase26-stat-inventory]
+    paths: ['.github/workflows/phase26-stat-inventory.yml']
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Inventory provider-independent stats for representative players
+        shell: bash
+        run: |
+          cat > src/lib/phase26-stat-inventory.test.ts <<'TS'
+          import { describe,it,expect } from "vitest";
+          import { getPredixDatasetEvidence } from "./predixsport-dataset.server";
+          import { getRecentReconstruction } from "./predixsport-recent.server";
+          import { getDerivedHistoricalStats } from "./predixsport-derived.server";
+          import { getStrengthTrajectoryStats } from "./predixsport-strength.server";
+          import { getRankingPerformanceStats } from "./ranking-performance.server";
+          import { getH2HStats } from "./predixsport-h2h.server";
+          import { getHistoricalServeReturnStats } from "./datahub-atp-serve-return.server";
+          import { getHistoricalScoreProfileStats } from "./datahub-atp-score-profile.server";
+          import { getMatchupEfficiencyStats } from "./matchup-efficiency.server";
+          import { getEnhancedCommonOpponentStats } from "./common-opponent-enhanced.server";
+          import { getAvailabilityHistoryStats } from "./availability-layoff.server";
+          import { getTournamentContextStats } from "./tournament-context.server";
+          import { getTravelBurdenStats } from "./travel-burden.server";
+          import { getCourtContextStats } from "./court-context.server";
+          import { getWeatherContextStats } from "./weather-context.server";
+          const pairs=[
+            {label:"WTA_MAIN",p:"Jessica Pegula",o:"Iga Swiatek",c:"Tournament: WTA MAIN persisted evidence snapshot | Level: WTA MAIN | Tour: WTA MAIN | Surface: hard | Date: 2026-08-25"},
+            {label:"ATP_MAIN",p:"Flavio Cobolli",o:"Arthur Fils",c:"Tournament: ATP MAIN persisted evidence snapshot | Level: ATP MAIN | Tour: ATP MAIN | Surface: hard | Date: 2026-08-25"},
+            {label:"ATP_CHALLENGER",p:"Leandro Riedi",o:"Yunchaokete Bu",c:"Tournament: Busan, South Korea | Level: ATP CHALLENGER | Tour: ATP CHALLENGER | Surface: hard | Date: 2026-04-19"},
+          ];
+          function all(p:string,o:string,c:string){const d=getPredixDatasetEvidence(p,c);return[...(d?.stats??[]),...getRecentReconstruction(p,c),...getDerivedHistoricalStats(p,c),...getStrengthTrajectoryStats(p,c),...getRankingPerformanceStats(p,c),...getH2HStats(p,o,c),...getHistoricalServeReturnStats(p,c),...getHistoricalScoreProfileStats(p,c),...getMatchupEfficiencyStats(p,o,c),...getEnhancedCommonOpponentStats(p,o,c),...getAvailabilityHistoryStats(p,c),...getTournamentContextStats(p,c),...getTravelBurdenStats(p,c),...getCourtContextStats(p,c),...getWeatherContextStats(p,c)];}
+          describe("phase26 stat inventory",()=>{for(const x of pairs)it(x.label,()=>{const rows=all(x.p,x.o,x.c);const keys=[...new Set(rows.map(r=>r.key))].sort();console.log(`PHASE26|${x.label}|PLAYER=${x.p}|COUNT=${keys.length}|KEYS=${keys.join(',')}`);expect(keys.length).toBeGreaterThan(0);},30000)});
+          TS
+          bunx vitest run src/lib/phase26-stat-inventory.test.ts --reporter=verbose
