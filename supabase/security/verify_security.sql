@@ -1,5 +1,3 @@
-\set ON_ERROR_STOP on
-
 -- Fails closed when any original vulnerability class remains.
 do $$
 declare detail text;
@@ -128,6 +126,17 @@ begin
   end if;
 end $$;
 
+-- A project with auth users must have an established administrator after the
+-- one-user bootstrap. This prevents a security migration from silently locking
+-- every interactive user out of required admin-scoped application writes.
+do $$
+begin
+  if exists (select 1 from auth.users)
+     and not exists (select 1 from public.user_roles where role='admin'::public.app_role) then
+    raise exception 'No admin role exists for an authenticated project';
+  end if;
+end $$;
+
 -- Machine-readable inventory for the final report.
 select 'RLS_TABLES' as section,
        json_agg(json_build_object('table',c.relname,'rls',c.relrowsecurity) order by c.relname) as result
@@ -149,4 +158,13 @@ select 'WAREHOUSE_COUNTS' as section,
          'metric_evidence_store',(select count(*) from public.metric_evidence_store),
          'ingestion_targets',(select count(*) from public.ingestion_targets),
          'source_ingestion_runs',(select count(*) from public.source_ingestion_runs)
+       ) as result;
+
+select 'EXPECTED_ACCESS_MATRIX' as section,
+       json_build_object(
+         'anonymous','no public-table access; no backup-object access; no privileged SECURITY DEFINER RPC',
+         'authenticated_owner','select own user-owned rows; manage only own non-admin overrides; no direct warehouse/ingestion access',
+         'authenticated_non_owner','cannot select another owner''s rows; cannot write core application/audit state; cannot manage privileged overrides or backups',
+         'authenticated_admin','owner/admin-scoped application access and explicit private-backup CRUD; no direct warehouse/ingestion table privileges',
+         'service_role','trusted backend full access required for ingestion, audit execution and Evidence Coverage'
        ) as result;
