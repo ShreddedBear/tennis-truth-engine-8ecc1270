@@ -25,7 +25,7 @@ type FailureBucket =
   | "GENUINELY_UNAVAILABLE";
 
 type Metric = { code: string; name: string; body: string | null };
-type RepresentativeId = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER";
+type RepresentativeId = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENGER";
 type SamplingSource = "matches" | "source_observations";
 type MatchCandidate = {
   id: string;
@@ -59,6 +59,7 @@ type ObservationCandidate = {
   surface: string | null;
   observation_type: string | null;
   sample_label: string | null;
+  retrieved_at: string | null;
 };
 type RepresentativeMatch = {
   id: RepresentativeId;
@@ -66,7 +67,7 @@ type RepresentativeMatch = {
   p1: string;
   p2: string;
   date: string;
-  date_source: "scheduled_date" | "parsed_summary" | "created_at" | "warehouse_event_date";
+  date_source: "scheduled_date" | "parsed_summary" | "created_at" | "warehouse_event_date" | "warehouse_retrieved_at";
   tournament: string;
   context: string;
   event_level: string | null;
@@ -77,7 +78,8 @@ type LocalResult = Awaited<ReturnType<typeof deterministic>>;
 
 function classifyText(...values: unknown[]): RepresentativeId | null {
   const combined = values.map((value) => String(value ?? "")).join(" ").toLowerCase();
-  if (/wta\s*125|wta125|125k/.test(combined)) return null;
+  if (/wta\s*125|wta125|125k|wta[_\s-]*challenger/.test(combined)) return "WTA_CHALLENGER";
+  if (/challenger/.test(combined) && /wta|women/.test(combined)) return "WTA_CHALLENGER";
   if (/challenger/.test(combined) && !/wta|women/.test(combined)) return "ATP_CHALLENGER";
   if (/wta|women/.test(combined) && !/challenger/.test(combined)) return "WTA_MAIN";
   if (/atp|masters|grand slam|slam|250|500|1000/.test(combined) && !/challenger/.test(combined)) return "ATP_MAIN";
@@ -126,18 +128,21 @@ function toRepresentative(id: RepresentativeId, row: MatchCandidate): Representa
   return { id, match_id: row.id, p1: row.player1_name, p2: row.player2_name, date, date_source, tournament, context, event_level: level, surface, sampling_source: "matches" };
 }
 
-function observationRepresentative(id: RepresentativeId, row: ObservationCandidate, index: number): RepresentativeMatch {
-  const tournament=row.tournament??`${id} warehouse match`,date=row.event_date!,surface=row.surface??null,level=id.replaceAll("_"," ");
-  return {id,match_id:`warehouse:${id}:${index}`,p1:row.player_name!,p2:row.opponent_name!,date,date_source:"warehouse_event_date",tournament,context:[`Tournament: ${tournament}`,`Level: ${level}`,`Tour: ${level}`,surface?`Surface: ${surface}`:null,`Date: ${date}`].filter(Boolean).join(" | "),event_level:level,surface,sampling_source:"source_observations"};
+function observationRepresentative(id: RepresentativeId, row: ObservationCandidate, index: number): RepresentativeMatch | null {
+  const fallbackDate = row.retrieved_at?.slice(0,10) ?? null;
+  const date = row.event_date ?? fallbackDate;
+  if (!date || !row.player_name || !row.opponent_name) return null;
+  const tournament=row.tournament??`${id} warehouse match`,surface=row.surface??null,level=id.replaceAll("_"," ");
+  return {id,match_id:`warehouse:${id}:${index}`,p1:row.player_name,p2:row.opponent_name,date,date_source:row.event_date?"warehouse_event_date":"warehouse_retrieved_at",tournament,context:[`Tournament: ${tournament}`,`Level: ${level}`,`Tour: ${level}`,surface?`Surface: ${surface}`:null,`Date: ${date}`].filter(Boolean).join(" | "),event_level:level,surface,sampling_source:"source_observations"};
 }
 
 async function representativeMatches(): Promise<{ matches: RepresentativeMatch[]; missing_classes: RepresentativeId[]; sampling_errors: string[] }> {
-  const wanted: RepresentativeId[]=["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"],selected:RepresentativeMatch[]=[],samplingErrors:string[]=[];
+  const wanted: RepresentativeId[]=["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"],selected:RepresentativeMatch[]=[],samplingErrors:string[]=[];
   const primary=await db.from("matches").select("id,player1_name,player2_name,tournament_id,tournament_name,event_level,scheduled_date,surface,round,created_at,active_summary_version_id").not("player1_name","is",null).not("player2_name","is",null).order("created_at",{ascending:false}).limit(2000);
   if(primary.error)samplingErrors.push(`matches=${primary.error.message}`);
   if(!primary.error){let candidates=((primary.data??[]) as MatchCandidate[]).filter((row)=>row.player1_name&&row.player2_name);candidates=await hydrateParsedHints(candidates);candidates=await hydrateTournamentHints(candidates);for(const id of wanted){const row=candidates.find((candidate)=>classifyTour(candidate)===id);if(row)selected.push(toRepresentative(id,row));}}
   const missing=()=>wanted.filter((id)=>!selected.some((match)=>match.id===id));
-  if(missing().length){const fallback=await db.from("source_observations").select("source_id,source_name,player_name,opponent_name,tournament,event_date,surface,observation_type,sample_label").not("player_name","is",null).not("opponent_name","is",null).not("event_date","is",null).order("event_date",{ascending:false}).limit(5000);if(fallback.error)samplingErrors.push(`source_observations=${fallback.error.message}`);if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const row=rows.find((candidate)=>candidate.player_name&&candidate.opponent_name&&candidate.event_date&&candidate.player_name!==candidate.opponent_name&&classifyText(candidate.sample_label,candidate.tournament,candidate.source_id,candidate.source_name)===id);if(row)selected.push(observationRepresentative(id,row,rows.indexOf(row)));}}}
+  if(missing().length){const fallback=await db.from("source_observations").select("source_id,source_name,player_name,opponent_name,tournament,event_date,surface,observation_type,sample_label,retrieved_at").not("player_name","is",null).not("opponent_name","is",null).order("retrieved_at",{ascending:false}).limit(5000);if(fallback.error)samplingErrors.push(`source_observations=${fallback.error.message}`);if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const index=rows.findIndex((candidate)=>candidate.player_name&&candidate.opponent_name&&candidate.player_name!==candidate.opponent_name&&(candidate.event_date||candidate.retrieved_at)&&classifyText(candidate.sample_label,candidate.tournament,candidate.source_id,candidate.source_name)===id);if(index>=0){const representative=observationRepresentative(id,rows[index],index);if(representative)selected.push(representative);}}}}
   if(!selected.length&&samplingErrors.length)throw new Error(`production sampling failed: ${samplingErrors.join("; ")}`);
   return {matches:selected,missing_classes:missing(),sampling_errors:samplingErrors};
 }
@@ -163,5 +168,5 @@ export async function runEvidenceCoverageRuntimeDiagnostic(){
   const buckets:Record<string,number>={};for(const row of details)if(row.failure_bucket)buckets[row.failure_bucket]=(buckets[row.failure_bucket]??0)+1;const p1Credited=details.filter((row)=>row.p1_credited).length,p2Credited=details.filter((row)=>row.p2_credited).length,pairCredited=details.filter((row)=>row.pair_credited).length,oneSided=details.filter((row)=>row.one_sided_usable).length;
   matches.push({id:match.id,match_id:match.match_id,pair:`${match.p1} vs ${match.p2}`,uploaded_pair:`${sampled.p1} vs ${sampled.p2}`,tournament:match.tournament,scheduled_date:sampled.date_source==="scheduled_date"?match.date:null,diagnostic_as_of_date:match.date,date_source:sampled.date_source,event_level:match.event_level,surface:match.surface,sampling_source:match.sampling_source,canonical_identity_resolution:identities,identity:{exact_match_count:identityRows.length,query_error:identityError,blocks_evidence_classification:canonicalIdentityBlocked},query_errors:[storedError,packetError].filter(Boolean),coverage:{p1:p1Credited,p2:p2Credited,pair:pairCredited,one_sided:oneSided,p1_percent:Number((100*p1Credited/81).toFixed(2)),p2_percent:Number((100*p2Credited/81).toFixed(2)),pair_percent:Number((100*pairCredited/81).toFixed(2))},false_green_guard:{passed:oneSided===0,one_sided_metric_count:oneSided},failure_buckets:buckets,metrics:details});
  }
- return{schema_version:6,generated_at:new Date().toISOString(),metrics:metrics.length,sampling:{source:"REAL_PERSISTED_MATCHES_WITH_PARSED_REGISTRY_AND_WAREHOUSE_FALLBACK",requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"],sampled_classes:matches.map((match)=>match.id),missing_classes:sample.missing_classes,errors:sample.sampling_errors},matches};
+ return{schema_version:7,generated_at:new Date().toISOString(),metrics:metrics.length,sampling:{source:"REAL_PERSISTED_MATCHES_WITH_PARSED_REGISTRY_AND_WAREHOUSE_FALLBACK",requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"],sampled_classes:matches.map((match)=>match.id),missing_classes:sample.missing_classes,errors:sample.sampling_errors},matches};
 }
