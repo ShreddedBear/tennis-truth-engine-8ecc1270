@@ -1,0 +1,54 @@
+name: Evidence Coverage Tasks 1-4 Validation
+
+on:
+  push:
+    branches:
+      - repair/evidence-coverage-phase2
+    paths:
+      - src/lib/evidence-player-alias.ts
+      - src/lib/evidence-player-alias.test.ts
+      - src/lib/evidence-canonical-identity.server.ts
+      - src/lib/evidence-match-identity.ts
+      - src/lib/evidence-match-identity.test.ts
+      - src/lib/warehouse-first-researcher.server.ts
+      - src/lib/persisted-evidence-alias-dedupe.test.ts
+      - src/lib/deterministic-ranking-metrics.server.ts
+      - src/lib/deterministic-ranking-metrics.test.ts
+      - src/lib/deterministic-results-schedule-metrics.server.ts
+      - src/lib/deterministic-results-schedule-metrics.test.ts
+      - src/lib/repository-results-history.server.ts
+      - src/lib/source-observation-metric-bridge.server.ts
+      - scripts/build-runtime-tennis-index.mjs
+      - data/public/production-history/wta_challenger/**
+      - supabase/migrations/20260826102000_metric_evidence_stable_identity.sql
+      - .github/workflows/evidence-tasks-1-4-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-tasks-1-4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Validate four-tour repository history and WTA 125 counts
+        run: node scripts/build-runtime-tennis-index.mjs
+      - name: Validate canonical identity and persisted evidence retrieval
+        run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-match-identity.test.ts src/lib/persisted-evidence-alias-dedupe.test.ts
+      - name: Validate ATP/WTA ranking evidence wiring
+        run: bunx vitest run src/lib/deterministic-ranking-metrics.test.ts
+      - name: Validate four-tour results and match-history evidence wiring
+        run: bunx vitest run src/lib/deterministic-results-schedule-metrics.test.ts
