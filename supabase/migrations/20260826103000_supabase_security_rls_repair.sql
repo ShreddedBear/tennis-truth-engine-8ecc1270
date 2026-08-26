@@ -15,7 +15,10 @@ declare
   user_count bigint;
 begin
   if to_regclass('public.user_roles') is not null then
-    select count(*), min(id) into user_count, only_user from auth.users;
+    select count(*) into user_count from auth.users;
+    if user_count = 1 then
+      select id into only_user from auth.users limit 1;
+    end if;
     if user_count = 1
        and not exists (select 1 from public.user_roles where role = 'admin'::public.app_role) then
       insert into public.user_roles(user_id, role)
