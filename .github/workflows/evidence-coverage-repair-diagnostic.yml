@@ -21,6 +21,7 @@ on:
       - repair/evidence-coverage-phase17-integrated
       - repair/evidence-coverage-task13-16-final
       - repair/evidence-coverage-tasks5-7-final
+      - repair/evidence-coverage-pbp-identity-bridge
     paths:
       - scripts/evidence-coverage-baseline.ts
       - scripts/build-runtime-tennis-index.mjs
@@ -64,6 +65,7 @@ on:
       - src/lib/bsd-wta-main-pbp.server.ts
       - src/lib/bsd-atp-challenger-pbp.server.ts
       - src/lib/bsd-wta-challenger-pbp.server.ts
+      - src/lib/bsd-wta-challenger-pbp.test.ts
   workflow_dispatch:
 
 permissions:
@@ -90,8 +92,8 @@ jobs:
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Validate evidence identity firewall
         run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-match-identity.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
-      - name: Validate deterministic PBP evidence
-        run: bunx vitest run src/lib/deterministic-pbp-metrics.test.ts
+      - name: Validate deterministic PBP evidence and WTA125 identity bridge
+        run: bunx vitest run src/lib/deterministic-pbp-metrics.test.ts src/lib/bsd-wta-challenger-pbp.test.ts
       - name: Validate tournament-scoped environment evidence
         run: bunx vitest run src/lib/deterministic-environment-metrics.test.ts
       - name: Validate source-vs-software accounting
