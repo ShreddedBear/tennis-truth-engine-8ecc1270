@@ -11,6 +11,7 @@ const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", 
 const canonical = readFileSync("src/lib/evidence-canonical-identity.server.ts", "utf8");
 const baseline = readFileSync("scripts/evidence-coverage-baseline.ts", "utf8");
 const hotPathIndexes = readFileSync("supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
+const stableIdentityMigration = readFileSync("supabase/migrations/20260826102000_metric_evidence_stable_identity.sql", "utf8");
 
 describe("runtime evidence coverage diagnostic", () => {
   it("is read-only and provider-independent", () => {
@@ -54,7 +55,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(market).toContain("evidencePairMatches");
   });
 
-  it("resolves surname-only identities from warehouse evidence only and propagates canonical names through every evidence lane", () => {
+  it("resolves surname-only identities from warehouse evidence only and propagates canonical names and stable IDs through every evidence lane", () => {
     expect(canonical).toContain("uniqueCanonicalWarehouseIdentity");
     expect(canonical).toContain('from("source_observations")');
     expect(canonical).toContain('from("metric_evidence_store")');
@@ -63,8 +64,15 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(canonical).toContain('status: "QUERY_FAILED"');
     expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
     expect(researcher).toContain("resolveCanonicalEvidencePair(input.p1,input.p2)");
-    expect(researcher).toContain("lookup(codes,p1,p2,date,input.context,tournament,surface)");
-    expect(researcher).toContain("lookup(codes,p2,p1,date,input.context,tournament,surface)");
+    expect(researcher).toContain("lookup(codes,p1,p2,date,input.context,tournament,surface,identities.p1.stable_id,identities.p2.stable_id)");
+    expect(researcher).toContain("lookup(codes,p2,p1,date,input.context,tournament,surface,identities.p2.stable_id,identities.p1.stable_id)");
+    expect(researcher).toContain('.eq("player_stable_id",playerStableId)');
+    expect(researcher).toContain('.eq("opponent_stable_id",opponentStableId)');
+    expect(researcher).toContain("playerStableId:identities.p1.stable_id,opponentStableId:identities.p2.stable_id");
+    expect(researcher).toContain("playerStableId:identities.p2.stable_id,opponentStableId:identities.p1.stable_id");
+    expect(stableIdentityMigration).toContain("player_stable_id text null");
+    expect(stableIdentityMigration).toContain("opponent_stable_id text null");
+    expect(stableIdentityMigration).toContain("metric_evidence_stable_pair_lookup_idx");
     expect(researcher).toContain("storedContextCompatible");
     expect(researcher).toContain("deterministicRankingMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("deterministicMarketMetric({metricCode:metric.code,p1,p2");
@@ -112,6 +120,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(hotPathIndexes).toContain("source_observations_pair_date_exact_idx");
     expect(hotPathIndexes).toContain("source_observations_shared_date_idx");
     expect(hotPathIndexes).toContain("metric_evidence_pair_date_exact_idx");
+    expect(stableIdentityMigration).toContain("metric_evidence_stable_pair_lookup_idx");
   });
 
   it("bounds runtime diagnostic database concurrency", () => {
