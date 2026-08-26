@@ -5,14 +5,14 @@ on:
     branches: [main]
     paths:
       - 'supabase/migrations/20260826103000_supabase_security_rls_repair.sql'
-      - 'supabase/security/verify_security.sql'
+      - 'supabase/security/**'
       - 'src/lib/supabase-security-migration.test.ts'
       - '.github/workflows/supabase-security-repair.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/20260826103000_supabase_security_rls_repair.sql'
-      - 'supabase/security/verify_security.sql'
+      - 'supabase/security/**'
       - 'src/lib/supabase-security-migration.test.ts'
       - '.github/workflows/supabase-security-repair.yml'
 
@@ -80,14 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          supabase db query --linked --agent yes -o json '
-            select json_build_object(
-              ''public_rls_disabled'', (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname=''public'' and c.relkind in (''r'',''p'') and not c.relrowsecurity),
-              ''source_observations'', (select count(*) from public.source_observations),
-              ''metric_evidence_store'', (select count(*) from public.metric_evidence_store),
-              ''ingestion_targets'', (select count(*) from public.ingestion_targets),
-              ''source_ingestion_runs'', (select count(*) from public.source_ingestion_runs)
-            ) as baseline;' | tee db-before.json
+          supabase db query --linked --agent yes -o json -f supabase/security/baseline.sql | tee db-before.json
           curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/advisors/security" > security-advisors-before.json
           cat security-advisors-before.json
