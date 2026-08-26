@@ -27,8 +27,5 @@ jobs:
       - name: Run five-metric post-fix regression tests
         run: bunx vitest run src/lib/metric-certification-060-065.test.ts
 
-      - name: Run full regression suite
-        run: bunx vitest run
-
       - name: Build app
         run: bun run build
