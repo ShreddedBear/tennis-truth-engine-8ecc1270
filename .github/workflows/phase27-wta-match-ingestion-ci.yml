@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - name: Ingestion regression tests
         run: npx vitest run src/lib/ingestion/tour-results-schedule.test.ts src/lib/ingestion/orchestrator-validation.test.ts
       - name: Full regression suite
