@@ -60,4 +60,4 @@ jobs:
           jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$report" >/dev/null
           echo 'PASS: production diagnostic has valid representative sampling or explicit missing-class proof, and no one-sided evidence was credited as pair-complete.'
 
-# Manual retrigger marker: 2026-08-25 phase-14 published production proof.
+# Manual retrigger marker: 2026-08-26 post-Phase-27b hard-pull persistence proof.
