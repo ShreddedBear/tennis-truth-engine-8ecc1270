@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - repair/evidence-coverage-task18a-historical-results
     paths:
       - 'scripts/build-runtime-tennis-index.mjs'
@@ -49,7 +50,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs/evidence-coverage/task18a-source-schema-audit.json
           git commit -m 'Task 18A: record repository source schemas'
-          git push origin HEAD:repair/evidence-coverage-task18a-historical-results
+          git push origin HEAD:${{ github.ref_name }}
       - name: Build four-tour repository evidence index
         run: node scripts/build-runtime-tennis-index.mjs
       - name: Task 18A reconstruction and false-green tests
