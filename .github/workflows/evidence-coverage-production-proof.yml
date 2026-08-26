@@ -30,13 +30,11 @@ jobs:
           report="$(mktemp)"
           status=""
           structurally_ready='def sampled($id): (.sampling.sampled_classes // []) | index($id) != null;
-            def missing_with_reason($id):
-              ((.sampling.missing_classes // []) | index($id) != null)
-              and (((.sampling.missing_class_reasons // {})[$id] // "") | length > 0);
             .metrics == 81
             and sampled("ATP_MAIN")
             and sampled("WTA_MAIN")
-            and (sampled("ATP_CHALLENGER") or missing_with_reason("ATP_CHALLENGER"))'
+            and sampled("ATP_CHALLENGER")
+            and sampled("WTA_CHALLENGER")'
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 60 "$URL" || true)"
             if [ "$status" = "200" ] && jq -e 'if has("report") then .ok == true and (.report | type == "object") else type == "object" end' "$response" >/dev/null 2>&1; then
@@ -58,6 +56,6 @@ jobs:
           jq -r '.sampling | "SAMPLED=" + ((.sampled_classes // [])|join(",")) + "|MISSING=" + ((.missing_classes // [])|join(",")) + "|MISSING_REASONS=" + ((.missing_class_reasons // {})|tojson)' "$report"
           jq -r '.matches[] | "\(.id): P1=\(.coverage.p1_percent)% P2=\(.coverage.p2_percent)% PAIR=\(.coverage.pair_percent)% one_sided=\(.coverage.one_sided) false_green_count=\(.false_green_guard.false_green_metric_count // 0) false_green_pass=\(.false_green_guard.passed) buckets=\(.failure_buckets|tojson)"' "$report"
           jq -e 'all(.matches[]; .false_green_guard.passed == true and ((.false_green_guard.false_green_metric_count // 0) == 0))' "$report" >/dev/null
-          echo 'PASS: production diagnostic has valid representative sampling or explicit missing-class proof, and no one-sided evidence was credited as pair-complete.'
+          echo 'PASS: production diagnostic sampled ATP Main, WTA Main, ATP Challenger, and WTA Challenger/WTA 125 with no one-sided evidence credited as pair-complete.'
 
-# Manual retrigger marker: 2026-08-26 post-Phase-27b hard-pull persistence proof.
+# Manual retrigger marker: 2026-08-26 four-tour representative proof.
