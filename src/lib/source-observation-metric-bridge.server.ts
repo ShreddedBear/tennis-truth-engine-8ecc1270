@@ -37,27 +37,28 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   start.setUTCFullYear(start.getUTCFullYear() - 5);
   const aliases = unique([...safeEvidenceAliases(player, opponent), ...safeEvidenceAliases(opponent, player)]);
   const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
-  const base = () => db.from("source_observations").select(select)
+  const datedBase = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
     .order("event_date", { ascending: false });
+  const nullDateBase = () => db.from("source_observations").select(select)
+    .is("event_date", null);
 
-  // Dense PBP and market snapshots can contain thousands of rows for one player.
-  // A single global LIMIT used to let those families crowd rankings/results/rules
-  // out of the candidate packet. Keep independent bounded lanes so every
-  // admissible family gets a fair chance to reach metric wiring.
-  const [otherResult, marketResult, pbpResult, sharedResult] = await Promise.all([
-    base().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    base().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
-    base().in("player_name", aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
-    base().is("player_name", null).limit(1000),
+  // Keep family lanes independent so dense PBP/market rows cannot crowd out
+  // rankings/results. Also retain identity-bearing observations whose event date
+  // is NULL: a nullable scheduling field is diagnostic metadata, not a reason to
+  // erase otherwise valid evidence. Null-date rows remain bounded and must still
+  // pass the same player/family policy filters downstream.
+  const [otherResult, marketResult, pbpResult, sharedResult, nullDatePlayerResult, nullDateSharedResult] = await Promise.all([
+    datedBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    datedBase().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
+    datedBase().in("player_name", aliases).in("observation_type", ["POINT_BY_POINT", "PBP"]).limit(1000),
+    datedBase().is("player_name", null).limit(1000),
+    nullDateBase().in("player_name", aliases).limit(1000),
+    nullDateBase().is("player_name", null).limit(500),
   ]);
-  if (otherResult.error || marketResult.error || pbpResult.error || sharedResult.error) return [] as ObservationRow[];
-  const rows = [
-    ...((otherResult.data ?? []) as ObservationRow[]),
-    ...((marketResult.data ?? []) as ObservationRow[]),
-    ...((pbpResult.data ?? []) as ObservationRow[]),
-    ...((sharedResult.data ?? []) as ObservationRow[]),
-  ];
+  const results = [otherResult, marketResult, pbpResult, sharedResult, nullDatePlayerResult, nullDateSharedResult];
+  if (results.some((result) => result.error)) return [] as ObservationRow[];
+  const rows = results.flatMap((result) => (result.data ?? []) as ObservationRow[]);
   const seen = new Set<string>();
   return rows.filter((row) => {
     const key = [row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value,row.numeric_value].join("|");
