@@ -36,7 +36,7 @@ type StoredEvidence = {
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
 function asOfDate(context:string|null|undefined){const match=String(context??"").match(/\b(20\d{2}-\d{2}-\d{2})\b/);return match?.[1]??new Date().toISOString().slice(0,10);}
-function tournamentFromContext(context:string|null|undefined){const text=String(context??"");const match=text.match(/(?:^|[·|\n])\s*tournament\s+([^·|\n]+)/i);return match?.[1]?.trim()||null;}
+function tournamentFromContext(context:string|null|undefined){const match=String(context??"").match(/\btournament\s*:?[ ]*([^;·|\n]+)/i);return match?.[1]?.trim()||null;}
 function ttlHours(code:string){if(["062","064","069","071","075","076","081"].includes(code))return 12;if(["012","028","077","079"].includes(code))return 24;if(["015","019"].includes(code))return 6;return 168;}
 function fullyUsableFinding(row:MetricFinding|undefined){return Boolean(row&&USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value);}
 function rowTime(row:StoredEvidence){return Date.parse(row.updated_at??row.computed_at??`${row.as_of_date}T00:00:00Z`)||0;}
@@ -124,7 +124,7 @@ export const warehouseFirstResearcher: Researcher = {
       const rules=await deterministicRulesContextMetric({metricCode:metric.code,p1,p2,asOfDate:date,context:input.context});if(rules)return rules;
       const environment=await deterministicEnvironmentMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});if(environment)return environment;
       const market=await deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date});if(market)return market;
-      return deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});
+      return deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament,context:input.context});
     }))).filter((row):row is MetricFinding=>Boolean(row));
     const deterministicByCode=new Map(deterministicRows.map(row=>[codeOf(row.metric_code),row]));
     const liveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
