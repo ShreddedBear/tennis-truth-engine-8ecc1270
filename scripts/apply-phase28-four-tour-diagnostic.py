@@ -130,12 +130,13 @@ def patch_diagnostic() -> None:
         'type RepresentativeId = "ATP_MAIN"|"WTA_MAIN"|"ATP_CHALLENGER"|"WTA_CHALLENGER";',
         "diagnostic representative union",
     )
-    text = replace_once(
-        text,
-        'sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store"|"verified_pbp_index"',
-        'sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store"|"verified_pbp_index"|"wta125_production_history"',
-        "diagnostic source union",
-    )
+    old_source = 'sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store"|"verified_pbp_index" }'
+    new_source = 'sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store"|"verified_pbp_index"|"wta125_production_history" }'
+    duplicate_source = 'sampling_source:"matches"|"source_observations"|"matches_plus_rankings"|"metric_evidence_store"|"verified_pbp_index"|"wta125_production_history"|"wta125_production_history" }'
+    if duplicate_source in text:
+        text = text.replace(duplicate_source, new_source, 1)
+    else:
+        text = replace_once(text, old_source, new_source, "diagnostic source union")
     text = replace_once(
         text,
         '  if (/wta\\s*125|wta125|125k/.test(combined)) return null;\n  if (/challenger/.test(combined)&&!/wta|women/.test(combined)) return "ATP_CHALLENGER";\n  if (/wta|women/.test(combined)&&!/challenger/.test(combined)) return "WTA_MAIN";',
