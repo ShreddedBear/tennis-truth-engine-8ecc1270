@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding } from "./audit-pipeline";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
+import { normalizeEvidenceTournament } from "./evidence-match-identity";
 
 const db = supabaseAdmin as any;
 const MARKET_CODES = new Set(["015", "019", "043", "044"]);
@@ -13,6 +14,7 @@ type MarketRow = {
   source_record_key: string | null;
   player_name: string | null;
   opponent_name: string | null;
+  tournament: string | null;
   event_date: string | null;
   observation_type: string | null;
   observation_key: string | null;
@@ -27,7 +29,6 @@ function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
 }
-
 function mean(values: number[]) { return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null; }
 function median(values: number[]) { if (!values.length) return null; const sorted = [...values].sort((a, b) => a - b); const mid = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; }
 function implied(decimalOdds: number) { return decimalOdds > 1 ? 1 / decimalOdds : null; }
@@ -57,17 +58,24 @@ function movement(rows: MarketRow[]) {
   return pts[pts.length - 1].p - pts[0].p;
 }
 
-async function loadSide(player: string, opponent: string, asOfDate: string) {
-  const from = "2020-06-06";
+function eventCompatible(row: MarketRow, tournament?: string | null) {
+  if (!tournament) return true;
+  const expected = normalizeEvidenceTournament(tournament);
+  const actual = normalizeEvidenceTournament(row.tournament ?? row.provenance?.tournament ?? row.raw_payload?.sport_title);
+  if (!expected || !actual) return true;
+  return expected === actual || expected.includes(actual) || actual.includes(expected);
+}
+
+async function loadSide(player: string, opponent: string, matchDate: string, tournament?: string | null) {
   const playerAliases = safeEvidenceAliases(player, opponent);
   const opponentAliases = safeEvidenceAliases(opponent, player);
   const { data, error } = await db.from("source_observations")
-    .select("source_id,source_name,source_url,source_record_key,player_name,opponent_name,event_date,observation_type,observation_key,numeric_value,source_published_at,sample_label,raw_payload,provenance")
-    .eq("source_id", "odds_api").eq("observation_type", "MARKET")
+    .select("source_id,source_name,source_url,source_record_key,player_name,opponent_name,tournament,event_date,observation_type,observation_key,numeric_value,source_published_at,sample_label,raw_payload,provenance")
+    .eq("source_id", "odds_api").eq("observation_type", "MARKET").eq("event_date", matchDate)
     .in("player_name", playerAliases).in("opponent_name", opponentAliases)
-    .gte("event_date", from).lte("event_date", asOfDate).order("source_published_at", { ascending: true });
+    .order("source_published_at", { ascending: true });
   if (error) return [] as MarketRow[];
-  return ((data ?? []) as MarketRow[]).filter((row) => evidencePairMatches(row.player_name, row.opponent_name, player, opponent));
+  return ((data ?? []) as MarketRow[]).filter((row) => evidencePairMatches(row.player_name, row.opponent_name, player, opponent) && eventCompatible(row, tournament));
 }
 
 function summarizeMarket(rows: MarketRow[], opponentRows: MarketRow[]) {
@@ -78,14 +86,18 @@ function summarizeMarket(rows: MarketRow[], opponentRows: MarketRow[]) {
 function fmtPct(v: number | null) { return v == null ? "n/a" : `${(v * 100).toFixed(1)}%`; }
 function valueText(summary: ReturnType<typeof summarizeMarket>) { return [`avg_de_vig=${fmtPct(summary.avg_devig_probability)}`, `avg_raw=${fmtPct(summary.avg_raw_implied_probability)}`, `move=${fmtPct(summary.probability_movement)}`, `favorite_share=${fmtPct(summary.favorite_share)}`, `n=${summary.observations}`, `paired=${summary.paired_devig_observations}`].join("; "); }
 
-export async function deterministicMarketMetric(args: { metricCode: unknown; p1: string; p2: string; asOfDate: string; }): Promise<MetricFinding | null> {
+export async function deterministicMarketMetric(args: { metricCode: unknown; p1: string; p2: string; asOfDate: string; tournament?: string | null; }): Promise<MetricFinding | null> {
   const code = codeOf(args.metricCode); if (!MARKET_CODES.has(code)) return null;
-  const [p1RowsRaw, p2RowsRaw] = await Promise.all([loadSide(args.p1, args.p2, args.asOfDate), loadSide(args.p2, args.p1, args.asOfDate)]);
+  const [p1RowsRaw, p2RowsRaw] = await Promise.all([
+    loadSide(args.p1, args.p2, args.asOfDate, args.tournament),
+    loadSide(args.p2, args.p1, args.asOfDate, args.tournament),
+  ]);
   const p1Rows = p1RowsRaw.filter((row) => metricAllowsObservation(code, row)); const p2Rows = p2RowsRaw.filter((row) => metricAllowsObservation(code, row));
   if (!p1Rows.length && !p2Rows.length) return null;
   const p1Summary = summarizeMarket(p1Rows, p2Rows); const p2Summary = summarizeMarket(p2Rows, p1Rows);
-  const sourceUrl = p1Rows[0]?.source_url ?? p2Rows[0]?.source_url ?? "https://the-odds-api.com/historical-odds-data/";
-  const sourceName = p1Rows[0]?.source_name ?? p2Rows[0]?.source_name ?? "The Odds API Historical Data";
+  const sourceUrl = p1Rows[0]?.source_url ?? p2Rows[0]?.source_url;
+  const sourceName = p1Rows[0]?.source_name ?? p2Rows[0]?.source_name;
+  if (!sourceName) return null;
   const isCoreMarket = code === "015" || code === "019";
-  return { metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API historical h2h; 2020-06-06→${args.asOfDate}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] };
+  return { metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] };
 }
