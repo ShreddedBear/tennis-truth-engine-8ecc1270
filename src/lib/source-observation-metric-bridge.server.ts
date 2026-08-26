@@ -54,14 +54,15 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   // receives PBP only through the tour-scoped BSD bridges below, so quarantined or
   // ambiguous records cannot become evidence merely because they exist in a table.
   // Market evidence is match-scoped: exact match date plus canonical/reversed pair.
-  const [otherResult, marketResult, sharedResult, nullDatePlayerResult, nullDateSharedResult] = await Promise.all([
+  // NULL-date rows are accepted only when attached to one of the matchup aliases;
+  // a shared row with neither player identity nor date cannot be safely joined.
+  const [otherResult, marketResult, sharedResult, nullDatePlayerResult] = await Promise.all([
     datedBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
     marketBase().in("player_name", aliases).limit(1000),
     datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
     nullDateBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    nullDateBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(500),
   ]);
-  const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult, nullDateSharedResult];
+  const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult];
   if (results.some((result) => result.error)) return [] as ObservationRow[];
   const rows = results.flatMap((result) => (result.data ?? []) as ObservationRow[]);
   const seen = new Set<string>();
