@@ -2,12 +2,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
 import { deterministicMarketMetric } from "./deterministic-market-metrics.server";
-import { deterministicPbpMetric, deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.server";
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
-import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
+import { evidencePairMatches } from "./evidence-player-alias";
+import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
@@ -22,6 +22,9 @@ type StoredEvidence = {
   metric_code:string;
   player_name:string;
   opponent_name:string|null;
+  tournament:string|null;
+  surface:string|null;
+  as_of_date:string;
   treatment:MetricFinding["p1_treatment"];
   value_text:string|null;
   reliability:number|null;
@@ -30,50 +33,90 @@ type StoredEvidence = {
   sources:MetricFinding["sources"]|null;
   unavailable_reason:string|null;
   valid_until:string|null;
+  computed_at:string|null;
+  updated_at:string|null;
 };
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
 function asOfDate(context:string|null|undefined){const match=String(context??"").match(/\b(20\d{2}-\d{2}-\d{2})\b/);return match?.[1]??new Date().toISOString().slice(0,10);}
-function tournamentFromContext(context:string|null|undefined){const text=String(context??"");const match=text.match(/(?:^|[·|\n])\s*tournament\s*(?::|=)?\s*([^·|\n]+)/i);return match?.[1]?.trim()||null;}
+function tournamentFromContext(context:string|null|undefined){const match=String(context??"").match(/\btournament\s*:?[ ]*([^;·|\n]+)/i);return match?.[1]?.trim()||null;}
+function surfaceFromContext(context:string|null|undefined){const match=String(context??"").match(/\bsurface\s*:?[ ]*([^;·|\n]+)/i);return match?.[1]?.trim()||null;}
 function ttlHours(code:string){if(["062","064","069","071","075","076","081"].includes(code))return 12;if(["012","028","077","079"].includes(code))return 24;if(["015","019"].includes(code))return 6;return 168;}
 function fullyUsableFinding(row:MetricFinding|undefined){return Boolean(row&&USABLE.has(row.p1_treatment)&&USABLE.has(row.p2_treatment)&&row.p1_value&&row.p2_value);}
-function unambiguousStoredRow(rows:StoredEvidence[]){
-  if(rows.length===1)return rows[0];
-  const signatures=new Set(rows.map(row=>JSON.stringify([row.treatment,row.value_text,row.evidence_family,row.unavailable_reason])));
-  return signatures.size===1?rows[0]:null;
+function rowTime(row:StoredEvidence){return Date.parse(row.updated_at??row.computed_at??`${row.as_of_date}T00:00:00Z`)||0;}
+function sameCircuit(a:EvidenceTourFamily,b:EvidenceTourFamily){return (a.startsWith("ATP_")&&b.startsWith("ATP_"))||(a.startsWith("WTA_")&&b.startsWith("WTA_"));}
+function storedFamily(row:StoredEvidence){let sources="";try{sources=JSON.stringify(row.sources??[]);}catch{}return classifyEvidenceTourFamily(row.tournament,row.sample_label,row.evidence_family,sources);}
+function storedContextCompatible(row:StoredEvidence,args:{tourFamily:EvidenceTourFamily|null;tournament:string|null;surface:string|null}){
+  const expectedTournament=normalizeEvidenceTournament(args.tournament),actualTournament=normalizeEvidenceTournament(row.tournament);
+  if(expectedTournament&&actualTournament&&expectedTournament!==actualTournament)return false;
+  if(args.surface&&row.surface&&args.surface.trim().toLowerCase()!==row.surface.trim().toLowerCase())return false;
+  if(!args.tourFamily)return true;
+  const family=storedFamily(row);
+  if(family){
+    if(row.evidence_family==="RANKING")return sameCircuit(args.tourFamily,family);
+    return family===args.tourFamily;
+  }
+  // Legacy context-free rows are accepted only when an exact tournament was
+  // persisted. Match-specific evidence without either a tour marker or event
+  // marker cannot safely satisfy a four-tour match requirement.
+  return Boolean(expectedTournament&&actualTournament&&expectedTournament===actualTournament);
 }
 
-async function lookup(metricCodes:string[],player:string,opponent:string,date:string):Promise<Map<string,StoredEvidence>>{
+async function lookup(metricCodes:string[],player:string,opponent:string,date:string,context:string|null|undefined,tournament:string|null,surface:string|null):Promise<Map<string,StoredEvidence>>{
   if(!metricCodes.length)return new Map<string,StoredEvidence>();
-  const playerAliases=safeEvidenceAliases(player,opponent);
-  const opponentAliases=safeEvidenceAliases(opponent,player);
+  const tourFamily=classifyEvidenceTourFamily(context,tournament);
+
+  // Do not pre-filter on display-name equality. The canonical identity resolver
+  // has already searched stable player IDs first; persisted evidence can still
+  // contain legacy aliases, normalized variants, or either uploaded order.
   const {data,error}=await db.from("metric_evidence_store")
-    .select("metric_code,player_name,opponent_name,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until")
-    .in("metric_code",metricCodes).in("player_name",playerAliases).in("opponent_name",opponentAliases).eq("as_of_date",date)
-    .or(`valid_until.is.null,valid_until.gt.${new Date().toISOString()}`);
+    .select("metric_code,player_name,opponent_name,tournament,surface,as_of_date,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until,computed_at,updated_at")
+    .in("metric_code",metricCodes)
+    .lte("as_of_date",date)
+    .order("as_of_date",{ascending:false})
+    .limit(5000);
   if(error)return new Map<string,StoredEvidence>();
+
   const byCode=new Map<string,StoredEvidence[]>();
   for(const row of (data??[]) as StoredEvidence[]){
     if(!evidencePairMatches(row.player_name,row.opponent_name,player,opponent))continue;
+    if(!storedContextCompatible(row,{tourFamily,tournament,surface}))continue;
     const code=codeOf(row.metric_code);
     byCode.set(code,[...(byCode.get(code)??[]),row]);
   }
+
   const out=new Map<string,StoredEvidence>();
   for(const [code,rows] of byCode){
-    const selected=unambiguousStoredRow(rows);
-    if(selected)out.set(code,selected);
+    const sorted=[...rows].sort((a,b)=>b.as_of_date.localeCompare(a.as_of_date)||rowTime(b)-rowTime(a));
+    if(!sorted.length)continue;
+    const newestDate=sorted[0].as_of_date;
+    const newest=sorted.filter(row=>row.as_of_date===newestDate);
+    if(newest.length===1){out.set(code,newest[0]);continue;}
+    const signatures=new Set(newest.map(row=>JSON.stringify([row.treatment,row.value_text,row.evidence_family,normalizeEvidenceTournament(row.tournament),row.surface?.toLowerCase()??null,storedFamily(row)])));
+    if(signatures.size===1)out.set(code,newest.sort((a,b)=>rowTime(b)-rowTime(a))[0]);
   }
   return out;
 }
 function sourcesOf(row:StoredEvidence|undefined):MetricFinding["sources"]{return Array.isArray(row?.sources)?row!.sources!:[];}
 
-async function saveSide(args:{code:string;name:string;player:string;opponent:string;date:string;treatment:MetricFinding["p1_treatment"];value:string|null;reliability:number|null;sample:string|null;family:string|null;sources:MetricFinding["sources"];unavailableReason:string|null;}){
-  const {code,name,player,opponent,date,treatment,value,reliability,sample,family,sources,unavailableReason}=args;
+async function saveSide(args:{code:string;name:string;player:string;opponent:string;date:string;treatment:MetricFinding["p1_treatment"];value:string|null;reliability:number|null;sample:string|null;family:string|null;sources:MetricFinding["sources"];unavailableReason:string|null;tournament:string|null;surface:string|null;tourFamily:EvidenceTourFamily|null;}){
+  const {code,name,player,opponent,date,treatment,value,reliability,sample,family,sources,unavailableReason,tournament,surface,tourFamily}=args;
   if(!USABLE.has(treatment)||!value)return;
   const validUntil=new Date(Date.now()+ttlHours(code)*3_600_000).toISOString();
   const sourceIds=(sources??[]).map(source=>source.source_name).filter(Boolean);
-  await db.from("metric_evidence_store").delete().eq("metric_code",code).eq("player_name",player).eq("opponent_name",opponent).eq("as_of_date",date).is("tournament",null).is("surface",null);
-  await db.from("metric_evidence_store").insert({metric_code:code,metric_name:name,player_name:player,opponent_name:opponent,as_of_date:date,treatment,value_text:value,reliability,sample_label:sample,evidence_family:family,source_ids:sourceIds,sources:sources??[],unavailable_reason:unavailableReason,valid_until:validUntil,updated_at:new Date().toISOString()});
+  let deletion=db.from("metric_evidence_store").delete().eq("metric_code",code).eq("player_name",player).eq("opponent_name",opponent).eq("as_of_date",date);
+  deletion=tournament?deletion.eq("tournament",tournament):deletion.is("tournament",null);
+  deletion=surface?deletion.eq("surface",surface):deletion.is("surface",null);
+  await deletion;
+  const sampleLabel=[sample,tourFamily?`tour_family=${tourFamily}`:null].filter(Boolean).join(" | ")||null;
+  await db.from("metric_evidence_store").insert({metric_code:code,metric_name:name,player_name:player,opponent_name:opponent,tournament,surface,as_of_date:date,treatment,value_text:value,reliability,sample_label:sampleLabel,evidence_family:family,source_ids:sourceIds,sources:sources??[],unavailable_reason:unavailableReason,valid_until:validUntil,updated_at:new Date().toISOString()});
+}
+
+function observationIdentity(row:any){
+  const value=row?.value??{};
+  const matchId=value?.match_id??String(row?.url??"").match(/\/matches\/(\d+)\//)?.[1]??null;
+  if(row?.family==="POINT_BY_POINT"&&matchId)return `PBP|${row?.source??""}|${matchId}`;
+  return [row?.family,row?.source,row?.player,row?.opponent,row?.player1,row?.player2,row?.tournament,row?.event_date,row?.key].join("|");
 }
 
 function mergeObservationPackets(base:Record<string,unknown>, extra:Record<string,unknown>){
@@ -81,7 +124,13 @@ function mergeObservationPackets(base:Record<string,unknown>, extra:Record<strin
   for(const [code,value] of Object.entries(extra)){
     const a=(merged[code]??{}) as Record<string,any>;
     const b=(value??{}) as Record<string,any>;
-    const observations=[...(Array.isArray(a.observations)?a.observations:[]),...(Array.isArray(b.observations)?b.observations:[])];
+    const seen=new Set<string>();
+    const observations=[...(Array.isArray(a.observations)?a.observations:[]),...(Array.isArray(b.observations)?b.observations:[])].filter((row:any)=>{
+      const key=observationIdentity(row);
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    });
     const observedFamilies=[...new Set([...(Array.isArray(a.observed_families)?a.observed_families:[]),...(Array.isArray(b.observed_families)?b.observed_families:[])])];
     merged[code]={...a,...b,observations,observed_families:observedFamilies,direct_satisfaction_allowed:Boolean(a.direct_satisfaction_allowed||b.direct_satisfaction_allowed)};
   }
@@ -96,8 +145,10 @@ export const warehouseFirstResearcher: Researcher = {
     const {p1,p2,metrics}=input;
     const date=asOfDate(input.context);
     const tournament=tournamentFromContext(input.context);
+    const surface=surfaceFromContext(input.context);
+    const tourFamily=classifyEvidenceTourFamily(input.context,tournament);
     const codes=metrics.map(metric=>codeOf(metric.code));
-    const [p1Stored,p2Stored]=await Promise.all([lookup(codes,p1,p2,date),lookup(codes,p2,p1,date)]);
+    const [p1Stored,p2Stored]=await Promise.all([lookup(codes,p1,p2,date,input.context,tournament,surface),lookup(codes,p2,p1,date,input.context,tournament,surface)]);
 
     const missing=metrics.filter(metric=>{
       const code=codeOf(metric.code),a=p1Stored.get(code),b=p2Stored.get(code);
@@ -105,12 +156,11 @@ export const warehouseFirstResearcher: Researcher = {
     });
 
     const deterministicRows=(await Promise.all(missing.map(async metric=>{
-      const ranking=await deterministicRankingMetric({metricCode:metric.code,p1,p2,asOfDate:date});if(ranking)return ranking;
+      const ranking=await deterministicRankingMetric({metricCode:metric.code,p1,p2,asOfDate:date,context:input.context});if(ranking)return ranking;
       const rules=await deterministicRulesContextMetric({metricCode:metric.code,p1,p2,asOfDate:date,context:input.context});if(rules)return rules;
       const environment=await deterministicEnvironmentMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});if(environment)return environment;
-      const market=await deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date});if(market)return market;
-      const pbp=await deterministicPbpMetric({metricCode:metric.code,p1,p2,asOfDate:date});if(pbp)return pbp;
-      return deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament});
+      const market=await deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament,context:input.context});if(market)return market;
+      return deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament,context:input.context});
     }))).filter((row):row is MetricFinding=>Boolean(row));
     const deterministicByCode=new Map(deterministicRows.map(row=>[codeOf(row.metric_code),row]));
     const liveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
@@ -118,7 +168,7 @@ export const warehouseFirstResearcher: Researcher = {
     let liveRows:MetricFinding[]=[];
     if(liveMissing.length){
       const [warehousePacket,bsdAtpChallengerPbp,bsdAtpMainPbp,bsdWtaMainPbp,bsdWtaChallengerPbp]=await Promise.all([
-        buildMetricObservationContext({metrics:liveMissing,p1,p2,asOfDate:date}),
+        buildMetricObservationContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
         buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2,asOfDate:date,context:input.context}),
@@ -128,27 +178,13 @@ export const warehouseFirstResearcher: Researcher = {
       observationPacket=mergeObservationPackets(observationPacket,bsdAtpMainPbp.packet);
       observationPacket=mergeObservationPackets(observationPacket,bsdWtaMainPbp.packet);
       observationPacket=mergeObservationPackets(observationPacket,bsdWtaChallengerPbp.packet);
-
-      // BSD PBP lives in verified tour-specific repo assets/API lanes rather than
-      // source_observations. Convert only the already tour-guarded packet into
-      // the same conservative PARTIAL deterministic contract as warehouse PBP.
-      // Pair credit still requires independently matched evidence for both sides.
-      for(const metric of liveMissing){
-        const code=codeOf(metric.code);
-        const recovered=deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket});
-        if(fullyUsableFinding(recovered??undefined))deterministicByCode.set(code,recovered!);
-      }
-
       for(const [code,row] of deterministicByCode){
         const existing=(observationPacket as Record<string,any>)[code]??{};
         (observationPacket as Record<string,any>)[code]={...existing,deterministic_components:{p1_value:row.p1_value,p2_value:row.p2_value,treatment:row.p1_treatment,evidence_family:row.evidence_family,sample:row.sample}};
       }
-      const remainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
-      if(remainingLiveMissing.length){
-        const identityResolution={p1:identities.p1,p2:identities.p2};
-        const context=appendMetricObservationContext(input.context,{...observationPacket,_canonical_identity_resolution:identityResolution,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
-        liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing});
-      }
+      const identityResolution={p1:identities.p1,p2:identities.p2};
+      const context=appendMetricObservationContext(input.context,{...observationPacket,_canonical_identity_resolution:identityResolution,_bsd_atp_challenger_pbp_status:bsdAtpChallengerPbp.status,_bsd_atp_main_pbp_status:bsdAtpMainPbp.status,_bsd_wta_main_pbp_status:bsdWtaMainPbp.status,_bsd_wta_challenger_pbp_status:bsdWtaChallengerPbp.status});
+      liveRows=await finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing});
     }
     const liveByCode=new Map(liveRows.map(row=>[codeOf(row.metric_code),row]));
 
@@ -160,12 +196,12 @@ export const warehouseFirstResearcher: Researcher = {
         output.push({metric_code:code,p1_value:a.value_text,p2_value:b.value_text,p1_treatment:a.treatment,p2_treatment:b.treatment,differential:null,evidence_family:a.evidence_family??b.evidence_family,reliability:Math.min(a.reliability??100,b.reliability??100),sample:[a.sample_label,b.sample_label].filter(Boolean).join(" | ")||null,unavailable_reason:null,sources:mergedSources});
         continue;
       }
-      const chosen=fullyUsableFinding(live)?live:fullyUsableFinding(deterministic)?deterministic:live&&(USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment))?live:deterministic??live;
+      const chosen=live&&(USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment))?live:deterministic??live;
       if(!chosen)continue;
       output.push(chosen);
       await Promise.all([
-        saveSide({code,name:metric.name,player:p1,opponent:p2,date,treatment:chosen.p1_treatment,value:chosen.p1_value,reliability:chosen.reliability,sample:chosen.sample,family:chosen.evidence_family,sources:chosen.sources??[],unavailableReason:chosen.unavailable_reason}),
-        saveSide({code,name:metric.name,player:p2,opponent:p1,date,treatment:chosen.p2_treatment,value:chosen.p2_value,reliability:chosen.reliability,sample:chosen.sample,family:chosen.evidence_family,sources:chosen.sources??[],unavailableReason:chosen.unavailable_reason}),
+        saveSide({code,name:metric.name,player:p1,opponent:p2,date,treatment:chosen.p1_treatment,value:chosen.p1_value,reliability:chosen.reliability,sample:chosen.sample,family:chosen.evidence_family,sources:chosen.sources??[],unavailableReason:chosen.unavailable_reason,tournament,surface,tourFamily}),
+        saveSide({code,name:metric.name,player:p2,opponent:p1,date,treatment:chosen.p2_treatment,value:chosen.p2_value,reliability:chosen.reliability,sample:chosen.sample,family:chosen.evidence_family,sources:chosen.sources??[],unavailableReason:chosen.unavailable_reason,tournament,surface,tourFamily}),
       ]);
     }
     return output;

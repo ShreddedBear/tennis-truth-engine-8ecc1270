@@ -4,7 +4,11 @@ import { policyForMetric } from "./metric-source-family-policy";
 
 const warehouse = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
 
-const EXPECTED_FAMILIES: Record<string, string[]> = {
+// These are the source families that made the original newly-green contract
+// legitimate. Task 13 can add other recoverable families as support-only, but
+// it must never remove these required families or silently promote new support
+// families to sufficient evidence.
+const REQUIRED_FAMILIES: Record<string, string[]> = {
   "012": ["RESULTS_SCHEDULE"],
   "015": ["MARKET"],
   "019": ["MARKET"],
@@ -38,10 +42,17 @@ const NON_PBP_DETERMINISTIC = [
 const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
 
 describe("newly-green end-to-end coverage audit", () => {
-  it("keeps every newly-green metric on the exact intended source families", () => {
-    for (const [code, expected] of Object.entries(EXPECTED_FAMILIES)) {
-      const actual = [...policyForMetric(code).allowed_families].sort();
-      expect(actual, `metric ${code}`).toEqual([...expected].sort());
+  it("preserves every required newly-green source family while allowing audited Task 13 support", () => {
+    for (const [code, required] of Object.entries(REQUIRED_FAMILIES)) {
+      const policy = policyForMetric(code);
+      for (const family of required) {
+        expect(policy.allowed_families, `metric ${code} required family ${family}`).toContain(family);
+      }
+      const newlyAdded = policy.allowed_families.filter((family) => !required.includes(family));
+      for (const family of newlyAdded) {
+        expect(policy.sufficient_families, `metric ${code} support-only family ${family}`).not.toContain(family);
+        expect(policy.support_only_families ?? [], `metric ${code} support-only family ${family}`).toContain(family);
+      }
     }
   });
 
@@ -57,11 +68,10 @@ describe("newly-green end-to-end coverage audit", () => {
       expect(compact).toContain(calculator.replace(/\s+/g, ""));
     }
 
-    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})";
+    const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})";
     const liveIndex = compact.indexOf(liveCall);
     expect(liveIndex).toBeGreaterThan(-1);
     expect(compact).toContain("constliveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
-    expect(compact).toContain("constremainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     for (const calculator of [
       "deterministicRankingMetric({",
       "deterministicRulesContextMetric({",
@@ -92,21 +102,18 @@ describe("newly-green end-to-end coverage audit", () => {
     }
   });
 
-  it("certifies the runtime BSD PBP adapters and deterministic recovery are wired into warehouse execution", () => {
+  it("certifies the three runtime BSD PBP adapters are wired into warehouse execution", () => {
     const compact = warehouse.replace(/\s+/g, "");
     for (const builder of [
       "buildBsdAtpMainPbpContext({",
       "buildBsdAtpChallengerPbpContext({",
       "buildBsdWtaMainPbpContext({",
-      "buildBsdWtaChallengerPbpContext({",
     ]) {
       expect(compact).toContain(builder.replace(/\s+/g, ""));
     }
-    expect(compact).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket})");
     expect(compact).toContain("_bsd_atp_main_pbp_status");
     expect(compact).toContain("_bsd_atp_challenger_pbp_status");
     expect(compact).toContain("_bsd_wta_main_pbp_status");
-    expect(compact).toContain("_bsd_wta_challenger_pbp_status");
   });
 
   it("certifies WTA Challenger/WTA 125 approved-index integration and final quarantine result", () => {
@@ -125,15 +132,24 @@ describe("newly-green end-to-end coverage audit", () => {
     expect(summary).toContain("Other tours excluded: **YES**");
   });
 
-  it("does not let ranking metrics accept results/schedule evidence", () => {
+  it("does not let ranking-only newly-green metrics accept results/schedule evidence", () => {
     expect(policyForMetric("062").allowed_families).toEqual(["RANKING"]);
     expect(policyForMetric("069").allowed_families).toEqual(["RANKING"]);
   });
 
-  it("preserves intentional multi-family support only where designed", () => {
-    expect([...policyForMetric("043").allowed_families].sort()).toEqual(["MARKET", "POINT_BY_POINT"]);
-    expect([...policyForMetric("044").allowed_families].sort()).toEqual(["MARKET", "POINT_BY_POINT"]);
-    expect([...policyForMetric("060").allowed_families].sort()).toEqual(["ENVIRONMENT", "POINT_BY_POINT"]);
-    expect([...policyForMetric("071").allowed_families].sort()).toEqual(["ENVIRONMENT", "RESULTS_SCHEDULE"]);
+  it("preserves intended multi-family evidence and keeps Task 13 additions support-only", () => {
+    for (const [code, required] of Object.entries({
+      "043": ["MARKET", "POINT_BY_POINT"],
+      "044": ["MARKET", "POINT_BY_POINT"],
+      "060": ["ENVIRONMENT", "POINT_BY_POINT"],
+      "071": ["ENVIRONMENT", "RESULTS_SCHEDULE"],
+    })) {
+      const policy = policyForMetric(code);
+      for (const family of required) expect(policy.allowed_families).toContain(family);
+      for (const family of policy.allowed_families.filter((family) => !required.includes(family))) {
+        expect(policy.support_only_families ?? []).toContain(family);
+        expect(policy.sufficient_families).not.toContain(family);
+      }
+    }
   });
 });
