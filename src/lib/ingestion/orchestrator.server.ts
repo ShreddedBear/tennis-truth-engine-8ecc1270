@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ingestOpenMeteoHistorical } from "./open-meteo.server";
 import { ingestOddsHistorical } from "./odds-api.server";
 import { ingestTourResultsAndSchedules, type TourSource, type OfficialTourSnapshot } from "./tour-results-schedule.server";
+import { ingestWtaOfficialMatchResults } from "./wta-official-match-results.server";
 import { ingestTourRankings, type RankingSource, type OfficialRankingSnapshot } from "./tour-rankings.server";
 import { ingestRulesContext, type RulesSource } from "./rules-context.server";
 
@@ -66,13 +67,36 @@ async function runTracked<T extends IngestionResult>(sourceId: SourceId, jobType
   }
 }
 
+async function ingestTourSource(source: TourSource, snapshots: OfficialTourSnapshot[]) {
+  const schedule = await ingestTourResultsAndSchedules(source, snapshots);
+  if (source !== "wta") return schedule;
+
+  const matches = await ingestWtaOfficialMatchResults();
+  const scheduleTargets = Number(schedule.targets ?? 0);
+  const matchTargets = Number(matches.targets ?? 0);
+  if (scheduleTargets !== matchTargets) {
+    throw new Error(`WTA official ingestion target mismatch: schedule=${scheduleTargets} matches=${matchTargets}`);
+  }
+
+  return {
+    ...schedule,
+    official_tournament_schedule: schedule,
+    official_match_results: matches,
+    targets: scheduleTargets,
+    observations_written: Number(schedule.observations_written ?? 0) + Number(matches.observations_written ?? 0),
+    match_observations_written: Number(matches.observations_written ?? 0),
+    match_objects_seen: Number(matches.match_objects_seen ?? 0),
+    tournament_editions_fetched: Number(matches.tournament_editions_fetched ?? 0),
+  };
+}
+
 export async function runHistoricalHardPull(sources: SourceId[] = ["open_meteo", "odds_api"], options: IngestionOptions = {}) {
   const results: Record<string, unknown> = {};
   const snapshots = options.officialSnapshots ?? [];
   for (const source of sources) {
     if (source === "open_meteo") results[source] = await runTracked(source, "HISTORICAL_BACKFILL", () => ingestOpenMeteoHistorical());
     else if (source === "odds_api") results[source] = await runTracked(source, "HISTORICAL_BACKFILL", () => ingestOddsHistorical());
-    else if (source === "atp" || source === "wta" || source === "atp_challenger") results[source] = await runTracked(source, "RESULTS_SCHEDULE_PULL", () => ingestTourResultsAndSchedules(source, snapshots.filter((s): s is OfficialTourSnapshot => s.source === "atp" || s.source === "atp_challenger")));
+    else if (source === "atp" || source === "wta" || source === "atp_challenger") results[source] = await runTracked(source, "RESULTS_SCHEDULE_PULL", () => ingestTourSource(source, snapshots.filter((s): s is OfficialTourSnapshot => s.source === "atp" || s.source === "atp_challenger")));
     else if (source === "atp_rankings" || source === "wta_rankings") results[source] = await runTracked(source, "RANKING_HISTORY_PULL", () => ingestTourRankings(source, snapshots.filter((s): s is OfficialRankingSnapshot => s.source === "atp_rankings")));
     else if (source === "itf_rules" || source === "atp_rules" || source === "wta_rules") results[source] = await runTracked(source, "RULES_CONTEXT_PULL", () => ingestRulesContext(source));
   }
