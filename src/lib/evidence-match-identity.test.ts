@@ -21,16 +21,18 @@ describe("four-tour evidence identity", () => {
     expect(classifyEvidenceTourFamily("unknown event")).toBeNull();
   });
 
-  it("normalizes tournament, round and local/UTC-adjacent dates", () => {
+  it("normalizes tournament, season decoration, round and local/UTC-adjacent dates", () => {
     expect(normalizeEvidenceTournament("WTA Tour — Miami Open")).toBe("miami open");
+    expect(normalizeEvidenceTournament("Miami Open 2025")).toBe("miami open");
+    expect(normalizeEvidenceTournament("2026 Miami Open presented by Itaú")).toBe("miami open");
     expect(normalizeEvidenceRound("QF")).toBe("quarterfinal");
     expect(evidenceDateCompatible("2026-08-25", "2026-08-26T00:30:00Z")).toBe(true);
     expect(evidenceDateCompatible("2026-08-23", "2026-08-26")).toBe(false);
   });
 
   it("makes player order symmetric and prefers stable IDs", () => {
-    const forward = buildCanonicalEvidenceMatchIdentity({ player1StableId: "P1", player2StableId: "P2", player1Name: "Alpha", player2Name: "Beta", tournament: "Miami Open", date: "2026-03-20", round: "R32", tour: "WTA", eventLevel: "WTA 1000" });
-    const reversed = buildCanonicalEvidenceMatchIdentity({ player1StableId: "P2", player2StableId: "P1", player1Name: "Beta Renamed", player2Name: "Alpha Renamed", tournament: "WTA Miami Open", date: "2026-03-20", round: "Round of 32", tour: "WTA", eventLevel: "1000" });
+    const forward = buildCanonicalEvidenceMatchIdentity({ player1StableId: "P1", player2StableId: "P2", player1Name: "Alpha", player2Name: "Beta", tournament: "Miami Open 2025", date: "2026-03-20", round: "R32", tour: "WTA", eventLevel: "WTA 1000" });
+    const reversed = buildCanonicalEvidenceMatchIdentity({ player1StableId: "P2", player2StableId: "P1", player1Name: "Beta Renamed", player2Name: "Alpha Renamed", tournament: "WTA Miami Open 2026", date: "2026-03-20", round: "Round of 32", tour: "WTA", eventLevel: "1000" });
     expect(forward.playerPair).toBe(reversed.playerPair);
     expect(evidenceMatchIdentityCompatible(forward, reversed)).toBe(true);
   });
