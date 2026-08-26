@@ -36,6 +36,7 @@ export function normalizeEvidenceTournament(value: unknown) {
   if (!normalized) return null;
   normalized = normalized
     .replace(/\b(?:atp|wta)\s*(?:tour)?\b/g, " ")
+    .replace(/\b(?:19|20)\d{2}\b/g, " ")
     .replace(/\b(?:presented by|powered by)\b.*$/g, " ")
     .replace(/\s+/g, " ")
     .trim();
