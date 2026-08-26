@@ -12,6 +12,13 @@ describe("deterministic environment metric layer", () => {
     expect(calculator).toContain('.eq("observation_type", "ENVIRONMENT")');
   });
 
+  it("fails closed without tournament identity and scopes weather to the exact tournament", () => {
+    expect(calculator).toContain('const tournament = String(args.tournament ?? "").trim()');
+    expect(calculator).toContain('if (!tournament) return null');
+    expect(calculator).toContain('.eq("tournament", tournament)');
+    expect(researcher).toContain('tournament\\s*(?::|=)?\\s*([^·|\\n]+)');
+  });
+
   it("keeps shared environment evidence partial", () => {
     expect(calculator).toContain('p1_treatment: "PARTIAL"');
     expect(calculator).toContain('p2_treatment: "PARTIAL"');
@@ -21,7 +28,7 @@ describe("deterministic environment metric layer", () => {
 
   it("runs environment calculation before unresolved live fallback", () => {
     const deterministicIndex = researcher.indexOf("deterministicEnvironmentMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament})");
-    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
+    const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);
   });

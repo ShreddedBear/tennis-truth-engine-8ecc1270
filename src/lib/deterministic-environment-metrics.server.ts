@@ -58,15 +58,17 @@ export async function deterministicEnvironmentMetric(args: {
 }): Promise<MetricFinding | null> {
   const code = codeOf(args.metricCode);
   if (!SUPPORTED.has(code)) return null;
+  const tournament = String(args.tournament ?? "").trim();
+  if (!tournament) return null;
 
-  let query = db
+  const query = db
     .from("source_observations")
     .select("source_id,source_name,source_url,tournament,event_date,observation_type,observation_key,numeric_value,unit,raw_payload")
     .eq("source_id", "open_meteo")
     .eq("observation_type", "ENVIRONMENT")
+    .eq("tournament", tournament)
     .gte("event_date", isoShift(args.asOfDate, -1))
     .lte("event_date", isoShift(args.asOfDate, 1));
-  if (args.tournament) query = query.eq("tournament", args.tournament);
 
   const { data, error } = await query;
   if (error) return null;
@@ -116,7 +118,7 @@ export async function deterministicEnvironmentMetric(args: {
     differential: null,
     evidence_family: "ENVIRONMENT",
     reliability: rows.length >= 12 ? 85 : 70,
-    sample: `Open-Meteo hourly observations=${rows.length}; units temp=${units.get("temperature_2m") ?? "unknown"}, humidity=${units.get("relative_humidity_2m") ?? "unknown"}, wind=${units.get("wind_speed_10m") ?? "unknown"}`,
+    sample: `Open-Meteo ${tournament} hourly observations=${rows.length}; units temp=${units.get("temperature_2m") ?? "unknown"}, humidity=${units.get("relative_humidity_2m") ?? "unknown"}, wind=${units.get("wind_speed_10m") ?? "unknown"}`,
     unavailable_reason: null,
     sources: [...sourceMap.values()],
   };

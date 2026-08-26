@@ -1,0 +1,34 @@
+name: Evidence Coverage Current Summary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/evidence-coverage-current-summary.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Summarize current production evidence coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 'https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1')"
+          echo "HTTP_STATUS=$status"
+          test "$status" = "200"
+          jq -r '
+            if .report.schema_version then .report else .report end
+            | "SCHEMA=" + ((.schema_version // "legacy")|tostring),
+              (if .matches then
+                (.matches[] | "MATCH=" + .id + "|PAIR=" + .pair + "|P1=" + (.coverage.p1_percent|tostring) + "|P2=" + (.coverage.p2_percent|tostring) + "|PAIR_PCT=" + (.coverage.pair_percent|tostring) + "|BUCKETS=" + (.failure_buckets|tojson)),
+                (.matches[] | .id as $id | .metrics[] | select(.pair_credited != true) | "MISS=" + $id + "|" + .metric_code + "|" + .metric_name + "|EXPECTED=" + (.source_expected|join(",")) + "|OBS=" + (.warehouse_observation_count|tostring) + "|BUCKET=" + (.failure_bucket // "NONE") + "|REASON=" + (.reason // ""))
+              else
+                (.report[]? // empty | tojson)
+              end)
+          ' "$body"

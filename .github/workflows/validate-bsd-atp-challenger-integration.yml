@@ -29,24 +29,23 @@ jobs:
           test -f src/lib/warehouse-first-researcher.server.ts
           test -f src/lib/metric-source-family-policy.ts
 
-          grep -q 'const COVERAGE_START = "2025-01-01"' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'Array.from({ length: endYear - 2025 + 1 }' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'circuit !== "ATP"' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'wta 125' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'wta125' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'atp main' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'masters 1000' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'atp 250' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'atp 500' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'STRICT_ATP_CHALLENGER_ONLY' src/lib/bsd-atp-challenger-pbp.server.ts
-          grep -q 'POINT_BY_POINT' src/lib/bsd-atp-challenger-pbp.server.ts
-
-          grep -q 'buildBsdAtpChallengerPbpContext' src/lib/warehouse-first-researcher.server.ts
-          grep -q 'bsdAtpChallengerPbp.packet' src/lib/warehouse-first-researcher.server.ts
-          grep -q '_bsd_atp_challenger_pbp_status' src/lib/warehouse-first-researcher.server.ts
-
-          grep -q 'PBP_METRICS' src/lib/metric-source-family-policy.ts
-          grep -q 'allowed.add("POINT_BY_POINT")' src/lib/metric-source-family-policy.ts
-          grep -q 'allowed_families.includes(family)' src/lib/metric-source-family-policy.ts
+          node <<'NODE'
+          const fs = require('fs');
+          const pbp = fs.readFileSync('src/lib/bsd-atp-challenger-pbp.server.ts','utf8').replace(/\s+/g,'');
+          const researcher = fs.readFileSync('src/lib/warehouse-first-researcher.server.ts','utf8').replace(/\s+/g,'');
+          const policy = fs.readFileSync('src/lib/metric-source-family-policy.ts','utf8').replace(/\s+/g,'');
+          const requireAll = (text, patterns, label) => {
+            for (const pattern of patterns) if (!text.includes(pattern.replace(/\s+/g,''))) throw new Error(`${label} missing contract: ${pattern}`);
+          };
+          requireAll(pbp, [
+            'const COVERAGE_START = "2025-01-01"',
+            'Array.from({length:endYear-2025+1}',
+            'circuit!=="ATP"',
+            'wta 125', 'wta125', 'atp main', 'masters 1000', 'atp 250', 'atp 500',
+            'STRICT_ATP_CHALLENGER_ONLY', 'POINT_BY_POINT'
+          ], 'ATP Challenger PBP');
+          requireAll(researcher, ['buildBsdAtpChallengerPbpContext','bsdAtpChallengerPbp.packet','_bsd_atp_challenger_pbp_status'], 'researcher');
+          requireAll(policy, ['PBP_METRICS','allowed.add("POINT_BY_POINT")','allowed_families.includes(family)'], 'policy');
+          NODE
 
           echo 'PASS: BSD ATP Challenger PBP is limited to 2025-current, wired into the metrics pipeline, and blocked from ATP Main/WTA/WTA125 contamination.'

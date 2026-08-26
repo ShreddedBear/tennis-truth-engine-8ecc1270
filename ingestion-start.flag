@@ -1,4 +1,4 @@
-start=2026-08-25T14:50:00Z
+start=2026-08-26T09:22:00Z
 sources=atp,wta,atp_challenger,atp_rankings,wta_rankings
-reason=full_current_main_historical_hard_pull_validation
-nonce=21
+reason=post_phase27b_full_four_tour_evidence_validation
+nonce=22

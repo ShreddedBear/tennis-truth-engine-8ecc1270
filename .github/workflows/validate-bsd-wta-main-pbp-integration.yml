@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: validate-bsd-wta-main-pbp-integration-${{ github.ref }}
+  group: validate-bsd-wta-main-pbp-integration
   cancel-in-progress: true
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Validate WTA Main BSD PBP firewall and boundary
         run: python3 scripts/validate-bsd-wta-main-pbp-integration.py
@@ -39,9 +39,8 @@ jobs:
             echo 'No validation report changes.'
           else
             git commit -m 'Persist BSD WTA Main PBP integration validation'
-            git fetch origin "$GITHUB_REF_NAME"
-            git rebase "origin/$GITHUB_REF_NAME"
-            git push origin "HEAD:$GITHUB_REF_NAME"
+            git pull --rebase origin main
+            git push
           fi
 
       - name: Show validation summary

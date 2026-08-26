@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/app/route'
+import { Route as ApiEvidenceCoverageDiagnosticRouteImport } from './routes/api/evidence-coverage-diagnostic'
 import { Route as ApiWarehouseIngestRouteImport } from './routes/api/warehouse-ingest'
 import { Route as AppBoardRouteImport } from './routes/app/board'
 import { Route as AppCalibrationRouteImport } from './routes/app/calibration'
@@ -34,6 +35,12 @@ const AppRouteRoute = AppRouteRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEvidenceCoverageDiagnosticRoute =
+  ApiEvidenceCoverageDiagnosticRouteImport.update({
+    id: '/api/evidence-coverage-diagnostic',
+    path: '/api/evidence-coverage-diagnostic',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiWarehouseIngestRoute = ApiWarehouseIngestRouteImport.update({
   id: '/api/warehouse-ingest',
   path: '/api/warehouse-ingest',
@@ -98,6 +105,7 @@ const AppMatchMatchIdRoute = AppMatchMatchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
+  '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
   '/app/calibration': typeof AppCalibrationRoute
@@ -114,6 +122,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
+  '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
   '/app/calibration': typeof AppCalibrationRoute
@@ -131,6 +140,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
+  '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
   '/app/calibration': typeof AppCalibrationRoute
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
     | '/app/board'
     | '/app/calibration'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
+    | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
     | '/app/board'
     | '/app/calibration'
@@ -181,6 +193,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
     | '/app/board'
     | '/app/calibration'
@@ -198,6 +211,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
+  ApiEvidenceCoverageDiagnosticRoute: typeof ApiEvidenceCoverageDiagnosticRoute
   ApiWarehouseIngestRoute: typeof ApiWarehouseIngestRoute
 }
 
@@ -215,6 +229,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/evidence-coverage-diagnostic': {
+      id: '/api/evidence-coverage-diagnostic'
+      path: '/api/evidence-coverage-diagnostic'
+      fullPath: '/api/evidence-coverage-diagnostic'
+      preLoaderRoute: typeof ApiEvidenceCoverageDiagnosticRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/warehouse-ingest': {
@@ -339,6 +360,7 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
+  ApiEvidenceCoverageDiagnosticRoute: ApiEvidenceCoverageDiagnosticRoute,
   ApiWarehouseIngestRoute: ApiWarehouseIngestRoute,
 }
 export const routeTree = rootRouteImport
