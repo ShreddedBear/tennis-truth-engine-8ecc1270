@@ -2,10 +2,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
-import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
+import { classifyEvidenceTourFamily } from "./evidence-match-identity";
 
 const db = supabaseAdmin as any;
-const SUPPORTED = new Set(["062","069"]);
+const SUPPORTED = new Set(["014","062","069"]);
 
 type Row={id?:string;source_id:string|null;source_name:string|null;source_url:string|null;player_name:string|null;event_date:string|null;observation_type:string|null;observation_key:string|null;text_value:string|null;numeric_value:number|null;sample_label:string|null};
 function codeOf(v:unknown){const m=String(v??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(v??"").padStart(3,"0");}
@@ -23,7 +23,12 @@ function summary(player:string,opponent:string,rows:Row[],asOf:string){
   const movement=(r:Row|null)=>{const v=r?rank(r):null;return v===null?null:v-cur;};
   return {rank:cur,points:points(current),rank_change_30d:movement(r30),rank_change_90d:movement(r90),rank_change_365d:movement(r365),best_rank_52w:best52,snapshots_52w:pRows.filter(r=>r.event_date&&days(r.event_date,asOf)<=365).length};
 }
-function value(code:string,s:ReturnType<typeof summary>){if(!s)return null;if(code==="062")return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_30d=${s.rank_change_30d??"NA"}; rank_change_90d=${s.rank_change_90d??"NA"}`;return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_365d=${s.rank_change_365d??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;}
+function value(code:string,s:ReturnType<typeof summary>){
+  if(!s)return null;
+  if(code==="014")return `rank=${s.rank}; points=${s.points??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;
+  if(code==="062")return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_30d=${s.rank_change_30d??"NA"}; rank_change_90d=${s.rank_change_90d??"NA"}`;
+  return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_365d=${s.rank_change_365d??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;
+}
 
 function rowCircuit(row:Row):"ATP"|"WTA"|null{
   const family=classifyEvidenceTourFamily(row.source_id,row.source_name,row.sample_label,row.observation_type,row.observation_key,row.text_value);
@@ -63,5 +68,6 @@ export async function deterministicRankingMetric(args:{metricCode:string;p1:stri
   const circuit=expectedCircuit(args.context,fetched);if(!circuit)return null;
   const rows=fetched.filter(r=>metricAllowsObservation(code,r)&&rowCircuit(r)===circuit);if(!rows.length)return null;
   const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate);const p1=value(code,s1),p2=value(code,s2);if(!p1||!p2)return null;
-  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ${circuit} ranking history through ${args.asOfDate}`,unavailable_reason:"Subjective motivation/private pressure components are not inferred from ranking data.",sources:sourceRefs(rows)};
+  const unavailableReason=code==="014"?null:"Subjective motivation/private pressure components are not inferred from ranking data.";
+  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ${circuit} ranking history through ${args.asOfDate}`,unavailable_reason:unavailableReason,sources:sourceRefs(rows)};
 }
