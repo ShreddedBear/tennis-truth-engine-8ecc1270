@@ -112,14 +112,22 @@ function classFromRuntimeMetric(match: any, metric: any): EvidenceAvailabilityCl
   if (match?.sampling_source === "matches" && match?.identity?.exact_match_count !== 1) return "MATCH_JOIN_FAILURE";
   if (!match?.id) return "TOUR_CLASSIFICATION_FAILURE";
 
-  const expected = new Set<string>(metric.source_expected ?? []);
-  // EVIDENCE_WIRING_FAILURE and RECONSTRUCTION_FAILURE are emitted only after
-  // admissible observations were actually found. That lets us distinguish a
-  // stranded PBP/market record from a source that truly does not exist.
+  // Software-loss labels must be proved by evidence actually observed for
+  // this metric/matchup. An allowed/expected source family is only policy and
+  // cannot establish that PBP, market, or repository evidence exists.
+  const observedFamilies = Array.isArray(metric.observed_families) ? metric.observed_families : [];
   if (["EVIDENCE_WIRING_FAILURE", "RECONSTRUCTION_FAILURE"].includes(metric.failure_bucket)) {
-    if (expected.has("POINT_BY_POINT")) return "PBP_EXISTS_NOT_WIRED";
-    if (expected.has("MARKET")) return "MARKET_EXISTS_NOT_WIRED";
-    if (expected.has("RESULTS_SCHEDULE")) return "REPOSITORY_EVIDENCE_NOT_EXPOSED";
+    return classifyEvidenceAvailability({
+      pairCredited: false,
+      p1Credited: Boolean(metric.p1_credited),
+      p2Credited: Boolean(metric.p2_credited),
+      p1Treatment: metric.p1_treatment,
+      p2Treatment: metric.p2_treatment,
+      observedFamilies,
+      repositoryEvidenceKnown: metric.repository_evidence_known === true,
+      repositoryEvidenceExposed: metric.repository_evidence_exposed === true,
+      storedCandidateCount: Number(metric.stored_candidate_count ?? 0),
+    });
   }
   return "GENUINELY_UNAVAILABLE";
 }
