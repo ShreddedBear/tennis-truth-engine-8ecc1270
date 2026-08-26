@@ -58,10 +58,12 @@ function storedContextCompatible(row:StoredEvidence,args:{tourFamily:EvidenceTou
     if(row.evidence_family==="RANKING")return sameCircuit(args.tourFamily,family);
     return family===args.tourFamily;
   }
-  // Legacy context-free rows are accepted only when an exact tournament was
-  // persisted. Match-specific evidence without either a tour marker or event
-  // marker cannot safely satisfy a four-tour match requirement.
   return Boolean(expectedTournament&&actualTournament&&expectedTournament===actualTournament);
+}
+function stableIdentityColumnsUnavailable(error:any){
+  const code=String(error?.code??"");
+  const message=`${error?.message??""} ${error?.details??""} ${error?.hint??""}`.toLowerCase();
+  return code==="42703"||code==="PGRST204"||((message.includes("player_stable_id")||message.includes("opponent_stable_id"))&&(message.includes("column")||message.includes("schema cache")));
 }
 
 const STORED_SELECT="metric_code,player_name,opponent_name,tournament,surface,as_of_date,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until,computed_at,updated_at";
@@ -73,30 +75,23 @@ async function lookup(metricCodes:string[],player:string,opponent:string,date:st
   const rows:StoredEvidence[]=[];
   let stableSchemaAvailable=false;
 
-  // Stable canonical identifiers are authoritative. Query them first so a
-  // renamed player or legacy display-name variant cannot hide persisted data.
-  // Older deployments may not have the new columns yet, so an undefined-column
-  // response falls through to the legacy name-compatible retrieval path.
-  if(playerStableId){
-    let stableQuery=db.from("metric_evidence_store")
+  if(playerStableId&&opponentStableId){
+    const stableResult=await db.from("metric_evidence_store")
       .select(STORED_SELECT_WITH_IDS)
       .in("metric_code",metricCodes)
       .lte("as_of_date",date)
       .eq("player_stable_id",playerStableId)
+      .eq("opponent_stable_id",opponentStableId)
       .order("as_of_date",{ascending:false})
       .limit(5000);
-    if(opponentStableId)stableQuery=stableQuery.eq("opponent_stable_id",opponentStableId);
-    const stableResult=await stableQuery;
     if(!stableResult.error){
       stableSchemaAvailable=true;
       rows.push(...((stableResult.data??[]) as StoredEvidence[]));
+    }else if(!stableIdentityColumnsUnavailable(stableResult.error)){
+      return new Map<string,StoredEvidence>();
     }
   }
 
-  // Preserve recovery of old evidence that predates stable-id persistence.
-  // Filtering remains fail-closed in memory through canonical pair + tour/event
-  // compatibility checks, and this lane also keeps deployments compatible while
-  // the additive stable-id migration rolls out.
   const legacyResult=await db.from("metric_evidence_store")
     .select(stableSchemaAvailable?STORED_SELECT_WITH_IDS:STORED_SELECT)
     .in("metric_code",metricCodes)
@@ -109,10 +104,7 @@ async function lookup(metricCodes:string[],player:string,opponent:string,date:st
   const byCode=new Map<string,StoredEvidence[]>();
   const seen=new Set<string>();
   for(const row of rows){
-    const stablePairMatches=Boolean(
-      playerStableId&&row.player_stable_id===playerStableId&&
-      (!opponentStableId||row.opponent_stable_id===opponentStableId)
-    );
+    const stablePairMatches=Boolean(playerStableId&&opponentStableId&&row.player_stable_id===playerStableId&&row.opponent_stable_id===opponentStableId);
     if(!stablePairMatches&&!evidencePairMatches(row.player_name,row.opponent_name,player,opponent))continue;
     if(!storedContextCompatible(row,{tourFamily,tournament,surface}))continue;
     const code=codeOf(row.metric_code);
@@ -124,7 +116,7 @@ async function lookup(metricCodes:string[],player:string,opponent:string,date:st
 
   const out=new Map<string,StoredEvidence>();
   for(const [code,codeRows] of byCode){
-    const stableRows=playerStableId?codeRows.filter(row=>row.player_stable_id===playerStableId&&(!opponentStableId||row.opponent_stable_id===opponentStableId)):[];
+    const stableRows=playerStableId&&opponentStableId?codeRows.filter(row=>row.player_stable_id===playerStableId&&row.opponent_stable_id===opponentStableId):[];
     const candidates=stableRows.length?stableRows:codeRows;
     const sorted=[...candidates].sort((a,b)=>b.as_of_date.localeCompare(a.as_of_date)||rowTime(b)-rowTime(a));
     if(!sorted.length)continue;
@@ -151,9 +143,7 @@ async function saveSide(args:{code:string;name:string;player:string;opponent:str
   const baseRow={metric_code:code,metric_name:name,player_name:player,opponent_name:opponent,tournament,surface,as_of_date:date,treatment,value_text:value,reliability,sample_label:sampleLabel,evidence_family:family,source_ids:sourceIds,sources:sources??[],unavailable_reason:unavailableReason,valid_until:validUntil,updated_at:new Date().toISOString()};
   const withStableIds={...baseRow,player_stable_id:playerStableId??null,opponent_stable_id:opponentStableId??null};
   const inserted=await db.from("metric_evidence_store").insert(withStableIds);
-  // Additive migration compatibility: a deployment that has not received the
-  // stable-id columns yet still persists the evidence rather than dropping it.
-  if(inserted.error)await db.from("metric_evidence_store").insert(baseRow);
+  if(inserted.error&&stableIdentityColumnsUnavailable(inserted.error))await db.from("metric_evidence_store").insert(baseRow);
 }
 
 function observationIdentity(row:any){
