@@ -72,21 +72,23 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
   });
 
-  it("keeps ATP Main, WTA Main and ATP Challenger eligible when event_level or scheduled_date is null", () => {
+  it("keeps all four tours eligible when event_level, scheduled_date, or warehouse event_date is null", () => {
     expect(diagnostic).toContain("hydrateParsedHints");
     expect(diagnostic).toContain("hydrateTournamentHints");
     expect(diagnostic).toContain('from("tournaments")');
     expect(diagnostic).toContain('order("created_at",{ascending:false})');
     expect(diagnostic).not.toContain('.not("scheduled_date","is",null)');
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
-    expect(diagnostic).toContain('from("source_observations")');
-    expect(diagnostic).toContain('requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER"]');
+    expect(diagnostic).toContain('retrieved_at');
+    expect(diagnostic).toContain('"WTA_CHALLENGER"');
+    expect(diagnostic).toContain('requested_classes:["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"]');
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
     expect(bridge).toContain('eq("observation_type", "MARKET")');
     expect(bridge).toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
     expect(bridge).toContain('not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")');
+    expect(bridge).toContain('is("event_date", null)');
   });
 
   it("indexes the exact predicates used by the evidence read path", () => {
