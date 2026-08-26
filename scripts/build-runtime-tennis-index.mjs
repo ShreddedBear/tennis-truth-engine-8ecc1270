@@ -31,10 +31,18 @@ function compactDetails(row,orientation='PLAYER'){
   const selfRank=num(first(row,orientation==='WINNER'?['winner_rank','player_rank','rank']:orientation==='HOME'?['home_rank','player_rank','rank']:['player_rank','rank']));
   const opponentRank=num(first(row,orientation==='WINNER'?['loser_rank','opponent_rank','opp_rank']:orientation==='HOME'?['away_rank','opponent_rank','opp_rank']:['opponent_rank','opp_rank','loser_rank']));
   const selfElo=num(first(row,['player_elo','elo_pre','elo']));
-  const opponentElo=num(first(row,['opponent_elo','opp_elo','loser_elo']));
+  const opponentElo=num(first(row,['_task18a_opponent_elo','opponent_elo','opp_elo','loser_elo']));
   return {sets_for:sf,sets_against:sa,set_scores:setScores,best_of:bestOf,self_rank:selfRank,opponent_rank:opponentRank,self_elo:selfElo,opponent_elo:opponentElo,status:status?String(status):null,raw_score:rawScore?String(rawScore):null};
 }
 function reverseDetails(d){return{...d,sets_for:d.sets_against,sets_against:d.sets_for,set_scores:Array.isArray(d.set_scores)?d.set_scores.map(([a,b])=>[b,a]):[],self_rank:d.opponent_rank,opponent_rank:d.self_rank,self_elo:d.opponent_elo,opponent_elo:d.self_elo};}
+function exactMatchKey(row,player){const d=normDate(row.date||row.tourney_date||'');const t=norm(row.tournament??row.tourney_name??'');const p=norm(player);return d&&t&&p?`${d}|${t}|${p}`:null;}
+function attachExactOpponentElo(rows){
+  const byPlayerMatch=new Map();
+  for(const row of rows){const key=exactMatchKey(row,row.player);const elo=num(row.elo_pre);if(!key||elo===null)continue;const vals=byPlayerMatch.get(key)??new Set();vals.add(elo);byPlayerMatch.set(key,vals);}
+  let joined=0,ambiguous=0;
+  for(const row of rows){const opponent=row.opponent??row.opponent_name??'';const key=exactMatchKey(row,opponent);if(!key)continue;const vals=byPlayerMatch.get(key);if(!vals||vals.size===0)continue;if(vals.size!==1){ambiguous++;continue;}row._task18a_opponent_elo=String([...vals][0]);joined++;}
+  return {joined,ambiguous};
+}
 
 // Row layout: [date,tournament,surface,opponent,won,round,source,details].
 const matchHistory={ATP_MAIN:{},WTA_MAIN:{},ATP_CHALLENGER:{},WTA_CHALLENGER:{}};
@@ -43,7 +51,7 @@ function addSymmetric(lane,a,b,date,tournament,surface,aWon,round,source,aDetail
 function winnerCode(code){const raw=String(code??'').trim();const numeric=Number(raw);if(Number.isFinite(numeric)){if(numeric===1)return true;if(numeric===2)return false;}const v=norm(raw);if(['1','h','home','home player','home_player'].includes(v))return true;if(['2','a','away','away player','away_player'].includes(v))return false;return null;}
 
 const out={generatedAt:new Date().toISOString(),ATP:{},WTA:{},matchHistory};
-for(const [tour,rel] of sources){const path=join(root,rel);if(!existsSync(path)){console.warn('runtime index source missing',rel);continue;}const rows=parseCsv(readFileSync(path,'utf8'));for(const row of rows){const p=touch(out[tour],row.player);if(!p)continue;addBucket(p.overall,row);const s=String(row.surface??'').toLowerCase();if(s){p.surface[s]??=blank();addBucket(p.surface[s],row);}const opponent=row.opponent??row.opponent_name??'';if(opponent&&row.date){addHistory(tour==='ATP'?'ATP_MAIN':'WTA_MAIN',row.player,opponent,row.date,row.tournament??row.tourney_name,row.surface,String(row.won??'')==='1'?true:String(row.won??'')==='0'?false:null,row.round,`runtime:${tour.toLowerCase()}_main`,compactDetails(row,'PLAYER'));}}console.log(`${tour}: ${Object.keys(out[tour]).length} players indexed from ${rows.length} rows`);}
+for(const [tour,rel] of sources){const path=join(root,rel);if(!existsSync(path)){console.warn('runtime index source missing',rel);continue;}const rows=parseCsv(readFileSync(path,'utf8'));if(tour==='ATP'){const q=attachExactOpponentElo(rows);console.log(`ATP exact-match opponent Elo joins: ${q.joined}; ambiguous rejected: ${q.ambiguous}`);}for(const row of rows){const p=touch(out[tour],row.player);if(!p)continue;addBucket(p.overall,row);const s=String(row.surface??'').toLowerCase();if(s){p.surface[s]??=blank();addBucket(p.surface[s],row);}const opponent=row.opponent??row.opponent_name??'';if(opponent&&row.date){addHistory(tour==='ATP'?'ATP_MAIN':'WTA_MAIN',row.player,opponent,row.date,row.tournament??row.tourney_name,row.surface,String(row.won??'')==='1'?true:String(row.won??'')==='0'?false:null,row.round,`runtime:${tour.toLowerCase()}_main`,compactDetails(row,'PLAYER'));}}console.log(`${tour}: ${Object.keys(out[tour]).length} players indexed from ${rows.length} rows`);}
 
 const challengerDir=join(root,'data/public/tennismylife-challenger/normalized');
 if(existsSync(challengerDir)){const currentYear=new Date().getUTCFullYear();let accepted=0;for(const file of readdirSync(challengerDir).filter(x=>/^\d{4}_challenger_normalized\.csv$/.test(x)).sort()){const year=Number(file.slice(0,4));if(year<currentYear-5)continue;for(const row of parseCsv(readFileSync(join(challengerDir,file),'utf8'))){if(row._dedup_status&&row._dedup_status!=='NEW_MATCH')continue;const winner=row.winner_name??'',loser=row.loser_name??'',date=row.tourney_date??'';if(!winner||!loser||!date)continue;addSymmetric('ATP_CHALLENGER',winner,loser,date,row.tourney_name,row.surface,true,row.round,'TennisMyLife ATP Challenger',compactDetails(row,'WINNER'));accepted++;}}console.log(`ATP_CHALLENGER: ${accepted} repository matches indexed`);}
