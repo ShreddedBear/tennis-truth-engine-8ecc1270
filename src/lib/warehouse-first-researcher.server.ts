@@ -112,12 +112,25 @@ async function saveSide(args:{code:string;name:string;player:string;opponent:str
   await db.from("metric_evidence_store").insert({metric_code:code,metric_name:name,player_name:player,opponent_name:opponent,tournament,surface,as_of_date:date,treatment,value_text:value,reliability,sample_label:sampleLabel,evidence_family:family,source_ids:sourceIds,sources:sources??[],unavailable_reason:unavailableReason,valid_until:validUntil,updated_at:new Date().toISOString()});
 }
 
+function observationIdentity(row:any){
+  const value=row?.value??{};
+  const matchId=value?.match_id??String(row?.url??"").match(/\/matches\/(\d+)\//)?.[1]??null;
+  if(row?.family==="POINT_BY_POINT"&&matchId)return `PBP|${row?.source??""}|${matchId}`;
+  return [row?.family,row?.source,row?.player,row?.opponent,row?.player1,row?.player2,row?.tournament,row?.event_date,row?.key].join("|");
+}
+
 function mergeObservationPackets(base:Record<string,unknown>, extra:Record<string,unknown>){
   const merged:Record<string,unknown>={...base};
   for(const [code,value] of Object.entries(extra)){
     const a=(merged[code]??{}) as Record<string,any>;
     const b=(value??{}) as Record<string,any>;
-    const observations=[...(Array.isArray(a.observations)?a.observations:[]),...(Array.isArray(b.observations)?b.observations:[])];
+    const seen=new Set<string>();
+    const observations=[...(Array.isArray(a.observations)?a.observations:[]),...(Array.isArray(b.observations)?b.observations:[])].filter((row:any)=>{
+      const key=observationIdentity(row);
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    });
     const observedFamilies=[...new Set([...(Array.isArray(a.observed_families)?a.observed_families:[]),...(Array.isArray(b.observed_families)?b.observed_families:[])])];
     merged[code]={...a,...b,observations,observed_families:observedFamilies,direct_satisfaction_allowed:Boolean(a.direct_satisfaction_allowed||b.direct_satisfaction_allowed)};
   }
