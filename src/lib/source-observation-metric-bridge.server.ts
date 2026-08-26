@@ -45,23 +45,31 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   const datedBase = () => db.from("source_observations").select(select)
     .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
     .order("event_date", { ascending: false });
+  const marketBase = () => db.from("source_observations").select(select)
+    .eq("event_date", asOfDate).eq("observation_type", "MARKET")
+    .order("event_date", { ascending: false });
   const nullDateBase = () => db.from("source_observations").select(select).is("event_date", null);
 
   // PBP is intentionally excluded from the generic warehouse lane. Evidence Coverage
   // receives PBP only through the tour-scoped BSD bridges below, so quarantined or
   // ambiguous records cannot become evidence merely because they exist in a table.
+  // Market evidence is match-scoped: exact match date plus canonical/reversed pair.
   const [otherResult, marketResult, sharedResult, nullDatePlayerResult, nullDateSharedResult] = await Promise.all([
     datedBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    datedBase().in("player_name", aliases).eq("observation_type", "MARKET").limit(1000),
-    datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP)").limit(1000),
-    nullDateBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP)").limit(1000),
-    nullDateBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP)").limit(500),
+    marketBase().in("player_name", aliases).limit(1000),
+    datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    nullDateBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    nullDateBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(500),
   ]);
   const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult, nullDateSharedResult];
   if (results.some((result) => result.error)) return [] as ObservationRow[];
   const rows = results.flatMap((result) => (result.data ?? []) as ObservationRow[]);
   const seen = new Set<string>();
   return rows.filter((row) => {
+    if (row.observation_type === "MARKET" && !(
+      evidencePairMatches(row.player_name, row.opponent_name, player, opponent) ||
+      evidencePairMatches(row.player_name, row.opponent_name, opponent, player)
+    )) return false;
     const key = [row.source_id,row.source_url,row.player_name,row.opponent_name,row.event_date,row.observation_key,row.text_value,row.numeric_value].join("|");
     if (seen.has(key)) return false;
     seen.add(key);
@@ -117,7 +125,9 @@ function mergePacketEntry(base: any, pbp: any) {
   const deduped = observations.filter((row: any) => {
     const value = row?.value ?? {};
     const matchId = value?.match_id ?? String(row?.url ?? "").match(/\/matches\/(\d+)\//)?.[1] ?? "";
-    const key = [row?.family,row?.source,matchId,row?.player,row?.opponent,row?.player1,row?.player2,row?.event_date,row?.key].join("|");
+    const key = row?.family === "POINT_BY_POINT" && matchId
+      ? [row?.family,row?.source,matchId].join("|")
+      : [row?.family,row?.source,row?.player,row?.opponent,row?.player1,row?.player2,row?.event_date,row?.key].join("|");
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
