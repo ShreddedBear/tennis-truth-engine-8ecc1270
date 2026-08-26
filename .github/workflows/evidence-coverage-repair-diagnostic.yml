@@ -5,6 +5,7 @@ on:
     branches:
       - repair/evidence-coverage
       - repair/evidence-coverage-phase2
+      - repair/evidence-coverage-phase2-clean
     paths:
       - scripts/evidence-coverage-baseline.ts
       - scripts/build-runtime-tennis-index.mjs
