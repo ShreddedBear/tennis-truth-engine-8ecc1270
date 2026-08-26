@@ -41,6 +41,22 @@ jobs:
             rm -f "$body"
           }
 
-          probe "$BASE/tournaments?tournamentGroupId=$GROUP_ID&page=0&pageSize=100"
-          probe "$BASE/tournaments/$GROUP_ID/$YEAR"
           probe "$BASE/tournaments/$GROUP_ID/$YEAR/matches?page=0&pageSize=10"
+
+          RANKED="$(mktemp)"
+          curl --fail --silent --show-error --location "$BASE/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=500" -o "$RANKED"
+          PEGULA_ID="$(jq -r '.content[]? | select(((.player.fullName // "")|ascii_downcase)=="jessica pegula") | .player.id' "$RANKED" | head -n1)"
+          echo "PEGULA_ID=$PEGULA_ID"
+          test -n "$PEGULA_ID" || { echo 'Jessica Pegula ID not found in official rankings payload'; exit 1; }
+          rm -f "$RANKED"
+
+          for URL in \
+            "$BASE/players/$PEGULA_ID/matches?page=0&pageSize=10" \
+            "$BASE/players/$PEGULA_ID/matches?year=$YEAR&page=0&pageSize=10" \
+            "$BASE/players/$PEGULA_ID/results?page=0&pageSize=10" \
+            "$BASE/players/$PEGULA_ID/results?year=$YEAR&page=0&pageSize=10" \
+            "$BASE/player/$PEGULA_ID/matches?page=0&pageSize=10" \
+            "$BASE/player/$PEGULA_ID/results?page=0&pageSize=10"
+          do
+            probe "$URL"
+          done
