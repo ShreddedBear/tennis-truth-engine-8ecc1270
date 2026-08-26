@@ -2,13 +2,14 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export type EvidenceIndexSample = {
-  id: "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER";
+  id: "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENGER";
   match_id: string;
   p1: string;
   p2: string;
   date: string;
   tournament: string;
   surface: string | null;
+  sampling_source: "verified_pbp_index" | "wta125_production_history";
 };
 
 type IndexRow = {
@@ -50,7 +51,7 @@ async function load(path: string): Promise<IndexRow[]> {
   }
 }
 
-const SPECS: Record<EvidenceIndexSample["id"], { dir: string; years: number[]; floor: string }> = {
+const SPECS: Partial<Record<EvidenceIndexSample["id"], { dir: string; years: number[]; floor: string }>> = {
   ATP_MAIN: { dir: "bsd-atp-main-pbp-history", years: [2026, 2025, 2024], floor: "2024-01-01" },
   WTA_MAIN: { dir: "bsd-wta-main-pbp-history", years: [2026, 2025, 2024], floor: "2024-12-02" },
   ATP_CHALLENGER: { dir: "bsd-atp-challenger-pbp-history", years: [2026, 2025], floor: "2025-01-01" },
@@ -60,14 +61,15 @@ const SPECS: Record<EvidenceIndexSample["id"], { dir: string; years: number[]; f
 // These are diagnostic sampling identities only; they never attach PBP or create evidence.
 // Runtime filesystem access remains preferred so a newer checked-in verified row wins when available.
 export const BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES: Record<EvidenceIndexSample["id"], EvidenceIndexSample> = {
-  ATP_MAIN: { id: "ATP_MAIN", match_id: "verified-index:ATP_MAIN:43148", p1: "Alejandro Tabilo", p2: "Tiago Torres", date: "2026-07-22", tournament: "Estoril", surface: "clay" },
-  WTA_MAIN: { id: "WTA_MAIN", match_id: "verified-index:WTA_MAIN:43309", p1: "Fiona Ferro", p2: "Erika Andreeva", date: "2026-07-22", tournament: "Palermo, Italy", surface: "clay" },
-  ATP_CHALLENGER: { id: "ATP_CHALLENGER", match_id: "verified-index:ATP_CHALLENGER:31912", p1: "Leandro Riedi", p2: "Yunchaokete Bu", date: "2026-04-19", tournament: "Busan, South Korea", surface: "hard" },
+  ATP_MAIN: { id: "ATP_MAIN", match_id: "verified-index:ATP_MAIN:43148", p1: "Alejandro Tabilo", p2: "Tiago Torres", date: "2026-07-22", tournament: "Estoril", surface: "clay", sampling_source: "verified_pbp_index" },
+  WTA_MAIN: { id: "WTA_MAIN", match_id: "verified-index:WTA_MAIN:43309", p1: "Fiona Ferro", p2: "Erika Andreeva", date: "2026-07-22", tournament: "Palermo, Italy", surface: "clay", sampling_source: "verified_pbp_index" },
+  ATP_CHALLENGER: { id: "ATP_CHALLENGER", match_id: "verified-index:ATP_CHALLENGER:31912", p1: "Leandro Riedi", p2: "Yunchaokete Bu", date: "2026-04-19", tournament: "Busan, South Korea", surface: "hard", sampling_source: "verified_pbp_index" },
+  WTA_CHALLENGER: { id: "WTA_CHALLENGER", match_id: "wta125-history:e9fa13bb3987336d7687b58a", p1: "Pohankova M.", p2: "Volynets K.", date: "2026-08-26", tournament: "Philadelphia Chall. Women", surface: "hard" || null, sampling_source: "wta125_production_history" },
 };
 
 export async function sampleVerifiedEvidenceIndexMatch(id: EvidenceIndexSample["id"]): Promise<EvidenceIndexSample | null> {
   const spec = SPECS[id];
-  for (const year of spec.years) {
+  if (spec) for (const year of spec.years) {
     const rows = await load(join(process.cwd(), "data", "audit", spec.dir, String(year), "results.json"));
     const row = rows
       .filter(r => strictClass(r, id) && String(r.date).slice(0, 10) >= spec.floor)
@@ -81,6 +83,7 @@ export async function sampleVerifiedEvidenceIndexMatch(id: EvidenceIndexSample["
       date: String(row.date).slice(0, 10),
       tournament: String(row.tournament ?? `${id} verified PBP index match`),
       surface: row.surface ? String(row.surface) : null,
+      sampling_source: "verified_pbp_index",
     };
   }
   return BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES[id] ?? null;
