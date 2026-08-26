@@ -2,37 +2,40 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 
-describe("ranking ingestion and deterministic metric wiring", () => {
+describe("ranking ingestion and deterministic Task 18C wiring", () => {
   const ranking = { source_id:"atp_rankings", observation_type:"RANKING", observation_key:"ranking_snapshot" };
   const schedule = { source_id:"atp", observation_type:"MATCH_RESULT_OR_SCHEDULE", observation_key:"match_record" };
 
-  it("keeps ranking metrics isolated from results and schedules", () => {
+  it("keeps official ranking evidence on metric 014 while preserving source-family isolation", () => {
     expect(observationFamily(ranking)).toBe("RANKING");
-    for (const code of ["014", "062", "069"]) {
-      expect(metricAllowsObservation(code, ranking)).toBe(true);
-      expect(metricAllowsObservation(code, schedule)).toBe(false);
-    }
+    expect(metricAllowsObservation("014", ranking)).toBe(true);
+    expect(metricAllowsObservation("014", schedule)).toBe(false);
   });
 
-  it("maps objective ranking history into Ranking Context as well as stakes metrics", () => {
+  it("maps ranking history into pair-complete DIRECT metric 014", () => {
     expect(policyForMetric("014").allowed_families).toContain("RANKING");
     expect(policyForMetric("014").sufficient_families).toContain("RANKING");
     const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
-    expect(calculator).toContain('SUPPORTED = new Set(["014","062","069"])');
-    expect(calculator).toContain('if(code==="014")');
+    expect(calculator).toContain('const OWNED = new Set(["001", "005", "007", "014", "021", "061"])');
+    expect(calculator).toContain('if (code === "014") return directRankingFinding(args)');
+    expect(calculator).toContain('p1_treatment: "DIRECT"');
+    expect(calculator).toContain('p2_treatment: "DIRECT"');
+    expect(calculator).toContain("if (!p1 || !p2) return null");
   });
 
-  it("wires ranking pulls and deterministic ranking calculations", () => {
+  it("wires ranking pulls and deterministic calculations through the canonical warehouse path", () => {
     const orchestrator = readFileSync("src/lib/ingestion/orchestrator.server.ts", "utf8");
     const warehouse = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
     expect(orchestrator).toContain("ingestTourRankings");
     expect(orchestrator).toContain("RANKING_HISTORY_PULL");
     expect(warehouse).toContain("deterministicRankingMetric");
+    expect(warehouse.indexOf("resolveCanonicalEvidencePair(input.p1, input.p2)")).toBeLessThan(warehouse.indexOf("deterministicRankingMetric({"));
   });
 
-  it("does not fabricate subjective motivation from ranking observations", () => {
+  it("blocks future ranking leakage and does not route unrelated 062/069 through this calculator", () => {
     const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
-    expect(calculator).toContain('p1_treatment:"PARTIAL"');
-    expect(calculator).toContain("Subjective motivation/private pressure components are not inferred");
+    expect(calculator).toContain('.lte("event_date", asOfDate)');
+    expect(calculator).toContain("row.event_date <= args.asOfDate");
+    expect(calculator).not.toContain('OWNED = new Set(["014", "062", "069"])');
   });
 });

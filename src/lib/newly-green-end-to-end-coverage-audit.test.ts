@@ -12,7 +12,7 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   "012": ["RESULTS_SCHEDULE"],
   "015": ["MARKET"],
   "019": ["MARKET"],
-  "021": ["ENVIRONMENT"],
+  "021": ["RESULTS_SCHEDULE"],
   "024": ["POINT_BY_POINT"],
   "025": ["POINT_BY_POINT"],
   "028": ["RESULTS_SCHEDULE"],
@@ -38,16 +38,13 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
 const NON_PBP_DETERMINISTIC = [
   "012", "015", "019", "021", "028", "030", "062", "064", "069", "071", "075", "076", "077", "081",
 ];
-
 const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
 
 describe("newly-green end-to-end coverage audit", () => {
   it("preserves every required newly-green source family while allowing audited Task 13 support", () => {
     for (const [code, required] of Object.entries(REQUIRED_FAMILIES)) {
       const policy = policyForMetric(code);
-      for (const family of required) {
-        expect(policy.allowed_families, `metric ${code} required family ${family}`).toContain(family);
-      }
+      for (const family of required) expect(policy.allowed_families, `metric ${code} required family ${family}`).toContain(family);
       const newlyAdded = policy.allowed_families.filter((family) => !required.includes(family));
       for (const family of newlyAdded) {
         expect(policy.sufficient_families, `metric ${code} support-only family ${family}`).not.toContain(family);
@@ -58,28 +55,13 @@ describe("newly-green end-to-end coverage audit", () => {
 
   it("wires every non-PBP deterministic calculator before unresolved live fallback", () => {
     const compact = warehouse.replace(/\s+/g, "");
-    for (const calculator of [
-      "deterministicRankingMetric({",
-      "deterministicRulesContextMetric({",
-      "deterministicEnvironmentMetric({",
-      "deterministicMarketMetric({",
-      "deterministicResultsScheduleMetric({",
-    ]) {
-      expect(compact).toContain(calculator.replace(/\s+/g, ""));
-    }
-
+    for (const calculator of ["deterministicRankingMetric({","deterministicRulesContextMetric({","deterministicEnvironmentMetric({","deterministicMarketMetric({","deterministicResultsScheduleMetric({"]) expect(compact).toContain(calculator.replace(/\s+/g, ""));
     const liveCall = "finalMetricWiringResearcher.metrics({...input,context,metrics:remainingLiveMissing})";
     const liveIndex = compact.indexOf(liveCall);
     expect(liveIndex).toBeGreaterThan(-1);
     expect(compact).toContain("constliveMissing=missing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
     expect(compact).toContain("constremainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))))");
-    for (const calculator of [
-      "deterministicRankingMetric({",
-      "deterministicRulesContextMetric({",
-      "deterministicEnvironmentMetric({",
-      "deterministicMarketMetric({",
-      "deterministicResultsScheduleMetric({",
-    ]) {
+    for (const calculator of ["deterministicRankingMetric({","deterministicRulesContextMetric({","deterministicEnvironmentMetric({","deterministicMarketMetric({","deterministicResultsScheduleMetric({"]) {
       const calculatorIndex = compact.indexOf(calculator.replace(/\s+/g, ""));
       expect(calculatorIndex).toBeGreaterThan(-1);
       expect(calculatorIndex).toBeLessThan(liveIndex);
@@ -87,31 +69,17 @@ describe("newly-green end-to-end coverage audit", () => {
   });
 
   it("has no non-PBP newly-green metric left without a deterministic implementation path", () => {
-    const covered = new Set([
-      "012", "028", "030", "064", "071", "076", "077", "081",
-      "015", "019",
-      "021",
-      "062", "069",
-      "075",
-    ]);
+    const covered = new Set(["012","028","030","064","071","076","077","081","015","019","021","062","069","075"]);
     expect([...NON_PBP_DETERMINISTIC].filter((code) => !covered.has(code))).toEqual([]);
   });
 
   it("recognizes the completed BSD PBP metric family for every PBP-dependent newly-green metric", () => {
-    for (const code of PBP_METRICS) {
-      expect(policyForMetric(code).allowed_families, `metric ${code}`).toContain("POINT_BY_POINT");
-    }
+    for (const code of PBP_METRICS) expect(policyForMetric(code).allowed_families, `metric ${code}`).toContain("POINT_BY_POINT");
   });
 
   it("certifies the three runtime BSD PBP adapters are wired into warehouse execution", () => {
     const compact = warehouse.replace(/\s+/g, "");
-    for (const builder of [
-      "buildBsdAtpMainPbpContext({",
-      "buildBsdAtpChallengerPbpContext({",
-      "buildBsdWtaMainPbpContext({",
-    ]) {
-      expect(compact).toContain(builder.replace(/\s+/g, ""));
-    }
+    for (const builder of ["buildBsdAtpMainPbpContext({","buildBsdAtpChallengerPbpContext({","buildBsdWtaMainPbpContext({"]) expect(compact).toContain(builder.replace(/\s+/g, ""));
     expect(compact).toContain("_bsd_atp_main_pbp_status");
     expect(compact).toContain("_bsd_atp_challenger_pbp_status");
     expect(compact).toContain("_bsd_wta_main_pbp_status");
@@ -122,10 +90,8 @@ describe("newly-green end-to-end coverage audit", () => {
     const quarantineSummaryPath = "data/audit/bsd-wta-challenger-pbp-quarantine-audit/summary.md";
     expect(existsSync(approvedPath)).toBe(true);
     expect(existsSync(quarantineSummaryPath)).toBe(true);
-
     const approved = readFileSync(approvedPath, "utf8").split(/\r?\n/).filter(Boolean);
     expect(approved.length).toBe(1646);
-
     const summary = readFileSync(quarantineSummaryPath, "utf8");
     expect(summary).toContain("Promoted after clean fresh re-audit: **1**");
     expect(summary).toContain("Genuinely invalid or incomplete PBP: **154**");
@@ -139,12 +105,7 @@ describe("newly-green end-to-end coverage audit", () => {
   });
 
   it("preserves intended multi-family evidence and keeps Task 13 additions support-only", () => {
-    for (const [code, required] of Object.entries({
-      "043": ["MARKET", "POINT_BY_POINT"],
-      "044": ["MARKET", "POINT_BY_POINT"],
-      "060": ["ENVIRONMENT", "POINT_BY_POINT"],
-      "071": ["ENVIRONMENT", "RESULTS_SCHEDULE"],
-    })) {
+    for (const [code, required] of Object.entries({"043":["MARKET","POINT_BY_POINT"],"044":["MARKET","POINT_BY_POINT"],"060":["ENVIRONMENT","POINT_BY_POINT"],"071":["ENVIRONMENT","RESULTS_SCHEDULE"]})) {
       const policy = policyForMetric(code);
       for (const family of required) expect(policy.allowed_families).toContain(family);
       for (const family of policy.allowed_families.filter((family) => !required.includes(family))) {

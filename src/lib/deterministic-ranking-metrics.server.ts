@@ -1,73 +1,30 @@
+import runtimeIndex from "@/generated/tennis-runtime-index";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
-import { classifyEvidenceTourFamily } from "./evidence-match-identity";
+import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
+import { computeHistoryMetric, type HistoryLane, type HistoryMetricCode } from "./task18c-rank-form-workload";
 
 const db = supabaseAdmin as any;
-const SUPPORTED = new Set(["014","062","069"]);
+const OWNED = new Set(["001", "005", "007", "014", "021", "061"]);
+const HISTORY_CODES = new Set<HistoryMetricCode>(["001", "005", "007", "021", "061"]);
 
-type Row={id?:string;source_id:string|null;source_name:string|null;source_url:string|null;player_name:string|null;event_date:string|null;observation_type:string|null;observation_key:string|null;text_value:string|null;numeric_value:number|null;sample_label:string|null};
-function codeOf(v:unknown){const m=String(v??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(v??"").padStart(3,"0");}
-function days(a:string,b:string){return Math.floor((new Date(`${b}T00:00:00Z`).getTime()-new Date(`${a}T00:00:00Z`).getTime())/86400000);}
-function payload(r:Row){try{return JSON.parse(r.text_value??"{}") as Record<string,unknown>;}catch{return {};}}
-function rank(r:Row){const p=payload(r);const n=Number(p.rank??r.numeric_value);return Number.isFinite(n)?n:null;}
-function points(r:Row){const p=payload(r);const n=Number(p.points);return Number.isFinite(n)?n:null;}
-function sourceRefs(rows:Row[]):SourceRef[]{const out:SourceRef[]=[];const seen=new Set<string>();for(const r of rows){if(!r.source_name)continue;const k=`${r.source_name}|${r.source_url??""}`;if(seen.has(k))continue;seen.add(k);out.push({source_name:r.source_name,url:r.source_url,retrieved_at:null});}return out;}
-function nearest(rows:Row[],asOf:string,targetDays:number){return rows.filter(r=>r.event_date&&days(r.event_date,asOf)>=targetDays).sort((a,b)=>Math.abs(days(a.event_date!,asOf)-targetDays)-Math.abs(days(b.event_date!,asOf)-targetDays))[0]??null;}
-function summary(player:string,opponent:string,rows:Row[],asOf:string){
-  const pRows=rows.filter(r=>evidenceNameMatches(r.player_name,player,opponent)&&r.event_date).sort((a,b)=>String(b.event_date).localeCompare(String(a.event_date)));
-  const current=pRows[0]??null;if(!current)return null;const cur=rank(current);if(cur===null)return null;
-  const r30=nearest(pRows,asOf,30),r90=nearest(pRows,asOf,90),r365=nearest(pRows,asOf,365);
-  const best52=pRows.filter(r=>r.event_date&&days(r.event_date,asOf)<=365).map(rank).filter((x):x is number=>x!==null).reduce((a,b)=>Math.min(a,b),cur);
-  const movement=(r:Row|null)=>{const v=r?rank(r):null;return v===null?null:v-cur;};
-  return {rank:cur,points:points(current),rank_change_30d:movement(r30),rank_change_90d:movement(r90),rank_change_365d:movement(r365),best_rank_52w:best52,snapshots_52w:pRows.filter(r=>r.event_date&&days(r.event_date,asOf)<=365).length};
-}
-function value(code:string,s:ReturnType<typeof summary>){
-  if(!s)return null;
-  if(code==="014")return `rank=${s.rank}; points=${s.points??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;
-  if(code==="062")return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_30d=${s.rank_change_30d??"NA"}; rank_change_90d=${s.rank_change_90d??"NA"}`;
-  return `rank=${s.rank}; points=${s.points??"NA"}; rank_change_365d=${s.rank_change_365d??"NA"}; best_rank_52w=${s.best_rank_52w}; snapshots_52w=${s.snapshots_52w}`;
-}
-
-function rowCircuit(row:Row):"ATP"|"WTA"|null{
-  const family=classifyEvidenceTourFamily(row.source_id,row.source_name,row.sample_label,row.observation_type,row.observation_key,row.text_value);
-  if(family==="ATP_MAIN"||family==="ATP_CHALLENGER")return "ATP";
-  if(family==="WTA_MAIN"||family==="WTA_CHALLENGER")return "WTA";
-  return null;
-}
-function expectedCircuit(context:string|null|undefined,rows:Row[]):"ATP"|"WTA"|null{
-  const family=classifyEvidenceTourFamily(context);
-  if(family==="ATP_MAIN"||family==="ATP_CHALLENGER")return "ATP";
-  if(family==="WTA_MAIN"||family==="WTA_CHALLENGER")return "WTA";
-  const circuits=new Set(rows.map(rowCircuit).filter((v):v is "ATP"|"WTA"=>Boolean(v)));
-  return circuits.size===1?[...circuits][0]:null;
-}
-
-async function rankingRows(p1:string,p2:string,start:string,asOfDate:string){
-  const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];
-  const results=await Promise.all(aliases.map(alias=>db.from("source_observations")
-    .select("id,source_id,source_name,source_url,player_name,event_date,observation_type,observation_key,text_value,numeric_value,sample_label")
-    .gte("event_date",start).lte("event_date",asOfDate)
-    .ilike("player_name",`%${alias}%`).order("event_date",{ascending:false}).limit(2000)));
-  if(results.some(result=>result.error))return null;
-  const dedup=new Map<string,Row>();
-  for(const result of results)for(const row of (result.data??[]) as Row[]){
-    const key=String(row.id??`${row.source_id}|${row.player_name}|${row.event_date}|${row.observation_key}|${row.numeric_value}|${row.text_value}`);
-    dedup.set(key,row);
-  }
-  return [...dedup.values()];
-}
-
-export async function deterministicRankingMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;context?:string|null}):Promise<MetricFinding|null>{
-  const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);
-  // ATP Main and ATP Challenger share ATP rankings; WTA Main and WTA 125 share
-  // WTA rankings. Circuit compatibility is explicit and unresolved/mixed
-  // ranking sources fail closed rather than borrowing across ATP/WTA.
-  const fetched=await rankingRows(args.p1,args.p2,start.toISOString().slice(0,10),args.asOfDate);if(!fetched)return null;
-  const circuit=expectedCircuit(args.context,fetched);if(!circuit)return null;
-  const rows=fetched.filter(r=>metricAllowsObservation(code,r)&&rowCircuit(r)===circuit);if(!rows.length)return null;
-  const s1=summary(args.p1,args.p2,rows,args.asOfDate),s2=summary(args.p2,args.p1,rows,args.asOfDate);const p1=value(code,s1),p2=value(code,s2);if(!p1||!p2)return null;
-  const unavailableReason=code==="014"?null:"Subjective motivation/private pressure components are not inferred from ranking data.";
-  return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RANKING",reliability:90,sample:`objective ${circuit} ranking history through ${args.asOfDate}`,unavailable_reason:unavailableReason,sources:sourceRefs(rows)};
-}
+type Row = { id?: string; source_id: string | null; source_name: string | null; source_url: string | null; player_name: string | null; event_date: string | null; observation_type: string | null; observation_key: string | null; text_value: string | null; numeric_value: number | null; sample_label: string | null };
+function codeOf(value: unknown) { const m = String(value ?? "").match(/(\d{1,3})$/); return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0"); }
+function days(a: string, b: string) { return Math.floor((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000); }
+function payload(row: Row) { try { return JSON.parse(row.text_value ?? "{}") as Record<string, unknown>; } catch { return {}; } }
+function rank(row: Row) { const p = payload(row); const n = Number(p.rank ?? row.numeric_value); return Number.isFinite(n) && n > 0 ? n : null; }
+function points(row: Row) { const p = payload(row); const n = Number(p.points); return Number.isFinite(n) && n >= 0 ? n : null; }
+function sourceRefs(rows: Row[]): SourceRef[] { const out: SourceRef[] = [], seen = new Set<string>(); for (const row of rows) { if (!row.source_name) continue; const key = `${row.source_name}|${row.source_url ?? ""}`; if (seen.has(key)) continue; seen.add(key); out.push({ source_name: row.source_name, url: row.source_url, retrieved_at: null }); } return out; }
+function nearest(rows: Row[], asOf: string, targetDays: number) { return rows.filter(row => row.event_date && days(row.event_date, asOf) >= targetDays).sort((a, b) => Math.abs(days(a.event_date!, asOf) - targetDays) - Math.abs(days(b.event_date!, asOf) - targetDays))[0] ?? null; }
+function rankingSummary(player: string, opponent: string, rows: Row[], asOf: string) { const playerRows = rows.filter(row => evidenceNameMatches(row.player_name, player, opponent) && row.event_date && row.event_date <= asOf).sort((a, b) => String(b.event_date).localeCompare(String(a.event_date))); const current = playerRows[0] ?? null; if (!current) return null; const currentRank = rank(current); if (currentRank === null) return null; const r30 = nearest(playerRows, asOf, 30), r90 = nearest(playerRows, asOf, 90); const movement = (row: Row | null) => { const value = row ? rank(row) : null; return value === null ? null : value - currentRank; }; const ranks52 = playerRows.filter(row => row.event_date && days(row.event_date, asOf) >= 0 && days(row.event_date, asOf) <= 365).map(rank).filter((x): x is number => x !== null); return { rank: currentRank, points: points(current), observation_date: current.event_date!, rank_change_30d: movement(r30), rank_change_90d: movement(r90), best_rank_52w: ranks52.length ? Math.min(...ranks52) : currentRank, snapshots_52w: ranks52.length }; }
+function rankingValue(summary: ReturnType<typeof rankingSummary>) { if (!summary) return null; return `rank=${summary.rank}; points=${summary.points ?? "NA"}; observation_date=${summary.observation_date}; rank_change_30d=${summary.rank_change_30d ?? "NA"}; rank_change_90d=${summary.rank_change_90d ?? "NA"}; best_rank_52w=${summary.best_rank_52w}; snapshots_52w=${summary.snapshots_52w}`; }
+function rowCircuit(row: Row): "ATP" | "WTA" | null { const family = classifyEvidenceTourFamily(row.source_id, row.source_name, row.sample_label, row.observation_type, row.observation_key, row.text_value); if (family === "ATP_MAIN" || family === "ATP_CHALLENGER") return "ATP"; if (family === "WTA_MAIN" || family === "WTA_CHALLENGER") return "WTA"; return null; }
+function familyFromContext(context: string | null | undefined): EvidenceTourFamily | null { return classifyEvidenceTourFamily(context); }
+function expectedCircuit(context: string | null | undefined, rows: Row[]): "ATP" | "WTA" | null { const family = familyFromContext(context); if (family === "ATP_MAIN" || family === "ATP_CHALLENGER") return "ATP"; if (family === "WTA_MAIN" || family === "WTA_CHALLENGER") return "WTA"; const circuits = new Set(rows.map(rowCircuit).filter((value): value is "ATP" | "WTA" => Boolean(value))); return circuits.size === 1 ? [...circuits][0] : null; }
+function surfaceFromContext(context: string | null | undefined) { return String(context ?? "").match(/\bsurface\s*:?[ ]*(hard|clay|grass|carpet)\b/i)?.[1]?.toLowerCase() ?? null; }
+async function rankingRows(p1: string, p2: string, start: string, asOfDate: string) { const aliases = [...new Set([...safeEvidenceAliases(p1, p2), ...safeEvidenceAliases(p2, p1)])]; const results = await Promise.all(aliases.map(alias => db.from("source_observations").select("id,source_id,source_name,source_url,player_name,event_date,observation_type,observation_key,text_value,numeric_value,sample_label").gte("event_date", start).lte("event_date", asOfDate).ilike("player_name", `%${alias}%`).order("event_date", { ascending: false }).limit(2000))); if (results.some(result => result.error)) return null; const dedup = new Map<string, Row>(); for (const result of results) for (const row of (result.data ?? []) as Row[]) { const key = String(row.id ?? `${row.source_id}|${row.player_name}|${row.event_date}|${row.observation_key}|${row.numeric_value}|${row.text_value}`); dedup.set(key, row); } return [...dedup.values()]; }
+async function directRankingFinding(args: { p1: string; p2: string; asOfDate: string; context?: string | null }): Promise<MetricFinding | null> { const start = new Date(`${args.asOfDate}T00:00:00Z`); start.setUTCFullYear(start.getUTCFullYear() - 2); const fetched = await rankingRows(args.p1, args.p2, start.toISOString().slice(0, 10), args.asOfDate); if (!fetched) return null; const circuit = expectedCircuit(args.context, fetched); if (!circuit) return null; const rows = fetched.filter(row => metricAllowsObservation("014", row) && rowCircuit(row) === circuit && row.event_date && row.event_date <= args.asOfDate); if (!rows.length) return null; const p1Summary = rankingSummary(args.p1, args.p2, rows, args.asOfDate), p2Summary = rankingSummary(args.p2, args.p1, rows, args.asOfDate); const p1 = rankingValue(p1Summary), p2 = rankingValue(p2Summary); if (!p1 || !p2) return null; return { metric_code: "014", p1_value: p1, p2_value: p2, p1_treatment: "DIRECT", p2_treatment: "DIRECT", differential: p1Summary && p2Summary ? `ranking_gap_p1_minus_p2=${p1Summary.rank - p2Summary.rank}` : null, evidence_family: "RANKING", reliability: 95, sample: `source_observations=official ${circuit} ranking snapshots; date_window=observation_date<=${args.asOfDate}; players=${args.p1} vs ${args.p2}; calculation=latest valid ranking plus historical trend; output=pair-complete; metric=014; circuit=${circuit}; match_date=${args.asOfDate}; future_leakage=blocked`, unavailable_reason: null, sources: sourceRefs(rows) }; }
+function historyFinding(args: { code: HistoryMetricCode; p1: string; p2: string; asOfDate: string; context?: string | null }): MetricFinding | null { const family = familyFromContext(args.context); if (!family) return null; const lane = (runtimeIndex as any)?.matchHistory?.[family] as HistoryLane | undefined; if (!lane || typeof lane !== "object") return null; const result = computeHistoryMetric({ code: args.code, p1: args.p1, p2: args.p2, asOfDate: args.asOfDate, family, surface: surfaceFromContext(args.context), lane }); if (!result) return null; return { metric_code: args.code, p1_value: result.p1_value, p2_value: result.p2_value, p1_treatment: result.treatment, p2_treatment: result.treatment, differential: result.differential, evidence_family: args.code === "007" || args.code === "061" ? "RESULTS_SCHEDULE" : "RANKING_FORM", reliability: result.reliability, sample: result.sample, unavailable_reason: result.unavailable_reason, sources: result.source_names.map(source_name => ({ source_name, url: null, retrieved_at: null })) }; }
+export async function deterministicRankingMetric(args: { metricCode: string; p1: string; p2: string; asOfDate: string; context?: string | null }): Promise<MetricFinding | null> { const code = codeOf(args.metricCode); if (!OWNED.has(code)) return null; if (code === "014") return directRankingFinding(args); if (!HISTORY_CODES.has(code as HistoryMetricCode)) return null; return historyFinding({ ...args, code: code as HistoryMetricCode }); }
