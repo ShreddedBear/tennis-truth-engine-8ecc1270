@@ -1,0 +1,33 @@
+name: Validate Task 15 Live Observed Families
+
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-task15-live-observed-families.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate live observed-family accounting invariants
+        env:
+          URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          status="$(curl -L -sS -o "$response" -w '%{http_code}' --max-time 90 "$URL")"
+          echo "HTTP=$status"
+          test "$status" = "200"
+          jq '.report // .' "$response" > report.json
+          jq -e '.metrics == 81 and ((.matches // []) | length) == 4' report.json >/dev/null
+          jq -e 'all(.matches[]; .false_green_guard.passed == true)' report.json >/dev/null
+          jq -e 'all(.matches[].metrics[]; has("observed_families") and (.observed_families | type == "array"))' report.json >/dev/null
+          jq -e 'all(.matches[].metrics[]; if .availability_class == "PBP_EXISTS_NOT_WIRED" then (.observed_families | index("POINT_BY_POINT") != null) else true end)' report.json >/dev/null
+          jq -e 'all(.matches[].metrics[]; if .availability_class == "MARKET_EXISTS_NOT_WIRED" then (.observed_families | index("MARKET") != null) else true end)' report.json >/dev/null
+          jq -e 'all(.matches[].metrics[]; if .availability_class == "REPOSITORY_EVIDENCE_NOT_EXPOSED" then (.repository_evidence_known == true and .repository_evidence_exposed != true) else true end)' report.json >/dev/null
+          jq -r '.availability_accounting | "RETRIEVED=\(.retrieved_percent)%|SOFTWARE_LOSS=\(.software_loss_percent)%|GENUINE_UNAVAILABLE=\(.genuine_source_unavailability_percent)%|MAX_CEILING=\(.maximum_recoverable_ceiling_percent)%"' report.json
+          jq -r '.matches[] | "\(.id)|PAIR=\(.coverage.pair_percent)%|SOFTWARE_LOSS=\(.availability_accounting.software_loss_percent)%|GENUINE_UNAVAILABLE=\(.availability_accounting.genuine_source_unavailability_percent)%|CEILING=\(.availability_accounting.maximum_recoverable_ceiling_percent)%"' report.json
+          jq -r '[.matches[].metrics[] | select(.availability_class == "PBP_EXISTS_NOT_WIRED")] | "PBP_STRANDED=" + (length|tostring)' report.json
+          jq -r '[.matches[].metrics[] | select(.availability_class == "MARKET_EXISTS_NOT_WIRED")] | "MARKET_STRANDED=" + (length|tostring)' report.json
+          jq -r '[.matches[].metrics[] | select(.availability_class == "REPOSITORY_EVIDENCE_NOT_EXPOSED")] | "REPO_STRANDED=" + (length|tostring)' report.json
+          echo 'PASS: live Task 15 accounting labels are backed by actually observed evidence families.'
