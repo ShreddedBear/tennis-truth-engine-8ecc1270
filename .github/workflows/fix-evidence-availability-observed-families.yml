@@ -1,0 +1,84 @@
+name: Fix Evidence Availability Observed Families
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-evidence-availability-observed-families.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch observed-family accounting
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('src/lib/evidence-coverage-runtime-diagnostic.server.ts')
+          s = runtime.read_text()
+          old = 'details.push({metric_code:code,metric_name:metric.name,source_expected:policy.allowed_families,warehouse_observation_count:Number(entry?.observations?.length??0),'
+          new = 'details.push({metric_code:code,metric_name:metric.name,source_expected:policy.allowed_families,observed_families:Array.isArray(entry?.observed_families)?entry.observed_families:[],warehouse_observation_count:Number(entry?.observations?.length??0),'
+          if old not in s:
+              raise SystemExit('runtime observed-family propagation target not found')
+          runtime.write_text(s.replace(old, new, 1))
+
+          accounting = Path('src/lib/evidence-availability-accounting.ts')
+          s = accounting.read_text()
+          old = '''  const expected = new Set<string>(metric.source_expected ?? []);
+          // EVIDENCE_WIRING_FAILURE and RECONSTRUCTION_FAILURE are emitted only after
+          // admissible observations were actually found. That lets us distinguish a
+          // stranded PBP/market record from a source that truly does not exist.
+          if (["EVIDENCE_WIRING_FAILURE", "RECONSTRUCTION_FAILURE"].includes(metric.failure_bucket)) {
+            if (expected.has("POINT_BY_POINT")) return "PBP_EXISTS_NOT_WIRED";
+            if (expected.has("MARKET")) return "MARKET_EXISTS_NOT_WIRED";
+            if (expected.has("RESULTS_SCHEDULE")) return "REPOSITORY_EVIDENCE_NOT_EXPOSED";
+          }
+          return "GENUINELY_UNAVAILABLE";'''
+          new = '''  // Software-loss labels must be proved by evidence actually observed for
+          // this metric/matchup. An allowed/expected source family is only policy and
+          // cannot establish that PBP, market, or repository evidence exists.
+          const observedFamilies = Array.isArray(metric.observed_families) ? metric.observed_families : [];
+          if (["EVIDENCE_WIRING_FAILURE", "RECONSTRUCTION_FAILURE"].includes(metric.failure_bucket)) {
+            return classifyEvidenceAvailability({
+              pairCredited: false,
+              p1Credited: Boolean(metric.p1_credited),
+              p2Credited: Boolean(metric.p2_credited),
+              p1Treatment: metric.p1_treatment,
+              p2Treatment: metric.p2_treatment,
+              observedFamilies,
+              repositoryEvidenceKnown: metric.repository_evidence_known === true,
+              repositoryEvidenceExposed: metric.repository_evidence_exposed === true,
+              storedCandidateCount: Number(metric.stored_candidate_count ?? 0),
+            });
+          }
+          return "GENUINELY_UNAVAILABLE";'''
+          if old not in s:
+              raise SystemExit('accounting expected-family inference target not found')
+          accounting.write_text(s.replace(old, new, 1))
+
+          test = Path('src/lib/evidence-availability-accounting.test.ts')
+          test.write_text('''import { describe, expect, it } from "vitest";\nimport { enrichEvidenceCoverageAccounting } from "./evidence-availability-accounting";\n\nfunction classify(metric: Record<string, unknown>) {\n  const report = enrichEvidenceCoverageAccounting({\n    matches: [{ id: "WTA_MAIN", sampling_source: "source_observations", metrics: [metric] }],\n  });\n  return {\n    availabilityClass: report.matches[0].metrics[0].availability_class,\n    accounting: report.availability_accounting,\n  };\n}\n\ndescribe("evidence availability accounting", () => {\n  it("does not infer PBP existence from source_expected alone", () => {\n    const result = classify({\n      pair_credited: false, p1_credited: false, p2_credited: false,\n      p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE",\n      failure_bucket: "RECONSTRUCTION_FAILURE",\n      source_expected: ["RESULTS_SCHEDULE", "POINT_BY_POINT"],\n      observed_families: ["RESULTS_SCHEDULE"],\n    });\n    expect(result.availabilityClass).toBe("GENUINELY_UNAVAILABLE");\n    expect(result.accounting.software_loss).toBe(0);\n  });\n\n  it("classifies PBP software loss only when PBP was actually observed", () => {\n    const result = classify({\n      pair_credited: false, p1_credited: false, p2_credited: false,\n      failure_bucket: "RECONSTRUCTION_FAILURE",\n      source_expected: ["RESULTS_SCHEDULE", "POINT_BY_POINT"],\n      observed_families: ["RESULTS_SCHEDULE", "POINT_BY_POINT"],\n    });\n    expect(result.availabilityClass).toBe("PBP_EXISTS_NOT_WIRED");\n    expect(result.accounting.software_loss).toBe(1);\n  });\n\n  it("does not infer market existence from source_expected alone", () => {\n    const result = classify({\n      pair_credited: false, p1_credited: false, p2_credited: false,\n      failure_bucket: "RECONSTRUCTION_FAILURE",\n      source_expected: ["RANKING", "MARKET"],\n      observed_families: ["RANKING"],\n    });\n    expect(result.availabilityClass).toBe("GENUINELY_UNAVAILABLE");\n    expect(result.accounting.software_loss).toBe(0);\n  });\n\n  it("classifies market software loss only when market evidence was actually observed", () => {\n    const result = classify({\n      pair_credited: false, p1_credited: false, p2_credited: false,\n      failure_bucket: "EVIDENCE_WIRING_FAILURE",\n      source_expected: ["MARKET"],\n      observed_families: ["MARKET"],\n    });\n    expect(result.availabilityClass).toBe("MARKET_EXISTS_NOT_WIRED");\n    expect(result.accounting.software_loss).toBe(1);\n  });\n\n  it("preserves partial credited evidence accounting", () => {\n    const result = classify({\n      pair_credited: true, p1_credited: true, p2_credited: true,\n      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",\n      observed_families: ["RESULTS_SCHEDULE"],\n    });\n    expect(result.availabilityClass).toBe("PARTIALLY_POPULATED");\n    expect(result.accounting.retrieved).toBe(1);\n  });\n});\n''')
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused accounting regression
+        run: npx vitest run src/lib/evidence-availability-accounting.test.ts
+      - name: Build
+        run: npm run build
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/evidence-availability-accounting.ts src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-availability-accounting.test.ts
+          if git diff --cached --quiet; then
+            echo 'No change needed'
+            exit 0
+          fi
+          git commit -m 'Fix observed-family evidence availability accounting'
+          git push
