@@ -25,11 +25,18 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("019", marketRow)).toBe(true);
   });
 
-  it("keeps environmental evidence in environmental/context metrics only", () => {
-    expect(metricAllowsObservation("021", weatherRow)).toBe(true);
+  it("uses results/schedule rather than environment as the Task 17 Elo source", () => {
+    expect(metricAllowsObservation("021", matchRow)).toBe(true);
+    expect(metricAllowsObservation("021", weatherRow)).toBe(false);
+    expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
     expect(metricAllowsObservation("071", weatherRow)).toBe(true);
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
-    expect(metricAllowsObservation("015", weatherRow)).toBe(false);
+  });
+
+  it("admits workload history as support-only evidence", () => {
+    expect(metricAllowsObservation("061", matchRow)).toBe(true);
+    expect(policyForMetric("061").sufficient_families).toEqual([]);
+    expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");
   });
 
   it("classifies current ATP/WTA/Challenger ingestion as results/schedule, not ranking", () => {
@@ -38,8 +45,8 @@ describe("metric source family policy", () => {
     expect(observationFamily(rankingRow)).toBe("RANKING");
   });
 
-  it("marks results/schedule as support-only rather than a complete metric answer", () => {
-    for (const code of ["012", "028", "030", "064", "071", "076", "077", "081"]) {
+  it("marks support-only results/schedule families without silently promoting them", () => {
+    for (const code of ["012", "028", "030", "061", "064", "071", "076", "077", "081"]) {
       const policy = policyForMetric(code);
       expect(policy.allowed_families).toContain("RESULTS_SCHEDULE");
       expect(policy.support_only_families).toContain("RESULTS_SCHEDULE");
