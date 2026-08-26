@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily } from "./evidence-match-identity";
+import { inferRepositoryMatchContext } from "./repository-results-history.server";
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
@@ -93,6 +94,8 @@ function contextFromObservationRows(args: { p1: string; p2: string; asOfDate: st
 async function inferCanonicalMatchContext(args: { p1: string; p2: string; asOfDate: string }, rows: ObservationRow[]) {
   const fromRows = contextFromObservationRows(args, rows);
   if (fromRows) return fromRows;
+  const fromRepository = inferRepositoryMatchContext(args);
+  if (fromRepository) return fromRepository;
   const { data, error } = await db.from("matches")
     .select("player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round")
     .eq("scheduled_date", args.asOfDate).limit(250);
