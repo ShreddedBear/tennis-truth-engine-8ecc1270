@@ -14,7 +14,7 @@ export type MetricSourcePolicy = {
 };
 
 const RESULTS_SCHEDULE_METRICS = new Set(["012", "028", "030", "064", "071", "076", "077", "081"]);
-const RANKING_METRICS = new Set(["062", "069"]);
+const RANKING_METRICS = new Set(["014", "062", "069"]);
 const MARKET_METRICS = new Set(["015", "019", "043", "044"]);
 const ENVIRONMENT_METRICS = new Set(["021", "030", "060", "071"]);
 const PBP_METRICS = new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
@@ -40,7 +40,7 @@ export function policyForMetric(metricCode: unknown): MetricSourcePolicy {
 
   if (["015", "019"].includes(code)) sufficient.add("MARKET");
   if (code === "021") sufficient.add("ENVIRONMENT");
-  if (["062", "069"].includes(code)) sufficient.add("RANKING");
+  if (["014", "062", "069"].includes(code)) sufficient.add("RANKING");
 
   if (RESULTS_SCHEDULE_METRICS.has(code)) supportOnly.add("RESULTS_SCHEDULE");
   if (code === "030") supportOnly.add("ENVIRONMENT");
