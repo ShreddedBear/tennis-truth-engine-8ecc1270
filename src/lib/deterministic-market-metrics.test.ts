@@ -25,7 +25,7 @@ describe("deterministic market metrics", () => {
   });
 
   it("runs market calculations before unresolved live fallback", () => {
-    const deterministicIndex = researcher.indexOf("deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date})");
+    const deterministicIndex = researcher.indexOf("deterministicMarketMetric({metricCode:metric.code,p1,p2,asOfDate:date,tournament,context:input.context})");
     const liveIndex = researcher.indexOf("finalMetricWiringResearcher.metrics({...input,context,metrics:liveMissing})");
     expect(deterministicIndex).toBeGreaterThan(-1);
     expect(liveIndex).toBeGreaterThan(deterministicIndex);
