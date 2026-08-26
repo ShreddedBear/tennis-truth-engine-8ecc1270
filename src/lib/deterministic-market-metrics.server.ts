@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { MetricFinding } from "./audit-pipeline";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
-import { normalizeEvidenceTournament } from "./evidence-match-identity";
+import { classifyEvidenceTourFamily, evidenceTourCompatible, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 
 const db = supabaseAdmin as any;
 const MARKET_CODES = new Set(["015", "019", "043", "044"]);
@@ -66,6 +66,17 @@ function eventCompatible(row: MarketRow, tournament?: string | null) {
   return expected === actual || expected.includes(actual) || actual.includes(expected);
 }
 
+function rowTourFamily(row: MarketRow) {
+  return classifyEvidenceTourFamily(row.tournament, row.raw_payload?.sport_key, row.raw_payload?.sport_title, row.provenance?.sport_key, row.sample_label);
+}
+
+function expectedMarketFamily(args: { context?: string | null; tournament?: string | null }, rows: MarketRow[]): EvidenceTourFamily | null {
+  const explicit = classifyEvidenceTourFamily(args.context, args.tournament);
+  if (explicit) return explicit;
+  const families = new Set(rows.map(rowTourFamily).filter((family): family is EvidenceTourFamily => Boolean(family)));
+  return families.size === 1 ? [...families][0] : null;
+}
+
 async function loadSide(player: string, opponent: string, matchDate: string, tournament?: string | null) {
   const playerAliases = safeEvidenceAliases(player, opponent);
   const opponentAliases = safeEvidenceAliases(opponent, player);
@@ -86,18 +97,21 @@ function summarizeMarket(rows: MarketRow[], opponentRows: MarketRow[]) {
 function fmtPct(v: number | null) { return v == null ? "n/a" : `${(v * 100).toFixed(1)}%`; }
 function valueText(summary: ReturnType<typeof summarizeMarket>) { return [`avg_de_vig=${fmtPct(summary.avg_devig_probability)}`, `avg_raw=${fmtPct(summary.avg_raw_implied_probability)}`, `move=${fmtPct(summary.probability_movement)}`, `favorite_share=${fmtPct(summary.favorite_share)}`, `n=${summary.observations}`, `paired=${summary.paired_devig_observations}`].join("; "); }
 
-export async function deterministicMarketMetric(args: { metricCode: unknown; p1: string; p2: string; asOfDate: string; tournament?: string | null; }): Promise<MetricFinding | null> {
+export async function deterministicMarketMetric(args: { metricCode: unknown; p1: string; p2: string; asOfDate: string; tournament?: string | null; context?: string | null; }): Promise<MetricFinding | null> {
   const code = codeOf(args.metricCode); if (!MARKET_CODES.has(code)) return null;
   const [p1RowsRaw, p2RowsRaw] = await Promise.all([
     loadSide(args.p1, args.p2, args.asOfDate, args.tournament),
     loadSide(args.p2, args.p1, args.asOfDate, args.tournament),
   ]);
-  const p1Rows = p1RowsRaw.filter((row) => metricAllowsObservation(code, row)); const p2Rows = p2RowsRaw.filter((row) => metricAllowsObservation(code, row));
+  const expectedFamily = expectedMarketFamily(args, [...p1RowsRaw, ...p2RowsRaw]);
+  if (!expectedFamily) return null;
+  const p1Rows = p1RowsRaw.filter((row) => metricAllowsObservation(code, row) && evidenceTourCompatible(expectedFamily, rowTourFamily(row)));
+  const p2Rows = p2RowsRaw.filter((row) => metricAllowsObservation(code, row) && evidenceTourCompatible(expectedFamily, rowTourFamily(row)));
   if (!p1Rows.length && !p2Rows.length) return null;
   const p1Summary = summarizeMarket(p1Rows, p2Rows); const p2Summary = summarizeMarket(p2Rows, p1Rows);
   const sourceUrl = p1Rows[0]?.source_url ?? p2Rows[0]?.source_url;
   const sourceName = p1Rows[0]?.source_name ?? p2Rows[0]?.source_name;
   if (!sourceName) return null;
   const isCoreMarket = code === "015" || code === "019";
-  return { metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] };
+  return { metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical four-tour match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; tour_family=${expectedFamily}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] };
 }
