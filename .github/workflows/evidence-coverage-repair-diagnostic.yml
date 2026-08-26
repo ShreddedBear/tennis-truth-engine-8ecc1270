@@ -21,6 +21,7 @@ on:
       - src/lib/metric-source-family-policy.test.ts
       - src/lib/source-observation-metric-bridge.server.ts
       - src/lib/warehouse-first-researcher.server.ts
+      - src/lib/warehouse-deterministic-wiring.test.ts
       - src/lib/evidence-coverage-runtime-diagnostic.server.ts
       - src/lib/evidence-coverage-runtime-diagnostic.test.ts
       - src/lib/newly-green-end-to-end-coverage-audit.test.ts
