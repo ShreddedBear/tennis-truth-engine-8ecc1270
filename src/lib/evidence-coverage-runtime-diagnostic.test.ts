@@ -57,8 +57,11 @@ describe("runtime evidence coverage diagnostic", () => {
 
   it("keeps runtime diagnosis aligned with deterministic PBP recovery", () => {
     expect(pbp).toContain("deterministicPbpMetric");
-    expect(diagnostic).toContain('import { deterministicPbpMetric } from "./deterministic-pbp-metrics.server"');
+    expect(diagnostic).toContain('import { deterministicPbpMetric, deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.server"');
     expect(diagnostic).toContain("deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date})");
+    expect(diagnostic).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1:match.p1,p2:match.p2,asOfDate:match.date,packet})");
+    expect(diagnostic).toContain('source:"repository_pbp"');
+    expect(diagnostic).toContain("asOfDate:match.date,context:match.context");
   });
 
   it("resolves surname-only identities from warehouse evidence only and propagates canonical names through every evidence lane", () => {

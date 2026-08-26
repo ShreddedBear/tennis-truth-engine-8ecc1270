@@ -4,7 +4,7 @@ import { policyForMetric } from "./metric-source-family-policy";
 
 const COVERAGE_START = "2025-01-01";
 const APPROVED_INDEX = join(process.cwd(), "data", "metrics", "pbp", "wta_challenger", "approved-index.jsonl");
-const PBP_CODES = new Set(["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
+const PBP_CODES = new Set(["016", "024", "025", "033", "036", "040", "042", "043", "044", "060", "079"]);
 
 type MetricLike = { code: string; name: string };
 type ApprovedRow = {
@@ -71,15 +71,13 @@ export async function buildBsdWtaChallengerPbpContext(args: {
     return a === p1n || b === p1n || a === p2n || b === p2n;
   }).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? ""))).slice(0, 40);
 
-  const observations = rows.map((row) => {
+  const observations = rows.flatMap((row) => {
     const a = String(row.player1 ?? ""), b = String(row.player2 ?? "");
     const metrics = row.metrics ?? {};
-    return {
+    const base = {
       family: "POINT_BY_POINT",
       source: "BSD/Bzzoiro WTA Challenger approved PBP index",
       url: null,
-      player1: a,
-      player2: b,
       tournament: row.tournament ?? null,
       event_date: String(row.date ?? "").slice(0, 10),
       key: "bsd_wta_challenger_approved_pbp_summary",
@@ -87,8 +85,8 @@ export async function buildBsdWtaChallengerPbpContext(args: {
         match_id: row.match_id ?? null,
         set_scores: metrics.set_scores ?? null,
         match_winner_slot: metrics.match_winner_slot ?? null,
-        total_games: metrics.total_games ?? null,
-        total_points: metrics.total_points ?? null,
+        totalPoints: metrics.total_points ?? null,
+        gamesObserved: metrics.total_games ?? null,
         breaks: metrics.breaks ?? null,
       },
       sample: `${metrics.total_points ?? "NA"} points; ${metrics.total_games ?? "NA"} games; ${metrics.breaks ?? "NA"} breaks`,
@@ -101,8 +99,12 @@ export async function buildBsdWtaChallengerPbpContext(args: {
         rejected_records_reintroduced: false,
       },
     };
+    return [
+      { ...base, player: a, opponent: b, player_slot: "player1" },
+      { ...base, player: b, opponent: a, player_slot: "player2" },
+    ];
   });
-  status.matches_used = observations.length;
+  status.matches_used = rows.length;
 
   const packet: Record<string, unknown> = {};
   for (const metric of args.metrics) {

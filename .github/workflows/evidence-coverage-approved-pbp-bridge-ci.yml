@@ -1,0 +1,53 @@
+name: Evidence Coverage Approved PBP Bridge CI
+
+on:
+  push:
+    branches:
+      - repair/evidence-coverage-approved-pbp-bridge
+    paths:
+      - 'scripts/apply-approved-pbp-runtime-bridge.py'
+      - 'src/lib/bsd-wta-challenger-pbp.server.ts'
+      - 'src/lib/evidence-index-match-sampler.server.ts'
+      - 'src/lib/evidence-index-match-sampler.test.ts'
+      - 'src/lib/evidence-coverage-approved-pbp-bridge.test.ts'
+      - 'src/lib/evidence-coverage-four-tour-diagnostic.test.ts'
+      - 'src/lib/evidence-coverage-runtime-diagnostic.server.ts'
+      - 'src/lib/evidence-coverage-runtime-diagnostic.test.ts'
+      - '.github/workflows/evidence-coverage-approved-pbp-bridge-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply runtime bridge patch
+        run: python scripts/apply-approved-pbp-runtime-bridge.py
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Approved PBP bridge regression
+        run: bunx vitest run src/lib/evidence-coverage-approved-pbp-bridge.test.ts src/lib/evidence-index-match-sampler.test.ts src/lib/evidence-coverage-four-tour-diagnostic.test.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+      - name: Full regression suite
+        run: bunx vitest run
+      - name: Persist runtime patch on repair branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Runtime bridge patch already persisted.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/evidence-coverage-runtime-diagnostic.server.ts src/lib/evidence-coverage-runtime-diagnostic.test.ts
+          git commit -m 'Evidence Coverage: attach approved repository PBP at runtime'
+          git push origin HEAD:repair/evidence-coverage-approved-pbp-bridge
+      - name: Production build
+        run: bun run build

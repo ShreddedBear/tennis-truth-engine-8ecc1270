@@ -11,15 +11,20 @@ describe("Evidence Coverage four-tour representative diagnostic", () => {
     expect(diagnostic).toContain('schema_version:11');
   });
 
-  it("has a firewall-validated WTA 125 repository representative", async () => {
-    const sample = BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES.WTA_CHALLENGER;
-    expect(sample.id).toBe("WTA_CHALLENGER");
-    expect(sample.match_id).toContain("wta125-history:");
-    expect(sample.p1).toBeTruthy();
-    expect(sample.p2).toBeTruthy();
-    expect(sample.p1).not.toBe(sample.p2);
-    expect(sample.sampling_source).toBe("wta125_production_history");
-    expect((await sampleVerifiedEvidenceIndexMatch("WTA_CHALLENGER"))?.sampling_source).toBe("wta125_production_history");
+  it("has an approved-PBP-backed, firewall-valid WTA 125 repository representative", async () => {
+    const bundled = BUNDLED_VERIFIED_EVIDENCE_INDEX_SAMPLES.WTA_CHALLENGER;
+    expect(bundled.id).toBe("WTA_CHALLENGER");
+    expect(bundled.match_id).toMatch(/^approved-wta-challenger-pbp:/);
+    expect(bundled.p1).toBeTruthy();
+    expect(bundled.p2).toBeTruthy();
+    expect(bundled.p1).not.toBe(bundled.p2);
+    expect(bundled.tournament.toLowerCase()).toMatch(/wta.*125|125k/);
+    expect(bundled.sampling_source).toBe("verified_pbp_index");
+
+    const runtime = await sampleVerifiedEvidenceIndexMatch("WTA_CHALLENGER");
+    expect(runtime?.match_id).toMatch(/^approved-wta-challenger-pbp:/);
+    expect(runtime?.sampling_source).toBe("verified_pbp_index");
+    expect(runtime?.tournament.toLowerCase()).toMatch(/wta.*125|125k/);
   });
 
   it("requires all four tours in production proof", () => {
