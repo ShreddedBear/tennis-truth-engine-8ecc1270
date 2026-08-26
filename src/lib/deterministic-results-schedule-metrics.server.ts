@@ -7,6 +7,7 @@ const db = supabaseAdmin as any;
 const SUPPORTED = new Set(["012", "028", "030", "064", "071", "076", "077", "081"]);
 
 type Observation = {
+  id?: string;
   source_id: string | null;
   source_name: string | null;
   source_url: string | null;
@@ -107,6 +108,23 @@ function valueFor(code: string, c: PlayerComponents) {
   }
 }
 
+async function playerObservationRows(p1:string,p2:string,start:string,asOfDate:string,select:string){
+  const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];
+  // Query each canonical/safe surname lane independently. Exact `.in()` display
+  // names discarded valid historical rows when the warehouse stored a legacy
+  // alias, accent-normalized name, or surname-only identity.
+  const results=await Promise.all(aliases.map(alias=>db.from("source_observations").select(select)
+    .gte("event_date",start).lte("event_date",asOfDate)
+    .ilike("player_name",`%${alias}%`).order("event_date",{ascending:false}).limit(2500)));
+  if(results.some(result=>result.error))return null;
+  const dedup=new Map<string,Observation>();
+  for(const result of results)for(const row of (result.data??[]) as Observation[]){
+    const key=String(row.id??[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|"));
+    dedup.set(key,row);
+  }
+  return [...dedup.values()];
+}
+
 export async function deterministicResultsScheduleMetric(args: {
   metricCode: string;
   p1: string;
@@ -118,19 +136,15 @@ export async function deterministicResultsScheduleMetric(args: {
   if (!SUPPORTED.has(code)) return null;
   const start = new Date(`${args.asOfDate}T00:00:00Z`);
   start.setUTCFullYear(start.getUTCFullYear() - 5);
-  const aliases = [...new Set([...safeEvidenceAliases(args.p1, args.p2), ...safeEvidenceAliases(args.p2, args.p1)])];
-  const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label";
-  const base = () => db.from("source_observations").select(select)
-    .gte("event_date", start.toISOString().slice(0, 10))
-    .lte("event_date", args.asOfDate)
-    .order("event_date", { ascending: false })
-    .limit(2000);
-  const [playerResult, sharedResult] = await Promise.all([
-    base().in("player_name", aliases),
-    base().is("player_name", null),
+  const startDate=start.toISOString().slice(0,10);
+  const select = "id,source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label";
+  const [playerRowsResult,sharedResult]=await Promise.all([
+    playerObservationRows(args.p1,args.p2,startDate,args.asOfDate,select),
+    db.from("source_observations").select(select).gte("event_date",startDate).lte("event_date",args.asOfDate)
+      .is("player_name",null).order("event_date",{ascending:false}).limit(2000),
   ]);
-  if (playerResult.error || sharedResult.error) return null;
-  const rows = ([...(playerResult.data ?? []), ...(sharedResult.data ?? [])] as Observation[]).filter((row) => metricAllowsObservation(code, row));
+  if(!playerRowsResult||sharedResult.error)return null;
+  const rows = ([...playerRowsResult, ...(sharedResult.data ?? [])] as Observation[]).filter((row) => metricAllowsObservation(code, row));
   const playerRows = rows.filter((r) => evidenceNameMatches(r.player_name, args.p1, args.p2) || evidenceNameMatches(r.player_name, args.p2, args.p1));
   if (!playerRows.length) return null;
   const c1 = componentsFor(args.p1, args.p2, rows, args.asOfDate, args.tournament ?? null);
@@ -147,7 +161,7 @@ export async function deterministicResultsScheduleMetric(args: {
     differential: null,
     evidence_family: "RESULTS_SCHEDULE",
     reliability: 80,
-    sample: `deterministic warehouse components through ${args.asOfDate}`,
+    sample: `deterministic four-tour warehouse components through ${args.asOfDate}`,
     unavailable_reason: null,
     sources: sources(rows),
   };
