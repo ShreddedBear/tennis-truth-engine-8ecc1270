@@ -1,0 +1,97 @@
+name: Phase 30 wire WTA score extensions
+
+on:
+  push:
+    branches:
+      - repair/evidence-coverage-phase30-wta-score-extensions
+    paths:
+      - '.github/workflows/phase30-wire-wta-score-extensions.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: repair/evidence-coverage-phase30-wta-score-extensions
+      - name: Add objective score/ranking-derived WTA partial metrics
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/lib/wta-official-match-evidence.server.ts')
+          s=p.read_text()
+          old='const SUPPORTED = new Set(["005", "006", "007", "008", "009", "010", "011", "012", "013", "020", "028", "030", "068", "080"]);'
+          new='const SUPPORTED = new Set(["005", "006", "007", "008", "009", "010", "011", "012", "013", "020", "026", "027", "028", "029", "030", "031", "036", "037", "040", "041", "043", "044", "045", "047", "052", "055", "056", "057", "064", "068", "070", "077", "079", "080", "081"]);'
+          if old not in s: raise SystemExit('SUPPORTED anchor missing')
+          s=s.replace(old,new,1)
+
+          helper=r'''
+function historyWindow(history:History,asOfDate:string){const cutoff=new Date(`${asOfDate}T00:00:00Z`);cutoff.setUTCDate(cutoff.getUTCDate()-370);const min=cutoff.toISOString().slice(0,10);return history.matches.filter(r=>String(r.StartDate).slice(0,10)>=min);}
+function ownRank(row:MatchRow,playerId:string){const side=String(row.player_1??"").trim()===playerId?1:String(row.player_2??"").trim()===playerId?2:null;const n=Number(side===1?row.rank_1:side===2?row.rank_2:null);return Number.isFinite(n)&&n>0?n:null;}
+function opponentRankFor(row:MatchRow,playerId:string){const side=String(row.player_1??"").trim()===playerId?1:String(row.player_2??"").trim()===playerId?2:null;const n=Number(side===1?row.rank_2:side===2?row.rank_1:null);return Number.isFinite(n)&&n>0?n:null;}
+function isTiebreak(set:[number,number]){return Math.max(...set)===7&&Math.min(...set)>=6;}
+function wilson(wins:number,n:number){if(!n)return null;const z=1.96,p=wins/n,den=1+z*z/n,center=(p+z*z/(2*n))/den,half=z*Math.sqrt((p*(1-p)+z*z/(4*n))/n)/den;return [100*Math.max(0,center-half),100*Math.min(1,center+half)] as [number,number];}
+function splitTrend<T>(rows:T[]){return {recent:rows.slice(0,5),prior:rows.slice(5,10)};}
+function valueOrNA(v:number|null|undefined,digits=1){return v==null||!Number.isFinite(v)?"NA":v.toFixed(digits);}
+function extendedSideMetricValue(code:string,history:History|null,asOfDate:string){
+  if(!history)return null;const rows=historyWindow(history,asOfDate);if(!rows.length)return null;
+  const entries=rows.map(r=>({r,won:playerWon(r,history.playerId),sets:orientedSets(r,history.playerId),own:ownRank(r,history.playerId),opp:opponentRankFor(r,history.playerId)}));
+  const validSets=entries.filter(x=>x.sets.length>=2),lost1=validSets.filter(x=>x.sets[0][0]<x.sets[0][1]),won1=validSets.filter(x=>x.sets[0][0]>x.sets[0][1]),three=validSets.filter(x=>x.sets.length>=3),tb=validSets.filter(x=>x.sets.some(isTiebreak));
+  const losses=entries.filter(x=>!x.won),wins=entries.filter(x=>x.won),recent=splitTrend(entries);
+  const rankAvg=(xs:typeof entries)=>mean(xs.map(x=>x.opp).filter((v):v is number=>v!=null));
+  const winRate=(xs:typeof entries)=>pct(xs.filter(x=>x.won).length,xs.length);
+  const setWins=validSets.reduce((n,x)=>n+x.sets.filter(([a,b])=>a>b).length,0),setTotal=validSets.reduce((n,x)=>n+x.sets.length,0);
+  if(code==="026")return `set1_win_pct=${valueOrNA(pct(validSets.filter(x=>x.sets[0][0]>x.sets[0][1]).length,validSets.length))}; set2_win_pct=${valueOrNA(pct(validSets.filter(x=>x.sets[1][0]>x.sets[1][1]).length,validSets.length))}; second_set_win_after_set1_loss_pct=${valueOrNA(pct(lost1.filter(x=>x.sets[1][0]>x.sets[1][1]).length,lost1.length))}; score-level warm-up proxy only; early-game/PBP components unavailable`;
+  if(code==="027")return `set1_leads=${won1.length}; set1_to_match_conversion_pct=${valueOrNA(pct(won1.filter(x=>x.won).length,won1.length))}; one_set_up_collapse_pct=${valueOrNA(pct(won1.filter(x=>!x.won).length,won1.length))}; deciding_matches=${three.length}; deciding_match_close_pct=${valueOrNA(pct(three.filter(x=>x.won).length,three.length))}`;
+  if(code==="029"){const lostTb=validSets.filter(x=>x.sets[0]&&isTiebreak(x.sets[0])&&x.sets[0][0]<x.sets[0][1]);return `front_runner_win_pct=${valueOrNA(pct(won1.filter(x=>x.won).length,won1.length))}; comeback_win_pct=${valueOrNA(pct(lost1.filter(x=>x.won).length,lost1.length))}; second_set_win_after_losing_set1_pct=${valueOrNA(pct(lost1.filter(x=>x.sets[1][0]>x.sets[1][1]).length,lost1.length))}; matches_after_losing_set1_tiebreak=${lostTb.length}; match_win_after_losing_set1_tiebreak_pct=${valueOrNA(pct(lostTb.filter(x=>x.won).length,lostTb.length))}`;
+  if(code==="036"){if(!losses.length)return null;const lostSet1=losses.filter(x=>x.sets[0]&&x.sets[0][0]<x.sets[0][1]).length,dec=losses.filter(x=>x.sets.length>=3).length,tbl=losses.filter(x=>x.sets.some(isTiebreak)).length,bad=losses.filter(x=>x.own!=null&&x.opp!=null&&x.opp>x.own+20).length;const reasons=[...new Set(losses.map(x=>String(x.r.reason_code??"").trim()).filter(Boolean))].slice(0,6);return `recent_losses=${losses.length}; avg_loss_opponent_rank=${valueOrNA(rankAvg(losses))}; lost_set1_in_loss_pct=${valueOrNA(pct(lostSet1,losses.length))}; deciding_set_loss_pct=${valueOrNA(pct(dec,losses.length))}; tiebreak_in_loss_pct=${valueOrNA(pct(tbl,losses.length))}; losses_to_20plus_lower_ranked=${bad}; observed_reason_codes=${reasons.join(",")||"none"}`;}
+  if(code==="037"){if(!wins.length)return null;const straight=wins.filter(x=>x.sets.length===2&&x.sets.every(([a,b])=>a>b)).length,threeWins=wins.filter(x=>x.sets.length>=3).length,top20=wins.filter(x=>x.opp!=null&&x.opp<=20).length;return `recent_wins=${wins.length}; straight_set_wins=${straight}; straight_set_share_of_wins_pct=${valueOrNA(pct(straight,wins.length))}; three_set_wins=${threeWins}; avg_win_opponent_rank=${valueOrNA(rankAvg(wins))}; wins_vs_top20=${top20}; best_ranked_win=${valueOrNA(Math.min(...wins.map(x=>x.opp??Infinity).filter(Number.isFinite)),0)}`;}
+  if(code==="040"){if(recent.prior.length<3)return null;const threeRate=(xs:typeof entries)=>pct(xs.filter(x=>x.sets.length>=3).length,xs.length);return `recent5_three_set_dependency_pct=${valueOrNA(threeRate(recent.recent))}; prior5_three_set_dependency_pct=${valueOrNA(threeRate(recent.prior))}; recent5_set_win_pct=${valueOrNA(pct(recent.recent.flatMap(x=>x.sets).filter(([a,b])=>a>b).length,recent.recent.flatMap(x=>x.sets).length))}; prior5_set_win_pct=${valueOrNA(pct(recent.prior.flatMap(x=>x.sets).filter(([a,b])=>a>b).length,recent.prior.flatMap(x=>x.sets).length))}; score-level trend component only`;
+  }
+  if(code==="041"){if(recent.prior.length<3)return null;return `recent5_win_pct=${valueOrNA(winRate(recent.recent))}; prior5_win_pct=${valueOrNA(winRate(recent.prior))}; recent5_avg_opponent_rank=${valueOrNA(rankAvg(recent.recent))}; prior5_avg_opponent_rank=${valueOrNA(rankAvg(recent.prior))}; opponent-quality-adjusted trend components only`;}
+  if(code==="043"){if(!losses.length)return null;return `losses_sample=${losses.length}; loss_after_losing_set1_pct=${valueOrNA(pct(losses.filter(x=>x.sets[0]&&x.sets[0][0]<x.sets[0][1]).length,losses.length))}; deciding_set_loss_share_pct=${valueOrNA(pct(losses.filter(x=>x.sets.length>=3).length,losses.length))}; tiebreak_loss_context_pct=${valueOrNA(pct(losses.filter(x=>x.sets.some(isTiebreak)).length,losses.length))}; historical failure-mode components only`;
+  }
+  if(code==="044"){const upsets=wins.filter(x=>x.own!=null&&x.opp!=null&&x.opp<x.own);if(!upsets.length)return null;const gaps=upsets.map(x=>x.own!-x.opp!);return `higher_ranked_opponents_beaten=${upsets.length}; largest_ranking_gap_overcome=${Math.max(...gaps).toFixed(0)}; avg_upset_opponent_rank=${valueOrNA(rankAvg(upsets))}; multi-dimensional style/Elo/price similarity unavailable`;
+  }
+  if(code==="045"){return `matches_with_tiebreak=${tb.length}; win_pct_when_match_has_tiebreak=${valueOrNA(pct(tb.filter(x=>x.won).length,tb.length))}; matches_forced_to_decider=${three.length}; win_pct_when_forced_to_decider=${valueOrNA(pct(three.filter(x=>x.won).length,three.length))}; early-break/game-state resistance components unavailable`;}
+  if(code==="047"){const mw=wilson(wins.length,entries.length),sw=wilson(setWins,setTotal);return `match_win_pct=${valueOrNA(pct(wins.length,entries.length))}; match_sample=${entries.length}; match_95ci=${mw?`${mw[0].toFixed(1)}-${mw[1].toFixed(1)}`:"NA"}; set_win_pct=${valueOrNA(pct(setWins,setTotal))}; set_sample=${setTotal}; set_95ci=${sw?`${sw[0].toFixed(1)}-${sw[1].toFixed(1)}`:"NA"}`;}
+  if(code==="052")return `set1_leads=${won1.length}; set_lead_to_match_win_pct=${valueOrNA(pct(won1.filter(x=>x.won).length,won1.length))}; set1_deficits=${lost1.length}; set_deficit_survivability_pct=${valueOrNA(pct(lost1.filter(x=>x.won).length,lost1.length))}; game-level lead durability unavailable`;
+  if(code==="055"){if(recent.prior.length<3)return null;const upsetIdx=entries.map((x,i)=>x.won&&x.own!=null&&x.opp!=null&&x.opp<x.own?i:-1).filter(i=>i>0),post=upsetIdx.map(i=>entries[i-1]).filter(Boolean);return `rolling_recent5_win_pct=${valueOrNA(winRate(recent.recent))}; rolling_prior5_win_pct=${valueOrNA(winRate(recent.prior))}; rolling_recent5_avg_opponent_rank=${valueOrNA(rankAvg(recent.recent))}; rolling_prior5_avg_opponent_rank=${valueOrNA(rankAvg(recent.prior))}; post_upset_next_match_sample=${post.length}; post_upset_next_match_win_pct=${valueOrNA(winRate(post))}`;}
+  if(code==="056")return `official_match_sample=${entries.length}; score_complete_matches=${validSets.length}; set_sample=${setTotal}; ranked_opponent_sample=${entries.filter(x=>x.opp!=null).length}; sample sizes reported without inventing an adequacy threshold`;
+  if(code==="057"){const ages=entries.slice(0,10).map(x=>dayDiff(String(x.r.StartDate),asOfDate));return `latest_observation_age_days=${ages[0]??"NA"}; recent10_mean_age_days=${valueOrNA(mean(ages))}; match_sample_370d=${entries.length}; score_complete_sample=${validSets.length}; independent-confirmation ratio requires other source families`;
+  }
+  if(code==="064"){const q14=entries.filter(x=>dayDiff(String(x.r.StartDate),asOfDate)<=14&&/qual/i.test(String(x.r.round_name??""))).length,q28=entries.filter(x=>dayDiff(String(x.r.StartDate),asOfDate)<=28&&/qual/i.test(String(x.r.round_name??""))).length;return `qualifying_matches_last14=${q14}; qualifying_matches_last28=${q28}; qualifying_fatigue component observed; future draw-path difficulty unavailable`;}
+  if(code==="070"){const received=entries.map((x,i)=>({x,i})).filter(({x})=>x.won&&/w\/?o|walkover/i.test(String(x.r.scores??"")+' '+String(x.r.reason_code??"")));const post=received.map(({i})=>i>0?entries[i-1]:null).filter((x):x is typeof entries[number]=>!!x);if(!received.length)return null;return `walkovers_received=${received.length}; next_match_sample_after_walkover=${post.length}; next_match_win_pct_after_walkover=${valueOrNA(winRate(post))}; short-notice entry/support-team components unavailable`;}
+  if(code==="077"){const year=asOfDate.slice(0,4),season=entries.filter(x=>String(x.r.StartDate).startsWith(year));const slamDeep=entries.map((x,i)=>({x,i})).filter(({x})=>norm(x.r.tournament?.tournamentGroup?.level??x.r.TournamentLevel).includes("grand slam")&&/sf|semi|f|final/i.test(String(x.r.round_name??"")));const post=slamDeep.map(({i})=>i>0?entries[i-1]:null).filter((x):x is typeof entries[number]=>!!x);return `season_matches_observed=${season.length}; season_sets_observed=${season.reduce((n,x)=>n+x.sets.length,0)}; deep_slam_runs_observed=${slamDeep.length}; post_deep_slam_next_match_sample=${post.length}; post_deep_slam_next_match_win_pct=${valueOrNA(winRate(post))}; team-event/exhibition load unavailable`;}
+  if(code==="079"){const dates=entries.map(x=>String(x.r.StartDate).slice(0,10)),gaps=dates.slice(0,-1).map((d,i)=>dayDiff(dates[i+1],d)),returns=entries.slice(0,-1).filter((_,i)=>gaps[i]>=30),surfaces=entries.slice(0,10).map(x=>norm(x.r.Surface??x.r.tournament?.surface)).filter(Boolean),switches=surfaces.slice(1).filter((v,i)=>v!==surfaces[i]).length;const walk=entries.map((x,i)=>({x,i})).filter(({x})=>x.won&&/w\/?o|walkover/i.test(String(x.r.scores??"")+' '+String(x.r.reason_code??""))),post=walk.map(({i})=>i>0?entries[i-1]:null).filter((x):x is typeof entries[number]=>!!x);return `first_match_back_30d_layoff_sample=${returns.length}; first_match_back_win_pct=${valueOrNA(winRate(returns))}; recent10_surface_switches=${switches}; post_walkover_sample=${post.length}; post_walkover_win_pct=${valueOrNA(winRate(post))}; remaining coaching/medical/game-level differentiators unavailable`;}
+  if(code==="081"){const weekend=entries.filter(x=>[0,6].includes(new Date(`${String(x.r.StartDate).slice(0,10)}T00:00:00Z`).getUTCDay())),weekday=entries.filter(x=>![0,6].includes(new Date(`${String(x.r.StartDate).slice(0,10)}T00:00:00Z`).getUTCDay()));const dates=entries.map(x=>String(x.r.StartDate).slice(0,10)),consecutive=entries.filter((_,i)=>i<dates.length-1&&dayDiff(dates[i+1],dates[i])<=1);return `weekday_matches=${weekday.length}; weekday_win_pct=${valueOrNA(winRate(weekday))}; weekend_matches=${weekend.length}; weekend_win_pct=${valueOrNA(winRate(weekend))}; consecutive_day_matches=${consecutive.length}; consecutive_day_win_pct=${valueOrNA(winRate(consecutive))}; backstage/weather/staff-report components unavailable`;}
+  return null;
+}
+function extendedCommonOpponentValue(a:History|null,b:History|null,asOfDate:string){
+  if(!a||!b)return null;const aw=historyWindow(a,asOfDate),bw=historyWindow(b,asOfDate);const group=(h:History,rows:MatchRow[])=>{const m=new Map<string,{name:string;entries:Array<{r:MatchRow;won:boolean;sets:Array<[number,number]>}>}>();for(const r of rows){const k=norm(r.opponent?.fullName);if(!k)continue;const x=m.get(k)??{name:String(r.opponent?.fullName),entries:[]};x.entries.push({r,won:playerWon(r,h.playerId),sets:orientedSets(r,h.playerId)});m.set(k,x);}return m};const am=group(a,aw),bm=group(b,bw),keys=[...am.keys()].filter(k=>bm.has(k));if(!keys.length)return null;
+  const summarizeCommon=(h:History,m:ReturnType<typeof group>)=>{const es=keys.flatMap(k=>m.get(k)!.entries),sets=es.flatMap(x=>x.sets),set1=es.filter(x=>x.sets[0]),straight=es.filter(x=>x.won&&x.sets.length===2&&x.sets.every(([x,y])=>x>y)),d30=es.filter(x=>dayDiff(String(x.r.StartDate),asOfDate)<=30),d60=es.filter(x=>dayDiff(String(x.r.StartDate),asOfDate)<=60),d90=es.filter(x=>dayDiff(String(x.r.StartDate),asOfDate)<=90);return `direct_common_opponents=${keys.length}; common_matches=${es.length}; common_win_pct=${valueOrNA(pct(es.filter(x=>x.won).length,es.length))}; common_set_win_pct=${valueOrNA(pct(sets.filter(([x,y])=>x>y).length,sets.length))}; common_set1_win_pct=${valueOrNA(pct(set1.filter(x=>x.sets[0][0]>x.sets[0][1]).length,set1.length))}; common_straight_set_win_share_pct=${valueOrNA(pct(straight.length,es.length))}; common_matches_30d=${d30.length}; common_matches_60d=${d60.length}; common_matches_90d=${d90.length}; score/rank network components only`;};return {p1:summarizeCommon(a,am),p2:summarizeCommon(b,bm),sample:keys.length};
+}
+'''
+          marker='function refs(urls:string[]):SourceRef[]{'
+          if helper.strip() not in s:
+              if marker not in s: raise SystemExit('refs marker missing')
+              s=s.replace(marker,helper+'\n'+marker,1)
+
+          oldmap='const common=commonOpponentPair(a,b,asOfDate);return args.metrics.map(metric=>{const code=codeOf(metric.code);if(!SUPPORTED.has(code))return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:null,p2:null,evidence_family:null,reliability:90,unavailable_reason:"Official WTA match history is not an allowed source for this metric family",persistedSources:[]});const av=code==="007"?common?.p1??null:sa?metricValue(code,sa):null,bv=code==="007"?common?.p2??null:sb?metricValue(code,sb):null;const sources=[...(sa?refs(sa.sourceUrls):[]),...(sb?refs(sb.sourceUrls):[])].filter((s,i,x)=>x.findIndex(v=>v.url===s.url)===i);const sample=code==="007"?common?.sample??null:null;return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:av?{player:args.p1,value:av,treatment:"PARTIAL",sample:sample??sa?.matches??null,sources:sa?refs(sa.sourceUrls):[]}:null,p2:bv?{player:args.p2,value:bv,treatment:"PARTIAL",sample:sample??sb?.matches??null,sources:sb?refs(sb.sourceUrls):[]}:null,evidence_family:code==="007"?"WTA_OFFICIAL_COMMON_OPPONENT_NETWORK":"WTA_OFFICIAL_MATCH_HISTORY",reliability:90,unavailable_reason:av||bv?"Official WTA results reconstruct only explicitly supported match/set/ranking/workload components; game/point-only components remain unavailable.":"No qualifying WTA Main match-history component was available for this metric",persistedSources:sources});});'
+          newmap='const common=commonOpponentPair(a,b,asOfDate),extendedCommon=extendedCommonOpponentValue(a,b,asOfDate);return args.metrics.map(metric=>{const code=codeOf(metric.code);if(!SUPPORTED.has(code))return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:null,p2:null,evidence_family:null,reliability:90,unavailable_reason:"Official WTA match history is not an allowed source for this metric family",persistedSources:[]});const av=code==="007"?common?.p1??null:code==="031"?extendedCommon?.p1??null:(sa?metricValue(code,sa):null)??extendedSideMetricValue(code,a,asOfDate),bv=code==="007"?common?.p2??null:code==="031"?extendedCommon?.p2??null:(sb?metricValue(code,sb):null)??extendedSideMetricValue(code,b,asOfDate);const sources=[...(sa?refs(sa.sourceUrls):[]),...(sb?refs(sb.sourceUrls):[])].filter((s,i,x)=>x.findIndex(v=>v.url===s.url)===i);const sample=code==="007"?common?.sample??null:code==="031"?extendedCommon?.sample??null:null;return buildTrustedInternalFinding({metric_code:metric.code,players:{p1:args.p1,p2:args.p2},p1:av?{player:args.p1,value:av,treatment:"PARTIAL",sample:sample??sa?.matches??null,sources:sa?refs(sa.sourceUrls):[]}:null,p2:bv?{player:args.p2,value:bv,treatment:"PARTIAL",sample:sample??sb?.matches??null,sources:sb?refs(sb.sourceUrls):[]}:null,evidence_family:code==="007"||code==="031"?"WTA_OFFICIAL_COMMON_OPPONENT_NETWORK":"WTA_OFFICIAL_MATCH_HISTORY",reliability:90,unavailable_reason:av||bv?"Official WTA results reconstruct only explicitly supported match/set/ranking/workload components; unavailable game/point/news components are not inferred.":"No qualifying WTA Main match-history component was available for this metric",persistedSources:sources});});'
+          if oldmap not in s: raise SystemExit('mapping anchor missing')
+          s=s.replace(oldmap,newmap,1)
+          p.write_text(s)
+          PY
+          git diff --check
+      - name: Commit extensions
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/wta-official-match-evidence.server.ts
+          git commit -m 'Extend WTA score-derived evidence coverage'
+          git push origin HEAD:repair/evidence-coverage-phase30-wta-score-extensions
