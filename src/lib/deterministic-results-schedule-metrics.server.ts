@@ -3,6 +3,8 @@ import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 import { inferRepositoryMatchContext, repositoryResultsRows } from "./repository-results-history.server";
+import { deterministicHistoricalResultsMetric } from "./deterministic-historical-results-metrics.server";
+import { TASK18A_HISTORICAL_RESULTS_CODES } from "./historical-results-recovery";
 import {
   buildCanonicalEvidenceMatchIdentity,
   classifyEvidenceTourFamily,
@@ -14,41 +16,11 @@ import {
 } from "./evidence-match-identity";
 
 const db = supabaseAdmin as any;
-const SUPPORTED = new Set(["012", "028", "030", "064", "071", "076", "077", "081"]);
+const SCHEDULE_SUPPORTED = new Set(["012", "028", "030", "064", "071", "076", "077", "081"]);
+const HISTORICAL_SUPPORTED = new Set<string>(TASK18A_HISTORICAL_RESULTS_CODES);
 
-type Observation = {
-  id?: string;
-  source_id: string | null;
-  source_name: string | null;
-  source_url: string | null;
-  player_name: string | null;
-  opponent_name: string | null;
-  tournament: string | null;
-  event_date: string | null;
-  surface: string | null;
-  observation_type: string | null;
-  observation_key: string | null;
-  text_value: string | null;
-  sample_label: string | null;
-  raw_payload?: unknown;
-  provenance?: unknown;
-};
-
-type MatchHistoryRow = {
-  id: string;
-  canonical_key: string | null;
-  player1_name: string;
-  player2_name: string;
-  player1_id: string | null;
-  player2_id: string | null;
-  tournament_name: string | null;
-  event_level: string | null;
-  round: string | null;
-  scheduled_date: string | null;
-  scheduled_local_at: string | null;
-  scheduled_utc_at: string | null;
-};
-
+type Observation = {id?: string;source_id: string | null;source_name: string | null;source_url: string | null;player_name: string | null;opponent_name: string | null;tournament: string | null;event_date: string | null;surface: string | null;observation_type: string | null;observation_key: string | null;text_value: string | null;sample_label: string | null;raw_payload?: unknown;provenance?: unknown;};
+type MatchHistoryRow = {id: string;canonical_key: string | null;player1_name: string;player2_name: string;player1_id: string | null;player2_id: string | null;tournament_name: string | null;event_level: string | null;round: string | null;scheduled_date: string | null;scheduled_local_at: string | null;scheduled_utc_at: string | null;};
 type ScheduleContextKind = "DIRECT_EVENT_SCHEDULE" | "MATCH_HISTORY_SCHEDULE_CONTEXT" | "UNAVAILABLE";
 type PlayerComponents = { matches_14d:number;matches_30d:number;matches_52w:number;days_since_last_match:number|null;distinct_tournaments_30d:number;same_tournament_matches_5y:number;same_tournament_wins_5y:number;qualifying_matches_14d:number;scheduled_current_event_rows:number;match_history_schedule_rows:number;schedule_context_kind:ScheduleContextKind; };
 
@@ -71,7 +43,9 @@ function valueFor(code:string,c:PlayerComponents){switch(code){case"012":case"07
 async function playerObservationRows(p1:string,p2:string,start:string,asOfDate:string,select:string){const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];const results=await Promise.all(aliases.map(alias=>db.from("source_observations").select(select).gte("event_date",start).lte("event_date",asOfDate).ilike("player_name",`%${alias}%`).order("event_date",{ascending:false}).limit(2500)));if(results.some(result=>result.error))return null;const dedup=new Map<string,Observation>();for(const result of results)for(const row of(result.data??[])as Observation[]){const key=String(row.id??[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|"));dedup.set(key,row);}return[...dedup.values()];}
 
 export async function deterministicResultsScheduleMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;tournament?:string|null;round?:string|null;tour?:string|null;tourFamily?:EvidenceTourFamily|null;eventLevel?:string|null;context?:string|null;}):Promise<MetricFinding|null>{
-  const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;
+  const code=codeOf(args.metricCode);
+  if(HISTORICAL_SUPPORTED.has(code))return deterministicHistoricalResultsMetric({...args,metricCode:code});
+  if(!SCHEDULE_SUPPORTED.has(code))return null;
   const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-5);const startDate=start.toISOString().slice(0,10);
   const select="id,source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label,raw_payload,provenance";
   const aliases=[...new Set([...safeEvidenceAliases(args.p1,args.p2),...safeEvidenceAliases(args.p2,args.p1)])];
@@ -84,14 +58,10 @@ export async function deterministicResultsScheduleMetric(args:{metricCode:string
   const historyRows=(historyResult.data??[])as MatchHistoryRow[];
   if(!expectedFamily)return null;
   rows.push(...repositoryResultsRows(args.p1,expectedFamily,args.asOfDate),...repositoryResultsRows(args.p2,expectedFamily,args.asOfDate));
-  const seen=new Set<string>();
-  rows=rows.filter(row=>{const key=[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|");if(seen.has(key))return false;seen.add(key);return true;});
+  const seen=new Set<string>();rows=rows.filter(row=>{const key=[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|");if(seen.has(key))return false;seen.add(key);return true;});
   const playerRows=rows.filter(r=>(evidenceNameMatches(r.player_name,args.p1,args.p2)||evidenceNameMatches(r.player_name,args.p2,args.p1))&&evidenceTourCompatible(expectedFamily,observationTourFamily(r)));
-  const currentHistory=currentEventHistoryRows(historyRows,{p1:args.p1,p2:args.p2,asOfDate:args.asOfDate,tournament:args.tournament,round:args.round},expectedFamily);
-  if(currentHistory.length>1)return null;
-  if(!playerRows.length&&!currentHistory.length)return null;
-  const uniqueHistory=currentHistory.length===1?currentHistory[0]:null;
-  const canonicalMatch=buildCanonicalEvidenceMatchIdentity({player1StableId:uniqueHistory?.player1_id,player2StableId:uniqueHistory?.player2_id,player1Name:args.p1,player2Name:args.p2,tournament:args.tournament??uniqueHistory?.tournament_name,date:args.asOfDate,round:args.round??uniqueHistory?.round,tour:expectedFamily,eventLevel:args.eventLevel??uniqueHistory?.event_level});
+  const currentHistory=currentEventHistoryRows(historyRows,{p1:args.p1,p2:args.p2,asOfDate:args.asOfDate,tournament:args.tournament,round:args.round},expectedFamily);if(currentHistory.length>1)return null;if(!playerRows.length&&!currentHistory.length)return null;
+  const uniqueHistory=currentHistory.length===1?currentHistory[0]:null;const canonicalMatch=buildCanonicalEvidenceMatchIdentity({player1StableId:uniqueHistory?.player1_id,player2StableId:uniqueHistory?.player2_id,player1Name:args.p1,player2Name:args.p2,tournament:args.tournament??uniqueHistory?.tournament_name,date:args.asOfDate,round:args.round??uniqueHistory?.round,tour:expectedFamily,eventLevel:args.eventLevel??uniqueHistory?.event_level});
   const c1=componentsFor(args.p1,args.p2,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),c2=componentsFor(args.p2,args.p1,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),p1=valueFor(code,c1),p2=valueFor(code,c2);if(!p1||!p2)return null;
   return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse/repository components through ${args.asOfDate}; tour_family=${expectedFamily}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)};
 }

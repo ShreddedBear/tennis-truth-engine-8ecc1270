@@ -8,11 +8,11 @@ export type ObservationFamily =
 
 export type MetricSourcePolicy = { metric_code:string; allowed_families:ObservationFamily[]; sufficient_families:ObservationFamily[]; support_only_families?:ObservationFamily[] };
 
-// Task 13: source-family applicability across the complete 81-metric registry.
-// Applicability never awards coverage by itself; certified metric-specific
-// boundaries remain narrower where an existing contract already defines them.
-const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","007","008","009","010","011","012","018","020","023","026","027","028","030","031","034","035","037","038","039","041","045","055","064","068","071","076","077","080","081"]);
-const RANKING_METRICS=new Set(["014","020","023","038","039","047","055","062","068","069","080"]);
+// Task 13 source-family applicability, reconciled with Task 17 for Task 18A.
+// Applicability never awards coverage by itself; metric-specific recovery must
+// still prove pair-complete raw evidence and preserve treatment.
+const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","022","023","024","025","026","027","028","030","031","034","035","037","038","039","041","045","046","049","050","051","052","053","054","055","056","057","058","059","064","068","071","076","077","080","081"]);
+const RANKING_METRICS=new Set(["013","014","020","023","038","039","047","055","058","062","068","069","080"]);
 const MARKET_METRICS=new Set(["015","019","039","043","044","047","057","073"]);
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 const PBP_METRICS=new Set(["002","003","008","009","010","011","016","018","022","024","025","026","027","032","033","034","036","037","040","041","042","043","044","045","046","051","052","053","054","059","060","079"]);
