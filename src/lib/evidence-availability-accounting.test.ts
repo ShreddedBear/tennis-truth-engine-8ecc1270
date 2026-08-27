@@ -23,6 +23,9 @@ describe("evidence availability accounting", () => {
   it("distinguishes stranded evidence from genuine source absence", () => {
     expect(classifyEvidenceAvailability({pairCredited:false,p1Credited:false,p2Credited:false,observedFamilies:["POINT_BY_POINT"]})).toBe("PBP_EXISTS_NOT_WIRED");
     expect(classifyEvidenceAvailability({pairCredited:false,p1Credited:false,p2Credited:false,observedFamilies:["MARKET"]})).toBe("MARKET_EXISTS_NOT_WIRED");
+    // Bug fix regression: any other admissible family actually observed (RESULTS_SCHEDULE
+    // here) must also register as software loss, not fall through to genuine unavailability.
+    expect(classifyEvidenceAvailability({pairCredited:false,p1Credited:false,p2Credited:false,observedFamilies:["RESULTS_SCHEDULE"]})).toBe("OBSERVED_EVIDENCE_NOT_RECONSTRUCTED");
     expect(classifyEvidenceAvailability({pairCredited:false,p1Credited:false,p2Credited:false,repositoryEvidenceKnown:true,repositoryEvidenceExposed:false})).toBe("REPOSITORY_EVIDENCE_NOT_EXPOSED");
     expect(classifyEvidenceAvailability({pairCredited:false,p1Credited:false,p2Credited:false,genuineUnavailable:true})).toBe("GENUINELY_UNAVAILABLE");
   });
@@ -65,7 +68,12 @@ describe("evidence availability accounting", () => {
     expect(enriched.matches[0].availability_accounting.maximum_recoverable_ceiling_percent).toBe(100);
   });
 
-  it("does not infer PBP existence from source_expected alone", () => {
+  it("does not infer PBP existence from source_expected alone, but still counts the actually-observed family as software loss", () => {
+    // RESULTS_SCHEDULE was actually observed (real warehouse data), POINT_BY_POINT was
+    // only ever policy-expected -- this must not become PBP_EXISTS_NOT_WIRED (that would
+    // be inferring PBP from source_expected, which is not proof PBP evidence exists), but
+    // it also must not collapse to GENUINELY_UNAVAILABLE: real observed evidence exists
+    // and no permitted reconstruction recovered it, which is software loss.
     const result = runtimeClass({
       pair_credited:false,p1_credited:false,p2_credited:false,
       p1_treatment:"UNAVAILABLE",p2_treatment:"UNAVAILABLE",
@@ -73,19 +81,51 @@ describe("evidence availability accounting", () => {
       source_expected:["RESULTS_SCHEDULE","POINT_BY_POINT"],
       observed_families:["RESULTS_SCHEDULE"],
     });
-    expect(result.availabilityClass).toBe("GENUINELY_UNAVAILABLE");
-    expect(result.accounting.software_loss).toBe(0);
+    expect(result.availabilityClass).toBe("OBSERVED_EVIDENCE_NOT_RECONSTRUCTED");
+    expect(result.availabilityClass).not.toBe("PBP_EXISTS_NOT_WIRED");
+    expect(result.accounting.software_loss).toBe(1);
   });
 
-  it("does not infer market existence from source_expected alone", () => {
+  it("does not infer market existence from source_expected alone, but still counts the actually-observed family as software loss", () => {
     const result = runtimeClass({
       pair_credited:false,p1_credited:false,p2_credited:false,
       failure_bucket:"RECONSTRUCTION_FAILURE",
       source_expected:["RANKING","MARKET"],
       observed_families:["RANKING"],
     });
+    expect(result.availabilityClass).toBe("OBSERVED_EVIDENCE_NOT_RECONSTRUCTED");
+    expect(result.availabilityClass).not.toBe("MARKET_EXISTS_NOT_WIRED");
+    expect(result.accounting.software_loss).toBe(1);
+  });
+
+  it("still classifies genuinely unavailable when no admissible family was observed at all", () => {
+    const result = runtimeClass({
+      pair_credited:false,p1_credited:false,p2_credited:false,
+      failure_bucket:"RECONSTRUCTION_FAILURE",
+      source_expected:["RANKING","MARKET"],
+      observed_families:[],
+    });
     expect(result.availabilityClass).toBe("GENUINELY_UNAVAILABLE");
     expect(result.accounting.software_loss).toBe(0);
+  });
+
+  // Direct regression test for the reported contradiction: a RECONSTRUCTION_FAILURE metric
+  // with real ingested warehouse data (observed_families containing RESULTS_SCHEDULE,
+  // warehouse_observation_count > 0) must contribute to software_loss_percent, not silently
+  // report as if the underlying fact were genuinely unavailable.
+  it("counts a RECONSTRUCTION_FAILURE metric with real RESULTS_SCHEDULE observations as software loss, not genuine unavailability", () => {
+    const result = runtimeClass({
+      metric_code:"005",
+      pair_credited:false,p1_credited:false,p2_credited:false,
+      failure_bucket:"RECONSTRUCTION_FAILURE",
+      source_expected:["RESULTS_SCHEDULE"],
+      observed_families:["RESULTS_SCHEDULE"],
+      warehouse_observation_count:80,
+    });
+    expect(result.availabilityClass).toBe("OBSERVED_EVIDENCE_NOT_RECONSTRUCTED");
+    expect(result.accounting.genuinely_unavailable).toBe(0);
+    expect(result.accounting.software_loss).toBe(1);
+    expect(result.accounting.software_loss_percent).toBe(100);
   });
 
   it("classifies PBP software loss only when PBP was actually observed", () => {

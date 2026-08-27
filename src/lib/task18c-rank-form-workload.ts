@@ -4,11 +4,16 @@ import type { EvidenceTourFamily } from "./evidence-match-identity";
 export type HistoryEntry = [unknown, unknown, unknown, unknown, unknown, unknown, unknown];
 export type HistoryLane = Record<string, HistoryEntry[]>;
 // Task 20 reconciliation: this file previously also targeted "005", "007", "021", and
-// "061". Real 005 ("Interpretation rules") and 061 ("Final Advanced Tests") are both
-// PROCESS_META -- reruns/weighting guidance for the model's own prediction, not player
-// facts -- yet both were computing player-oriented "form"/"workload" evidence, a direct
-// violation of Decision 1's "prevent recovery engines from writing player evidence into
-// them." Real 007 ("Common-Opponent Network") has nothing to do with the workload content
+// "061". That was based on a stale reading of the catalog since corrected: real 005 is
+// "Recent Form" (a normal reconstructable player metric, since built out separately in
+// historical-results-recovery.ts) and real 061 ("Final Advanced Tests") is
+// UNKNOWN_REQUIRES_REVIEW, not PROCESS_META -- see metric-classification.ts's UNKNOWN
+// array, which keeps it in the player denominator pending a human decision on whether to
+// split it (two of its three defined sub-items are meta model-robustness re-runs, one is a
+// legitimately reconstructable Historical Twin Match Search). Neither 005 nor 061 belongs
+// in this file regardless: 005 already has its own dedicated engine, and 061's one
+// reconstructable sub-item has no engine yet and is out of this file's scope (rank/form/Elo
+// content), not excluded from the player universe. Real 007 ("Common-Opponent Network") has nothing to do with the workload content
 // (matches_7/14/30d, days since last match) that was filed under it here; that content is
 // an exact match for real code 012 ("Fatigue/Workload"), which deterministic-results-schedule-metrics.server.ts
 // already computes correctly and completely, so retargeting it here would only recreate a
