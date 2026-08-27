@@ -54,13 +54,34 @@ export const STRESS_TESTS = [
   ["ST10", "Physical / conditions shock"],
 ] as const;
 
+// Every key here is prediction-engine output -- guidance/reference only, read exclusively
+// through the same firewalled path matrix_wp already uses (gated behind
+// independent_decision_committed_at / matrix_revealed_at in match.$matchId.tsx). None of
+// these are ever passed into digestFrom()/deps.research.metrics() for the 81-metric
+// research call -- see summary-parser.test.ts's firewall-isolation guardrail.
 export const MATRIX_FIELDS = [
   "matrix_predicted_winner",
   "matrix_wp",
+  "matrix_wp_range",
+  "matrix_confidence_label",
+  "matrix_agreement_label",
   "monte_carlo_winner",
   "monte_carlo_prob",
   "monte_carlo_range",
+  "monte_carlo_expected_sets",
+  "monte_carlo_simulations",
+  "monte_carlo_set_score_distribution",
   "matrix_elo",
+  "matrix_elo_detail",
+  "matrix_serve_return",
+  "matrix_serve_return_detail",
+  "matrix_recent_form",
+  "matrix_recent_form_detail",
+  "matrix_head_to_head",
+  "matrix_head_to_head_detail",
+  "matrix_fatigue_index_detail",
+  "matrix_rest_travel_injury_detail",
+  "matrix_style_matchup_detail",
   "general_model",
   "specialist_model",
   "model_agreement",

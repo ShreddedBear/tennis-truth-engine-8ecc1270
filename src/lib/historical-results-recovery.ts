@@ -1,7 +1,75 @@
 import type { Treatment } from "./audit-pipeline";
 
+// Task 20 reconciliation:
+// - "024" was retargeted to "008" (see the code==="008" branch below). Real code 024
+//   is "Hidden Performance Quality" (metric-certification.ts already has a correctly
+//   real-catalog-aligned policy for it -- point/game-level performance, expected vs.
+//   actual conversion, shot-quality inputs); a deciding-set win rate has nothing to do
+//   with that, but is an exact bullet match for real code 008 ("Set Profile":
+//   "Set-3/Deciding-Set Win Rate"), which had no engine of its own.
+// - "022" and "025" were removed with no retarget. Real 022 ("Serve/Return Shot-Level
+//   Efficiency") and 025 ("Match Deterioration Metrics") both already have correctly
+//   real-catalog-aligned metric-certification.ts policies requiring shot-level/serve-
+//   decay data this repository does not have; their best plausible real homes (the
+//   H2H/tiebreak content computed here) are either non-existent (022) or already
+//   claimed and shadowed by higher-priority PBP evidence for the same code (025 ->
+//   009, whose "Pressure-Point Performance" bullet already wins via Task 18B). Removing
+//   them here lets both correctly fall through to their existing, stricter
+//   certification-gated handling instead of being shadowed by this file's mismatched
+//   credit, consistent with the code 069 fix.
+// - Second reconciliation pass: "006"/"049"/"050"/"056"/"058"/"059" were PROCESS_META
+//   codes (Decision 1's excluded set) that this file was nonetheless computing player
+//   evidence for -- a direct violation of "prevent recovery engines from writing player
+//   evidence into them." Removed outright; audit-pipeline.ts already marks them EXCLUDED
+//   and never sends them to research, so this also closes the silent-re-entry gap Decision
+//   1 asked to guard against at the source, not just at the pipeline boundary.
+// - Old "013" (common-opponent quality win rate) retargeted to real "007" ("Common-Opponent
+//   Network" -- exact bullet match: "Direct Common Opponents"/"Who Beat/Lost to the Same
+//   Players"). This freed real code "013" ("Availability": injuries, withdrawals,
+//   *retirements*, medical timeouts, layoffs) for the old "057" branch's retirement/walkover
+//   rate, which is an exact match for 013's "Retirements" bullet and was previously
+//   stranded under 057 -- a PROCESS_META code ("Evidence Freshness & Confirmation") that
+//   could never legitimately host it.
+// - Old "023"/"054"/"055" branches all computed the same underlying stat (6-0/blowout set
+//   frequency) under three different mismatched codes. Real 023 ("Matchup-Adjusted
+//   Metrics") is serve/return style-compatibility; real 054 ("Additional Shot-Level
+//   Efficiency") and 055 ("Trajectory / Rolling Metrics") need shot-tracking and
+//   match-to-match trend data this file doesn't have. The one bullet this file's data does
+//   satisfy -- real code 017 ("Shot & Rally Metrics") -> "Set-Level Dominance": "how often a
+//   player wins sets by lopsided scores (6-0/6-1/6-2) versus needing 7-5 or a tiebreak" --
+//   is an exact match, so all three were merged into a single 017 entry (kept PARTIAL: only
+//   one of 017's several bullets is satisfied).
+// - "045" (Favorite Fragility Under Resistance), "046" (Match-State Elo), "051"
+//   (Opponent-Specific Set/Match Probabilities), "052" (Entropy & Lead Durability), old
+//   "053" (Pressure & Clean-Game Metrics -- already correctly claimed by
+//   pbp-score-state-recovery.ts's retargeted 079), and "080" (Common-Opponent &
+//   Opponent-Caliber Metrics) were removed with no retarget: each needs data this file does
+//   not have (in-match state-conditioned performance, conditional Elo modeling,
+//   opponent-specific probability modeling, scoreline entropy/lead-durability calculus, or
+//   divergent-outcome/caliber-gap opponent comparison), and the plain match-record
+//   aggregates this file was computing for them (three-set frequency, surface win rate,
+//   average sets lost, average games per set, straight-set-win-rate-of-wins, and
+//   outcome/margin variance respectively) do not satisfy any of their real bullets.
+// - Old "006" branch (plain head-to-head win rate) was also removed: real code 006 is
+//   PROCESS_META, and a search of the full 81-heading catalog found no other real code
+//   whose bullets describe a general adult-tour head-to-head record (the only H2H bullet
+//   anywhere, "Junior/ITF-Era Head-to-Head" under real code 072 "Matchup Nuance", is a
+//   narrow pre-tour-level carve-out already owned by metric-certification.ts and is not a
+//   match for this file's general H2H computation). This is a genuine, honestly-reported
+//   gap, not a bug: plain head-to-head record currently has no legitimate code to attach
+//   to and is UNAVAILABLE by omission rather than reclassified into an unrelated metric.
+// - "068" added (NO_SOURCE denominator-eligibility audit): real 068 is "Streaks /
+//   Milestones". "Current Win/Loss Streak Length" and "Longest Win Streak This Season"
+//   (defined here as the calendar year of the match date -- this data model has no other
+//   season boundary) are directly derivable from the same chronological completed-match
+//   rows every other code here already uses. "Tournament Debut Status" is also derivable,
+//   given the current match's own tournament name (a new optional `tournament` arg,
+//   threaded through from deterministic-historical-results-metrics.server.ts). "Protected-
+//   Ranking Status" is NOT derivable -- this row type carries no ranking-protection flag
+//   at all -- so it is honestly left uncovered; treatment stays PARTIAL.
+// 7 -> 8 codes: ["007","008","010","011","013","017","020","068"].
 export const TASK18A_HISTORICAL_RESULTS_CODES = [
-  "006","010","011","013","020","022","023","024","025","045","046","049","050","051","052","053","054","055","056","057","058","059","080",
+  "007","008","010","011","013","017","020","068",
 ] as const;
 
 export type Task18aMetricCode = (typeof TASK18A_HISTORICAL_RESULTS_CODES)[number];
@@ -60,10 +128,12 @@ function rankedRecord(rows:HistoricalResultRow[]){
 }
 function recent(rows:HistoricalResultRow[],asOfDate:string,days:number){return rows.filter(r=>{const d=dayDiff(r.date,asOfDate);return d>0&&d<=days;});}
 function decidingRows(rows:HistoricalResultRow[]){return completed(rows).filter(r=>{const t=totalSets(r);if(t===null)return false;if(r.bestOf===3)return t===3;if(r.bestOf===5)return t===5;return false;});}
-function bo3Rows(rows:HistoricalResultRow[]){return completed(rows).filter(r=>r.bestOf===3&&totalSets(r)!==null);}
 function statusRows(rows:HistoricalResultRow[]){return rows.filter(r=>r.status!==null&&r.status.trim()!=="");}
+const tournamentKey=(v:string|null|undefined)=>String(v??"").trim().toLowerCase();
+function longestWinStreak(rowsAsc:HistoricalResultRow[]){let run=0,longest=0;for(const r of rowsAsc){if(r.won){run++;longest=Math.max(longest,run);}else run=0;}return longest;}
+function currentStreak(rowsDesc:HistoricalResultRow[]){if(!rowsDesc.length)return null;const dir=rowsDesc[0].won;let len=0;for(const r of rowsDesc){if(r.won!==dir)break;len++;}return{won:dir,length:len};}
 
-export function deriveHistoricalResultMetric(args:{code:string;player:string;opponent:string;rows:HistoricalResultRow[];asOfDate:string;surface?:string|null;}):HistoricalDerivation|null {
+export function deriveHistoricalResultMetric(args:{code:string;player:string;opponent:string;rows:HistoricalResultRow[];asOfDate:string;surface?:string|null;tournament?:string|null;}):HistoricalDerivation|null {
   const code=String(args.code).padStart(3,"0") as Task18aMetricCode;
   if(!(TASK18A_HISTORICAL_RESULTS_CODES as readonly string[]).includes(code))return null;
   const history=args.rows.filter(r=>r.player===args.player&&r.date<args.asOfDate);
@@ -74,10 +144,6 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
   const score=scoreSummary(history);
   const reconstruction=(value:string,sampleSize:number,rawInputs:Record<string,unknown>,transformation:string,treatment:Treatment="RECONSTRUCTED"):HistoricalDerivation=>({value,treatment,sampleSize,rawInputs,transformation});
 
-  if(code==="006"){
-    const h2h=complete.filter(r=>r.opponent===args.opponent);if(!h2h.length)return null;const w=h2h.filter(r=>r.won).length;
-    return reconstruction(`h2h_matches=${h2h.length}; h2h_wins=${w}; h2h_losses=${h2h.length-w}; h2h_win_pct=${pct(w,h2h.length)??"NA"}`,h2h.length,{historical_matches_scanned:complete.length,canonical_opponent:args.opponent},"Filter canonical prior results to the opponent pair and count realized winner orientation.");
-  }
   if(code==="010"){
     if(!score.matches)return null;const same=withSurface(scoredRows,args.surface);const ss=scoreSummary(same);
     return reconstruction(`scored_wins=${score.wins}; straight_set_wins=${score.straightWins}; straight_set_win_pct=${score.straightWinPct??"NA"}; same_surface_straight_set_win_pct=${ss.straightWinPct??"NA"}`,score.matches,{scored_matches:score.matches,surface:args.surface??null},"Classify completed wins with zero sets lost; separately repeat on the target surface when present.");
@@ -86,59 +152,31 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
     if(!score.matches||!score.sets)return null;const winSeries=complete.map(r=>r.won?1:0);const setMargins=scoredRows.map(r=>r.setsFor!-r.setsAgainst!);
     return reconstruction(`match_win_pct=${record.winPct??"NA"}; result_variance=${variance(winSeries)}; set_margin_variance=${variance(setMargins)}; straight_win_pct=${score.straightWinPct??"NA"}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}; tiebreak_set_pct=${pct(score.tiebreakSets,score.sets)??"NA"}`,score.matches,{completed_matches:complete.length,scored_matches:score.matches,set_count:score.sets},"Measure floor/volatility from realized match outcomes and observed game-level set margins, straight-set, blowout and tiebreak distributions. Full reconstruction requires preserved per-set game scores.");
   }
-  if(code==="013"){
+  if(code==="007"){
     const opponentHistory=args.rows.filter(r=>r.player===args.opponent&&r.date<args.asOfDate&&isCompleted(r));const theirs=new Set(opponentHistory.map(r=>r.opponent));const common=complete.filter(r=>r.opponent!==args.opponent&&theirs.has(r.opponent)&&quality(r)!==null);if(!common.length)return null;const w=common.filter(r=>r.won).length;
-    return reconstruction(`ranked_common_opponent_matches=${common.length}; wins=${w}; win_pct=${pct(w,common.length)??"NA"}; common_opponents=${new Set(common.map(r=>r.opponent)).size}`,common.length,{common_opponents:[...new Set(common.map(r=>r.opponent))].slice(0,50),quality_labels:common.slice(0,50).map(r=>quality(r))},"Intersect canonical opponent identities across both players, require ranking/Elo quality evidence, then aggregate this player's prior results.");
+    return reconstruction(`ranked_common_opponent_matches=${common.length}; wins=${w}; win_pct=${pct(w,common.length)??"NA"}; common_opponents=${new Set(common.map(r=>r.opponent)).size}`,common.length,{common_opponents:[...new Set(common.map(r=>r.opponent))].slice(0,50),quality_labels:common.slice(0,50).map(r=>quality(r))},"Intersect canonical opponent identities across both players, require ranking/Elo quality evidence, then aggregate this player's prior results against those shared opponents. Retargeted from the mismatched code 013 to real code 007 (\"Common-Opponent Network\").");
   }
   if(code==="020"){
     const r=recent(history,args.asOfDate,90).filter(x=>isCompleted(x)&&quality(x)!==null);if(!r.length)return null;const q=rankedRecord(r);const w=r.filter(x=>x.won).length;
     return reconstruction(`window_days=90; quality_observed_matches=${r.length}; wins=${w}; win_pct=${pct(w,r.length)??"NA"}; bands=${JSON.stringify(q.bands)}`,r.length,{window_start_days:90,quality_observations:r.map(x=>({date:x.date,opponent:x.opponent,quality:quality(x),surface:x.surface,won:x.won})).slice(0,100)},"Use only prior 90-day realized results with observed opponent rank/Elo; preserve quality bands rather than imputing missing quality.");
   }
-  if(code==="022"){
-    const s=surfaceKey(args.surface);if(!s)return null;const h=complete.filter(r=>r.opponent===args.opponent&&surfaceKey(r.surface)===s);if(!h.length)return null;const w=h.filter(r=>r.won).length;
-    return reconstruction(`surface=${s}; h2h_matches=${h.length}; h2h_wins=${w}; h2h_win_pct=${pct(w,h.length)??"NA"}`,h.length,{surface:s,h2h_dates:h.map(r=>r.date)},"Filter canonical prior H2H rows to the target surface; do not borrow other-surface meetings.");
+  if(code==="017"){
+    if(!score.sets)return null;return reconstruction(`sets=${score.sets}; bagel_sets=${score.bagelSets}; bagel_set_pct=${pct(score.bagelSets,score.sets)??"NA"}; blowout_sets=${score.blowoutSets}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}`,score.matches,{scored_matches:score.matches,set_count:score.sets},"Parse player-oriented set scores; count 6-0 sets and sets with a game margin of at least four. Retargeted/merged from the mismatched codes 023/054/055 to real code 017 (\"Shot & Rally Metrics\"), satisfying only its \"Set-Level Dominance\" bullet; the other 017 bullets (forehand/backhand, net play, hold vulnerability, etc.) require shot-level data this file does not have, so treatment stays PARTIAL.","PARTIAL");
   }
-  if(code==="023"){
-    if(!score.sets)return null;return reconstruction(`sets=${score.sets}; bagel_sets=${score.bagelSets}; bagel_set_pct=${pct(score.bagelSets,score.sets)??"NA"}; blowout_sets=${score.blowoutSets}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}`,score.matches,{scored_matches:score.matches,set_count:score.sets},"Parse player-oriented set scores; count 6-0 sets and sets with a game margin of at least four.");
-  }
-  if(code==="024"){
+  if(code==="008"){
     const d=decidingRows(history);if(!d.length)return null;const w=d.filter(r=>r.won).length;return reconstruction(`deciding_matches=${d.length}; deciding_wins=${w}; deciding_set_win_pct=${pct(w,d.length)??"NA"}`,d.length,{best_of_observed:d.map(r=>r.bestOf),set_totals:d.map(totalSets)},"Use only matches whose observed best-of format and set total prove that a deciding set was played.");
   }
-  if(code==="025"){
-    const sets=scoredRows.flatMap(r=>r.setScores.map(s=>({score:s,wonSet:s[0]>s[1]}))).filter(x=>tiebreakSet(x.score));if(!sets.length)return null;const w=sets.filter(x=>x.wonSet).length;return reconstruction(`tiebreak_sets=${sets.length}; tiebreak_sets_won=${w}; tiebreak_win_pct=${pct(w,sets.length)??"NA"}`,sets.length,{tiebreak_scores:sets.slice(0,100).map(x=>x.score)},"Identify 7-6/6-7 player-oriented set scores and aggregate realized tiebreak-set outcomes.");
+  if(code==="013"){
+    const sr=statusRows(history);if(!sr.length)return null;const rw=sr.filter(r=>/(retir|walkover|w\/o|wo\b)/i.test(r.status??"")).length;return reconstruction(`status_observed_matches=${sr.length}; retirement_or_walkover=${rw}; observed_status_rate_pct=${pct(rw,sr.length)??"NA"}`,sr.length,{status_values:sr.map(r=>r.status).slice(0,100)},"Use only rows with an explicitly preserved status field; because status preservation is incomplete, keep treatment PARTIAL. Retargeted from the mismatched code 057 to real code 013 (\"Availability\"), whose \"Retirements\" bullet is an exact match.","PARTIAL");
   }
-  if(code==="045"){
-    const b=bo3Rows(history);if(!b.length)return null;const three=b.filter(r=>totalSets(r)===3).length;return reconstruction(`completed_bo3_matches=${b.length}; three_set_matches=${three}; three_set_frequency_pct=${pct(three,b.length)??"NA"}`,b.length,{best_of:3,set_totals:b.map(totalSets)},"Restrict denominator to observed best-of-three matches and count those lasting three sets.");
-  }
-  if(code==="046"){
-    const s=surfaceKey(args.surface);if(!s)return null;const r=complete.filter(x=>surfaceKey(x.surface)===s);if(!r.length)return null;const w=r.filter(x=>x.won).length;return reconstruction(`surface=${s}; matches=${r.length}; wins=${w}; win_pct=${pct(w,r.length)??"NA"}`,r.length,{surface:s},"Filter completed historical results to the target surface and aggregate wins/losses.");
-  }
-  if(code==="049"||code==="050"){
-    const s=code==="049"?"clay":"grass";const r=complete.filter(x=>surfaceKey(x.surface).includes(s));if(!r.length)return null;const w=r.filter(x=>x.won).length;return reconstruction(`surface=${s}; matches=${r.length}; wins=${w}; win_pct=${pct(w,r.length)??"NA"}`,r.length,{surface:s},`Filter completed historical results to ${s} and aggregate realized wins/losses.`);
-  }
-  if(code==="051"){
-    if(!score.matches)return null;return reconstruction(`scored_matches=${score.matches}; sets_lost_per_match=${score.setsLostPerMatch??"NA"}`,score.matches,{sets_against:scoredRows.map(r=>r.setsAgainst)},"Average observed sets lost across completed matches with non-null score summaries.");
-  }
-  if(code==="052"){
-    if(!score.sets||score.gamesPerSet===null)return null;return reconstruction(`scored_sets=${score.sets}; avg_games_per_set=${score.gamesPerSet}`,score.sets,{set_scores:scoredRows.flatMap(r=>r.setScores).slice(0,200)},"Sum games from player-oriented set score pairs and divide by observed set count.");
-  }
-  if(code==="053"){
-    const b=bo3Rows(history).filter(r=>r.won===true);if(!b.length)return null;const straight=b.filter(r=>r.setsAgainst===0||totalSets(r)===2).length;return reconstruction(`completed_bo3_wins=${b.length}; straight_set_wins=${straight}; straight_set_win_pct=${pct(straight,b.length)??"NA"}`,b.length,{best_of:3},"Restrict to completed best-of-three wins and count wins completed without losing a set.");
-  }
-  if(code==="054"||code==="055"||code==="056"){
-    if(!score.sets)return null;const numerator=code==="054"?score.bagelSets:code==="055"?score.blowoutSets:score.tiebreakSets;const label=code==="054"?"six_zero_set_rate_pct":code==="055"?"blowout_set_rate_pct":"tiebreaks_per_match";const value=code==="056"?Number((numerator/score.matches).toFixed(3)):pct(numerator,score.sets);return reconstruction(`scored_matches=${score.matches}; scored_sets=${score.sets}; ${label}=${value??"NA"}`,score.matches,{set_count:score.sets,numerator},code==="054"?"Count observed 6-0/0-6 set scores over all observed sets.":code==="055"?"Count observed sets with a game margin of at least four over all observed sets.":"Count observed 7-6/6-7 tiebreak sets per completed scored match.");
-  }
-  if(code==="057"){
-    const sr=statusRows(history);if(!sr.length)return null;const rw=sr.filter(r=>/(retir|walkover|w\/o|wo\b)/i.test(r.status??"")).length;return reconstruction(`status_observed_matches=${sr.length}; retirement_or_walkover=${rw}; observed_status_rate_pct=${pct(rw,sr.length)??"NA"}`,sr.length,{status_values:sr.map(r=>r.status).slice(0,100)},"Use only rows with an explicitly preserved status field; because status preservation is incomplete, keep treatment PARTIAL.","PARTIAL");
-  }
-  if(code==="058"){
-    const q=rankedRecord(history);if(!q.matches)return null;return reconstruction(`quality_observed_matches=${q.matches}; bands=${JSON.stringify(q.bands)}`,q.matches,{quality_bands:q.bands},"Group completed results by observed opponent ranking/Elo bands; never impute missing opponent quality.");
-  }
-  if(code==="059"){
-    const dates=[...new Set(complete.map(r=>r.date))].sort();if(dates.length<2)return null;const gaps=dates.slice(1).map((d,i)=>dayDiff(dates[i],d));const one=gaps.filter(x=>x<=1).length,two=gaps.filter(x=>x<=2).length;return reconstruction(`transitions=${gaps.length}; rest_le_1d=${one}; rest_le_1d_rate_pct=${pct(one,gaps.length)??"NA"}; rest_le_2d=${two}; rest_le_2d_rate_pct=${pct(two,gaps.length)??"NA"}`,gaps.length,{chronological_dates:dates.slice(-200),rest_day_gaps:gaps.slice(-200)},"Sort unique prior match dates chronologically and calculate day gaps; report one-day and two-day shortfall rates without treating missing dates as zero rest.");
-  }
-  if(code==="080"){
-    if(!score.matches||!score.sets)return null;const winSeries=complete.map(r=>r.won?1:0),setMargins=scoredRows.map(r=>r.setsFor!-r.setsAgainst!),gameMargins=scoredRows.flatMap(r=>r.setScores.map(([a,b])=>a-b));return reconstruction(`completed_matches=${complete.length}; result_variance=${variance(winSeries)}; set_margin_variance=${variance(setMargins)}; game_margin_variance=${variance(gameMargins)}`,score.matches,{match_outcomes:winSeries.slice(-200),set_margins:setMargins.slice(-200),game_margins:gameMargins.slice(-400)},"Compute population variance of prior binary match outcomes and observed set/game margins. Full reconstruction requires preserved per-set game scores; missing score components are never zero-filled.");
+  if(code==="068"){
+    if(!complete.length)return null;
+    const desc=[...complete].sort((a,b)=>b.date.localeCompare(a.date));const asc=[...complete].sort((a,b)=>a.date.localeCompare(b.date));
+    const cur=currentStreak(desc);if(!cur)return null;
+    const season=args.asOfDate.slice(0,4),seasonRows=asc.filter(r=>r.date.slice(0,4)===season);
+    const longest=longestWinStreak(seasonRows);
+    const tKey=tournamentKey(args.tournament);const debut=tKey?!history.some(r=>tournamentKey(r.tournament)===tKey):null;
+    return reconstruction(`current_streak=${cur.won?"W":"L"}${cur.length}; longest_win_streak_${season}=${longest}; season_matches=${seasonRows.length}${debut===null?"":`; tournament_debut=${debut}`}`,complete.length,{completed_matches:complete.length,season,season_matches:seasonRows.length,tournament:args.tournament??null},"Sort completed prior results chronologically; the current streak is the unbroken run of identical results ending at the most recent prior match, and the longest win streak scans consecutive wins within the calendar year of the target date. Tournament debut status compares the current match's tournament name against every prior tournament played (only reported when a tournament name is supplied). Protected-ranking status is not covered -- this row type carries no ranking-protection flag -- so treatment stays PARTIAL.","PARTIAL");
   }
   return null;
 }

@@ -5,7 +5,7 @@ import { metricAllowsObservation } from "./metric-source-family-policy";
 import { TASK18B_METRIC_CODES } from "./pbp-score-state-recovery";
 
 const db = supabaseAdmin as any;
-const LEGACY_SUPPORTED = new Set(["016","024","025","033","036","040","042","043","044","060","079"]);
+const LEGACY_SUPPORTED = new Set(["016","024","025","033","042","043","044","060"]);
 const SUPPORTED = new Set([...LEGACY_SUPPORTED, ...TASK18B_METRIC_CODES]);
 
 type Row={source_id:string|null;source_name:string|null;source_url:string|null;player_name:string|null;opponent_name:string|null;event_date:string|null;observation_type:string|null;observation_key:string|null;numeric_value:number|null;text_value:string|null;sample_label:string|null};
@@ -16,11 +16,21 @@ function sourceRefs(rows:Row[]):SourceRef[]{const seen=new Set<string>(),out:Sou
 function warehouseSummary(player:string,opponent:string,rows:Row[]){const side=rows.filter(row=>evidenceNameMatches(row.player_name,player,opponent));if(!side.length)return null;const numeric=side.map(row=>Number(row.numeric_value)).filter(Number.isFinite),keys=[...new Set(side.map(row=>String(row.observation_key??"")).filter(Boolean))].slice(0,12),dates=side.map(row=>row.event_date).filter((v):v is string=>Boolean(v)).sort();return{observations:side.length,numeric_observations:numeric.length,avg_numeric_value:numeric.length?numeric.reduce((a,b)=>a+b,0)/numeric.length:null,observed_keys:keys,first_date:dates[0]??null,last_date:dates.at(-1)??null};}
 function warehouseText(v:ReturnType<typeof warehouseSummary>){if(!v)return null;return `pbp_observations=${v.observations}; numeric_observations=${v.numeric_observations}; avg_numeric=${v.avg_numeric_value==null?"NA":v.avg_numeric_value.toFixed(4)}; keys=${v.observed_keys.join(",")||"NA"}; window=${v.first_date??"NA"}→${v.last_date??"NA"}`;}
 function metricText(rows:PacketObservation[],code:string){const values=rows.map(r=>r.value?.derived?.[code]).filter(Boolean);if(!values.length)return null;const last=values.at(-1);return `reconstructed_matches=${values.length}; treatment=${last.treatment}; output=${JSON.stringify(last.value)}; raw_fields=${last.raw_fields.join(",")}; transformation=${last.transformation}`;}
+// Aggregate-only tours (currently WTA Challenger/WTA 125) never populate `value.derived` —
+// they retain set/game/point totals but not server-oriented point chronology, so per-metric
+// score-state reconstruction is impossible. Each such row marks itself with
+// `task18b_raw_fields_available: false`. This is a conservative, capped-at-PARTIAL fallback;
+// it must never run for rows that do carry `derived` data (those keep full treatment above).
+function aggregateOnlyText(rows:PacketObservation[]){const aggregate=rows.filter(r=>r.value?.task18b_raw_fields_available===false);if(!aggregate.length)return null;const points=aggregate.map(r=>Number(r.value?.total_points)).filter(Number.isFinite),games=aggregate.map(r=>Number(r.value?.total_games)).filter(Number.isFinite);return `point_rows=${aggregate.length}; total_points_observed=${points.length}; total_games_observed=${games.length}; aggregate_only=true`;}
 
 export function deterministicPbpMetricFromPacket(args:{metricCode:unknown;p1:string;p2:string;asOfDate:string;packet:Record<string,unknown>}):MetricFinding|null{
  const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const entry=args.packet?.[code] as {observations?:PacketObservation[]}|undefined;const rows=Array.isArray(entry?.observations)?entry!.observations!.filter(r=>r?.family==="POINT_BY_POINT"&&(!r.event_date||r.event_date<=args.asOfDate)):[];if(!rows.length)return null;
- const p1Rows=rows.filter(r=>evidenceNameMatches(r.player,args.p1,args.p2)&&Boolean(r.value?.derived?.[code]));const p2Rows=rows.filter(r=>evidenceNameMatches(r.player,args.p2,args.p1)&&Boolean(r.value?.derived?.[code]));const p1=metricText(p1Rows,code),p2=metricText(p2Rows,code);if(!p1&&!p2)return null;
- const p1Treatment=p1Rows.at(-1)?.value?.derived?.[code]?.treatment??"UNAVAILABLE",p2Treatment=p2Rows.at(-1)?.value?.derived?.[code]?.treatment??"UNAVAILABLE";const seen=new Set<string>(),sources:SourceRef[]=[];for(const row of rows){const sourceName=String(row.source??"").trim();if(!sourceName)continue;const url=row.url?String(row.url):null,key=`${sourceName}|${url??""}`;if(seen.has(key))continue;seen.add(key);sources.push({source_name:sourceName,url,retrieved_at:null});}
+ const p1Rows=rows.filter(r=>evidenceNameMatches(r.player,args.p1,args.p2)&&Boolean(r.value?.derived?.[code]));const p2Rows=rows.filter(r=>evidenceNameMatches(r.player,args.p2,args.p1)&&Boolean(r.value?.derived?.[code]));let p1=metricText(p1Rows,code),p2=metricText(p2Rows,code);
+ let p1Treatment=p1Rows.at(-1)?.value?.derived?.[code]?.treatment??"UNAVAILABLE",p2Treatment=p2Rows.at(-1)?.value?.derived?.[code]?.treatment??"UNAVAILABLE";
+ if(!p1){const agg=aggregateOnlyText(rows.filter(r=>evidenceNameMatches(r.player,args.p1,args.p2)));if(agg){p1=agg;p1Treatment="PARTIAL";}}
+ if(!p2){const agg=aggregateOnlyText(rows.filter(r=>evidenceNameMatches(r.player,args.p2,args.p1)));if(agg){p2=agg;p2Treatment="PARTIAL";}}
+ if(!p1&&!p2)return null;
+ const seen=new Set<string>(),sources:SourceRef[]=[];for(const row of rows){const sourceName=String(row.source??"").trim();if(!sourceName)continue;const url=row.url?String(row.url):null,key=`${sourceName}|${url??""}`;if(seen.has(key))continue;seen.add(key);sources.push({source_name:sourceName,url,retrieved_at:null});}
  const pairComplete=Boolean(p1&&p2);return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1Treatment,p2_treatment:p2Treatment,differential:null,evidence_family:"POINT_BY_POINT",reliability:pairComplete?90:72,sample:`Task 18B approved tour-scoped PBP through ${args.asOfDate}; p1_matches=${p1Rows.length}; p2_matches=${p2Rows.length}; pair_complete=${pairComplete}`,unavailable_reason:pairComplete?null:"Metric-specific PBP evidence is one-sided or lacks the required raw fields; missing evidence is not synthesized.",sources};
 }
 

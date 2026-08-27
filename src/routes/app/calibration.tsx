@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { gradeResult } from "@/lib/calibration";
+import { loadMatrixCalibrationInputs } from "@/lib/calibration-matrix-autofill";
 import { winRate } from "@/lib/audit-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,31 @@ function Calibration() {
     resultType: "WIN",
     note: "",
   });
+  const [matchId, setMatchId] = useState("");
+  const [autofillBusy, setAutofillBusy] = useState(false);
+
+  const autofillFromSummary = async () => {
+    if (!matchId.trim()) return;
+    setAutofillBusy(true);
+    try {
+      const result = await loadMatrixCalibrationInputs(matchId.trim());
+      if (!result) {
+        toast.error("No match found for that ID, or it has no parsed summary yet.");
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        matchLabel: result.matchLabel || f.matchLabel,
+        tournament: result.tournament ?? f.tournament,
+        surface: result.surface ?? f.surface,
+        matrixPredictedWinner: result.matrixPredictedWinner ?? f.matrixPredictedWinner,
+        matrixWp: result.matrixWp != null ? String(result.matrixWp) : f.matrixWp,
+      }));
+      toast.success("Prediction fields filled from the uploaded summary — actual winner/result still need entering by hand.");
+    } finally {
+      setAutofillBusy(false);
+    }
+  };
 
   const { data } = useQuery({
     queryKey: ["calibration"],
@@ -55,7 +81,7 @@ function Calibration() {
   const grade = useMutation({
     mutationFn: () =>
       gradeResult({
-        matchId: null,
+        matchId: matchId.trim() || null,
         matchLabel: form.matchLabel,
         tournament: form.tournament || null,
         surface: form.surface || null,
@@ -114,6 +140,13 @@ function Calibration() {
         <p className="text-xs text-muted-foreground">
           In-match retirements are graded as real results. Walkovers and voids are recorded but never counted in a bucket.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Input placeholder="Match ID (to autofill prediction fields)" value={matchId} onChange={(e) => setMatchId(e.target.value)} className="max-w-xs" />
+          <Button type="button" variant="outline" size="sm" onClick={autofillFromSummary} disabled={!matchId.trim() || autofillBusy}>
+            {autofillBusy ? "Loading…" : "Autofill from summary"}
+          </Button>
+          <span className="text-xs text-muted-foreground">Fills prediction fields only — actual winner/result always need entering by hand.</span>
+        </div>
         <div className="mt-3 grid gap-2 md:grid-cols-3 lg:grid-cols-4">
           <Input placeholder="Match label" value={form.matchLabel} onChange={(e) => setForm({ ...form, matchLabel: e.target.value })} />
           <Input placeholder="Tournament" value={form.tournament} onChange={(e) => setForm({ ...form, tournament: e.target.value })} />

@@ -4,9 +4,27 @@
 // deterministic researcher, standing in for "PDF uploaded -> Run Audit ->
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runPipeline, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow } from "./audit-pipeline";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
+
+// Code 070 ("Support Team / Prep") is a genuine LEGITIMATE_PLAYER_METRIC in the real
+// canonical registry (metric-classification.ts) -- distinct from and never overlapping
+// any real PROTECTED_UNAVAILABLE code. To test the instantiation-time NO_SOURCE wiring
+// itself, mock classifyMetric to treat code 070 as PROTECTED_UNAVAILABLE for this test
+// file only.
+vi.mock("./metric-classification", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./metric-classification")>();
+  return {
+    ...actual,
+    classifyMetric: (code: string | null | undefined) => {
+      const match = String(code ?? "").match(/(\d{1,3})$/);
+      const normalized = match ? match[1].padStart(3, "0") : String(code ?? "").padStart(3, "0");
+      if (normalized === "070") return "PROTECTED_UNAVAILABLE";
+      return actual.classifyMetric(normalized);
+    },
+  };
+});
 
 const MATCH_ID = "11111111-1111-1111-1111-111111111111";
 const P1 = "Carlos Alcaraz";
@@ -271,9 +289,9 @@ describe("Run Audit pipeline", () => {
     expect(result.report?.counts.stress.total).toBe(STRESS_TESTS.length);
     expect(result.report?.counts.p1.total).toBe(DEF_COUNTS.METRICS);
     expect(result.report?.counts.p2.total).toBe(DEF_COUNTS.METRICS);
-    expect(tables["metric_results"]!.every((row) => ["UNAVAILABLE", "EXCLUDED"].includes(String(row["p1_status"]))))
+    expect(tables["metric_results"]!.every((row) => ["UNAVAILABLE", "EXCLUDED", "NO_SOURCE"].includes(String(row["p1_status"]))))
       .toBe(true);
-    expect(tables["metric_results"]!.every((row) => ["UNAVAILABLE", "EXCLUDED"].includes(String(row["p2_status"]))))
+    expect(tables["metric_results"]!.every((row) => ["UNAVAILABLE", "EXCLUDED", "NO_SOURCE"].includes(String(row["p2_status"]))))
       .toBe(true);
     expect(Array.from(stages.values()).every((row) => row["status"] === "COMPLETE")).toBe(true);
   }, 60_000);
@@ -301,7 +319,7 @@ describe("Run Audit pipeline", () => {
     for (const [table, expected] of sections) {
       expect(tables[table]!.length, `${table} instantiated 0 rows (0/0 defect)`).toBeGreaterThan(0);
       expect(tables[table]!.length, `${table} denominator wrong`).toBe(expected);
-      const executed = tables[table]!.filter((r) => ["COMPLETE", "UNAVAILABLE", "EXCLUDED"].includes(String(r["status"])));
+      const executed = tables[table]!.filter((r) => ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"].includes(String(r["status"])));
       expect(executed.length, `${table} has unexecuted rows`).toBe(expected);
     }
 
@@ -328,5 +346,96 @@ describe("Run Audit pipeline", () => {
     await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
     const after = Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length]));
     expect(after).toEqual(before);
+  }, 60_000);
+
+  // Task 20/21 guardrail: META_OR_NON_PLAYER codes (metric-classification.ts) must
+  // never silently re-enter the player-evidence denominator. They are instantiated
+  // EXCLUDED (never sent to any research/reconstruction call) rather than scored as a
+  // player metric, so a regression here would mean either a code was reclassified
+  // without updating this test, or the exclusion wiring in instantiate() broke.
+  //
+  // Only "48","49","50","56","57","58","59" are META_OR_NON_PLAYER under the canonical
+  // registry. "04"/"05"/"06" are real player metrics (Combined Efficiency/Recent Form/
+  // Opponent Quality -- a document numbering defect that once shadowed them was fixed
+  // separately; see metric-definition-drift.test.ts). "47" and "61" are
+  // UNKNOWN_REQUIRES_REVIEW, not excluded: the burden of proof for exclusion is not met,
+  // so they stay in the ordinary player-metric/research path like any other code.
+  it("instantiates every META_OR_NON_PLAYER code as EXCLUDED and never asks research for it", async () => {
+    const META_SUFFIXES = ["48", "49", "50", "56", "57", "58", "59"];
+    const seenByResearch = new Set<string>();
+    const { deps, tables } = makeMemoryDeps();
+    deps.research = {
+      ...researcher,
+      async metrics({ metrics }) {
+        for (const m of metrics) seenByResearch.add(m.code);
+        return researcher.metrics({ metrics } as never);
+      },
+    };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    const metricRows = tables["metric_results"]!;
+    expect(metricRows).toHaveLength(DEF_COUNTS.METRICS);
+    const metaCodes = META_SUFFIXES.map((suffix) => `M${suffix}`);
+    expect(metaCodes).toHaveLength(7);
+
+    for (const code of metaCodes) {
+      const row = metricRows.find((r) => r["metric_code"] === code);
+      expect(row, `metric ${code} was not instantiated`).toBeTruthy();
+      expect(row!["status"], `metric ${code} status`).toBe("EXCLUDED");
+      expect(row!["p1_status"], `metric ${code} p1_status`).toBe("EXCLUDED");
+      expect(row!["p2_status"], `metric ${code} p2_status`).toBe("EXCLUDED");
+      expect(seenByResearch.has(code), `metric ${code} was sent to the research provider`).toBe(false);
+    }
+
+    // Every other code (including "04"/"05"/"06"/"47"/"61") must still be a normal
+    // player metric, sent to research as before -- except the 12 codes genuinely
+    // classified PROTECTED_UNAVAILABLE in the real canonical registry (017, 054, 063,
+    // 065, 066, 067, 069, 072, 074, 078, 079, 081), which this pipeline correctly
+    // settles as NO_SOURCE before ever reaching research, same as META_OR_NON_PLAYER.
+    // "M70" is excluded here too, on top of those 12: this test file's module-level
+    // mock (see the top of this file) additionally treats real code 070 as
+    // PROTECTED_UNAVAILABLE for the dedicated test below, and that mock is file-scoped,
+    // so it also applies here.
+    const realProtectedUnavailableCodes = ["017", "054", "063", "065", "066", "067", "069", "072", "074", "078", "079", "081"].map((suffix) => `M${suffix.replace(/^0/, "")}`);
+    const noSourceCodes = new Set([...realProtectedUnavailableCodes, "M70"]);
+    const playerCodes = metricRows.map((r) => String(r["metric_code"])).filter((c) => !metaCodes.includes(c) && !noSourceCodes.has(c));
+    expect(playerCodes).toHaveLength(DEF_COUNTS.METRICS - 7 - noSourceCodes.size);
+    for (const code of playerCodes) expect(seenByResearch.has(code), `player metric ${code} was never sent to research`).toBe(true);
+  }, 60_000);
+
+  // Denominator-eligibility audit, requested directly: a code with a documented
+  // NO_SOURCE determination must instantiate exactly like META_OR_NON_PLAYER -- settled
+  // immediately, never sent to research -- but as a distinct status, never "EXCLUDED".
+  // classifyMetric is mocked above to treat "M70" (real code 070) as PROTECTED_UNAVAILABLE.
+  // "M59" (real code 059, "Loss Path Probability") is used here as the real
+  // META_OR_NON_PLAYER reference code -- it is genuinely excluded under the canonical
+  // registry, unlike "M61" (061 is UNKNOWN_REQUIRES_REVIEW, not excluded).
+  it("instantiates a NO_SOURCE code as NO_SOURCE (not EXCLUDED) and never asks research for it, while a real META_OR_NON_PLAYER code stays EXCLUDED", async () => {
+    const seenByResearch = new Set<string>();
+    const { deps, tables } = makeMemoryDeps();
+    deps.research = {
+      ...researcher,
+      async metrics({ metrics }) {
+        for (const m of metrics) seenByResearch.add(m.code);
+        return researcher.metrics({ metrics } as never);
+      },
+    };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    const metricRows = tables["metric_results"]!;
+    const noSourceRow = metricRows.find((r) => r["metric_code"] === "M70");
+    expect(noSourceRow, "metric M70 was not instantiated").toBeTruthy();
+    expect(noSourceRow!["status"]).toBe("NO_SOURCE");
+    expect(noSourceRow!["p1_status"]).toBe("NO_SOURCE");
+    expect(noSourceRow!["p2_status"]).toBe("NO_SOURCE");
+    expect(noSourceRow!["p1_treatment"]).toBe("NO_SOURCE");
+    expect(noSourceRow!["unavailable_reason"]).toBe("NO_SOURCE_NO_LEGITIMATE_PATHWAY");
+    expect(seenByResearch.has("M70"), "metric M70 was sent to the research provider").toBe(false);
+
+    const metaRow = metricRows.find((r) => r["metric_code"] === "M59");
+    expect(metaRow!["status"]).toBe("EXCLUDED");
+    expect(metaRow!["unavailable_reason"]).toBe("PROCESS_META_NOT_PLAYER_EVIDENCE");
   }, 60_000);
 });

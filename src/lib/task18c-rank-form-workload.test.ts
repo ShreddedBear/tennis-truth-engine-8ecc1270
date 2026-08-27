@@ -12,44 +12,54 @@ function lane():HistoryLane{return{
 const base={p1:"Alice Alpha",p2:"Bob Beta",asOfDate:"2026-08-26",surface:"Hard"} as const;
 
 describe("Task 18C rank/form/workload recovery",()=>{
-  it.each(["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"] as const)("reconstructs form on isolated %s history",family=>{
-    const result=computeHistoryMetric({...base,code:"005",family,lane:lane()});
-    expect(result?.treatment).toBe("RECONSTRUCTED");
-    expect(result?.sample).toContain(`tour=${family}`);
-  });
+  // Task 20 reconciliation: this file previously also targeted "005"/"007"/"021"/"061".
+  // 005 ("Interpretation rules") and 061 ("Final Advanced Tests") are PROCESS_META; 007
+  // ("Common-Opponent Network") had nothing to do with the workload content filed under
+  // it (that content is an exact match for real 012 "Fatigue/Workload", already correctly
+  // and completely served elsewhere); 021's Elo-differential content was folded into the
+  // one code it actually matches, real 001 ("Surface Strength" -> "Elo Win Probability").
+  // See the header comment on HistoryMetricCode in task18c-rank-form-workload.ts.
   it("blocks current and future match leakage",()=>{
     const matches=laneMatchesBefore(lane(),base.asOfDate);
     expect(matches.every(m=>m.date<base.asOfDate)).toBe(true);
     expect(matches.some(m=>m.tournament==="Current"||m.tournament==="Future")).toBe(false);
   });
-  it("does not synthesize missing history as zero",()=>{
+  it("reconstructs surface strength plus overall Elo differential for real code 001",()=>{
+    const result=computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:lane()});
+    expect(result?.treatment).toBe("RECONSTRUCTED");
+    expect(result?.p1_value).toContain("overall_elo=");
+    expect(result?.p1_value).toContain(`surface=${base.surface.toLowerCase()}`);
+    expect(result?.differential).toContain("overall_elo_delta_p1_minus_p2=");
+  });
+  it("still reports the Elo differential when no surface is supplied, without a surface-record component",()=>{
+    const { surface, ...rest } = base;
+    const result=computeHistoryMetric({...rest,code:"001",family:"ATP_MAIN",lane:lane()});
+    expect(result?.p1_value).toContain("overall_elo=");
+    expect(result?.p1_value).not.toContain("matches_52w=");
+    expect(result?.differential).toContain("overall_elo_delta_p1_minus_p2=");
+  });
+  it("does not synthesize missing history",()=>{
     const x=lane();delete x["bob beta"];delete x["gina eta"];delete x["hana theta"];delete x["iris iota"];
-    expect(computeHistoryMetric({...base,code:"061",family:"ATP_MAIN",lane:x})).toBeNull();
-  });
-  it("keeps schedule/load and workload partial",()=>{
-    const a=computeHistoryMetric({...base,code:"007",family:"ATP_MAIN",lane:lane()});
-    const b=computeHistoryMetric({...base,code:"061",family:"ATP_MAIN",lane:lane()});
-    expect(a?.treatment).toBe("PARTIAL");expect(a?.unavailable_reason).toMatch(/travel distance.*time-zone/i);
-    expect(b?.treatment).toBe("PARTIAL");expect(b?.unavailable_reason).toMatch(/sets\/games.*duration/i);
-  });
-  it("uses explicit workload windows and real rest",()=>{
-    const result=computeHistoryMetric({...base,code:"061",family:"ATP_MAIN",lane:lane()});
-    expect(result?.p1_value).toContain("matches_7d=1");expect(result?.p1_value).toContain("days_since_last_match=6");expect(result?.p2_value).toContain("days_since_last_match=8");
+    expect(computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:x})).toBeNull();
   });
   it("supports reversed player orientation",()=>{
-    const f=computeHistoryMetric({...base,code:"021",family:"ATP_MAIN",lane:lane()});
-    const r=computeHistoryMetric({...base,p1:base.p2,p2:base.p1,code:"021",family:"ATP_MAIN",lane:lane()});
+    const f=computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:lane()});
+    const r=computeHistoryMetric({...base,p1:base.p2,p2:base.p1,code:"001",family:"ATP_MAIN",lane:lane()});
     expect(r?.p1_value).toBe(f?.p2_value);expect(r?.p2_value).toBe(f?.p1_value);
   });
-  it("requires actual surface history",()=>{
-    expect(computeHistoryMetric({...base,surface:"Grass",code:"001",family:"ATP_MAIN",lane:lane()})).toBeNull();
-    expect(computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:lane()})?.treatment).toBe("RECONSTRUCTED");
+  it("requires actual surface history for the surface-record component but still returns the Elo differential",()=>{
+    const grass=computeHistoryMetric({...base,surface:"Grass",code:"001",family:"ATP_MAIN",lane:lane()});
+    expect(grass?.p1_value).toContain("overall_elo=");
+    expect(grass?.p1_value).not.toContain("matches_52w=");
+    const hard=computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:lane()});
+    expect(hard?.p1_value).toContain("matches_52w=");
   });
-  it("uses results/schedule as sufficient (environment as support-only) for Elo, and results/schedule for workload",()=>{
+  it("uses results/schedule as the sole *sufficient* source for Elo",()=>{
+    // Real code 001 ("Surface Strength") is a chronological-results Elo replay; it is not
+    // in metric-source-family-policy.ts's PBP or MARKET lists and has no legitimate
+    // non-RESULTS_SCHEDULE family.
     const schedule={source_id:"atp",observation_type:"MATCH_RESULT_OR_SCHEDULE",observation_key:"match_record"};
-    const weather={source_id:"open_meteo",observation_type:"ENVIRONMENT",observation_key:"weather"};
-    expect(metricAllowsObservation("021",schedule)).toBe(true);expect(metricAllowsObservation("021",weather)).toBe(true);
-    expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
-    expect(metricAllowsObservation("061",schedule)).toBe(true);expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");
+    expect(metricAllowsObservation("001",schedule)).toBe(true);
+    expect(policyForMetric("001").allowed_families).toContain("RESULTS_SCHEDULE");
   });
 });

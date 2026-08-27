@@ -9,15 +9,21 @@ const marketRow = { source_id: "odds_api", observation_type: "MARKET", observati
 const weatherRow = { source_id: "open_meteo", observation_type: "ENVIRONMENT", observation_key: "temperature_2m" };
 
 describe("metric source family policy", () => {
-  it("never lets ATP/WTA results or schedules satisfy a ranking-only metric", () => {
+  it("never lets ATP/WTA results or schedules satisfy a ranking-only metric (062 stakes)", () => {
     expect(metricAllowsObservation("062", matchRow)).toBe(false);
     expect(metricAllowsObservation("062", scheduleRow)).toBe(false);
     expect(metricAllowsObservation("062", rankingRow)).toBe(true);
   });
 
+  // Code 069's true definition ("Stakes / Career Context" -- retirement-tour/
+  // farewell-run effects, anti-doping testing disruption) has no legitimate ranking,
+  // results/schedule, or PBP basis at all -- unlike 062 ("Motivation / Stakes"), which
+  // genuinely can be informed by ranking-points proximity to a milestone. 069 is
+  // classified PROTECTED_UNAVAILABLE (see metric-classification.ts) and is handled
+  // instead by protected-metric-wiring.server.ts, which requires real public
+  // retirement/anti-doping reporting and forbids RECONSTRUCTED entirely. See
+  // metric-certification-066-071.test.ts for that coverage.
   it("never lets any observation family satisfy a PROTECTED_UNAVAILABLE metric (069 Stakes/Career Context)", () => {
-    // 069's true definition (retirement-tour effects, anti-doping testing disruption) has no
-    // registered source family at all — see metric-classification.ts for the full reasoning.
     expect(metricAllowsObservation("069", matchRow)).toBe(false);
     expect(metricAllowsObservation("069", scheduleRow)).toBe(false);
     expect(metricAllowsObservation("069", rankingRow)).toBe(false);
@@ -31,10 +37,11 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("019", marketRow)).toBe(true);
   });
 
-  it("uses results/schedule as the sufficient source for metric 021, environment as support-only", () => {
-    // 021's true definition (Surface & Environmental Context) legitimately includes an
-    // altitude-sensitivity component, so environment evidence is allowed — but only as
-    // support-only; results/schedule alone remains sufficient on its own.
+  it("keeps results/schedule as the only sufficient source for metric 021, with environment as support-only", () => {
+    // Code 021 is "Surface & Environmental Context" (see metric-classification.ts),
+    // which genuinely names weather/altitude as in-scope components alongside the
+    // chronological-results-derived Elo/surface components. Environment evidence alone
+    // must never promote 021 past PARTIAL.
     expect(metricAllowsObservation("021", matchRow)).toBe(true);
     expect(metricAllowsObservation("021", weatherRow)).toBe(true);
     expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
@@ -43,7 +50,12 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
   });
 
-  it("admits workload history as support-only evidence", () => {
+  // 061 ("Final Advanced Tests") is UNKNOWN_REQUIRES_REVIEW, not excluded (see
+  // metric-classification.ts): two of its three bullets are meta (rerun-the-model
+  // tests), but "Historical Twin Match Search" is a genuine matchup-similarity search
+  // over past results, which needs RESULTS_SCHEDULE data -- support-only, since it is
+  // one component of a mixed definition, never sufficient on its own.
+  it("admits historical-results evidence as support-only for the mixed/UNKNOWN 061 (never sufficient on its own)", () => {
     expect(metricAllowsObservation("061", matchRow)).toBe(true);
     expect(policyForMetric("061").sufficient_families).toEqual([]);
     expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");

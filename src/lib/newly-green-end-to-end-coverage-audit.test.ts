@@ -18,8 +18,6 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   "028": ["RESULTS_SCHEDULE"],
   "030": ["RESULTS_SCHEDULE", "ENVIRONMENT"],
   "033": ["POINT_BY_POINT"],
-  "036": ["POINT_BY_POINT"],
-  "040": ["POINT_BY_POINT"],
   "042": ["POINT_BY_POINT"],
   "043": ["MARKET", "POINT_BY_POINT"],
   "044": ["MARKET", "POINT_BY_POINT"],
@@ -33,16 +31,23 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
 };
 
 // 069 (Stakes/Career Context), 079 (Additional Differentiating Metrics), and 081 (Further
-// Differentiating Metrics) were removed from this contract during the Task 19 canonical
-// registry rebuild: their true definitions (public/seed/metrics.txt) require data no
+// Differentiating Metrics) were removed from this contract during the Task 19/20 canonical
+// registry reconciliation: their true definitions (public/seed/metrics.txt) require data no
 // approved source provides — retirement-tour announcements/anti-doping schedules for 069,
 // in-match coaching-visit/time-violation events for 079, and locker-room/ceremony/court-
 // assignment/rain-delay events for 081. They're now PROTECTED_UNAVAILABLE (see
 // metric-classification.ts) rather than part of the deterministic newly-green contract.
+// "036" ("Loss Autopsy Metrics") and "040" ("Hidden Decline Detector") were also removed
+// from PBP_METRICS: verified against public/seed/metrics.txt directly -- every 036 bullet
+// is keyed to what happened in each *past loss* (favorite status, opponent quality, point/
+// break differential, physical problem, match length), which is RESULTS_SCHEDULE-level
+// historical-match data, not point-by-point chronology within one match; every 040 bullet is
+// a *cross-match trend* (serve-velocity trend, ace-rate trend, etc. across recent matches),
+// which needs multi-match trend tracking that raw single-match PBP data cannot supply.
 const NON_PBP_DETERMINISTIC = [
   "012", "015", "019", "021", "028", "030", "062", "064", "071", "075", "076", "077",
 ];
-const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060"];
+const PBP_METRICS = ["024", "025", "033", "042", "043", "044", "060"];
 
 describe("newly-green end-to-end coverage audit", () => {
   it("preserves every required newly-green source family while allowing audited Task 13 support", () => {
@@ -107,9 +112,13 @@ describe("newly-green end-to-end coverage audit", () => {
     expect(policyForMetric("062").allowed_families).toEqual(["RANKING"]);
   });
 
+  // Task 20 reconciliation: 069 ("Stakes / Career Context") is PROTECTED_UNAVAILABLE (see
+  // metric-classification.ts) -- retirement-tour/farewell-run effects and anti-doping
+  // testing disruption, not a ranking metric at all -- so it must never be ranking- (or
+  // any other family-) satisfiable. See metric-source-family-policy.test.ts for the
+  // corrected expectation and metric-certification-066-071.test.ts for its actual
+  // (protected-metric-wiring.server.ts) handling.
   it("keeps metric 069 (Stakes/Career Context) PROTECTED_UNAVAILABLE rather than ranking-eligible", () => {
-    // True 069 is retirement-tour effects and anti-doping testing disruption — not a
-    // ranking metric at all. See metric-classification.ts for the full reasoning.
     expect(policyForMetric("069").allowed_families).toEqual([]);
   });
 

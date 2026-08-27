@@ -16,7 +16,10 @@ describe("ranking ingestion and deterministic Task 18C wiring", () => {
     expect(policyForMetric("014").allowed_families).toContain("RANKING");
     expect(policyForMetric("014").sufficient_families).toContain("RANKING");
     const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
-    expect(calculator).toContain('const OWNED = new Set(["001", "005", "007", "014", "021", "061"])');
+    // Task 20 reconciliation: "005"/"007"/"021"/"061" removed from this file's
+    // history-code ownership -- see the header comment on OWNED in
+    // deterministic-ranking-metrics.server.ts for the full rationale.
+    expect(calculator).toContain('const OWNED = new Set(["001", "014"])');
     expect(calculator).toContain('if (code === "014") return directRankingFinding(args)');
     expect(calculator).toContain('p1_treatment: "DIRECT"');
     expect(calculator).toContain('p2_treatment: "DIRECT"');
