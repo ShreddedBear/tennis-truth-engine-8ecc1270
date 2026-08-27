@@ -9,6 +9,7 @@
     "prebuild:dev": "node scripts/build-runtime-tennis-index.mjs",
     "dev": "vite dev",
     "build": "vite build",
+    "postbuild": "node scripts/check-worker-bundle-size.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
