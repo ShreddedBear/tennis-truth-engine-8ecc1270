@@ -1,7 +1,24 @@
 import type { Treatment } from "./audit-pipeline";
 
+// Task 20 reconciliation:
+// - "024" was retargeted to "008" (see the code==="008" branch below). Real code 024
+//   is "Hidden Performance Quality" (metric-certification.ts already has a correctly
+//   real-catalog-aligned policy for it -- point/game-level performance, expected vs.
+//   actual conversion, shot-quality inputs); a deciding-set win rate has nothing to do
+//   with that, but is an exact bullet match for real code 008 ("Set Profile":
+//   "Set-3/Deciding-Set Win Rate"), which had no engine of its own.
+// - "022" and "025" were removed with no retarget. Real 022 ("Serve/Return Shot-Level
+//   Efficiency") and 025 ("Match Deterioration Metrics") both already have correctly
+//   real-catalog-aligned metric-certification.ts policies requiring shot-level/serve-
+//   decay data this repository does not have; their best plausible real homes (the
+//   H2H/tiebreak content computed here) are either non-existent (022) or already
+//   claimed and shadowed by higher-priority PBP evidence for the same code (025 ->
+//   009, whose "Pressure-Point Performance" bullet already wins via Task 18B). Removing
+//   them here lets both correctly fall through to their existing, stricter
+//   certification-gated handling instead of being shadowed by this file's mismatched
+//   credit, consistent with the code 069 fix.
 export const TASK18A_HISTORICAL_RESULTS_CODES = [
-  "006","010","011","013","020","022","023","024","025","045","046","049","050","051","052","053","054","055","056","057","058","059","080",
+  "006","008","010","011","013","020","023","045","046","049","050","051","052","053","054","055","056","057","058","059","080",
 ] as const;
 
 export type Task18aMetricCode = (typeof TASK18A_HISTORICAL_RESULTS_CODES)[number];
@@ -94,18 +111,11 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
     const r=recent(history,args.asOfDate,90).filter(x=>isCompleted(x)&&quality(x)!==null);if(!r.length)return null;const q=rankedRecord(r);const w=r.filter(x=>x.won).length;
     return reconstruction(`window_days=90; quality_observed_matches=${r.length}; wins=${w}; win_pct=${pct(w,r.length)??"NA"}; bands=${JSON.stringify(q.bands)}`,r.length,{window_start_days:90,quality_observations:r.map(x=>({date:x.date,opponent:x.opponent,quality:quality(x),surface:x.surface,won:x.won})).slice(0,100)},"Use only prior 90-day realized results with observed opponent rank/Elo; preserve quality bands rather than imputing missing quality.");
   }
-  if(code==="022"){
-    const s=surfaceKey(args.surface);if(!s)return null;const h=complete.filter(r=>r.opponent===args.opponent&&surfaceKey(r.surface)===s);if(!h.length)return null;const w=h.filter(r=>r.won).length;
-    return reconstruction(`surface=${s}; h2h_matches=${h.length}; h2h_wins=${w}; h2h_win_pct=${pct(w,h.length)??"NA"}`,h.length,{surface:s,h2h_dates:h.map(r=>r.date)},"Filter canonical prior H2H rows to the target surface; do not borrow other-surface meetings.");
-  }
   if(code==="023"){
     if(!score.sets)return null;return reconstruction(`sets=${score.sets}; bagel_sets=${score.bagelSets}; bagel_set_pct=${pct(score.bagelSets,score.sets)??"NA"}; blowout_sets=${score.blowoutSets}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}`,score.matches,{scored_matches:score.matches,set_count:score.sets},"Parse player-oriented set scores; count 6-0 sets and sets with a game margin of at least four.");
   }
-  if(code==="024"){
+  if(code==="008"){
     const d=decidingRows(history);if(!d.length)return null;const w=d.filter(r=>r.won).length;return reconstruction(`deciding_matches=${d.length}; deciding_wins=${w}; deciding_set_win_pct=${pct(w,d.length)??"NA"}`,d.length,{best_of_observed:d.map(r=>r.bestOf),set_totals:d.map(totalSets)},"Use only matches whose observed best-of format and set total prove that a deciding set was played.");
-  }
-  if(code==="025"){
-    const sets=scoredRows.flatMap(r=>r.setScores.map(s=>({score:s,wonSet:s[0]>s[1]}))).filter(x=>tiebreakSet(x.score));if(!sets.length)return null;const w=sets.filter(x=>x.wonSet).length;return reconstruction(`tiebreak_sets=${sets.length}; tiebreak_sets_won=${w}; tiebreak_win_pct=${pct(w,sets.length)??"NA"}`,sets.length,{tiebreak_scores:sets.slice(0,100).map(x=>x.score)},"Identify 7-6/6-7 player-oriented set scores and aggregate realized tiebreak-set outcomes.");
   }
   if(code==="045"){
     const b=bo3Rows(history);if(!b.length)return null;const three=b.filter(r=>totalSets(r)===3).length;return reconstruction(`completed_bo3_matches=${b.length}; three_set_matches=${three}; three_set_frequency_pct=${pct(three,b.length)??"NA"}`,b.length,{best_of:3,set_totals:b.map(totalSets)},"Restrict denominator to observed best-of-three matches and count those lasting three sets.");

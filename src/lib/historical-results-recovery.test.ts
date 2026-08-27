@@ -14,7 +14,11 @@ const rows:HistoricalResultRow[]=[
 ];
 
 describe("Task 18A historical/results recovery",()=>{
- it("owns exactly the 23 Task 17 historical/results codes",()=>{expect(TASK18A_HISTORICAL_RESULTS_CODES).toEqual(["006","010","011","013","020","022","023","024","025","045","046","049","050","051","052","053","054","055","056","057","058","059","080"]);});
+ // Task 20 reconciliation: "024" (deciding-set win rate) retargeted to "008" (real code
+ // 008 is "Set Profile", exact bullet match "Set-3/Deciding-Set Win Rate"; real 024 is
+ // "Hidden Performance Quality" and unrelated). "022" and "025" removed with no retarget
+ // -- see the comment on TASK18A_HISTORICAL_RESULTS_CODES for why. 23 -> 21 codes.
+ it("owns exactly the 21 reconciled historical/results codes",()=>{expect(TASK18A_HISTORICAL_RESULTS_CODES).toEqual(["006","008","010","011","013","020","023","045","046","049","050","051","052","053","054","055","056","057","058","059","080"]);});
  it("reconstructs every full historical family from observed prior inputs",()=>{
    for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="057")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
