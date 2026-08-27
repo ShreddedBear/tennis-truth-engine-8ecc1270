@@ -153,6 +153,55 @@ export const PROCESS_META_RATIONALE: Record<string, string> = {
   "061": "\"Counterfactual Winner Test\" / \"Opponent Upgrade Test\" — explicitly reruns/stress-tests the model's own prediction.",
 };
 
+// ============================================================================
+// NO_SOURCE DETERMINATIONS (denominator-eligibility audit, requested directly)
+// ============================================================================
+// A code may be classified NO_SOURCE -- excluded from the Evidence Coverage
+// denominator, distinct from and never merged with PROCESS_META -- ONLY after a
+// real, documented investigation, per the explicit safeguard: a metric is NOT
+// NO_SOURCE merely because the current database lacks it, the first API lacks
+// it, web search failed once, reconstruction has not yet been attempted, or the
+// implementation is incomplete. Every entry below must record what a real
+// determination requires: the metric's own definition, the raw inputs its real
+// bullets need, every source actually investigated, every reconstruction method
+// considered, why each pathway failed, and the date of determination. An empty
+// registry is the correct, honest state whenever no code has actually cleared
+// that bar yet -- it must never be pre-populated speculatively to shrink the
+// denominator. See authoritative-metric-catalog.test.ts for the enforcement.
+export type NoSourceDetermination = {
+  code: string;
+  name: string;
+  requiredRawInputs: string[];
+  sourcesInvestigated: string[];
+  reconstructionMethodsConsidered: string[];
+  whyEachPathwayFailed: string;
+  determinedAt: string;
+};
+
+// Deliberately empty: the first full pass over every never-audited code (016,
+// 029, 034, 035, 041, 062, 063, 065-068, 070, 078 -- 042/047/048/072-076 already
+// have a legitimate handler and were excluded from this pass) found that every
+// single one has at least one untried, plausible pathway -- an existing
+// deterministic data family this codebase already has (016 score-state parsing
+// from already-tracked PBP point sequences; 034/041/068 composite derivations
+// from stats other engines already compute; 062/070 partial fits from
+// RESULTS_SCHEDULE/RANKING data already ingested) or live-research eligibility
+// for sparse factual reporting (063/065/066/078's coaching/equipment/illness/
+// sponsorship content, the same pathway protected-metric-wiring.server.ts
+// already uses for code 069). None of that qualifies as "no legitimate
+// obtainable or reconstructable source" under the safeguard above -- untried is
+// not unavailable. Populate this only after someone actually builds and
+// exhausts each pathway, not from this audit alone.
+export const NO_SOURCE_DETERMINATIONS: Record<string, NoSourceDetermination> = {};
+
+export const NO_SOURCE_CODES = new Set(Object.keys(NO_SOURCE_DETERMINATIONS));
+
+export function isNoSourceCode(code: string | null | undefined): boolean {
+  if (!code) return false;
+  const padded = String(code).match(/(\d{1,3})$/)?.[1]?.padStart(3, "0") ?? String(code).padStart(3, "0");
+  return NO_SOURCE_DETERMINATIONS[padded] !== undefined;
+}
+
 export function authoritativeMetricRow(code: string): AuthoritativeMetricRow | undefined {
   const padded = String(code).match(/(\d{1,3})$/)?.[1]?.padStart(3, "0") ?? String(code).padStart(3, "0");
   return AUTHORITATIVE_METRIC_CATALOG.find((row) => row.code === padded);

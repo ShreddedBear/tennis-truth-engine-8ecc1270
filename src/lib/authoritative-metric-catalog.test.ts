@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import { parseRuleDocument } from "./rule-parser";
 import {
   AUTHORITATIVE_METRIC_CATALOG,
+  NO_SOURCE_CODES,
+  NO_SOURCE_DETERMINATIONS,
   ORPHANED_CATALOG_SECTIONS,
   PLAYER_METRIC_CODES,
   PROCESS_META_CODES,
   PROCESS_META_RATIONALE,
   authoritativeMetricRow,
+  isNoSourceCode,
 } from "./authoritative-metric-catalog";
 
 // This is the Task 20 guardrail against a repeat of the Task 17 catalog-mismatch root
@@ -96,5 +99,37 @@ describe("authoritative metric catalog", () => {
         expect(host?.body ?? "", `bullet "${label}" not found inside code ${section.swallowedInsideCode}'s body`).toContain(label);
       }
     }
+  });
+
+  // Denominator-eligibility audit, requested directly: NO_SOURCE excludes a code from
+  // the Evidence Coverage denominator, exactly like PROCESS_META, but only after a real,
+  // documented investigation -- never merely because reconstruction hasn't been
+  // attempted yet. These guardrails enforce that every entry (now or in the future)
+  // actually carries that documentation, targets a real player-metric code, and never
+  // overlaps with PROCESS_META (which already has its own, separate exclusion).
+  it("NO_SOURCE_DETERMINATIONS is currently empty -- no code has cleared the documented-investigation bar yet", () => {
+    // This is expected to fail the day a real determination is added; when it does,
+    // the tests below take over enforcing that determination's completeness. This
+    // assertion exists so an accidental/speculative entry can't slip in unnoticed.
+    expect(Object.keys(NO_SOURCE_DETERMINATIONS)).toEqual([]);
+    expect(NO_SOURCE_CODES.size).toBe(0);
+  });
+
+  it("every NO_SOURCE determination (present or future) must be fully documented, target a real player-metric code, and never overlap PROCESS_META", () => {
+    for (const [code, entry] of Object.entries(NO_SOURCE_DETERMINATIONS)) {
+      expect(entry.code, code).toBe(code);
+      expect(entry.name, code).toBeTruthy();
+      expect(entry.requiredRawInputs.length, `${code} must record what raw inputs its real bullets need`).toBeGreaterThan(0);
+      expect(entry.sourcesInvestigated.length, `${code} must record every source actually investigated`).toBeGreaterThan(0);
+      expect(entry.reconstructionMethodsConsidered.length, `${code} must record every reconstruction method considered`).toBeGreaterThan(0);
+      expect(entry.whyEachPathwayFailed, `${code} must record why each pathway failed`).toBeTruthy();
+      expect(entry.determinedAt, `${code} must record a determination date`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const row = authoritativeMetricRow(code);
+      expect(row, `${code} must be a real catalog code`).toBeDefined();
+      expect(row?.type, `${code} is PROCESS_META -- that's a different, already-excluded bucket, never NO_SOURCE too`).toBe("PLAYER_METRIC");
+      expect(isNoSourceCode(code)).toBe(true);
+    }
+    expect(isNoSourceCode(undefined)).toBe(false);
+    expect(isNoSourceCode("999")).toBe(false);
   });
 });

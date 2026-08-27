@@ -13,7 +13,7 @@ import { sampleVerifiedEvidenceIndexMatch } from "./evidence-index-match-sampler
 import { localMetricRows } from "./hybrid-audit-research.server";
 import { completionSweepHistoricalFinding, enforceFiveMetricWiring } from "./completion-sweep-research.server";
 import { certifyMetricFinding } from "./metric-certification";
-import { authoritativeMetricRow, PLAYER_METRIC_CODES } from "./authoritative-metric-catalog";
+import { authoritativeMetricRow, isNoSourceCode, NO_SOURCE_CODES, PLAYER_METRIC_CODES } from "./authoritative-metric-catalog";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -146,11 +146,15 @@ async function activeMetrics():Promise<Metric[]>{const {data:doc,error:docError}
   // coverage. PROCESS_META codes (see authoritative-metric-catalog.ts) describe how to
   // test/calibrate the model's own predictions -- there is no player-side value to sample
   // for them -- so they are excluded here rather than silently scored as UNAVAILABLE.
-  return(data??[]).filter((r:any)=>Number(r.rule_code)>=1&&Number(r.rule_code)<=81&&authoritativeMetricRow(r.rule_code)?.type!=="PROCESS_META").map((r:any)=>({code:String(r.rule_code),name:String(r.rule_name),body:r.body??null}));}
+  // NO_SOURCE codes (a real player metric with a documented determination that no
+  // legitimate obtainable/reconstructable pathway exists -- currently none) are excluded
+  // the same way, and for the same reason: sampling them here would only ever measure
+  // their absence, never their evidence.
+  return(data??[]).filter((r:any)=>Number(r.rule_code)>=1&&Number(r.rule_code)<=81&&authoritativeMetricRow(r.rule_code)?.type!=="PROCESS_META"&&!isNoSourceCode(r.rule_code)).map((r:any)=>({code:String(r.rule_code),name:String(r.rule_name),body:r.body??null}));}
 async function deterministic(metric:Metric,match:RepresentativeMatch){const runners=[()=>deterministicRankingMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicRulesContextMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,context:match.context}),()=>deterministicEnvironmentMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament}),()=>deterministicMarketMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicResultsScheduleMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament})];const errors:string[]=[];for(const runner of runners){try{const row=await runner();if(row)return{row,errors};}catch(error){errors.push(error instanceof Error?error.message:String(error));}}return{row:null,errors};}
 async function deterministicBatch(metrics:Metric[],match:RepresentativeMatch){const out=new Map<string,LocalResult>();for(let i=0;i<metrics.length;i+=DIAGNOSTIC_QUERY_CONCURRENCY){const chunk=metrics.slice(i,i+DIAGNOSTIC_QUERY_CONCURRENCY);const rows=await Promise.all(chunk.map(async metric=>[codeOf(metric.code),await deterministic(metric,match)] as const));for(const [code,result] of rows)out.set(code,result);}return out;}
 
-export async function runEvidenceCoverageRuntimeDiagnostic(){const metrics=await activeMetrics();if(metrics.length!==PLAYER_METRIC_CODES.length)throw new Error(`Expected ${PLAYER_METRIC_CODES.length} active player-level metrics, found ${metrics.length}`);const sample=await representativeMatches();if(!sample.matches.length)throw new Error("No real persisted matches, paired warehouse observations, ranking-proven persisted evidence pairs, or verified PBP index matches were available for evidence coverage sampling");const matches:any[]=[];
+export async function runEvidenceCoverageRuntimeDiagnostic(){const metrics=await activeMetrics();const expected=PLAYER_METRIC_CODES.length-NO_SOURCE_CODES.size;if(metrics.length!==expected)throw new Error(`Expected ${expected} active player-level metrics, found ${metrics.length}`);const sample=await representativeMatches();if(!sample.matches.length)throw new Error("No real persisted matches, paired warehouse observations, ranking-proven persisted evidence pairs, or verified PBP index matches were available for evidence coverage sampling");const matches:any[]=[];
   for(const sampled of sample.matches){
     const identities=await resolveCanonicalEvidencePair(sampled.p1,sampled.p2);
     const match:RepresentativeMatch={...sampled,p1:identities.p1.canonical,p2:identities.p2.canonical};

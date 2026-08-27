@@ -1,9 +1,9 @@
 // DETERMINISTIC COMPLETION ENGINE
 // Application logic — never AI text — decides completion, gate outcome and color.
 
-import { authoritativeMetricRow } from "./authoritative-metric-catalog";
+import { authoritativeMetricRow, isNoSourceCode } from "./authoritative-metric-catalog";
 
-export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED"];
+export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"];
 
 // Task 20 reconciliation: a PROCESS_META code's row is initially instantiated with
 // treatment/status "EXCLUDED" (see audit-pipeline.ts's isProcessMetaRuleCode), but
@@ -20,6 +20,17 @@ function isProcessMetaCode(code: string | null | undefined): boolean {
   const match = String(code).match(/(\d{1,3})$/);
   const normalized = match ? match[1].padStart(3, "0") : String(code).padStart(3, "0");
   return authoritativeMetricRow(normalized)?.type === "PROCESS_META";
+}
+
+// Denominator-eligibility audit (requested directly): a code with a real, documented
+// determination that no legitimate obtainable/reconstructable evidence pathway exists
+// (see NO_SOURCE_DETERMINATIONS in authoritative-metric-catalog.ts -- currently empty,
+// since no code has actually cleared that bar) is also excluded from the coverage
+// denominator, the same way and for the same silent-re-entry-proof reason as
+// PROCESS_META above -- but tracked as its own distinct bucket, never merged into
+// "excluded", so the two remain separately auditable.
+function isNoSourceMetricCode(code: string | null | undefined): boolean {
+  return isNoSourceCode(code);
 }
 
 export interface Countable {
@@ -103,9 +114,10 @@ export interface CoverageReport {
   partial: number;
   unavailable: number;
   excluded: number;
+  noSource: number;
   total: number;
   usablePercent: number;
-  statuses: Array<"DIRECT" | "RECONSTRUCTED" | "PARTIAL" | "UNAVAILABLE" | "EXCLUDED">;
+  statuses: Array<"DIRECT" | "RECONSTRUCTED" | "PARTIAL" | "UNAVAILABLE" | "EXCLUDED" | "NO_SOURCE">;
 }
 
 const pair = (rows: Countable[]): CountPair => ({
@@ -119,14 +131,16 @@ const COVERAGE_THRESHOLD = 70;
 function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): CoverageReport {
   const statuses = metrics.map((metric) => {
     if (isProcessMetaCode(metric.metric_code)) return "EXCLUDED" as const;
+    if (isNoSourceMetricCode(metric.metric_code)) return "NO_SOURCE" as const;
     const value = side === "p1" ? (metric.p1_treatment ?? metric.p1_status) : (metric.p2_treatment ?? metric.p2_status);
-    return ["DIRECT", "RECONSTRUCTED", "PARTIAL", "UNAVAILABLE", "EXCLUDED"].includes(value)
+    return ["DIRECT", "RECONSTRUCTED", "PARTIAL", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"].includes(value)
       ? (value as CoverageReport["statuses"][number])
       : "UNAVAILABLE";
   });
   const count = (status: CoverageReport["statuses"][number]) => statuses.filter((value) => value === status).length;
   const excluded = count("EXCLUDED");
-  const denominator = metrics.length - excluded;
+  const noSource = count("NO_SOURCE");
+  const denominator = metrics.length - excluded - noSource;
   const usable = count("DIRECT") + count("RECONSTRUCTED") + count("PARTIAL");
   return {
     direct: count("DIRECT"),
@@ -134,6 +148,7 @@ function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): Covera
     partial: count("PARTIAL"),
     unavailable: count("UNAVAILABLE"),
     excluded,
+    noSource,
     total: metrics.length,
     usablePercent: denominator > 0 ? Number(((usable / denominator) * 100).toFixed(1)) : 0,
     statuses,
