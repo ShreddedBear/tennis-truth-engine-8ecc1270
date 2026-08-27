@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Guards against a repeat of the outage where a statically-imported 46MB
@@ -11,7 +11,13 @@ import { join } from 'node:path';
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB per compiled chunk
 const MAX_TOTAL_BYTES = 25 * 1024 * 1024; // 25MB across the whole server bundle
 
-const serverDir = join(process.cwd(), '.output/server');
+// The Nitro/TanStack Start build output directory differs by environment
+// (observed: ".output/server" locally, "dist/server" in at least one hosted
+// build pipeline). Detect whichever one the build actually produced instead
+// of hardcoding either — a wrong hardcoded path previously turned this
+// guard into a false-positive publish blocker.
+const CANDIDATE_SERVER_DIRS = ['.output/server', 'dist/server'];
+const serverDir = CANDIDATE_SERVER_DIRS.map((dir) => join(process.cwd(), dir)).find((dir) => existsSync(dir));
 
 function walk(dir) {
   const out = [];
@@ -24,6 +30,10 @@ function walk(dir) {
 }
 
 let files;
+if (!serverDir) {
+  console.error(`Worker bundle check FAILED: none of the expected server output directories exist (${CANDIDATE_SERVER_DIRS.join(', ')}). Did the build step run before this check?`);
+  process.exit(1);
+}
 try {
   files = walk(serverDir);
 } catch (error) {
