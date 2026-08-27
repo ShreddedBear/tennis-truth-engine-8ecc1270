@@ -77,9 +77,22 @@ import type { Treatment } from "./audit-pipeline";
 //   derivable: it requires each player's own historical rank/Elo at match time, which this
 //   row type does not carry (only opponentRank/opponentElo, the opponent's quality, are
 //   present) -- so that bullet is honestly left uncovered and treatment stays PARTIAL.
-// 8 -> 9 codes: ["007","008","010","011","013","017","020","068","080"].
+// - "005" added: real 005 is "Recent Form". Task18c-rank-form-workload.ts previously
+//   claimed this code was PROCESS_META ("Interpretation rules") and removed it on that
+//   basis -- that was based on the same stale catalog reading the phase9 metrics.txt
+//   heading-numbering fix later corrected; real 005 is "Recent Form", an ordinary
+//   reconstructable player metric (evidence-gap.ts and metric-recoverability-map.ts both
+//   already list it RECONSTRUCTABLE), not meta. Last-5/last-10 win rate, trend direction
+//   (recent-half vs prior-half win rate), straight-set control rate of recent wins, average
+//   sets conceded in recent wins, and average recent opponent rank are all directly
+//   derivable from the same chronological completed-match rows every other code here uses.
+//   "Current Hard-Court Swing" (a contiguous same-surface tournament run, not just an
+//   isolated hard-court result) and "Recent-Performance Acceleration" (a rate-of-change
+//   figure finer than a two-window trend comparison) are not honestly derivable from this
+//   row type and are left uncovered; treatment stays PARTIAL.
+// 9 -> 10 codes: ["005","007","008","010","011","013","017","020","068","080"].
 export const TASK18A_HISTORICAL_RESULTS_CODES = [
-  "007","008","010","011","013","017","020","068","080",
+  "005","007","008","010","011","013","017","020","068","080",
 ] as const;
 
 export type Task18aMetricCode = (typeof TASK18A_HISTORICAL_RESULTS_CODES)[number];
@@ -154,6 +167,24 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
   const score=scoreSummary(history);
   const reconstruction=(value:string,sampleSize:number,rawInputs:Record<string,unknown>,transformation:string,treatment:Treatment="RECONSTRUCTED"):HistoricalDerivation=>({value,treatment,sampleSize,rawInputs,transformation});
 
+  if(code==="005"){
+    const desc=[...complete].sort((a,b)=>b.date.localeCompare(a.date));
+    if(!desc.length)return null;
+    const last5=desc.slice(0,5),last10=desc.slice(0,10);
+    const winPct5=pct(last5.filter(r=>r.won).length,last5.length),winPct10=pct(last10.filter(r=>r.won).length,last10.length);
+    const scoredWins5=last5.filter(r=>r.won).filter(scored);
+    const straightSetWins5=scoredWins5.filter(r=>r.setsAgainst===0).length;
+    const straightSetControlPct=pct(straightSetWins5,scoredWins5.length);
+    const avgSetsConcededInWins=avg(scoredWins5.map(r=>r.setsAgainst!).filter(Number.isFinite));
+    const avgOpponentRankLast5=avg(last5.filter(r=>r.opponentRank!==null).map(r=>r.opponentRank!));
+    const half=Math.min(5,Math.floor(desc.length/2));let trend:string|null=null;
+    if(half>=2){
+      const recentHalf=desc.slice(0,half),priorHalf=desc.slice(half,half*2);
+      const recentWinPct=pct(recentHalf.filter(r=>r.won).length,recentHalf.length),priorWinPct=pct(priorHalf.filter(r=>r.won).length,priorHalf.length);
+      if(recentWinPct!==null&&priorWinPct!==null)trend=recentWinPct>priorWinPct?"IMPROVING":recentWinPct<priorWinPct?"DECLINING":"STABLE";
+    }
+    return reconstruction(`last5_matches=${last5.length}; last5_win_pct=${winPct5??"NA"}; last10_matches=${last10.length}; last10_win_pct=${winPct10??"NA"}${trend?`; trend_direction=${trend}`:""}${straightSetControlPct!==null?`; straight_set_control_pct=${straightSetControlPct}`:""}${avgSetsConcededInWins!==null?`; avg_sets_conceded_in_wins=${avgSetsConcededInWins}`:""}${avgOpponentRankLast5!==null?`; avg_opponent_rank_last5=${avgOpponentRankLast5}`:""}`,last5.length,{last5:last5.map(r=>({date:r.date,opponent:r.opponent,won:r.won,surface:r.surface})),last10_count:last10.length,trend_window_size:half},"Sort completed prior results chronologically descending; take the most recent 5 and 10 for win-percentage summaries. Trend direction compares the win rate of the most recent half-window against the immediately preceding half-window of equal size (2-5 matches each, whichever the history supports). Straight-set control rate and average sets conceded are computed only over recent wins with preserved set scores. \"Current Hard-Court Swing\" and \"Recent-Performance Acceleration\" are not covered -- the former requires identifying a contiguous same-surface tournament run this row type cannot reliably distinguish from an isolated hard-court result, and the latter requires a rate-of-change model finer than a two-window trend comparison honestly supports -- so treatment stays PARTIAL.","PARTIAL");
+  }
   if(code==="010"){
     if(!score.matches)return null;const same=withSurface(scoredRows,args.surface);const ss=scoreSummary(same);
     return reconstruction(`scored_wins=${score.wins}; straight_set_wins=${score.straightWins}; straight_set_win_pct=${score.straightWinPct??"NA"}; same_surface_straight_set_win_pct=${ss.straightWinPct??"NA"}`,score.matches,{scored_matches:score.matches,surface:args.surface??null},"Classify completed wins with zero sets lost; separately repeat on the target surface when present.");

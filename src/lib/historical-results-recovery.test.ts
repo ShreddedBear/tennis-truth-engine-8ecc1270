@@ -29,9 +29,15 @@ describe("Task 18A historical/results recovery",()=>{
  // Divergent Outcome" bullet reuses the exact same common-opponent intersection already
  // built for 007; "Opponent-Caliber Performance Gap" is not recoverable (needs each
  // player's own historical rank/Elo, which this row type does not carry), so PARTIAL.
- it("owns exactly the 9 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["007","008","010","011","013","017","020","068","080"].sort());});
+ // "005" (Recent Form) added: task18c-rank-form-workload.ts's removal of "005" was based
+ // on a stale catalog reading (it called real 005 PROCESS_META, which the phase9 metrics.txt
+ // fix corrected -- real 005 is "Recent Form", an ordinary player metric). Last-5/last-10
+ // win rate, trend direction, straight-set control rate and average sets conceded in recent
+ // wins, and average recent opponent rank are all recoverable here; "Current Hard-Court
+ // Swing" and "Recent-Performance Acceleration" are not, so treatment stays PARTIAL.
+ it("owns exactly the 10 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["005","007","008","010","011","013","017","020","068","080"].sort());});
  it("reconstructs every full historical family from observed prior inputs",()=>{
-   for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="013"&&c!=="017"&&c!=="068"&&c!=="080")){
+   for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="005"&&c!=="013"&&c!=="017"&&c!=="068"&&c!=="080")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
      expect(value,code).not.toBeNull();expect(value?.treatment,code).toBe("RECONSTRUCTED");expect(value?.sampleSize,code).toBeGreaterThan(0);
    }
@@ -46,6 +52,41 @@ describe("Task 18A historical/results recovery",()=>{
    for(const code of ["006","023","045","046","049","050","051","052","053","054","055","056","057","058","059"]){
      expect(deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"}),code).toBeNull();
    }
+ });
+ describe("code 005 (Recent Form)",()=>{
+   // Alpha's completed history before asOfDate, chronological descending (5 rows, so
+   // last5 === last10 for this fixture): Beta(W,08-20,setsAgainst=1), Common(W,08-12,
+   // opponentRank=25,setsAgainst=0), ClayOpp(L,07-20,opponentRank=80), GrassOpp(W,06-20,
+   // opponentRank=55,setsAgainst=0), OldOpp(W,01-10,opponentRank=default 42,setsAgainst=0).
+   // Beta's own opponentRank is never overridden in the fixture, so it carries the r()
+   // helper's default of 42.
+   //   last5_win_pct: 4 wins / 5 = 80.
+   //   straight-set wins among the 4 wins (setsAgainst===0): Common, GrassOpp, OldOpp = 3
+   //     of 4 scored wins -> straight_set_control_pct = 75.
+   //   avg_sets_conceded_in_wins: (1+0+0+0)/4 = 0.25.
+   //   avg_opponent_rank_last5: (42[Beta]+25[Common]+80[ClayOpp]+55[GrassOpp]+42[OldOpp])/5
+   //     = 244/5 = 48.8.
+   //   trend: half-window = min(5, floor(5/2)) = 2. Recent 2 (Beta W, Common W) = 100% win;
+   //     prior 2 (ClayOpp L, GrassOpp W) = 50% win -> IMPROVING.
+   it("computes last-5/last-10 form, trend direction, straight-set control and recent opponent quality, hand-traced against the fixture",()=>{
+     const value=deriveHistoricalResultMetric({code:"005",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(value?.treatment).toBe("PARTIAL");
+     expect(value?.value).toContain("last5_matches=5");
+     expect(value?.value).toContain("last5_win_pct=80");
+     expect(value?.value).toContain("last10_win_pct=80");
+     expect(value?.value).toContain("trend_direction=IMPROVING");
+     expect(value?.value).toContain("straight_set_control_pct=75");
+     expect(value?.value).toContain("avg_sets_conceded_in_wins=0.25");
+     expect(value?.value).toContain("avg_opponent_rank_last5=48.8");
+   });
+   it("never claims Current Hard-Court Swing or Recent-Performance Acceleration, which this row type cannot support",()=>{
+     const value=deriveHistoricalResultMetric({code:"005",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(value?.value).not.toContain("swing");
+     expect(value?.value).not.toContain("acceleration");
+   });
+   it("fails closed with no prior completed history instead of fabricating a form summary",()=>{
+     expect(deriveHistoricalResultMetric({code:"005",player:"NeverPlayed",opponent:"Beta",rows,asOfDate,surface:"Hard"})).toBeNull();
+   });
  });
  describe("code 068 (Streaks / Milestones)",()=>{
    // Alpha's completed history before asOfDate, chronological ascending: OldOpp(W,01-10),

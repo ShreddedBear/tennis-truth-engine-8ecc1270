@@ -10,6 +10,7 @@ export type EvidenceAvailabilityClass =
   | "TOUR_CLASSIFICATION_FAILURE"
   | "PBP_EXISTS_NOT_WIRED"
   | "MARKET_EXISTS_NOT_WIRED"
+  | "OBSERVED_EVIDENCE_NOT_RECONSTRUCTED"
   | "PARTIALLY_POPULATED"
   | "GENUINELY_UNAVAILABLE";
 
@@ -64,6 +65,17 @@ export function classifyEvidenceAvailability(signals: AvailabilitySignals): Evid
   const families = new Set(signals.observedFamilies ?? []);
   if (families.has("POINT_BY_POINT")) return "PBP_EXISTS_NOT_WIRED";
   if (families.has("MARKET")) return "MARKET_EXISTS_NOT_WIRED";
+  // Bug fix: any other admissible family (RESULTS_SCHEDULE, RANKING, ENVIRONMENT,
+  // RULES_CONTEXT, ...) actually observed for this metric/matchup used to fall straight
+  // through to the repository/stored-candidate checks below and, since those two signals
+  // were never populated by the runtime diagnostic that calls this function, always ended
+  // up "GENUINELY_UNAVAILABLE" -- which is excluded from SOFTWARE_LOSS. That silently
+  // reclassified real RECONSTRUCTION_FAILURE/EVIDENCE_WIRING_FAILURE metrics (admissible
+  // warehouse observations exist, no permitted deterministic reconstruction recovered a
+  // value) as if the underlying fact simply didn't exist, which is false: the evidence was
+  // observed, just not yet turned into a credited finding. That is software-caused loss,
+  // symmetric with the PBP/MARKET cases just above.
+  if (families.size > 0) return "OBSERVED_EVIDENCE_NOT_RECONSTRUCTED";
   if ((signals.repositoryEvidenceKnown ?? false) && !(signals.repositoryEvidenceExposed ?? false)) return "REPOSITORY_EVIDENCE_NOT_EXPOSED";
   if ((signals.storedCandidateCount ?? 0) > 0) return "DB_EVIDENCE_LOOKUP_FAILURE";
   return "GENUINELY_UNAVAILABLE";
@@ -77,6 +89,7 @@ const SOFTWARE_LOSS = new Set<EvidenceAvailabilityClass>([
   "TOUR_CLASSIFICATION_FAILURE",
   "PBP_EXISTS_NOT_WIRED",
   "MARKET_EXISTS_NOT_WIRED",
+  "OBSERVED_EVIDENCE_NOT_RECONSTRUCTED",
 ]);
 
 export function summarizeRecoverableCeiling(classes: EvidenceAvailabilityClass[]) {
@@ -125,6 +138,16 @@ function classFromRuntimeMetric(match: any, metric: any): EvidenceAvailabilityCl
       p1Treatment: metric.p1_treatment,
       p2Treatment: metric.p2_treatment,
       observedFamilies,
+      // repository_evidence_known/exposed and stored_candidate_count are not currently
+      // set anywhere in evidence-coverage-runtime-diagnostic.server.ts's per-metric detail
+      // rows, so these three always evaluate false/0 today. They are kept here (rather than
+      // removed) because they are real, distinct signals -- "a repository-backed source is
+      // known to exist for this player/family but wasn't exposed as a finding" and "a
+      // persisted metric_evidence_store candidate exists" -- that a future diagnostic
+      // change could legitimately populate. The observedFamilies check above is what fixes
+      // the confirmed software_loss_percent=0 contradiction for RECONSTRUCTION_FAILURE
+      // metrics; these three remain dead until wired, and must never be defaulted to true
+      // to make them "work" -- that would fabricate a software-loss claim from nothing.
       repositoryEvidenceKnown: metric.repository_evidence_known === true,
       repositoryEvidenceExposed: metric.repository_evidence_exposed === true,
       storedCandidateCount: Number(metric.stored_candidate_count ?? 0),
