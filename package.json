@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "predev": "node scripts/build-runtime-tennis-index.mjs .tanstack/generated/tennis-runtime-index.ts",
+    "predev": "node scripts/build-runtime-tennis-index.mjs",
     "prebuild": "node scripts/build-runtime-tennis-index.mjs",
     "prebuild:dev": "node scripts/build-runtime-tennis-index.mjs",
     "dev": "vite dev",

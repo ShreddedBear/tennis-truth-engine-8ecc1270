@@ -1,6 +1,9 @@
-import runtimeIndex from "../src/generated/tennis-runtime-index";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { deriveHistoricalResultMetric, TASK18A_HISTORICAL_RESULTS_CODES, type HistoricalResultRow } from "../src/lib/historical-results-recovery";
 import { normalizeEvidenceIdentity } from "../src/lib/evidence-player-alias";
+
+const runtimeIndex = JSON.parse(readFileSync(join(process.cwd(), "data/generated/tennis-runtime-index.json"), "utf8"));
 
 type Lane="ATP_MAIN"|"WTA_MAIN"|"ATP_CHALLENGER"|"WTA_CHALLENGER";
 type Details={sets_for?:number|null;sets_against?:number|null;set_scores?:Array<[number,number]>;best_of?:number|null;opponent_rank?:number|null;opponent_elo?:number|null;status?:string|null};

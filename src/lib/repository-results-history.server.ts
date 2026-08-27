@@ -1,4 +1,4 @@
-import runtimeIndex from "@/generated/tennis-runtime-index";
+import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 import { evidencePairMatches, normalizeEvidenceIdentity } from "./evidence-player-alias";
 import { normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 
@@ -9,7 +9,7 @@ type HistoryDetails={sets_for?:number|null;sets_against?:number|null;set_scores?
 type HistoryEntry = [unknown, unknown, unknown, unknown, unknown, unknown, unknown, HistoryDetails?];
 const FAMILIES: EvidenceTourFamily[] = ["ATP_MAIN", "WTA_MAIN", "ATP_CHALLENGER", "WTA_CHALLENGER"];
 function sourceId(family: EvidenceTourFamily) {switch (family) {case "ATP_MAIN": return "atp";case "WTA_MAIN": return "wta";case "ATP_CHALLENGER": return "atp_challenger";case "WTA_CHALLENGER": return "wta_challenger";}}
-function historyRows(player: string, family: EvidenceTourFamily): HistoryEntry[] {const key = normalizeEvidenceIdentity(player);if (!key) return [];const rows = (runtimeIndex as any)?.matchHistory?.[family]?.[key];return Array.isArray(rows) ? rows as HistoryEntry[] : [];}
+function historyRows(player: string, family: EvidenceTourFamily): HistoryEntry[] {const key = normalizeEvidenceIdentity(player);if (!key) return [];const rows = (loadRuntimeIndex() as any)?.matchHistory?.[family]?.[key];return Array.isArray(rows) ? rows as HistoryEntry[] : [];}
 export function repositoryHistoryAvailable(player:string,family:EvidenceTourFamily){return historyRows(player,family).length>0;}
 
 export function inferRepositoryMatchContext(args: { p1: string; p2: string; asOfDate: string; tournament?: string | null }) {

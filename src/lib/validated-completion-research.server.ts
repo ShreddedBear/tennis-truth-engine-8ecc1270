@@ -1,11 +1,12 @@
 import type { IdentityFinding, MetricFinding, Researcher } from "./audit-pipeline";
 import { completionSweepResearcher } from "./completion-sweep-research.server";
-import runtimeIndex from "../generated/tennis-runtime-index";
+import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 
 function norm(v:string|null|undefined){return String(v??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
 function tokens(v:string){return norm(v).split(" ").filter(Boolean);}
 function runtimePlayers():Array<{name:string;tour:"ATP"|"WTA"}>{
   const out:Array<{name:string;tour:"ATP"|"WTA"}>=[];
+  const runtimeIndex=loadRuntimeIndex();
   for(const tour of ["ATP","WTA"] as const){const rows=(runtimeIndex as any)?.[tour]??{};for(const value of Object.values(rows) as any[]){if(value?.name)out.push({name:String(value.name),tour});}}
   return out;
 }
