@@ -39,7 +39,7 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
       if (stressDone) {
         stressMetaChanged = await applySafeStressDerivedMetrics(deps, runId);
         const { applyFinalAdvancedMetric } = await import("./final-advanced-meta.server");
-        finalAdvancedChanged = await applyFinalAdvancedMetric(deps, runId);
+        finalAdvancedChanged = await applyFinalAdvancedMetric(deps, runId, data.matchId);
       }
       const changed = metricMetaChanged || pathwayMetaChanged || stressMetaChanged || finalAdvancedChanged;
       if (!changed) return { changed: false, reopenedGate: false };

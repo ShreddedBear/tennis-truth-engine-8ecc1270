@@ -389,15 +389,15 @@ describe("Run Audit pipeline", () => {
     }
 
     // Every other code (including "04"/"05"/"06"/"47"/"61") must still be a normal
-    // player metric, sent to research as before -- except the 12 codes genuinely
+    // player metric, sent to research as before -- except the 14 codes genuinely
     // classified PROTECTED_UNAVAILABLE in the real canonical registry (017, 054, 063,
-    // 065, 066, 067, 069, 072, 074, 078, 079, 081), which this pipeline correctly
-    // settles as NO_SOURCE before ever reaching research, same as META_OR_NON_PLAYER.
-    // "M70" is excluded here too, on top of those 12: this test file's module-level
-    // mock (see the top of this file) additionally treats real code 070 as
-    // PROTECTED_UNAVAILABLE for the dedicated test below, and that mock is file-scoped,
-    // so it also applies here.
-    const realProtectedUnavailableCodes = ["017", "054", "063", "065", "066", "067", "069", "072", "074", "078", "079", "081"].map((suffix) => `M${suffix.replace(/^0/, "")}`);
+    // 065, 066, 067, 069, 072, 073, 074, 076, 078, 079, 081), which this pipeline
+    // correctly settles as NO_SOURCE before ever reaching research, same as
+    // META_OR_NON_PLAYER. "M70" is excluded here too, on top of those 14: this test
+    // file's module-level mock (see the top of this file) additionally treats real code
+    // 070 as PROTECTED_UNAVAILABLE for the dedicated test below, and that mock is
+    // file-scoped, so it also applies here.
+    const realProtectedUnavailableCodes = ["017", "054", "063", "065", "066", "067", "069", "072", "073", "074", "076", "078", "079", "081"].map((suffix) => `M${suffix.replace(/^0/, "")}`);
     const noSourceCodes = new Set([...realProtectedUnavailableCodes, "M70"]);
     const playerCodes = metricRows.map((r) => String(r["metric_code"])).filter((c) => !metaCodes.includes(c) && !noSourceCodes.has(c));
     expect(playerCodes).toHaveLength(DEF_COUNTS.METRICS - 7 - noSourceCodes.size);
