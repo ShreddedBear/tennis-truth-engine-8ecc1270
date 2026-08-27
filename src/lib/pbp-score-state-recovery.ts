@@ -12,7 +12,11 @@ export type PbpTour = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENG
 // requires genuine public retirement/anti-doping reporting for it and forbids
 // RECONSTRUCTED entirely (NON_RECONSTRUCTABLE_CONTEXT_CODES), consistent with this
 // removal -- it was simply shadowed because this file's (wrong) finding was chosen first.
-export const TASK18B_METRIC_CODES = new Set(["004","009","026","027","031","032","033","036","037","038","039","040","070","071","079","002","003"]);
+// "031", "032", "033" were removed: their data (ace rate, double-fault rate, return
+// points won %) is already carried inside "002" and "003"'s own value objects (see the
+// comment above the removed add() calls in reconstructPbpScoreState). Crediting it again
+// under those three codes double-counted the same evidence under mismatched real codes.
+export const TASK18B_METRIC_CODES = new Set(["004","009","026","027","036","037","038","039","040","070","071","079","002","003"]);
 export type RecoveredMetric={treatment:"RECONSTRUCTED"|"PARTIAL";value:Record<string,number|string|boolean|null>;raw_fields:string[];transformation:string};
 export type PbpRecovery={valid:boolean;reason:string|null;game_count:number;point_count:number;derived:Record<PbpSide,Partial<Record<string,RecoveredMetric>>>;field_support:{server:boolean;point_winner:boolean;score_state:boolean;set_boundary:boolean;ace_indicator:boolean;double_fault_indicator:boolean;serve_number:false;rally_length:false;shot_type:false;shot_placement:false;handedness:false}};
 
@@ -49,9 +53,16 @@ export function reconstructPbpScoreState(payload:any):PbpRecovery{
   add("009","PARTIAL",{pressure_points:t.pressurePoints,pressure_points_won:t.pressurePointsWon,pressure_win_pct:pct(t.pressurePointsWon,t.pressurePoints),set_boundaries:hasSetBoundaries},["server","chronological point_winner","set boundary when encoded"],"Break-point/deuce/tiebreak pressure is deterministic; the full deciding/late-set contract is not broadened beyond encoded state.");
   add("026","RECONSTRUCTED",{service_games:t.serviceGames,holds:t.serviceGamesWon,hold_pct:pct(t.serviceGamesWon,t.serviceGames)},["server","game winner"],"Count complete service games won by the server.");
   add("027","RECONSTRUCTED",{return_games:t.returnGames,breaks:t.returnGamesWon,break_pct:pct(t.returnGamesWon,t.returnGames)},["server","game winner"],"Count complete return games won by the returner.");
-  if(fieldSupport.ace_indicator)add("031","RECONSTRUCTED",{aces:t.aces,known_service_points:t.aceKnownServicePoints,ace_rate_pct:pct(t.aces,t.aceKnownServicePoints)},["server","explicit/coded ace indicator"],"Count only service points whose structured PBP explicitly encodes ace status.");
-  if(fieldSupport.double_fault_indicator)add("032","RECONSTRUCTED",{double_faults:t.doubleFaults,known_service_points:t.doubleFaultKnownServicePoints,double_fault_rate_pct:pct(t.doubleFaults,t.doubleFaultKnownServicePoints)},["server","explicit/coded double-fault indicator"],"Count only service points whose structured PBP explicitly encodes double-fault status.");
-  add("033","RECONSTRUCTED",{return_points:t.returnPoints,return_points_won:t.returnPointsWon,return_points_won_pct:pct(t.returnPointsWon,t.returnPoints)},["server","point_winner"],"Orient each point to the non-server and aggregate return points won.");
+  // "031" (ace rate), "032" (double-fault rate), and "033" (return points won %) were
+  // previously separate codes here, but their exact numbers -- ace_rate_pct,
+  // double_fault_rate_pct, return_points_won_pct -- are already present, unchanged, inside
+  // code "002" and "003"'s own value objects two lines above (aces/double_faults on 002;
+  // return_points_won_pct on 003). Crediting them again under 031/032/033 was both a
+  // catalog mismatch (real 031/032/033 are "Extended Opponent-Network Metrics",
+  // "Point-to-Game Conversion Efficiency", "Break Quality Differential" -- unrelated to
+  // serve/return stats) and duplicate evidence under two different codes. Removed per the
+  // Task 20 reconciliation rather than retargeted, since there is no new information to
+  // move -- 002/003 already carry it. See pbp-score-state-recovery.test.ts.
   add("036","RECONSTRUCTED",{break_points_faced:t.breakPointsFaced,break_points_saved:t.breakPointsSaved,bp_saved_pct:pct(t.breakPointsSaved,t.breakPointsFaced)},["server","chronological point_winner"],"Replay score and count break points faced and saved.");
   add("037","RECONSTRUCTED",{break_chances:t.breakChances,break_points_converted:t.breakPointsConverted,bp_converted_pct:pct(t.breakPointsConverted,t.breakChances)},["server","chronological point_winner"],"Replay score and count return-side break chances converted.");
   add("038","RECONSTRUCTED",{break_points_faced:t.breakPointsFaced,service_games:t.serviceGames,bp_faced_per_game:ratio(t.breakPointsFaced,t.serviceGames)},["server","chronological point_winner","game boundary"],"Divide reconstructed break points faced by complete service games.");
