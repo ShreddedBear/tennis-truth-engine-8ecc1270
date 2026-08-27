@@ -32,7 +32,22 @@ const MARKET_METRICS=new Set(["015","019","039","043","044","047","057","073"]);
 // finding to DIRECT/RECONSTRUCTED. See authoritative-metric-catalog.ts and
 // metric-source-family-policy.test.ts.
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
-const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","026","027","031","032","033","034","036","037","038","039","040","041","042","043","044","045","046","051","052","053","054","059","060","070","071","079"]);
+// "026"/"027"/"036"/"038"/"039"/"040"/"079" were previously listed here, inherited from the
+// same pre-Task-17 catalog drift as code 069 above. Their real definitions are, respectively:
+// 026 "Early-Warning / Slow-Start Metrics" (opening-game hold/break rates -- needs a
+// first-N-games-scoped replay this engine does not yet build, not a match-wide PBP stat),
+// 027 "Opponent Finishing Ability" and 036 "Loss Autopsy Metrics" (both keyed off historical
+// match *results*, e.g. lead protection, favorite status, loss surface -- RESULTS_SCHEDULE
+// territory, not point chronology), 038 "Opponent-Adjusted Residual Performance" (needs
+// cross-player population norms), 039 "Performance Surprise Rating" (needs a pre-match
+// expectation/model output), 040 "Hidden Decline Detector" (serve-velocity/rate *trend*
+// across recent matches -- velocity is not in PBP data at all), and 079 "Additional
+// Differentiating Metrics" (coaching-visit and shot-clock events -- not point-by-point score
+// state). pbp-score-state-recovery.ts already does not target any of these (see its
+// TASK18B_METRIC_CODES comment); leaving them here would let the generic warehouse-level PBP
+// path (deterministicPbpMetric) award false PARTIAL credit toward metrics PBP evidence cannot
+// actually inform. See authoritative-metric-catalog.ts and metric-source-family-policy.test.ts.
+const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","059","060","070","071"]);
 const RULES_METRICS=new Set(["020","064","075","076"]);
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}

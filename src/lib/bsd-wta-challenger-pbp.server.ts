@@ -6,7 +6,7 @@ import { canonicalApprovedPbpIdentity, claimUniqueApprovedPbp, isApprovedWtaChal
 
 const COVERAGE_START="2025-01-01";
 const APPROVED_INDEX=join(process.cwd(),"data","metrics","pbp","wta_challenger","approved-index.jsonl");
-const LEGACY_PBP_CODES=new Set(["016","024","025","033","036","040","042","043","044","060","079"]);
+const LEGACY_PBP_CODES=new Set(["016","024","025","033","042","043","044","060"]);
 type MetricLike={code:string;name:string};
 type ApprovedRow={tour?:string;year?:number;match_id?:string|number;date?:string;tournament?:string;player1?:string;player2?:string;metrics?:{set_scores?:Array<[number,number]>;match_winner_slot?:string;total_games?:number;total_points?:number;breaks?:number};status?:string};
 const norm=(v:unknown)=>String(v??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const codeOf=(v:unknown)=>{const m=String(v??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(v??"").padStart(3,"0");};

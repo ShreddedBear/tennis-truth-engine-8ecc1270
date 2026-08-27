@@ -40,14 +40,19 @@ describe("Task 18B PBP evidence firewall", () => {
   });
 
   it("never converts an undefined rate to zero", () => {
+    // Task 20 reconciliation: this scenario has no break points and no pressure
+    // points at all, so every rate derived from them must come back null, never 0.
+    // Codes 004/036/040 no longer exist here (004 was a 037 duplicate and PROCESS_META
+    // anyway; 036/040 had no clean authoritative-catalog home) -- 032/009/053 are the
+    // surviving codes whose pct() calls exercise the same undefined-numerator path.
     const recovery = reconstructPbpScoreState({ sets:[{ games:[
       {server:"player1",points:[{winner:"player1"},{winner:"player1"},{winner:"player1"},{winner:"player1"}]},
       {server:"player2",points:[{winner:"player2"},{winner:"player2"},{winner:"player2"},{winner:"player2"}]},
     ]}]});
     expect(recovery.valid).toBe(true);
-    expect(recovery.derived.player1["004"]?.value.conversion_pct).toBeNull();
-    expect(recovery.derived.player1["036"]?.value.bp_saved_pct).toBeNull();
-    expect(recovery.derived.player1["040"]?.value.deuce_point_win_pct).toBeNull();
+    expect(recovery.derived.player1["032"]?.value.bp_converted_pct).toBeNull();
+    expect(recovery.derived.player1["009"]?.value.pressure_win_pct).toBeNull();
+    expect(recovery.derived.player1["053"]?.value.pressure_index_pct).toBeNull();
   });
 
   it("fails closed on an ungraded tiebreak instead of guessing from the final point", () => {

@@ -18,8 +18,6 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   "028": ["RESULTS_SCHEDULE"],
   "030": ["RESULTS_SCHEDULE", "ENVIRONMENT"],
   "033": ["POINT_BY_POINT"],
-  "036": ["POINT_BY_POINT"],
-  "040": ["POINT_BY_POINT"],
   "042": ["POINT_BY_POINT"],
   "043": ["MARKET", "POINT_BY_POINT"],
   "044": ["MARKET", "POINT_BY_POINT"],
@@ -29,18 +27,21 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   // "069" removed under the Task 20 catalog reconciliation: its authoritative definition
   // ("Stakes / Career Context") has no legitimate RANKING (or any warehouse-family) basis;
   // see metric-source-family-policy.test.ts and metric-certification-066-071.test.ts.
+  // "036" ("Loss Autopsy Metrics"), "040" ("Hidden Decline Detector"), and "079" ("Additional
+  // Differentiating Metrics") removed for the same reason: none of their real bullets are
+  // point-by-point score-state data (historical loss records, cross-match serve/rate trends,
+  // and coaching-visit/shot-clock events respectively) -- see metric-source-family-policy.ts.
   "071": ["RESULTS_SCHEDULE", "ENVIRONMENT"],
   "075": ["RULES_CONTEXT"],
   "076": ["RESULTS_SCHEDULE"],
   "077": ["RESULTS_SCHEDULE"],
-  "079": ["POINT_BY_POINT"],
   "081": ["RESULTS_SCHEDULE"],
 };
 
 const NON_PBP_DETERMINISTIC = [
   "012", "015", "019", "021", "028", "030", "062", "064", "071", "075", "076", "077", "081",
 ];
-const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
+const PBP_METRICS = ["024", "025", "033", "042", "043", "044", "060"];
 
 describe("newly-green end-to-end coverage audit", () => {
   it("preserves every required newly-green source family while allowing audited Task 13 support", () => {

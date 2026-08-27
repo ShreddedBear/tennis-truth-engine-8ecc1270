@@ -12,11 +12,37 @@ export type PbpTour = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENG
 // requires genuine public retirement/anti-doping reporting for it and forbids
 // RECONSTRUCTED entirely (NON_RECONSTRUCTABLE_CONTEXT_CODES), consistent with this
 // removal -- it was simply shadowed because this file's (wrong) finding was chosen first.
-// "031", "032", "033" were removed: their data (ace rate, double-fault rate, return
+// "031", "032"(old), "033" were removed: their data (ace rate, double-fault rate, return
 // points won %) is already carried inside "002" and "003"'s own value objects (see the
 // comment above the removed add() calls in reconstructPbpScoreState). Crediting it again
 // under those three codes double-counted the same evidence under mismatched real codes.
-export const TASK18B_METRIC_CODES = new Set(["004","009","026","027","036","037","038","039","040","070","071","079","002","003"]);
+//
+// Second reconciliation pass (retargeting the remaining mismatched codes):
+// - "004" removed: its break-point-conversion data was an exact duplicate of "037"'s (both
+//   computed break_chances/break_points_converted/conversion_pct from the same totals); 004
+//   is also PROCESS_META (excluded from scoring, see authoritative-metric-catalog.ts), so
+//   keeping only 037 loses nothing.
+// - "037" retargeted to "032": real 037 is "Win Autopsy Metrics" (unrelated); real 032 is
+//   "Point-to-Game Conversion Efficiency", whose own bullet "Break Opportunities Needed per
+//   Successful Break" is exactly break-point conversion rate. 032 had no engine before.
+// - "026" (hold %) and "027" (break %) removed: real 026 ("Early-Warning / Slow-Start
+//   Metrics") and 027 ("Opponent Finishing Ability") both want something more specific
+//   (first-service-game hold rate; finishing/closing performance) than a plain aggregate
+//   hold/break percentage across the whole match -- crediting the aggregate stat under
+//   either would itself be a mismatch, just a smaller one. No other real code's bullets
+//   ask for a plain aggregate hold%/break% as such, so these are removed rather than moved.
+// - "036" (BP saved %), "038" (BP faced/game), "039" (BP chances/game), "040" (deuce win %)
+//   removed: no authoritative code's bullets ask for these exact raw rates either.
+// - "070" (breakback rate) and "071"(old, closeout rate) merged into "018": real 018
+//   ("Momentum & Closing Metrics") explicitly has both "Performance Following Momentum
+//   Events: how a player performs immediately after breaking, being broken..." (breakback)
+//   and "Closing Ability: the probability of winning from a one-break-up... or
+//   serving-for-match position" (closeout) as its own bullets. 018 had no engine before.
+// - "079" (pressure index) retargeted to "053": real 079 is "Additional Differentiating
+//   Metrics" (an unrelated grab-bag); real 053 is "Pressure & Clean-Game Metrics", whose
+//   entire heading is about exactly this. See historical-results-recovery.ts for the
+//   matching removal of 053's old (duplicate, mismatched) content.
+export const TASK18B_METRIC_CODES = new Set(["009","018","032","002","003"]);
 export type RecoveredMetric={treatment:"RECONSTRUCTED"|"PARTIAL";value:Record<string,number|string|boolean|null>;raw_fields:string[];transformation:string};
 export type PbpRecovery={valid:boolean;reason:string|null;game_count:number;point_count:number;derived:Record<PbpSide,Partial<Record<string,RecoveredMetric>>>;field_support:{server:boolean;point_winner:boolean;score_state:boolean;set_boundary:boolean;ace_indicator:boolean;double_fault_indicator:boolean;serve_number:false;rally_length:false;shot_type:false;shot_placement:false;handedness:false}};
 
@@ -49,27 +75,10 @@ export function reconstructPbpScoreState(payload:any):PbpRecovery{
  for(const s of SIDES){const t=totals[s],add=(code:string,treatment:"RECONSTRUCTED"|"PARTIAL",value:RecoveredMetric["value"],raw:string[],transform:string)=>{derived[s][code]={treatment,value,raw_fields:raw,transformation:transform}};
   add("002","PARTIAL",{service_points:t.servicePoints,service_points_won:t.servicePointsWon,service_point_win_pct:pct(t.servicePointsWon,t.servicePoints),aces:fieldSupport.ace_indicator?t.aces:null,double_faults:fieldSupport.double_fault_indicator?t.doubleFaults:null,serve_number_available:false},["server","point_winner","ace/DF only when encoded"],"Aggregate objective service-point outcomes; serve-number dimensions remain unavailable.");
   add("003","PARTIAL",{return_points:t.returnPoints,return_points_won:t.returnPointsWon,return_point_win_pct:pct(t.returnPointsWon,t.returnPoints),serve_number_available:false},["server","point_winner"],"Orient each point to the non-server; serve-number splits are not inferred.");
-  add("004","RECONSTRUCTED",{break_points:t.breakChances,converted:t.breakPointsConverted,conversion_pct:pct(t.breakPointsConverted,t.breakChances)},["server","chronological point_winner"],"Replay standard-game state before each point and identify returner game-point states.");
   add("009","PARTIAL",{pressure_points:t.pressurePoints,pressure_points_won:t.pressurePointsWon,pressure_win_pct:pct(t.pressurePointsWon,t.pressurePoints),set_boundaries:hasSetBoundaries},["server","chronological point_winner","set boundary when encoded"],"Break-point/deuce/tiebreak pressure is deterministic; the full deciding/late-set contract is not broadened beyond encoded state.");
-  add("026","RECONSTRUCTED",{service_games:t.serviceGames,holds:t.serviceGamesWon,hold_pct:pct(t.serviceGamesWon,t.serviceGames)},["server","game winner"],"Count complete service games won by the server.");
-  add("027","RECONSTRUCTED",{return_games:t.returnGames,breaks:t.returnGamesWon,break_pct:pct(t.returnGamesWon,t.returnGames)},["server","game winner"],"Count complete return games won by the returner.");
-  // "031" (ace rate), "032" (double-fault rate), and "033" (return points won %) were
-  // previously separate codes here, but their exact numbers -- ace_rate_pct,
-  // double_fault_rate_pct, return_points_won_pct -- are already present, unchanged, inside
-  // code "002" and "003"'s own value objects two lines above (aces/double_faults on 002;
-  // return_points_won_pct on 003). Crediting them again under 031/032/033 was both a
-  // catalog mismatch (real 031/032/033 are "Extended Opponent-Network Metrics",
-  // "Point-to-Game Conversion Efficiency", "Break Quality Differential" -- unrelated to
-  // serve/return stats) and duplicate evidence under two different codes. Removed per the
-  // Task 20 reconciliation rather than retargeted, since there is no new information to
-  // move -- 002/003 already carry it. See pbp-score-state-recovery.test.ts.
-  add("036","RECONSTRUCTED",{break_points_faced:t.breakPointsFaced,break_points_saved:t.breakPointsSaved,bp_saved_pct:pct(t.breakPointsSaved,t.breakPointsFaced)},["server","chronological point_winner"],"Replay score and count break points faced and saved.");
-  add("037","RECONSTRUCTED",{break_chances:t.breakChances,break_points_converted:t.breakPointsConverted,bp_converted_pct:pct(t.breakPointsConverted,t.breakChances)},["server","chronological point_winner"],"Replay score and count return-side break chances converted.");
-  add("038","RECONSTRUCTED",{break_points_faced:t.breakPointsFaced,service_games:t.serviceGames,bp_faced_per_game:ratio(t.breakPointsFaced,t.serviceGames)},["server","chronological point_winner","game boundary"],"Divide reconstructed break points faced by complete service games.");
-  add("039","RECONSTRUCTED",{break_chances:t.breakChances,return_games:t.returnGames,bp_chances_per_game:ratio(t.breakChances,t.returnGames)},["server","chronological point_winner","game boundary"],"Divide reconstructed break chances by complete return games.");
-  add("040","RECONSTRUCTED",{deuce_points:t.deucePoints,deuce_points_won:t.deucePointsWon,deuce_point_win_pct:pct(t.deucePointsWon,t.deucePoints)},["server","chronological point_winner"],"Replay standard-game score and count points beginning from deuce.");
-  if(hasSetBoundaries){add("070","RECONSTRUCTED",{breakback_opportunities:t.breakbackOpportunities,breakbacks:t.breakbacks,breakback_rate_pct:pct(t.breakbacks,t.breakbackOpportunities)},["server","game winner","set boundary","chronological game order"],"Grade the immediate return game after the player is broken within the same set.");add("071","PARTIAL",{closeout_opportunities:t.closeoutOpportunities,closeouts:t.closeouts,closeout_rate_pct:pct(t.closeouts,t.closeoutOpportunities)},["server","game winner","set boundary","set game score"],"Serving-for-set closeouts are deterministic; match-closeout state is not asserted without an explicit completed-match/best-of contract.")}
-  add("079","PARTIAL",{pressure_points:t.pressurePoints,pressure_points_won:t.pressurePointsWon,pressure_index_pct:pct(t.pressurePointsWon,t.pressurePoints),set_boundaries:hasSetBoundaries},["server","chronological point_winner","set boundary when encoded"],"Pressure index uses only deterministic encoded pressure states; unavailable late/deciding-state components are not synthesized.");
+  add("032","RECONSTRUCTED",{break_chances:t.breakChances,break_points_converted:t.breakPointsConverted,bp_converted_pct:pct(t.breakPointsConverted,t.breakChances)},["server","chronological point_winner"],"Replay score and count return-side break chances converted. Retargeted from the mismatched code 037/004 to real code 032 (\"Point-to-Game Conversion Efficiency\").");
+  if(hasSetBoundaries){add("018","RECONSTRUCTED",{breakback_opportunities:t.breakbackOpportunities,breakbacks:t.breakbacks,breakback_rate_pct:pct(t.breakbacks,t.breakbackOpportunities),closeout_opportunities:t.closeoutOpportunities,closeouts:t.closeouts,closeout_rate_pct:pct(t.closeouts,t.closeoutOpportunities)},["server","game winner","set boundary","chronological game order"],"Grade the immediate return game after being broken (breakback) and serving-for-set closeouts within the same set. Retargeted from the mismatched codes 070/071 to real code 018 (\"Momentum & Closing Metrics\"), whose own bullets name both \"Performance Following Momentum Events\" (breaking/being broken) and \"Closing Ability\" (serving-for-match/set position).")}
+  add("053","PARTIAL",{pressure_points:t.pressurePoints,pressure_points_won:t.pressurePointsWon,pressure_index_pct:pct(t.pressurePointsWon,t.pressurePoints),set_boundaries:hasSetBoundaries},["server","chronological point_winner","set boundary when encoded"],"Pressure index uses only deterministic encoded pressure states; unavailable late/deciding-state components are not synthesized. Retargeted from the mismatched code 079 to real code 053 (\"Pressure & Clean-Game Metrics\").");
  }
  return{valid:true,reason:null,game_count:games.length,point_count:pointCount,derived,field_support:fieldSupport};
 }

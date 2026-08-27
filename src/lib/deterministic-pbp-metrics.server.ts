@@ -5,7 +5,7 @@ import { metricAllowsObservation } from "./metric-source-family-policy";
 import { TASK18B_METRIC_CODES } from "./pbp-score-state-recovery";
 
 const db = supabaseAdmin as any;
-const LEGACY_SUPPORTED = new Set(["016","024","025","033","036","040","042","043","044","060","079"]);
+const LEGACY_SUPPORTED = new Set(["016","024","025","033","042","043","044","060"]);
 const SUPPORTED = new Set([...LEGACY_SUPPORTED, ...TASK18B_METRIC_CODES]);
 
 type Row={source_id:string|null;source_name:string|null;source_url:string|null;player_name:string|null;opponent_name:string|null;event_date:string|null;observation_type:string|null;observation_key:string|null;numeric_value:number|null;text_value:string|null;sample_label:string|null};
