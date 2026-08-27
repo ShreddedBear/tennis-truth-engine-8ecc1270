@@ -25,9 +25,13 @@ describe("Task 18A historical/results recovery",()=>{
  // (Streaks/Milestones) added by the NO_SOURCE denominator-eligibility audit: current
  // streak + longest-win-streak-this-season + tournament debut status are all recoverable
  // from data already here; protected-ranking status is not, so treatment stays PARTIAL.
- it("owns exactly the 8 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["007","008","010","011","013","017","020","068"].sort());});
+ // "080" (Common-Opponent & Opponent-Caliber Metrics) re-added: its "Common-Opponent
+ // Divergent Outcome" bullet reuses the exact same common-opponent intersection already
+ // built for 007; "Opponent-Caliber Performance Gap" is not recoverable (needs each
+ // player's own historical rank/Elo, which this row type does not carry), so PARTIAL.
+ it("owns exactly the 9 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["007","008","010","011","013","017","020","068","080"].sort());});
  it("reconstructs every full historical family from observed prior inputs",()=>{
-   for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="013"&&c!=="017"&&c!=="068")){
+   for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="013"&&c!=="017"&&c!=="068"&&c!=="080")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
      expect(value,code).not.toBeNull();expect(value?.treatment,code).toBe("RECONSTRUCTED");expect(value?.sampleSize,code).toBeGreaterThan(0);
    }
@@ -39,7 +43,7 @@ describe("Task 18A historical/results recovery",()=>{
  it("fails closed when no common-opponent network exists",()=>{expect(deriveHistoricalResultMetric({code:"007",player:"Alpha",opponent:"NeverPlayed",rows,asOfDate,surface:"Hard"})).toBeNull();});
  it("does not promote set-total-only history to game-score volatility evidence",()=>{const totalsOnly:HistoricalResultRow[]=[r("Alpha","X","2026-08-10",true,"Hard",2,0,[],{opponentRank:null,opponentElo:null}),r("Alpha","Y","2026-08-01",false,"Hard",1,2,[],{opponentRank:null,opponentElo:null})];expect(deriveHistoricalResultMetric({code:"011",player:"Alpha",opponent:"Beta",rows:totalsOnly,asOfDate,surface:"Hard"})).toBeNull();});
  it("never writes player evidence into PROCESS_META or removed mismatched codes (regression against silent re-entry)",()=>{
-   for(const code of ["006","023","045","046","049","050","051","052","053","054","055","056","057","058","059","080"]){
+   for(const code of ["006","023","045","046","049","050","051","052","053","054","055","056","057","058","059"]){
      expect(deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"}),code).toBeNull();
    }
  });
@@ -64,6 +68,37 @@ describe("Task 18A historical/results recovery",()=>{
    });
    it("fails closed with no prior completed history instead of fabricating a streak",()=>{
      expect(deriveHistoricalResultMetric({code:"068",player:"NeverPlayed",opponent:"Beta",rows,asOfDate,surface:"Hard"})).toBeNull();
+   });
+ });
+ describe("code 080 (Common-Opponent & Opponent-Caliber Metrics)",()=>{
+   // Hand-traced against the shared fixture above, independent of the implementation.
+   // Alpha vs Beta's shared opponents (both played, excluding their own H2H): Common,
+   // ClayOpp, GrassOpp, OldOpp.
+   //   Common:   Alpha beat Common (W); Beta lost to Common (L)   -> favorable for Alpha.
+   //   ClayOpp:  Alpha lost to ClayOpp (L); Beta beat ClayOpp (W) -> unfavorable for Alpha.
+   //   GrassOpp: Alpha beat GrassOpp (W); Beta beat GrassOpp (W)  -> not divergent.
+   //   OldOpp:   Alpha beat OldOpp (W); Beta lost to OldOpp (L)   -> favorable for Alpha.
+   // => common_opponents=4, favorable=2 (Common, OldOpp), unfavorable=1 (ClayOpp).
+   it("computes common-opponent divergent outcomes correctly, hand-traced against the fixture",()=>{
+     const value=deriveHistoricalResultMetric({code:"080",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(value?.treatment).toBe("PARTIAL");
+     expect(value?.value).toContain("common_opponents=4");
+     expect(value?.value).toContain("favorable_divergent_outcomes=2");
+     expect(value?.value).toContain("unfavorable_divergent_outcomes=1");
+   });
+   it("is symmetric: from Beta's perspective the favorable/unfavorable counts invert",()=>{
+     const value=deriveHistoricalResultMetric({code:"080",player:"Beta",opponent:"Alpha",rows,asOfDate,surface:"Hard"});
+     expect(value?.value).toContain("common_opponents=4");
+     expect(value?.value).toContain("favorable_divergent_outcomes=1");
+     expect(value?.value).toContain("unfavorable_divergent_outcomes=2");
+   });
+   it("never claims the Opponent-Caliber Performance Gap bullet, which this row type cannot support",()=>{
+     const value=deriveHistoricalResultMetric({code:"080",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(value?.value).not.toContain("caliber");
+     expect(value?.value).not.toContain("gap");
+   });
+   it("fails closed when the two players share no common opponents",()=>{
+     expect(deriveHistoricalResultMetric({code:"080",player:"Alpha",opponent:"NeverPlayed",rows,asOfDate,surface:"Hard"})).toBeNull();
    });
  });
 });

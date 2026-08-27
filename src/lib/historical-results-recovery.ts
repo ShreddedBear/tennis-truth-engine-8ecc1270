@@ -67,9 +67,19 @@ import type { Treatment } from "./audit-pipeline";
 //   threaded through from deterministic-historical-results-metrics.server.ts). "Protected-
 //   Ranking Status" is NOT derivable -- this row type carries no ranking-protection flag
 //   at all -- so it is honestly left uncovered; treatment stays PARTIAL.
-// 7 -> 8 codes: ["007","008","010","011","013","017","020","068"].
+// - "080" re-added, correcting the "removed with no retarget" note above: a closer look
+//   found its first bullet, "Common-Opponent Divergent Outcome" (cases where this player
+//   beat a shared opponent while the other match player lost to that same opponent, or
+//   vice versa), IS derivable using the exact same common-opponent identity intersection
+//   already built for code 007 -- it needs only win/loss outcomes against a shared
+//   opponent, not opponent quality data. Its second bullet, "Opponent-Caliber Performance
+//   Gap" (a ceiling-vs-floor spread relative to the player's OWN level), genuinely is not
+//   derivable: it requires each player's own historical rank/Elo at match time, which this
+//   row type does not carry (only opponentRank/opponentElo, the opponent's quality, are
+//   present) -- so that bullet is honestly left uncovered and treatment stays PARTIAL.
+// 8 -> 9 codes: ["007","008","010","011","013","017","020","068","080"].
 export const TASK18A_HISTORICAL_RESULTS_CODES = [
-  "007","008","010","011","013","017","020","068",
+  "007","008","010","011","013","017","020","068","080",
 ] as const;
 
 export type Task18aMetricCode = (typeof TASK18A_HISTORICAL_RESULTS_CODES)[number];
@@ -155,6 +165,20 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
   if(code==="007"){
     const opponentHistory=args.rows.filter(r=>r.player===args.opponent&&r.date<args.asOfDate&&isCompleted(r));const theirs=new Set(opponentHistory.map(r=>r.opponent));const common=complete.filter(r=>r.opponent!==args.opponent&&theirs.has(r.opponent)&&quality(r)!==null);if(!common.length)return null;const w=common.filter(r=>r.won).length;
     return reconstruction(`ranked_common_opponent_matches=${common.length}; wins=${w}; win_pct=${pct(w,common.length)??"NA"}; common_opponents=${new Set(common.map(r=>r.opponent)).size}`,common.length,{common_opponents:[...new Set(common.map(r=>r.opponent))].slice(0,50),quality_labels:common.slice(0,50).map(r=>quality(r))},"Intersect canonical opponent identities across both players, require ranking/Elo quality evidence, then aggregate this player's prior results against those shared opponents. Retargeted from the mismatched code 013 to real code 007 (\"Common-Opponent Network\").");
+  }
+  if(code==="080"){
+    const opponentHistory=args.rows.filter(r=>r.player===args.opponent&&r.date<args.asOfDate&&isCompleted(r));if(!opponentHistory.length)return null;
+    const theirResultsByOpponent=new Map<string,boolean[]>();for(const r of opponentHistory){const arr=theirResultsByOpponent.get(r.opponent)??[];arr.push(r.won===true);theirResultsByOpponent.set(r.opponent,arr);}
+    const sharedOpponents=[...new Set(complete.filter(r=>r.opponent!==args.opponent&&theirResultsByOpponent.has(r.opponent)).map(r=>r.opponent))];if(!sharedOpponents.length)return null;
+    let favorable=0,unfavorable=0;
+    for(const opp of sharedOpponents){
+      const mine=complete.filter(r=>r.opponent===opp);const theirs=theirResultsByOpponent.get(opp)!;
+      const iEverWon=mine.some(r=>r.won===true),iEverLost=mine.some(r=>r.won===false);
+      const theyEverWon=theirs.some(w=>w===true),theyEverLost=theirs.some(w=>w===false);
+      if(iEverWon&&theyEverLost)favorable++;
+      if(iEverLost&&theyEverWon)unfavorable++;
+    }
+    return reconstruction(`common_opponents=${sharedOpponents.length}; favorable_divergent_outcomes=${favorable}; unfavorable_divergent_outcomes=${unfavorable}`,sharedOpponents.length,{common_opponents:sharedOpponents.slice(0,50)},"Intersect canonical opponent identities across both players (same method as code 007); for each shared opponent, flag a favorable divergence when this player has ever beaten them while the other match player has ever lost to them, and an unfavorable divergence in the reverse case. \"Opponent-Caliber Performance Gap\" is not covered -- it requires each player's own historical rank/Elo at match time to compute a ceiling-vs-floor gap relative to their own level, which this row type does not carry -- so treatment stays PARTIAL.","PARTIAL");
   }
   if(code==="020"){
     const r=recent(history,args.asOfDate,90).filter(x=>isCompleted(x)&&quality(x)!==null);if(!r.length)return null;const q=rankedRecord(r);const w=r.filter(x=>x.won).length;

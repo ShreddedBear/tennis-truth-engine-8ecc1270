@@ -19,7 +19,16 @@ export async function deterministicHistoricalResultsMetric(args:{metricCode:stri
   const p1Rows=repositoryResultsRows(args.p1,family,args.asOfDate,{strictBefore:true});const p2Rows=repositoryResultsRows(args.p2,family,args.asOfDate,{strictBefore:true});if(!p1Rows.length||!p2Rows.length)return null;
   const allObs=[...p1Rows,...p2Rows];const rows=historicalRows(allObs);const surface=args.surface??contextSurface(args.context);const p1=canonicalKey(args.p1),p2=canonicalKey(args.p2);if(!p1||!p2||p1===p2)return null;
   const a=deriveHistoricalResultMetric({code,player:p1,opponent:p2,rows,asOfDate:args.asOfDate,surface,tournament:args.tournament});const b=deriveHistoricalResultMetric({code,player:p2,opponent:p1,rows,asOfDate:args.asOfDate,surface,tournament:args.tournament});if(!a||!b||a.sampleSize<=0||b.sampleSize<=0)return null;
-  const treatment=code==="057"?"PARTIAL":"RECONSTRUCTED";if(a.treatment!==treatment||b.treatment!==treatment)return null;
+  // Bug fix: this used to hardcode `code==="057"?"PARTIAL":"RECONSTRUCTED"` -- "057" is
+  // not even a code this file owns (it's real PROCESS_META, retargeted away long before
+  // this wrapper was last touched). Since 013/017/068 were added to
+  // TASK18A_HISTORICAL_RESULTS_CODES with treatment PARTIAL, that hardcoded guess meant
+  // a.treatment (correctly "PARTIAL") never matched the guessed "RECONSTRUCTED", so this
+  // wrapper silently discarded every finding for 013/017/068 no matter what data existed
+  // -- confirmed by reading deriveHistoricalResultMetric's own per-code treatment values,
+  // not by guessing. Use the treatment deriveHistoricalResultMetric actually returned,
+  // requiring both sides to agree, instead of a hardcoded per-code guess.
+  if(a.treatment!==b.treatment)return null;const treatment=a.treatment;
   const canonical=buildCanonicalEvidenceMatchIdentity({player1Name:args.p1,player2Name:args.p2,tournament:args.tournament,date:args.asOfDate,tour:family});
   const provenance={metric:code,tour_family:family,target_match:canonical.key,surface,cutoff:`strictly before ${args.asOfDate}`,p1:{raw_inputs:a.rawInputs,transformation:a.transformation,output:a.value,sample_size:a.sampleSize},p2:{raw_inputs:b.rawInputs,transformation:b.transformation,output:b.value,sample_size:b.sampleSize}};
   return {metric_code:code,p1_value:a.value,p2_value:b.value,p1_treatment:treatment,p2_treatment:treatment,differential:null,evidence_family:"RESULTS_HISTORY",reliability:treatment==="PARTIAL"?72:92,sample:JSON.stringify(provenance),unavailable_reason:treatment==="PARTIAL"?"Retirement/walkover status is only credited for rows with explicitly preserved status; missing status is never treated as a normal completion.":null,sources:refs(allObs)};
