@@ -1,0 +1,132 @@
+import { describe, expect, it } from "vitest";
+import { canonicalKey, normalizeName, parseSummaryText } from "./summary-parser";
+
+// Fixtures mirror real betting-card PDFs uploaded through the app: a "X vs Y"
+// title line, a "Today @ h:mmam/pm · TOURNAMENT" subtitle, two "Name ... odds"
+// rows, and a "$N vol" footer. OCR of the flag/rank icon beside each name
+// commonly glues 1-2 stray letters onto the real name (e.g. "s K Oliver
+// Tarvet"), and the subtitle's schedule prefix used to leak into the
+// tournament field. These fixtures pin both bugs closed.
+
+describe("summary-parser", () => {
+  it("strips the schedule prefix from the tournament field and still detects the tour", () => {
+    const page = [
+      "Tarvet vs Hudd",
+      "Today @ 8:10am · ATP Challenger Roehampton 2",
+      "Oliver Tarvet -720",
+      "Emile Hudd +573",
+      "$5,139 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    expect(matchup.player1_name).toBe("Oliver Tarvet");
+    expect(matchup.player2_name).toBe("Emile Hudd");
+    const tournament = matchup.fields.find((f) => f.field_key === "tournament")?.normalized_value;
+    expect(tournament).toBe("ATP Challenger Roehampton 2");
+    expect(matchup.fields.find((f) => f.field_key === "event_level")?.normalized_value).toBe("Challenger");
+  });
+
+  it("handles OCR truncating 'Today' down to 'day' with a period instead of a middot", () => {
+    // Exact shape observed from a real uploaded PDF's OCR output.
+    const page = [
+      "Basing vs Broom",
+      "day @ 8:18am. ATP Challenger Roehampton 2",
+      "Charles Broom",
+      "Max Basing",
+      "$1,424 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    const tournament = matchup.fields.find((f) => f.field_key === "tournament")?.normalized_value;
+    expect(tournament).toBe("ATP Challenger Roehampton 2");
+    expect(matchup.fields.find((f) => f.field_key === "event_level")?.normalized_value).toBe("Challenger");
+  });
+
+  it("still detects WTA/ATP event level once the schedule prefix no longer blocks the start-anchored check", () => {
+    const page = [
+      "Starodubtseva vs Mertens",
+      "Today @ 10:40pm - WTA Monterrey",
+      "Elina Starodubtseva -150",
+      "Elise Mertens +120",
+      "$2,000 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    const tournament = matchup.fields.find((f) => f.field_key === "tournament")?.normalized_value;
+    expect(tournament).toBe("WTA Monterrey");
+    expect(matchup.fields.find((f) => f.field_key === "event_level")?.normalized_value).toBe("WTA");
+  });
+
+  it("drops an OCR icon-glyph prefix glued onto a player name instead of keeping it as a fake extra name token", () => {
+    const page = [
+      "Tarvet vs Hudd",
+      "Today @ 8:10am · ATP Challenger Roehampton 2",
+      "s K Oliver Tarvet",
+      "s 4 Emile Hudd",
+      "$5,139 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    expect(matchup.player1_name).toBe("Oliver Tarvet");
+    expect(matchup.player2_name).toBe("Emile Hudd");
+  });
+
+  it("also strips a two-letter icon-glyph prefix and normalizes stray lowercase from OCR", () => {
+    const page = [
+      "Tarvet vs Hudd",
+      "Today @ 8:10am · ATP Challenger Roehampton 2",
+      "NE oliver Tarvet",
+      "SH emile Hudd",
+      "$5,139 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    expect(matchup.player1_name).toBe("Oliver Tarvet");
+    expect(matchup.player2_name).toBe("Emile Hudd");
+  });
+
+  it("does not corrupt a real two-word name with a genuinely short first name", () => {
+    const page = [
+      "Jo vs Konta",
+      "Today @ 6:00pm · WTA Monterrey",
+      "Jo Durie",
+      "Ana Konta",
+      "$800 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    expect(matchup.player1_name).toBe("Jo Durie");
+    expect(matchup.player2_name).toBe("Ana Konta");
+  });
+
+  it("preserves apostrophes and hyphens in surnames through title-casing", () => {
+    const page = [
+      "O'Connor vs Auger-Aliassime",
+      "Today @ 6:00pm · ATP Winston Salem",
+      "shane O'Connor",
+      "felix AUGER-ALIASSIME",
+      "$1,200 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    expect(matchup.player1_name).toBe("Shane O'Connor");
+    expect(matchup.player2_name).toBe("Felix Auger-Aliassime");
+  });
+
+  it("resolves a compound three-word given name without treating the extra word as noise", () => {
+    const page = [
+      "Cerundolo vs Buse",
+      "Today @ 4:00pm · ATP Winston Salem",
+      "Juan Manuel Cerundolo -132",
+      "Ignacio Buse +105",
+      "$24,773 vol",
+    ].join("\n");
+    const [matchup] = parseSummaryText([page]);
+    expect(matchup.player1_name).toBe("Juan Manuel Cerundolo");
+    expect(matchup.player2_name).toBe("Ignacio Buse");
+  });
+});
+
+describe("normalizeName / canonicalKey", () => {
+  it("normalizes accents and case for identity comparison", () => {
+    expect(normalizeName("Félix Auger-Aliassime")).toBe("felix augeraliassime");
+  });
+  it("builds an order-independent canonical key for a pair", () => {
+    const a = canonicalKey({ tournament: "ATP Winston Salem", round: null, date: "2026-08-27", p1: "Juan Manuel Cerundolo", p2: "Ignacio Buse" });
+    const b = canonicalKey({ tournament: "ATP Winston Salem", round: null, date: "2026-08-27", p1: "Ignacio Buse", p2: "Juan Manuel Cerundolo" });
+    expect(a).toBe(b);
+  });
+});

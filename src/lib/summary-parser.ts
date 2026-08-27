@@ -14,14 +14,35 @@ const FIELD_PATTERNS:Array<[string,RegExp]>=[
  ["matrix_predicted_winner",/predicted winner\s*[:\-]\s*(.+)/i],["matrix_wp",/(?:win probability|matrix wp|wp)\s*[:\-]\s*([\d.]+)\s*%?/i],["monte_carlo_winner",/monte carlo winner\s*[:\-]\s*(.+)/i],["monte_carlo_prob",/monte carlo (?:win )?(?:probability|prob)\s*[:\-]\s*([\d.]+)/i],["data_quality",/(?:data quality|dq)\s*[:\-]\s*(.+)/i],["upset_risk",/upset risk\s*[:\-]\s*(.+)/i],["model_agreement",/(?:model )?agreement\s*[:\-]\s*(.+)/i]
 ];
 function cleanLine(v:string){return v.replace(/[|]/g," ").replace(/\s+/g," ").trim();}
-function cleanTournament(v:string){return cleanLine(v).replace(/^\$?[\d,]+\s*(?:vol(?:ume)?)?\s*/i,"").replace(/^vol(?:ume)?\s*/i,"").trim();}
-function cleanPlayer(v:string){return cleanLine(v).replace(/^[^A-Za-zÀ-ÿ]{0,4}/,"").replace(/^(?:BEE|SE|s|a)\s+(?=[A-ZÀ-Ý])/i,"").replace(/\s+[+\-−]\s*\d{2,4}\s*$/," ").replace(/\s+/g," ").trim();}
+// Card subtitles read "Today @ 8:10am · ATP Challenger Roehampton 2" (OCR often
+// truncates/mangles "Today" and the separator, e.g. "day @ 8:18am. ATP
+// Challenger..."). Left unstripped, this whole line used to get stored as the
+// tournament value, and it also broke the "starts with ATP/WTA/ITF" event_level
+// checks below. Matched generically on "leading word + @ + time" rather than
+// enumerating day names, since OCR truncation of "Today" is unpredictable —
+// no real tournament name is followed directly by an "@ H:MM" time.
+const SCHEDULE_PREFIX=/^\S{1,10}\s*@?\s*\d{1,2}:\d{2}\s*(?:am|pm)?[\s.]*[-·:•]?\s*/i;
+function cleanTournament(v:string){return cleanLine(v).replace(/^\$?[\d,]+\s*(?:vol(?:ume)?)?\s*/i,"").replace(/^vol(?:ume)?\s*/i,"").replace(SCHEDULE_PREFIX,"").trim();}
+// Betting-card rows show a small flag/rank icon immediately to the left of each
+// player's name; OCR frequently reads that icon as one or two short stray
+// letter-tokens glued onto the real name (e.g. "s K Oliver Tarvet", "NE oliver
+// Tarvet"). A genuine leading initial always carries a period ("J. Smith"), so a
+// bare 1-2 letter token with no period in front of a real word is safe to drop.
+// The stray token itself may include a misread digit (an icon read as "4"),
+// but the lookahead still requires the actual name that follows to be pure
+// letters — this only ever strips the noise, never a real odds/price line.
+const ICON_NOISE_PREFIX=/^(?:[A-Za-zÀ-ÿ0-9]{1,2}\s+){1,2}(?=[\p{L}]{3,}\s+[\p{L}])/u;
+// Title-case each letter run independently (not split on apostrophe/hyphen as
+// a whole token) so "O'Connor" and "Auger-Aliassime" keep the letters after the
+// punctuation capitalized instead of being lowercased as one long "word".
+const titleCase=(v:string)=>v.replace(/\p{L}+/gu,w=>w[0].toUpperCase()+w.slice(1).toLowerCase());
+function cleanPlayer(v:string){return titleCase(cleanLine(v).replace(/^[^A-Za-zÀ-ÿ]{0,4}/,"").replace(ICON_NOISE_PREFIX,"").replace(/^(?:BEE|SE|s|a)\s+(?=[A-ZÀ-Ý])/i,"").replace(/\s+[+\-−]\s*\d{2,4}\s*$/," ").replace(/\s+/g," ").trim());}
 function looksLikeFullPlayerName(line:string){const s=cleanPlayer(line);if(!s||s.length<4||s.length>55||NOISE.test(s)||EVENTISH.test(s))return false;if(/\d|\$|@|%|\bvol\b/i.test(s))return false;const words=s.split(/\s+/).filter(Boolean);return words.length>=2&&words.length<=6&&words.every(w=>/^[\p{L}][\p{L}'’.\-]*$/u.test(w));}
 function add(out:ParsedField[],key:string,value:string,page:number,confidence=.9){const v=cleanLine(value);if(v&&!out.some(f=>f.field_key===key))out.push({field_key:key,raw_value:v,normalized_value:v,extraction_status:"DIRECT",confidence,page_number:page});}
 function fieldsFromBlock(block:string,page:number){const out:ParsedField[]=[];for(const[key,re]of FIELD_PATTERNS){const m=block.match(re);if(!m)continue;const raw=(m[1]??"").trim().replace(/\s{2,}.*$/,"");if(raw)add(out,key,key==="tournament"?cleanTournament(raw):raw,page);}
  const lines=block.split(/\n/).map(cleanLine).filter(Boolean);
- const eventRaw=lines.find(l=>EVENTISH.test(l)&&!/\bvs\b/i.test(l));if(eventRaw){const event=cleanTournament(eventRaw);if(event)add(out,"tournament",event,page,.85);if(/challenger/i.test(event))add(out,"event_level","Challenger",page,.9);else if(/^ATP\b/i.test(event))add(out,"event_level","ATP",page,.8);else if(/^WTA\b/i.test(event))add(out,"event_level","WTA",page,.8);else if(/^ITF\b/i.test(event))add(out,"event_level","ITF",page,.8);}
- const when=lines.find(l=>/\b(?:Today|Tomorrow)\b\s*@?\s*\d{1,2}:\d{2}\s*(?:am|pm)?/i.test(l));if(when)add(out,"scheduled_date",when,page,.8);
+ const eventRaw=lines.find(l=>EVENTISH.test(l)&&!/\bvs\b/i.test(l));if(eventRaw){const event=cleanTournament(eventRaw);if(event)add(out,"tournament",event,page,.85);if(/challenger/i.test(event))add(out,"event_level","Challenger",page,.9);else if(/\bATP\b/i.test(event))add(out,"event_level","ATP",page,.8);else if(/\bWTA\b/i.test(event))add(out,"event_level","WTA",page,.8);else if(/\bITF\b/i.test(event))add(out,"event_level","ITF",page,.8);}
+ const when=lines.find(l=>/@?\s*\d{1,2}:\d{2}\s*(?:am|pm)\b/i.test(l));if(when)add(out,"scheduled_date",when,page,.8);
  const vol=lines.join(" ").match(/\$\s*([\d,]+)\s*vol/i);if(vol)add(out,"market_volume",`$${vol[1]}`,page,.95);
  const odds=lines.join(" ").match(/[+\-−]\s*\d{2,4}/g)?.map(x=>x.replace(/\s+/g,""))??[];if(odds[0])add(out,"p1_moneyline",odds[0],page,.9);if(odds[1])add(out,"p2_moneyline",odds[1],page,.9);
  return out;}
