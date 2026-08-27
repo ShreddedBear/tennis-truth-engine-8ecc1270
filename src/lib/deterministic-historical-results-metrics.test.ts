@@ -35,6 +35,7 @@ describe("Task 18A deterministic historical integration",()=>{
  it("routes only the owned historical family through the Task 18A engine",()=>{expect(router).toContain("TASK18A_HISTORICAL_RESULTS_CODES");expect(router).toContain("deterministicHistoricalResultsMetric");});
  it("enforces strict historical cutoffs instead of same-day or future leakage",()=>{expect(server).toContain("strictBefore:true");expect(repository).toContain("date >= asOfDate");expect(repository).toContain("strict_before_target");});
  it("preserves four physically isolated tour lanes and the WTA125 contamination firewall",()=>{for(const family of ["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"])expect(builder).toContain(family);expect(builder).toContain("WTA125_CONTAMINATION_FIREWALL_BLOCKED");expect(builder).toContain("WTA125_ROW_COUNT_MISMATCH");});
+ it("guards the WTA Tour main-draw ingestion with the same row-count regression discipline as WTA125",()=>{expect(builder).toContain("WTA_MAIN_ROW_COUNT_MISMATCH");expect(builder).toContain("tour_type_human!=='WTA Tour'");expect(repository).toContain("surnameInitialKeyCandidates");});
  it("carries raw score/status inputs into reproducible metric provenance",()=>{expect(builder).toContain("raw_score");expect(builder).toContain("set_scores");expect(builder).toContain("status");expect(server).toContain("raw_inputs");expect(server).toContain("transformation");expect(server).toContain("output");expect(server).toContain("target_match");});
 
  // Regression test for a real bug: this wrapper used to hardcode

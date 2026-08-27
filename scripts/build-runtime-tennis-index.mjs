@@ -59,5 +59,47 @@ if(existsSync(challengerDir)){const currentYear=new Date().getUTCFullYear();let 
 const wta125Path=join(root,'data/public/production-history/wta_challenger/matches_2021_2026.csv');
 if(existsSync(wta125Path)){const rows=parseCsv(readFileSync(wta125Path,'utf8'));let accepted=0;for(const row of rows){if(row.tour_family!=='WTA_CHALLENGER'||row.competition_level!=='WTA_125'||row.production_scope!=='WTA_125_ONLY'||row.contamination_firewall!=='PASS'||row.classification!=='WTA_125_CHALLENGER'||row.level!=='WTA Chall')throw new Error(`WTA125_CONTAMINATION_FIREWALL_BLOCKED:${row.match_key??accepted}`);const home=row.home_player??'',away=row.away_player??'',date=row.date??'';if(!home||!away||!date)throw new Error(`WTA125_INVALID_MATCH:${row.match_key??accepted}`);const homeWon=winnerCode(row.winner_code);addSymmetric('WTA_CHALLENGER',home,away,date,row.tournament,row.surface,homeWon,row.round,'Validated WTA 125 production history',compactDetails(row,'HOME'));accepted++;}if(accepted!==7615)throw new Error(`WTA125_ROW_COUNT_MISMATCH:${accepted}`);console.log(`WTA_CHALLENGER: ${accepted} validated WTA 125 matches indexed`);}
 
+// WTA Tour main-draw matches, TennisData.app season exports (raw, user-supplied; the
+// WTA Challenger portion of these exact same season files was already ingested above via
+// production-history/wta_challenger -- confirmed by an exact per-year row-count match
+// (540/881/1096/1374/2092/1632), so only the WTA Tour rows are new here, never
+// re-ingesting the Challenger rows a second time). Row shape has explicit per-set score
+// columns (home_set_1_score..home_set_5_score) rather than a combined score string, and a
+// separate coarse `status` (FINISHED/SCHEDULED) plus granular `status_extra`
+// (FINISHED/RETIRED/WALKOVER/CANCELED/SCHEDULED) -- only `status==='FINISHED'` rows (a
+// completed result exists) with a resolvable winner_code are indexed; `status_extra` is
+// preserved into the row's `status` detail field so retirement/walkover-aware codes (013)
+// can still see it. WTA tour-level matches are always best-of-3.
+const wtaMainDir=join(root,'data/public/tennisdata-wta-main');
+if(existsSync(wtaMainDir)){
+  let accepted=0;
+  for(const file of readdirSync(wtaMainDir).filter(x=>/^\d{4}wtaseason\.csv$/.test(x)).sort()){
+    for(const row of parseCsv(readFileSync(join(wtaMainDir,file),'utf8'))){
+      if(row.tour_type_human!=='WTA Tour')continue;
+      if(row.status!=='FINISHED')continue;
+      const homeWon=winnerCode(row.winner_code);
+      if(homeWon===null)continue;
+      const home=row.home_name??'',away=row.away_name??'';
+      const ts=Number(row.date_timestamp);
+      const date=Number.isFinite(ts)?new Date(ts*1000).toISOString().slice(0,10):'';
+      if(!home||!away||!date)continue;
+      const setScores=[];
+      for(let s=1;s<=5;s++){const hs=num(row[`home_set_${s}_score`]),as=num(row[`away_set_${s}_score`]);if(hs===null||as===null)break;setScores.push([hs,as]);}
+      // status is always populated with the real granular status_extra value (FINISHED
+      // included, not just RETIRED/WALKOVER) -- code 013's retirement-rate computation
+      // (deriveHistoricalResultMetric's statusRows()) divides retirement/walkover count by
+      // the count of rows with a *non-null* status. Nulling status out for ordinary
+      // finishes would make every status-bearing row a retirement by construction, turning
+      // a real percentage into a tautological 100% -- exactly the kind of misleading
+      // denominator this project explicitly must not produce, even unintentionally.
+      const details={sets_for:setScores.filter(([a,b])=>a>b).length,sets_against:setScores.filter(([a,b])=>a<b).length,set_scores:setScores,best_of:3,self_rank:num(row.home_rank),opponent_rank:num(row.away_rank),self_elo:null,opponent_elo:null,status:row.status_extra??null,raw_score:null};
+      addSymmetric('WTA_MAIN',home,away,date,row.tournament,row.surface,homeWon,row.round,'TennisData.app WTA Tour production history',details);
+      accepted++;
+    }
+  }
+  if(accepted!==23027)throw new Error(`WTA_MAIN_ROW_COUNT_MISMATCH:${accepted}`);
+  console.log(`WTA_MAIN: ${accepted} TennisData.app WTA Tour matches indexed`);
+}
+
 for(const lane of Object.values(matchHistory))for(const rows of Object.values(lane))rows.sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
 mkdirSync(dirname(outputPath),{recursive:true});writeFileSync(outputPath,JSON.stringify(out));console.log(`Runtime tennis index written to ${outputPath}`);
