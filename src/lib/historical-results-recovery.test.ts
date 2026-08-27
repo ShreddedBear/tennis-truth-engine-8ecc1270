@@ -21,10 +21,13 @@ describe("Task 18A historical/results recovery",()=>{
  // (duplicate 6-0/blowout set-rate computations) merged -> real "017" ("Shot & Rally
  // Metrics", PARTIAL); "006"/"049"/"050"/"056"/"058"/"059" removed (PROCESS_META codes
  // that must never receive engine-written player evidence); "045"/"046"/"051"/"052"/old
- // "053"/"080" removed with no retarget (no clean real-code home). 21 -> 7 codes.
- it("owns exactly the 7 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["007","008","010","011","013","017","020"].sort());});
+ // "053"/"080" removed with no retarget (no clean real-code home). 21 -> 7 codes. "068"
+ // (Streaks/Milestones) added by the NO_SOURCE denominator-eligibility audit: current
+ // streak + longest-win-streak-this-season + tournament debut status are all recoverable
+ // from data already here; protected-ranking status is not, so treatment stays PARTIAL.
+ it("owns exactly the 8 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["007","008","010","011","013","017","020","068"].sort());});
  it("reconstructs every full historical family from observed prior inputs",()=>{
-   for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="013"&&c!=="017")){
+   for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="013"&&c!=="017"&&c!=="068")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
      expect(value,code).not.toBeNull();expect(value?.treatment,code).toBe("RECONSTRUCTED");expect(value?.sampleSize,code).toBeGreaterThan(0);
    }
@@ -39,5 +42,28 @@ describe("Task 18A historical/results recovery",()=>{
    for(const code of ["006","023","045","046","049","050","051","052","053","054","055","056","057","058","059","080"]){
      expect(deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"}),code).toBeNull();
    }
+ });
+ describe("code 068 (Streaks / Milestones)",()=>{
+   // Alpha's completed history before asOfDate, chronological ascending: OldOpp(W,01-10),
+   // GrassOpp(W,06-20), ClayOpp(L,07-20), Common(W,08-12), Beta(W,08-20) -- all within 2026.
+   // Current streak (most recent first): Beta(W), Common(W), then ClayOpp(L) breaks it -> W2.
+   // Longest win streak within the 2026 season: OldOpp+GrassOpp (2), then Common+Beta (2) -> 2.
+   it("computes the current streak and the longest win streak within the target date's calendar year",()=>{
+     const value=deriveHistoricalResultMetric({code:"068",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(value?.treatment).toBe("PARTIAL");
+     expect(value?.value).toContain("current_streak=W2");
+     expect(value?.value).toContain("longest_win_streak_2026=2");
+   });
+   it("reports tournament debut status only when a tournament name is supplied, and never fabricates it otherwise",()=>{
+     const noTournament=deriveHistoricalResultMetric({code:"068",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(noTournament?.value).not.toContain("tournament_debut");
+     const seenBefore=deriveHistoricalResultMetric({code:"068",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard",tournament:"Fixture Open"});
+     expect(seenBefore?.value).toContain("tournament_debut=false");
+     const neverSeen=deriveHistoricalResultMetric({code:"068",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard",tournament:"Brand New Event"});
+     expect(neverSeen?.value).toContain("tournament_debut=true");
+   });
+   it("fails closed with no prior completed history instead of fabricating a streak",()=>{
+     expect(deriveHistoricalResultMetric({code:"068",player:"NeverPlayed",opponent:"Beta",rows,asOfDate,surface:"Hard"})).toBeNull();
+   });
  });
 });

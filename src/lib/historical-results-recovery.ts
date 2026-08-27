@@ -58,9 +58,18 @@ import type { Treatment } from "./audit-pipeline";
 //   match for this file's general H2H computation). This is a genuine, honestly-reported
 //   gap, not a bug: plain head-to-head record currently has no legitimate code to attach
 //   to and is UNAVAILABLE by omission rather than reclassified into an unrelated metric.
-// 21 -> 7 codes: ["007","008","010","011","013","017","020"].
+// - "068" added (NO_SOURCE denominator-eligibility audit): real 068 is "Streaks /
+//   Milestones". "Current Win/Loss Streak Length" and "Longest Win Streak This Season"
+//   (defined here as the calendar year of the match date -- this data model has no other
+//   season boundary) are directly derivable from the same chronological completed-match
+//   rows every other code here already uses. "Tournament Debut Status" is also derivable,
+//   given the current match's own tournament name (a new optional `tournament` arg,
+//   threaded through from deterministic-historical-results-metrics.server.ts). "Protected-
+//   Ranking Status" is NOT derivable -- this row type carries no ranking-protection flag
+//   at all -- so it is honestly left uncovered; treatment stays PARTIAL.
+// 7 -> 8 codes: ["007","008","010","011","013","017","020","068"].
 export const TASK18A_HISTORICAL_RESULTS_CODES = [
-  "007","008","010","011","013","017","020",
+  "007","008","010","011","013","017","020","068",
 ] as const;
 
 export type Task18aMetricCode = (typeof TASK18A_HISTORICAL_RESULTS_CODES)[number];
@@ -120,8 +129,11 @@ function rankedRecord(rows:HistoricalResultRow[]){
 function recent(rows:HistoricalResultRow[],asOfDate:string,days:number){return rows.filter(r=>{const d=dayDiff(r.date,asOfDate);return d>0&&d<=days;});}
 function decidingRows(rows:HistoricalResultRow[]){return completed(rows).filter(r=>{const t=totalSets(r);if(t===null)return false;if(r.bestOf===3)return t===3;if(r.bestOf===5)return t===5;return false;});}
 function statusRows(rows:HistoricalResultRow[]){return rows.filter(r=>r.status!==null&&r.status.trim()!=="");}
+const tournamentKey=(v:string|null|undefined)=>String(v??"").trim().toLowerCase();
+function longestWinStreak(rowsAsc:HistoricalResultRow[]){let run=0,longest=0;for(const r of rowsAsc){if(r.won){run++;longest=Math.max(longest,run);}else run=0;}return longest;}
+function currentStreak(rowsDesc:HistoricalResultRow[]){if(!rowsDesc.length)return null;const dir=rowsDesc[0].won;let len=0;for(const r of rowsDesc){if(r.won!==dir)break;len++;}return{won:dir,length:len};}
 
-export function deriveHistoricalResultMetric(args:{code:string;player:string;opponent:string;rows:HistoricalResultRow[];asOfDate:string;surface?:string|null;}):HistoricalDerivation|null {
+export function deriveHistoricalResultMetric(args:{code:string;player:string;opponent:string;rows:HistoricalResultRow[];asOfDate:string;surface?:string|null;tournament?:string|null;}):HistoricalDerivation|null {
   const code=String(args.code).padStart(3,"0") as Task18aMetricCode;
   if(!(TASK18A_HISTORICAL_RESULTS_CODES as readonly string[]).includes(code))return null;
   const history=args.rows.filter(r=>r.player===args.player&&r.date<args.asOfDate);
@@ -156,6 +168,15 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
   }
   if(code==="013"){
     const sr=statusRows(history);if(!sr.length)return null;const rw=sr.filter(r=>/(retir|walkover|w\/o|wo\b)/i.test(r.status??"")).length;return reconstruction(`status_observed_matches=${sr.length}; retirement_or_walkover=${rw}; observed_status_rate_pct=${pct(rw,sr.length)??"NA"}`,sr.length,{status_values:sr.map(r=>r.status).slice(0,100)},"Use only rows with an explicitly preserved status field; because status preservation is incomplete, keep treatment PARTIAL. Retargeted from the mismatched code 057 to real code 013 (\"Availability\"), whose \"Retirements\" bullet is an exact match.","PARTIAL");
+  }
+  if(code==="068"){
+    if(!complete.length)return null;
+    const desc=[...complete].sort((a,b)=>b.date.localeCompare(a.date));const asc=[...complete].sort((a,b)=>a.date.localeCompare(b.date));
+    const cur=currentStreak(desc);if(!cur)return null;
+    const season=args.asOfDate.slice(0,4),seasonRows=asc.filter(r=>r.date.slice(0,4)===season);
+    const longest=longestWinStreak(seasonRows);
+    const tKey=tournamentKey(args.tournament);const debut=tKey?!history.some(r=>tournamentKey(r.tournament)===tKey):null;
+    return reconstruction(`current_streak=${cur.won?"W":"L"}${cur.length}; longest_win_streak_${season}=${longest}; season_matches=${seasonRows.length}${debut===null?"":`; tournament_debut=${debut}`}`,complete.length,{completed_matches:complete.length,season,season_matches:seasonRows.length,tournament:args.tournament??null},"Sort completed prior results chronologically; the current streak is the unbroken run of identical results ending at the most recent prior match, and the longest win streak scans consecutive wins within the calendar year of the target date. Tournament debut status compares the current match's tournament name against every prior tournament played (only reported when a tournament name is supplied). Protected-ranking status is not covered -- this row type carries no ranking-protection flag -- so treatment stays PARTIAL.","PARTIAL");
   }
   return null;
 }

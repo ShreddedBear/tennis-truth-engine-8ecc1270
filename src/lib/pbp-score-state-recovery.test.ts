@@ -19,12 +19,14 @@ const bsdSchemaGame={game:1,server:"player1",winner:"player2",break:true,player1
 ]};
 
 describe("Task 18B deterministic PBP recovery",()=>{
- // Task 20 reconciliation, second pass: retargeted/deduplicated down to the 5 codes whose
+ // Task 20 reconciliation, second pass: retargeted/deduplicated down to the codes whose
  // real definitions PBP data actually satisfies. See the long comment on
  // TASK18B_METRIC_CODES in pbp-score-state-recovery.ts for the code-by-code rationale
  // (002/003 kept as-is; 032 <- old 037/004 duplicate; 018 <- merged 070+071; 053 <- old 079;
- // 026/027/036/038/039/040 removed with no clean authoritative-catalog home).
- it("owns exactly the requested 5 metric codes",()=>expect([...TASK18B_METRIC_CODES].sort()).toEqual(["002","003","009","018","032"].sort()));
+ // 026/027/036/038/039/040 removed with no clean authoritative-catalog home; 016 added --
+ // NO_SOURCE denominator-eligibility audit found its score-state bullets recoverable from
+ // data this file already replays).
+ it("owns exactly the requested 6 metric codes",()=>expect([...TASK18B_METRIC_CODES].sort()).toEqual(["002","003","009","016","018","032"].sort()));
  it("no longer claims metrics 026/027/031/032(old)/033/036/038/039/040/069/070/071/079 (removed, deduplicated, or retargeted)",()=>{
    const r=reconstructPbpScoreState(completePayload);
    for(const code of ["026","027","031","033","036","038","039","040","069","070","071","079"]) expect(r.derived.player1[code],code).toBeUndefined();
@@ -37,6 +39,48 @@ describe("Task 18B deterministic PBP recovery",()=>{
    expect(r.derived.player1["018"]?.value.breakback_opportunities).toBeGreaterThanOrEqual(0);
    expect(r.derived.player1["018"]?.value.closeout_opportunities).toBeGreaterThanOrEqual(0);
    expect(r.derived.player1["053"]?.value.pressure_points).toBeGreaterThan(0);
+   expect(r.derived.player1["016"]?.value.longest_point_win_streak).toBeGreaterThan(0);
+ });
+ it("replays intra-game score state correctly for a hand-traced game (0-0,15-0,30-0,30-15,30-30,40-30,Deuce,Advantage)",()=>{
+   // player1 serves; point winners in order: 1,1,2,2,1,2,1,1 (player1 wins the game after
+   // reaching advantage). Every pre-point state below is hand-verified against standard
+   // tennis scoring, independent of this file's implementation.
+   const payload={sets:[{games:[{server:"player1",points:[
+     {winner:"player1"},{winner:"player1"},{winner:"player2"},{winner:"player2"},{winner:"player1"},{winner:"player2"},{winner:"player1"},{winner:"player1"},
+   ]}]}]};
+   const r=reconstructPbpScoreState(payload);
+   expect(r.valid).toBe(true);
+   const p1States=JSON.parse(String(r.derived.player1["016"]?.value.score_state_performance_json));
+   const p2States=JSON.parse(String(r.derived.player2["016"]?.value.score_state_performance_json));
+   expect(p1States).toEqual({
+     "0-0":{n:1,win_pct:100},"15-0":{n:1,win_pct:100},"30-0":{n:1,win_pct:0},"30-15":{n:1,win_pct:0},
+     "30-30":{n:1,win_pct:100},"40-30":{n:1,win_pct:0},"Deuce":{n:1,win_pct:100},"Advantage":{n:1,win_pct:100},
+   });
+   expect(p2States).toEqual({
+     "0-0":{n:1,win_pct:0},"0-15":{n:1,win_pct:0},"0-30":{n:1,win_pct:100},"15-30":{n:1,win_pct:100},
+     "30-30":{n:1,win_pct:0},"30-40":{n:1,win_pct:100},"Deuce":{n:1,win_pct:0},
+   });
+   // No point in this game was a break point (server never faced one), and player2 never
+   // reached Advantage -- neither key should be fabricated for either side.
+   expect(p1States["Break Point"]).toBeUndefined();expect(p2States["Break Point"]).toBeUndefined();expect(p2States["Advantage"]).toBeUndefined();
+   // player1 wins points 1,2 then again 7,8 back-to-back -- longest streak is 2, not the
+   // total 5 points they won across the game.
+   expect(r.derived.player1["016"]?.value.longest_point_win_streak).toBe(2);
+   expect(r.derived.player2["016"]?.value.longest_point_win_streak).toBe(2);
+   expect(r.derived.player1["016"]?.treatment).toBe("PARTIAL");
+ });
+ it("tags a genuine break point in the score-state breakdown without fabricating one that wasn't reached",()=>{
+   // player1 serves and loses the game after facing (and converting, for the returner) a
+   // break point at 30-40: winners 2,2,2,2 (love game for the returner from server's POV).
+   const payload={sets:[{games:[{server:"player1",points:[{winner:"player2"},{winner:"player2"},{winner:"player2"},{winner:"player2"}]}]}]};
+   const r=reconstructPbpScoreState(payload);
+   const p1States=JSON.parse(String(r.derived.player1["016"]?.value.score_state_performance_json));
+   // The 4th point is played at 0-40 (server's own perspective) -- not a break point by this
+   // file's definition, since wouldWinGame(0,3,"returner") is already true one point earlier
+   // (at 0-40, returner already had break point going in); confirm at least one Break Point
+   // entry exists and none is fabricated with a 0 sample.
+   expect(p1States["Break Point"].n).toBeGreaterThan(0);
+   expect(Object.values(p1States).every((v:any)=>v.n>0)).toBe(true);
  });
  it("keeps Serve Profile, Return Profile, Comeback/Pressure Behavior and Pressure & Clean-Game Metrics partial where their full raw-field contract is not proven",()=>{const r=reconstructPbpScoreState(completePayload);expect(r.derived.player1["002"]?.treatment).toBe("PARTIAL");expect(r.derived.player1["003"]?.treatment).toBe("PARTIAL");expect(r.derived.player1["009"]?.treatment).toBe("PARTIAL");expect(r.derived.player1["053"]?.treatment).toBe("PARTIAL");expect(r.derived.player1["018"]?.treatment).toBe("RECONSTRUCTED");expect(r.derived.player1["032"]?.treatment).toBe("RECONSTRUCTED");expect(r.field_support.serve_number).toBe(false)});
  it("only reports ace/DF fields within metric 002 when their indicators are actually encoded",()=>{const withIndicators=reconstructPbpScoreState(completePayload);expect(withIndicators.derived.player1["002"]?.value.aces).not.toBeNull();expect(withIndicators.derived.player1["002"]?.value.double_faults).not.toBeNull();const noIndicators=reconstructPbpScoreState({sets:[{games:[{server:"player1",points:[{winner:"player1"},{winner:"player1"},{winner:"player1"},{winner:"player1"}]}]}]});expect(noIndicators.derived.player1["002"]?.value.aces).toBeNull();expect(noIndicators.derived.player1["002"]?.value.double_faults).toBeNull()});
