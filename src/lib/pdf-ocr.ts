@@ -33,22 +33,41 @@ export async function ocrPdfLocally(
     },
   });
 
+  // Large scanned pages (tall full-screen screenshots at scale:2 can each be
+  // several thousand pixels tall) push mobile Safari's memory hard over a
+  // 30-50 page batch. Two defenses: cap render scale on unusually tall pages
+  // instead of always rendering at a fixed 2x, and yield to the event loop
+  // between pages so the GC gets a real chance to reclaim the previous
+  // page's canvas/OCR buffers before the next one is allocated. Neither can
+  // save a page whose single canvas allocation alone exceeds what the device
+  // can give a tab, but that is a single bad page, not the whole batch.
+  const MAX_CANVAS_DIMENSION = 4000;
   const pages: string[] = [];
   try {
     for (let i = 1; i <= doc.numPages; i++) {
       onProgress?.(`Reading image-only page ${i}/${doc.numPages} locally…`);
-      const page = await doc.getPage(i);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) throw new Error("Could not create OCR canvas");
-      await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
-      const result = await worker.recognize(canvas);
-      pages.push((result.data.text ?? "").replace(/\r/g, "").trim());
-      canvas.width = 1;
-      canvas.height = 1;
+      try {
+        const page = await doc.getPage(i);
+        const base = page.getViewport({ scale: 2 });
+        const scale = Math.min(2, MAX_CANVAS_DIMENSION / Math.max(base.width, base.height, 1));
+        const viewport = scale < 2 ? page.getViewport({ scale }) : base;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) throw new Error("Could not create OCR canvas");
+        await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
+        const result = await worker.recognize(canvas);
+        pages.push((result.data.text ?? "").replace(/\r/g, "").trim());
+        canvas.width = 1;
+        canvas.height = 1;
+      } catch (error) {
+        onProgress?.(`Page ${i}/${doc.numPages} failed locally (${error instanceof Error ? error.message : String(error)}) — skipping and continuing.`);
+        pages.push("");
+      }
+      // Let the browser breathe (GC, repaint, respond to input) between
+      // pages instead of running dozens of multi-second renders back to back.
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
   } finally {
     await worker.terminate();
