@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseRuleDocument } from "./rule-parser";
 import {
   AUTHORITATIVE_METRIC_CATALOG,
+  PLAYER_METRIC_CODES,
   PROCESS_META_CODES,
   PROCESS_META_RATIONALE,
   authoritativeMetricRow,
@@ -48,6 +49,12 @@ describe("authoritative metric catalog", () => {
     for (const code of liveByCode.keys()) {
       expect(AUTHORITATIVE_METRIC_CATALOG.some((row) => row.code === code), `unknown live code ${code}`).toBe(true);
     }
+  });
+
+  it("locks the player-evidence denominator at 69 (81 total minus 12 process/meta)", () => {
+    expect(PROCESS_META_CODES).toHaveLength(12);
+    expect(PLAYER_METRIC_CODES).toHaveLength(69);
+    expect(PROCESS_META_CODES.length + PLAYER_METRIC_CODES.length).toBe(81);
   });
 
   it("every PROCESS_META code has a recorded rationale", () => {

@@ -329,4 +329,43 @@ describe("Run Audit pipeline", () => {
     const after = Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length]));
     expect(after).toEqual(before);
   }, 60_000);
+
+  // Task 20 guardrail: PROCESS_META codes (authoritative-metric-catalog.ts) must never
+  // silently re-enter the player-evidence denominator. They are instantiated EXCLUDED
+  // (never sent to any research/reconstruction call) rather than scored as a player
+  // metric, so a regression here would mean either a code was reclassified without
+  // updating this test, or the exclusion wiring in instantiate() broke.
+  it("instantiates every PROCESS_META code as EXCLUDED and never asks research for it", async () => {
+    const PROCESS_META_SUFFIXES = ["04", "05", "06", "47", "48", "49", "50", "56", "57", "58", "59", "61"];
+    const seenByResearch = new Set<string>();
+    const { deps, tables } = makeMemoryDeps();
+    deps.research = {
+      ...researcher,
+      async metrics({ metrics }) {
+        for (const m of metrics) seenByResearch.add(m.code);
+        return researcher.metrics({ metrics } as never);
+      },
+    };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    const metricRows = tables["metric_results"]!;
+    expect(metricRows).toHaveLength(DEF_COUNTS.METRICS);
+    const processMetaCodes = PROCESS_META_SUFFIXES.map((suffix) => `M${suffix}`);
+    expect(processMetaCodes).toHaveLength(12);
+
+    for (const code of processMetaCodes) {
+      const row = metricRows.find((r) => r["metric_code"] === code);
+      expect(row, `metric ${code} was not instantiated`).toBeTruthy();
+      expect(row!["status"], `metric ${code} status`).toBe("EXCLUDED");
+      expect(row!["p1_status"], `metric ${code} p1_status`).toBe("EXCLUDED");
+      expect(row!["p2_status"], `metric ${code} p2_status`).toBe("EXCLUDED");
+      expect(seenByResearch.has(code), `metric ${code} was sent to the research provider`).toBe(false);
+    }
+
+    // Every other code must still be a normal player metric, sent to research as before.
+    const playerCodes = metricRows.map((r) => String(r["metric_code"])).filter((c) => !processMetaCodes.includes(c));
+    expect(playerCodes).toHaveLength(DEF_COUNTS.METRICS - 12);
+    for (const code of playerCodes) expect(seenByResearch.has(code), `player metric ${code} was never sent to research`).toBe(true);
+  }, 60_000);
 });
