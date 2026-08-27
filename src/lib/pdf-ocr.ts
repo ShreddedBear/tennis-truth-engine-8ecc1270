@@ -24,6 +24,43 @@ export async function ocrPdfLocally(
   const doc = await pdfjs.getDocument({ data }).promise;
   const { createWorker } = await import("tesseract.js");
 
+  // A "screenshot compiled into a PDF" page often declares a tiny page box
+  // (e.g. a 4x6in "photo" page, 288x432pt) while the embedded image is a
+  // full-resolution, very tall scrolling capture (observed: 804x16000px on a
+  // 288x432pt page — the declared page is ~5% of the image's real height).
+  // Rendering at a fixed multiple of the *page's* point size in that case
+  // produces a canvas at a small fraction of the source image's actual
+  // resolution, and no amount of OCR can read text that was downsampled to
+  // mush before Tesseract ever sees it. Detect the dominant embedded image's
+  // native pixel size via PDF.js's operator list (the same page.objs image
+  // registry PDF.js itself populates while building it) and scale toward
+  // that instead of a fixed page-relative multiplier. Falls back to the
+  // fixed-scale behavior for pages with no single dominant embedded image
+  // (vector content, multiple comparable images, or detection failure).
+  async function detectDominantImageSize(page: any): Promise<{ width: number; height: number } | null> {
+    try {
+      const opList = await page.getOperatorList();
+      const pdfjsOps = (pdfjs as any).OPS;
+      let best: { width: number; height: number } | null = null;
+      for (let i = 0; i < opList.fnArray.length; i++) {
+        if (opList.fnArray[i] !== pdfjsOps.paintImageXObject && opList.fnArray[i] !== pdfjsOps.paintJpegXObject) continue;
+        const name = opList.argsArray[i][0];
+        const img = await new Promise<{ width?: number; height?: number } | null>((resolve) => {
+          try {
+            page.objs.get(name, resolve);
+          } catch {
+            resolve(null);
+          }
+        });
+        if (!img?.width || !img?.height) continue;
+        if (!best || img.width * img.height > best.width * best.height) best = { width: img.width, height: img.height };
+      }
+      return best;
+    } catch {
+      return null;
+    }
+  }
+
   const newWorker = () =>
     createWorker("eng", 1, {
       logger: (m: { status?: string; progress?: number }) => {
@@ -55,9 +92,17 @@ export async function ocrPdfLocally(
       onProgress?.(`Reading image-only page ${i}/${doc.numPages} locally…`);
       try {
         const page = await doc.getPage(i);
-        const base = page.getViewport({ scale: 2 });
-        const scale = Math.min(2, MAX_CANVAS_DIMENSION / Math.max(base.width, base.height, 1));
-        const viewport = scale < 2 ? page.getViewport({ scale }) : base;
+        const vp1 = page.getViewport({ scale: 1 });
+        const nativeImage = await detectDominantImageSize(page);
+        // Scale toward whichever axis the embedded image most exceeds the
+        // declared page box on, so a squeezed-in tall screenshot renders near
+        // its own resolution instead of the page's; never render below the
+        // normal 2x baseline used for pages that aren't a squeezed image.
+        const targetScale = nativeImage
+          ? Math.max(2, nativeImage.width / vp1.width, nativeImage.height / vp1.height)
+          : 2;
+        const scale = Math.min(targetScale, MAX_CANVAS_DIMENSION / Math.max(vp1.width, vp1.height, 1));
+        const viewport = page.getViewport({ scale });
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
