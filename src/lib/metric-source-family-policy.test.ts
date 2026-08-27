@@ -9,13 +9,24 @@ const marketRow = { source_id: "odds_api", observation_type: "MARKET", observati
 const weatherRow = { source_id: "open_meteo", observation_type: "ENVIRONMENT", observation_key: "temperature_2m" };
 
 describe("metric source family policy", () => {
-  it("never lets ATP/WTA results or schedules satisfy ranking/stakes metrics", () => {
+  it("never lets ATP/WTA results or schedules satisfy stakes metric 062", () => {
     expect(metricAllowsObservation("062", matchRow)).toBe(false);
     expect(metricAllowsObservation("062", scheduleRow)).toBe(false);
+    expect(metricAllowsObservation("062", rankingRow)).toBe(true);
+  });
+
+  // Task 20 reconciliation: code 069's authoritative definition ("Stakes / Career
+  // Context" -- retirement-tour/farewell-run effects, anti-doping testing disruption)
+  // has no legitimate ranking, results/schedule, or PBP basis at all -- unlike 062
+  // ("Motivation / Stakes"), which genuinely can be informed by ranking-points proximity
+  // to a milestone. 069 is handled instead by protected-metric-wiring.server.ts, which
+  // requires real public retirement/anti-doping reporting and forbids RECONSTRUCTED
+  // entirely. See metric-certification-066-071.test.ts for that coverage.
+  it("keeps metric 069 (Stakes / Career Context) family-less at the warehouse/observation layer", () => {
     expect(metricAllowsObservation("069", matchRow)).toBe(false);
     expect(metricAllowsObservation("069", scheduleRow)).toBe(false);
-    expect(metricAllowsObservation("062", rankingRow)).toBe(true);
-    expect(metricAllowsObservation("069", rankingRow)).toBe(true);
+    expect(metricAllowsObservation("069", rankingRow)).toBe(false);
+    expect(policyForMetric("069").allowed_families).toEqual([]);
   });
 
   it("keeps market evidence out of schedule and ranking metrics", () => {

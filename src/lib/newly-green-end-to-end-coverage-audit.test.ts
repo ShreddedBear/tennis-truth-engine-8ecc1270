@@ -26,7 +26,9 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   "060": ["ENVIRONMENT", "POINT_BY_POINT"],
   "062": ["RANKING"],
   "064": ["RESULTS_SCHEDULE"],
-  "069": ["RANKING"],
+  // "069" removed under the Task 20 catalog reconciliation: its authoritative definition
+  // ("Stakes / Career Context") has no legitimate RANKING (or any warehouse-family) basis;
+  // see metric-source-family-policy.test.ts and metric-certification-066-071.test.ts.
   "071": ["RESULTS_SCHEDULE", "ENVIRONMENT"],
   "075": ["RULES_CONTEXT"],
   "076": ["RESULTS_SCHEDULE"],
@@ -36,7 +38,7 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
 };
 
 const NON_PBP_DETERMINISTIC = [
-  "012", "015", "019", "021", "028", "030", "062", "064", "069", "071", "075", "076", "077", "081",
+  "012", "015", "019", "021", "028", "030", "062", "064", "071", "075", "076", "077", "081",
 ];
 const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
 
@@ -69,7 +71,7 @@ describe("newly-green end-to-end coverage audit", () => {
   });
 
   it("has no non-PBP newly-green metric left without a deterministic implementation path", () => {
-    const covered = new Set(["012","028","030","064","071","076","077","081","015","019","021","062","069","075"]);
+    const covered = new Set(["012","028","030","064","071","076","077","081","015","019","021","062","075"]);
     expect([...NON_PBP_DETERMINISTIC].filter((code) => !covered.has(code))).toEqual([]);
   });
 
@@ -101,7 +103,14 @@ describe("newly-green end-to-end coverage audit", () => {
 
   it("does not let ranking-only newly-green metrics accept results/schedule evidence", () => {
     expect(policyForMetric("062").allowed_families).toEqual(["RANKING"]);
-    expect(policyForMetric("069").allowed_families).toEqual(["RANKING"]);
+  });
+
+  // Task 20 reconciliation: 069 ("Stakes / Career Context") is not ranking-satisfiable at
+  // all -- see metric-source-family-policy.test.ts for the corrected expectation and
+  // metric-certification-066-071.test.ts for its actual (protected-metric-wiring.server.ts)
+  // handling.
+  it("keeps metric 069 family-less at the warehouse-observation policy layer", () => {
+    expect(policyForMetric("069").allowed_families).toEqual([]);
   });
 
   it("preserves intended multi-family evidence and keeps Task 13 additions support-only", () => {

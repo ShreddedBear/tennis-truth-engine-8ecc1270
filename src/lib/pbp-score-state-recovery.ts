@@ -2,7 +2,17 @@ import { buildCanonicalEvidenceMatchIdentity, evidenceTourCompatible, type Evide
 
 export type PbpSide = "player1" | "player2";
 export type PbpTour = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENGER";
-export const TASK18B_METRIC_CODES = new Set(["004","009","026","027","031","032","033","036","037","038","039","040","069","070","071","079","002","003"]);
+// "069" was previously included here to host a Dominance Ratio reconstruction, per the
+// pre-Task-20 fictional catalog that assigned code 069 = "Dominance Ratio". The
+// authoritative catalog (public/seed/metrics.txt, see authoritative-metric-catalog.ts)
+// shows code 069 is actually "Stakes / Career Context" (retirement-tour/farewell-run
+// effects, anti-doping testing disruption) -- point-by-point data cannot establish
+// either. Removed per the Task 20 reconciliation; see pbp-score-state-recovery.test.ts.
+// Code 069 is already correctly handled elsewhere: protected-metric-wiring.server.ts
+// requires genuine public retirement/anti-doping reporting for it and forbids
+// RECONSTRUCTED entirely (NON_RECONSTRUCTABLE_CONTEXT_CODES), consistent with this
+// removal -- it was simply shadowed because this file's (wrong) finding was chosen first.
+export const TASK18B_METRIC_CODES = new Set(["004","009","026","027","031","032","033","036","037","038","039","040","070","071","079","002","003"]);
 export type RecoveredMetric={treatment:"RECONSTRUCTED"|"PARTIAL";value:Record<string,number|string|boolean|null>;raw_fields:string[];transformation:string};
 export type PbpRecovery={valid:boolean;reason:string|null;game_count:number;point_count:number;derived:Record<PbpSide,Partial<Record<string,RecoveredMetric>>>;field_support:{server:boolean;point_winner:boolean;score_state:boolean;set_boundary:boolean;ace_indicator:boolean;double_fault_indicator:boolean;serve_number:false;rally_length:false;shot_type:false;shot_placement:false;handedness:false}};
 
@@ -47,7 +57,6 @@ export function reconstructPbpScoreState(payload:any):PbpRecovery{
   add("038","RECONSTRUCTED",{break_points_faced:t.breakPointsFaced,service_games:t.serviceGames,bp_faced_per_game:ratio(t.breakPointsFaced,t.serviceGames)},["server","chronological point_winner","game boundary"],"Divide reconstructed break points faced by complete service games.");
   add("039","RECONSTRUCTED",{break_chances:t.breakChances,return_games:t.returnGames,bp_chances_per_game:ratio(t.breakChances,t.returnGames)},["server","chronological point_winner","game boundary"],"Divide reconstructed break chances by complete return games.");
   add("040","RECONSTRUCTED",{deuce_points:t.deucePoints,deuce_points_won:t.deucePointsWon,deuce_point_win_pct:pct(t.deucePointsWon,t.deucePoints)},["server","chronological point_winner"],"Replay standard-game score and count points beginning from deuce.");
-  add("069","RECONSTRUCTED",{points_won:t.pointsWon,points_lost:t.pointsLost,dominance_ratio:ratio(t.pointsWon,t.pointsLost)},["point_winner"],"Compute point-winner total divided by opponent point-winner total.");
   if(hasSetBoundaries){add("070","RECONSTRUCTED",{breakback_opportunities:t.breakbackOpportunities,breakbacks:t.breakbacks,breakback_rate_pct:pct(t.breakbacks,t.breakbackOpportunities)},["server","game winner","set boundary","chronological game order"],"Grade the immediate return game after the player is broken within the same set.");add("071","PARTIAL",{closeout_opportunities:t.closeoutOpportunities,closeouts:t.closeouts,closeout_rate_pct:pct(t.closeouts,t.closeoutOpportunities)},["server","game winner","set boundary","set game score"],"Serving-for-set closeouts are deterministic; match-closeout state is not asserted without an explicit completed-match/best-of contract.")}
   add("079","PARTIAL",{pressure_points:t.pressurePoints,pressure_points_won:t.pressurePointsWon,pressure_index_pct:pct(t.pressurePointsWon,t.pressurePoints),set_boundaries:hasSetBoundaries},["server","chronological point_winner","set boundary when encoded"],"Pressure index uses only deterministic encoded pressure states; unavailable late/deciding-state components are not synthesized.");
  }
