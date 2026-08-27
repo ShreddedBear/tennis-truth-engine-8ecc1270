@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 
 const root=process.cwd();
 const outputArg=process.argv[2];
-const outputPath=outputArg?resolve(root,outputArg):join(root,'src/generated/tennis-runtime-index.ts');
+const outputPath=outputArg?resolve(root,outputArg):join(root,'data/generated/tennis-runtime-index.json');
 const sources=[['ATP','data/public/predixsport/atp/atp_elo_matches.csv'],['WTA','data/public/predixsport/wta/wta_elo_ratings.csv']];
 function parseCsv(text){const rows=[];let r=[],c='',q=false;for(let i=0;i<text.length;i++){const x=text[i];if(x==='"'){if(q&&text[i+1]==='"'){c+='"';i++;}else q=!q;}else if(x===','&&!q){r.push(c);c='';}else if((x==='\n'||x==='\r')&&!q){if(x==='\r'&&text[i+1]==='\n')i++;r.push(c);c='';if(r.some(Boolean))rows.push(r);r=[];}else c+=x;}if(c||r.length){r.push(c);rows.push(r);}if(!rows.length)return[];const h=rows[0].map(x=>x.trim());return rows.slice(1).map(a=>Object.fromEntries(h.map((k,i)=>[k,(a[i]??'').trim()])));}
 function norm(v){return String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
@@ -60,4 +60,4 @@ const wta125Path=join(root,'data/public/production-history/wta_challenger/matche
 if(existsSync(wta125Path)){const rows=parseCsv(readFileSync(wta125Path,'utf8'));let accepted=0;for(const row of rows){if(row.tour_family!=='WTA_CHALLENGER'||row.competition_level!=='WTA_125'||row.production_scope!=='WTA_125_ONLY'||row.contamination_firewall!=='PASS'||row.classification!=='WTA_125_CHALLENGER'||row.level!=='WTA Chall')throw new Error(`WTA125_CONTAMINATION_FIREWALL_BLOCKED:${row.match_key??accepted}`);const home=row.home_player??'',away=row.away_player??'',date=row.date??'';if(!home||!away||!date)throw new Error(`WTA125_INVALID_MATCH:${row.match_key??accepted}`);const homeWon=winnerCode(row.winner_code);addSymmetric('WTA_CHALLENGER',home,away,date,row.tournament,row.surface,homeWon,row.round,'Validated WTA 125 production history',compactDetails(row,'HOME'));accepted++;}if(accepted!==7615)throw new Error(`WTA125_ROW_COUNT_MISMATCH:${accepted}`);console.log(`WTA_CHALLENGER: ${accepted} validated WTA 125 matches indexed`);}
 
 for(const lane of Object.values(matchHistory))for(const rows of Object.values(lane))rows.sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
-mkdirSync(dirname(outputPath),{recursive:true});writeFileSync(outputPath,`// GENERATED at build time. Do not edit.\nexport default ${JSON.stringify(out)};\n`);console.log(`Runtime tennis index written to ${outputPath}`);
+mkdirSync(dirname(outputPath),{recursive:true});writeFileSync(outputPath,JSON.stringify(out));console.log(`Runtime tennis index written to ${outputPath}`);

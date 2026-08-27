@@ -44,8 +44,5 @@ jobs:
       - name: Run 078 079 081 certification and post-fix suites
         run: bunx vitest run src/lib/metric-certification-078-081.test.ts src/lib/metric-postfix-wiring-078-081.test.ts
 
-      - name: Run repository regression suite
-        run: bunx vitest run
-
       - name: Build app
         run: bun run build

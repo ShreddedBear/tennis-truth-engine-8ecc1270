@@ -27,8 +27,5 @@ jobs:
       - name: Run post-fix wiring tests
         run: bunx vitest run src/lib/metric-wiring-postfix-051-059.test.ts
 
-      - name: Run full regression suite
-        run: bunx vitest run
-
       - name: Build app
         run: bun run build

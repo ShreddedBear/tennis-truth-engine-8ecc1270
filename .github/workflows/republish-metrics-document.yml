@@ -1,0 +1,33 @@
+name: Republish Metrics Document
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Actually publish and activate the new version (false = dry-run diff only)"
+        required: false
+        default: "false"
+      force:
+        description: "Allow committing even if the diff includes changes beyond the expected 004/005/006 fix"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  republish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Republish canonical METRICS rule document
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          url="https://tennis-truth-engine.lovable.app/api/admin-republish-metrics-document?key=T19-REPUBLISH-9f2c7a1e&commit=${{ github.event.inputs.commit }}&force=${{ github.event.inputs.force }}"
+          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 "$url")"
+          echo "HTTP_STATUS=$status"
+          cat "$body"
+          echo
+          test "$status" = "200"

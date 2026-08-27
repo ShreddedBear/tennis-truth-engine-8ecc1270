@@ -53,7 +53,7 @@ Evidence labels: DIRECT • RECONSTRUCTED • PARTIAL • UNAVAILABLE • EXCLUD
 This overlay does not remove any public/reconstructable metric in the master list. It adds an empirical priority layer showing which
 supplied metrics have separated wins from losses most clearly in the current 120-match calibration.
 
-1. Current empirical priority table
+Current empirical priority table
      Empirical condition                                    Record            Win rate   Audit treatment
 
      Overall                                                85/120            70.8%      Baseline only
@@ -85,29 +85,29 @@ supplied metrics have separated wins from losses most clearly in the current 120
 
 *Small-sample condition. Use as supportive evidence only, not a standalone rule.
 
-2. Priority tiers for the master metrics list
+Priority tiers for the master metrics list
 Tier 1 - Primary: Elo differential / surface-strength separation; Matchup Closeness structure; Monte Carlo support; opponent-adjusted
 recent-form differential; Surface Elo support with reliability/sample; current market confirmation when available.
 Tier 2 - Confirming: serve/return matchup, hold/break mismatch, common-opponent quality, current-surface form, fatigue/workload,
 ranking trajectory/rating lag, pressure/closing, and opponent-specific tactical compatibility.
 Tier 3 - Context only unless independently validated: Recommendation label, Upset Risk, Data Quality, Strong Agreement label, raw
 model-vote count, H2H, straight-set call, and fatigue alone.
-3. Anti-double-counting rule for metrics
+Anti-double-counting rule for metrics
 Metrics derived from or strongly overlapping with the same information source must be grouped into one evidence family before final
 weighting. General Model, Specialist Model, Surface Elo, headline probability, Monte Carlo, and Market may not be assumed
 independent. Report each output, but apply a correlation penalty when converting them into evidence strength.
 
-4. Required derived metrics added to the metrics workflow
+Required derived metrics added to the metrics workflow
 For every match where inputs exist, calculate and report: Elo gap; Recent Form gap; Serve/Return gap; headline-vs-MC gap; MC
 support bucket (<55 / 55-69 / >=70); Surface Elo support bucket; Specialist support bucket; Matchup Closeness risk tier; number
 of independent contradiction families; and leave-one-family-out winner stability.
 
-5. Interpretation rules
+Interpretation rules
 A large number of agreeing metrics is not automatically strong evidence. Reliability, sample, independence, surface relevance, opponent
 adjustment, and magnitude determine weight. Likewise, a single disagreement is not automatically a trap. The metrics layer must identify
 which evidence is independent and which is duplicative.
 
-6. Recalibration rule
+Recalibration rule
 Every time verified results are added, recompute these empirical bucket records from the newest sample. Never freeze the percentages
 above as permanent thresholds. If a bucket has a small sample, label it SUGGESTIVE / TOO SMALL rather than treating it as a rule.
 TENNIS MATRIX AI | PUBLIC / RECONSTRUCTABLE METRICS

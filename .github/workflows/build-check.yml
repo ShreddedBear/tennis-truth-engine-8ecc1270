@@ -38,3 +38,6 @@ jobs:
 
       - name: Build app
         run: bun run build
+
+      - name: Check Worker bundle size
+        run: node scripts/check-worker-bundle-size.mjs

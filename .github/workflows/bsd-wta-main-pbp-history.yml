@@ -9,7 +9,10 @@ on:
       - 'scripts/advance-bsd-wta-main-pbp-history.py'
       - 'data/audit/bsd-wta-main-pbp-history/queue.json'
   schedule:
-    - cron: '41 * * * *'
+    # Was hourly; that alone burned ~24 Actions runs/day on a bounded backfill
+    # and was a major contributor to exhausting this private repo's Actions
+    # capacity. Daily still makes steady progress through the backlog.
+    - cron: '41 6 * * *'
 
 permissions:
   contents: write

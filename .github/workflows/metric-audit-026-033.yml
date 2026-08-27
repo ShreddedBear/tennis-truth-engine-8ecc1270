@@ -32,6 +32,3 @@ jobs:
 
       - name: Build app
         run: bun run build
-
-      - name: Run full regression suite
-        run: bunx vitest run

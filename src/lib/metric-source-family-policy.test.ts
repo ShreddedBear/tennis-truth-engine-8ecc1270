@@ -9,20 +9,21 @@ const marketRow = { source_id: "odds_api", observation_type: "MARKET", observati
 const weatherRow = { source_id: "open_meteo", observation_type: "ENVIRONMENT", observation_key: "temperature_2m" };
 
 describe("metric source family policy", () => {
-  it("never lets ATP/WTA results or schedules satisfy stakes metric 062", () => {
+  it("never lets ATP/WTA results or schedules satisfy a ranking-only metric (062 stakes)", () => {
     expect(metricAllowsObservation("062", matchRow)).toBe(false);
     expect(metricAllowsObservation("062", scheduleRow)).toBe(false);
     expect(metricAllowsObservation("062", rankingRow)).toBe(true);
   });
 
-  // Task 20 reconciliation: code 069's authoritative definition ("Stakes / Career
-  // Context" -- retirement-tour/farewell-run effects, anti-doping testing disruption)
-  // has no legitimate ranking, results/schedule, or PBP basis at all -- unlike 062
-  // ("Motivation / Stakes"), which genuinely can be informed by ranking-points proximity
-  // to a milestone. 069 is handled instead by protected-metric-wiring.server.ts, which
-  // requires real public retirement/anti-doping reporting and forbids RECONSTRUCTED
-  // entirely. See metric-certification-066-071.test.ts for that coverage.
-  it("keeps metric 069 (Stakes / Career Context) family-less at the warehouse/observation layer", () => {
+  // Code 069's true definition ("Stakes / Career Context" -- retirement-tour/
+  // farewell-run effects, anti-doping testing disruption) has no legitimate ranking,
+  // results/schedule, or PBP basis at all -- unlike 062 ("Motivation / Stakes"), which
+  // genuinely can be informed by ranking-points proximity to a milestone. 069 is
+  // classified PROTECTED_UNAVAILABLE (see metric-classification.ts) and is handled
+  // instead by protected-metric-wiring.server.ts, which requires real public
+  // retirement/anti-doping reporting and forbids RECONSTRUCTED entirely. See
+  // metric-certification-066-071.test.ts for that coverage.
+  it("never lets any observation family satisfy a PROTECTED_UNAVAILABLE metric (069 Stakes/Career Context)", () => {
     expect(metricAllowsObservation("069", matchRow)).toBe(false);
     expect(metricAllowsObservation("069", scheduleRow)).toBe(false);
     expect(metricAllowsObservation("069", rankingRow)).toBe(false);
@@ -37,10 +38,10 @@ describe("metric source family policy", () => {
   });
 
   it("keeps results/schedule as the only sufficient source for metric 021, with environment as support-only", () => {
-    // Authoritative catalog code 021 is "Surface & Environmental Context" (see
-    // authoritative-metric-catalog.ts), which genuinely names weather/altitude as
-    // in-scope components alongside the chronological-results-derived Elo/surface
-    // components. Environment evidence alone must never promote 021 past PARTIAL.
+    // Code 021 is "Surface & Environmental Context" (see metric-classification.ts),
+    // which genuinely names weather/altitude as in-scope components alongside the
+    // chronological-results-derived Elo/surface components. Environment evidence alone
+    // must never promote 021 past PARTIAL.
     expect(metricAllowsObservation("021", matchRow)).toBe(true);
     expect(metricAllowsObservation("021", weatherRow)).toBe(true);
     expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
@@ -49,7 +50,12 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
   });
 
-  it("admits workload history as support-only evidence", () => {
+  // 061 ("Final Advanced Tests") is UNKNOWN_REQUIRES_REVIEW, not excluded (see
+  // metric-classification.ts): two of its three bullets are meta (rerun-the-model
+  // tests), but "Historical Twin Match Search" is a genuine matchup-similarity search
+  // over past results, which needs RESULTS_SCHEDULE data -- support-only, since it is
+  // one component of a mixed definition, never sufficient on its own.
+  it("admits historical-results evidence as support-only for the mixed/UNKNOWN 061 (never sufficient on its own)", () => {
     expect(metricAllowsObservation("061", matchRow)).toBe(true);
     expect(policyForMetric("061").sufficient_families).toEqual([]);
     expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");
@@ -62,7 +68,7 @@ describe("metric source family policy", () => {
   });
 
   it("marks support-only results/schedule families without silently promoting them", () => {
-    for (const code of ["012", "028", "030", "061", "064", "071", "076", "077", "081"]) {
+    for (const code of ["012", "028", "030", "061", "064", "071", "076", "077"]) {
       const policy = policyForMetric(code);
       expect(policy.allowed_families).toContain("RESULTS_SCHEDULE");
       expect(policy.support_only_families).toContain("RESULTS_SCHEDULE");

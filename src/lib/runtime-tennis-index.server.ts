@@ -1,4 +1,4 @@
-import runtimeIndex from "../generated/tennis-runtime-index";
+import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 import type { SourcedStat } from "./reconstruction/engine";
 
 const SOURCE_URL="https://www.kaggle.com/datasets/predixsport/sports-elo-ratings";
@@ -10,7 +10,7 @@ function toks(v:string){return norm(v).split(" ").filter(Boolean);}
 function surface(context:string){return context.match(/surface\s+(hard|clay|grass|carpet)/i)?.[1]?.toLowerCase()??null;}
 function cutoff(context:string){return context.match(/(?:date\s+)?(20\d{2}-\d{2}-\d{2})/i)?.[1]??null;}
 function resolve(map:Record<string,Player>,requested:string):Player|null{const n=norm(requested);if(map[n])return map[n];const t=toks(requested),last=t[t.length-1];if(!last)return null;const candidates=Object.values(map).filter(p=>{const pt=toks(p.name);if(pt[pt.length-1]!==last)return false;const s=new Set(pt);return t.length===1||t.every(x=>s.has(x));});return candidates.length===1?candidates[0]:null;}
-function findPlayer(name:string):Player|null{return resolve(runtimeIndex.ATP as unknown as Record<string,Player>,name)??resolve(runtimeIndex.WTA as unknown as Record<string,Player>,name);}
+function findPlayer(name:string):Player|null{const runtimeIndex=loadRuntimeIndex();return resolve(runtimeIndex.ATP as unknown as Record<string,Player>,name)??resolve(runtimeIndex.WTA as unknown as Record<string,Player>,name);}
 function source(){return[{source_name:SOURCE_NAME,url:SOURCE_URL,retrieved_at:new Date().toISOString()}];}
 function stat(player:string,key:string,value:number,sample:number,surf:string|null):SourcedStat{return{key,player,value,surface:surf,window:"PRE_MATCH_HISTORY",tour_level:null,sample,origin:"RECONSTRUCTED",sources:source()};}
 function pct(a:number,b:number){return b?100*a/b:null;}

@@ -24,22 +24,28 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   "060": ["ENVIRONMENT", "POINT_BY_POINT"],
   "062": ["RANKING"],
   "064": ["RESULTS_SCHEDULE"],
-  // "069" removed under the Task 20 catalog reconciliation: its authoritative definition
-  // ("Stakes / Career Context") has no legitimate RANKING (or any warehouse-family) basis;
-  // see metric-source-family-policy.test.ts and metric-certification-066-071.test.ts.
-  // "036" ("Loss Autopsy Metrics"), "040" ("Hidden Decline Detector"), and "079" ("Additional
-  // Differentiating Metrics") removed for the same reason: none of their real bullets are
-  // point-by-point score-state data (historical loss records, cross-match serve/rate trends,
-  // and coaching-visit/shot-clock events respectively) -- see metric-source-family-policy.ts.
   "071": ["RESULTS_SCHEDULE", "ENVIRONMENT"],
   "075": ["RULES_CONTEXT"],
   "076": ["RESULTS_SCHEDULE"],
   "077": ["RESULTS_SCHEDULE"],
-  "081": ["RESULTS_SCHEDULE"],
 };
 
+// 069 (Stakes/Career Context), 079 (Additional Differentiating Metrics), and 081 (Further
+// Differentiating Metrics) were removed from this contract during the Task 19/20 canonical
+// registry reconciliation: their true definitions (public/seed/metrics.txt) require data no
+// approved source provides — retirement-tour announcements/anti-doping schedules for 069,
+// in-match coaching-visit/time-violation events for 079, and locker-room/ceremony/court-
+// assignment/rain-delay events for 081. They're now PROTECTED_UNAVAILABLE (see
+// metric-classification.ts) rather than part of the deterministic newly-green contract.
+// "036" ("Loss Autopsy Metrics") and "040" ("Hidden Decline Detector") were also removed
+// from PBP_METRICS: verified against public/seed/metrics.txt directly -- every 036 bullet
+// is keyed to what happened in each *past loss* (favorite status, opponent quality, point/
+// break differential, physical problem, match length), which is RESULTS_SCHEDULE-level
+// historical-match data, not point-by-point chronology within one match; every 040 bullet is
+// a *cross-match trend* (serve-velocity trend, ace-rate trend, etc. across recent matches),
+// which needs multi-match trend tracking that raw single-match PBP data cannot supply.
 const NON_PBP_DETERMINISTIC = [
-  "012", "015", "019", "021", "028", "030", "062", "064", "071", "075", "076", "077", "081",
+  "012", "015", "019", "021", "028", "030", "062", "064", "071", "075", "076", "077",
 ];
 const PBP_METRICS = ["024", "025", "033", "042", "043", "044", "060"];
 
@@ -72,7 +78,7 @@ describe("newly-green end-to-end coverage audit", () => {
   });
 
   it("has no non-PBP newly-green metric left without a deterministic implementation path", () => {
-    const covered = new Set(["012","028","030","064","071","076","077","081","015","019","021","062","075"]);
+    const covered = new Set(["012","028","030","064","071","076","077","015","019","021","062","075"]);
     expect([...NON_PBP_DETERMINISTIC].filter((code) => !covered.has(code))).toEqual([]);
   });
 
@@ -102,15 +108,17 @@ describe("newly-green end-to-end coverage audit", () => {
     expect(summary).toContain("Other tours excluded: **YES**");
   });
 
-  it("does not let ranking-only newly-green metrics accept results/schedule evidence", () => {
+  it("does not let a ranking-only newly-green metric accept results/schedule evidence", () => {
     expect(policyForMetric("062").allowed_families).toEqual(["RANKING"]);
   });
 
-  // Task 20 reconciliation: 069 ("Stakes / Career Context") is not ranking-satisfiable at
-  // all -- see metric-source-family-policy.test.ts for the corrected expectation and
-  // metric-certification-066-071.test.ts for its actual (protected-metric-wiring.server.ts)
-  // handling.
-  it("keeps metric 069 family-less at the warehouse-observation policy layer", () => {
+  // Task 20 reconciliation: 069 ("Stakes / Career Context") is PROTECTED_UNAVAILABLE (see
+  // metric-classification.ts) -- retirement-tour/farewell-run effects and anti-doping
+  // testing disruption, not a ranking metric at all -- so it must never be ranking- (or
+  // any other family-) satisfiable. See metric-source-family-policy.test.ts for the
+  // corrected expectation and metric-certification-066-071.test.ts for its actual
+  // (protected-metric-wiring.server.ts) handling.
+  it("keeps metric 069 (Stakes/Career Context) PROTECTED_UNAVAILABLE rather than ranking-eligible", () => {
     expect(policyForMetric("069").allowed_families).toEqual([]);
   });
 

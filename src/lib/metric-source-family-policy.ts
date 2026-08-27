@@ -8,46 +8,74 @@ export type ObservationFamily =
 
 export type MetricSourcePolicy = { metric_code:string; allowed_families:ObservationFamily[]; sufficient_families:ObservationFamily[]; support_only_families?:ObservationFamily[] };
 
-// Task 13 source-family applicability, reconciled with Task 17 for Tasks 18A-18C.
+// Task 13 source-family applicability, reconciled with Task 17 for Tasks 18A-18C, and
+// again against the canonical registry in metric-classification.ts (Task 20/21).
 // Applicability never awards coverage by itself; metric-specific recovery must
 // still prove pair-complete raw evidence and preserve treatment.
-const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","030","031","034","035","037","038","039","041","045","046","049","050","051","052","053","054","055","056","057","058","059","061","064","068","071","076","077","080","081"]);
-// "069" (authoritative catalog: "Stakes / Career Context" -- retirement-tour/farewell-run
-// effects, anti-doping testing disruption) was previously listed here and in
-// PBP_METRICS, inherited from a pre-Task-17 catalog that assigned code 069 to a different,
-// ranking/PBP-appropriate metric ("Dominance Ratio"). Neither ranking observations nor PBP
-// can legitimately establish this metric's actual subject matter -- it requires genuine
-// public retirement/anti-doping reporting, which protected-metric-wiring.server.ts already
-// requires and validates for it (NON_RECONSTRUCTABLE_CONTEXT_CODES). Removed per the Task 20
-// reconciliation; see authoritative-metric-catalog.ts and metric-source-family-policy.test.ts.
-const RANKING_METRICS=new Set(["013","014","020","023","038","039","047","055","058","062","068","080"]);
-const MARKET_METRICS=new Set(["015","019","039","043","044","047","057","073"]);
-// "021" (authoritative catalog: "Surface & Environmental Context") was previously excluded
-// here under a pre-Task-17 assumption that code 021 was "Elo Delta" (a chronological-results
-// metric that weather would only contaminate). The real definition explicitly names weather
+//
+// META_OR_NON_PLAYER and PROTECTED_UNAVAILABLE codes (see metric-classification.ts) are
+// never given a family here -- there is nothing for RESULTS_SCHEDULE/RANKING/MARKET/
+// ENVIRONMENT/POINT_BY_POINT/RULES_CONTEXT evidence to "satisfy" for them, since they
+// either aren't player facts at all or have no admissible evidence source anywhere in
+// this system. "047" and "061" (UNKNOWN_REQUIRES_REVIEW) are deliberately left with
+// whatever family eligibility their genuinely-reconstructable sub-component already had
+// before classification review -- narrowing that further is a separate decision, not
+// made here on inference alone.
+const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","030","031","034","035","036","037","038","041","045","046","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
+// "036" ("Loss Autopsy Metrics") added: verified against public/seed/metrics.txt --
+// every bullet is keyed to what happened in specific past *losses* (favorite status,
+// opponent quality, surface, point/break differential, physical problem, match length),
+// which is RESULTS_SCHEDULE-level historical-match data. (It is deliberately NOT also
+// added to PBP_METRICS -- see the note there.)
+// "059" ("Loss Path Probability") removed: it is META_OR_NON_PLAYER (see
+// metric-classification.ts) -- every bullet is framed around why "the pick" loses, not
+// a player fact, so it must never receive ANY family eligibility.
+// "069" ("Stakes / Career Context" -- retirement-tour/farewell-run effects, anti-doping
+// testing disruption) was previously listed here and in PBP_METRICS, inherited from a
+// pre-Task-17 catalog that assigned code 069 to a different, ranking/PBP-appropriate
+// metric ("Dominance Ratio"). Neither ranking observations nor PBP can legitimately
+// establish this metric's actual subject matter -- it requires genuine public
+// retirement/anti-doping reporting, which protected-metric-wiring.server.ts already
+// requires and validates for it (NON_RECONSTRUCTABLE_CONTEXT_CODES), and which
+// metric-classification.ts now classifies PROTECTED_UNAVAILABLE. Removed per the
+// Task 20 reconciliation; see metric-source-family-policy.test.ts.
+const RANKING_METRICS=new Set(["013","014","020","023","038","047","055","058","062","068","080"]);
+// "039" and "057" removed from MARKET: verified against public/seed/metrics.txt --
+// 039 ("Performance Surprise Rating") compares actual performance to a pre-match
+// *expected* performance baseline (Elo/form-derived), never a market price; 057
+// ("Evidence Freshness & Confirmation") is META_OR_NON_PLAYER and must never receive
+// ANY family eligibility, market or otherwise. Neither bullet in either code's real
+// definition names odds, implied probability, or any market-derived quantity.
+const MARKET_METRICS=new Set(["015","019","043","044","047","073"]);
+// "021" ("Surface & Environmental Context") was previously excluded here under a
+// pre-Task-17 assumption that code 021 was "Elo Delta" (a chronological-results metric
+// that weather would only contaminate). The real definition explicitly names weather
 // sensitivity and altitude as in-scope components, and deterministic-environment-metrics.server.ts
 // already computes and targets this exact code — it was simply never allowed through this
 // policy. RESULTS_SCHEDULE remains the only *sufficient* family for 021 (see below); this
 // only makes ENVIRONMENT support-only, so it can enrich but never single-handedly promote a 021
-// finding to DIRECT/RECONSTRUCTED. See authoritative-metric-catalog.ts and
+// finding to DIRECT/RECONSTRUCTED. See metric-classification.ts and
 // metric-source-family-policy.test.ts.
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
-// "026"/"027"/"036"/"038"/"039"/"040"/"079" were previously listed here, inherited from the
-// same pre-Task-17 catalog drift as code 069 above. Their real definitions are, respectively:
-// 026 "Early-Warning / Slow-Start Metrics" (opening-game hold/break rates -- needs a
-// first-N-games-scoped replay this engine does not yet build, not a match-wide PBP stat),
-// 027 "Opponent Finishing Ability" and 036 "Loss Autopsy Metrics" (both keyed off historical
-// match *results*, e.g. lead protection, favorite status, loss surface -- RESULTS_SCHEDULE
-// territory, not point chronology), 038 "Opponent-Adjusted Residual Performance" (needs
-// cross-player population norms), 039 "Performance Surprise Rating" (needs a pre-match
-// expectation/model output), 040 "Hidden Decline Detector" (serve-velocity/rate *trend*
-// across recent matches -- velocity is not in PBP data at all), and 079 "Additional
-// Differentiating Metrics" (coaching-visit and shot-clock events -- not point-by-point score
-// state). pbp-score-state-recovery.ts already does not target any of these (see its
-// TASK18B_METRIC_CODES comment); leaving them here would let the generic warehouse-level PBP
-// path (deterministicPbpMetric) award false PARTIAL credit toward metrics PBP evidence cannot
-// actually inform. See authoritative-metric-catalog.ts and metric-source-family-policy.test.ts.
-const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","059","060","070","071"]);
+// "026"/"027"/"036"/"038"/"039"/"040"/"059"/"079" were previously listed here, inherited
+// from the same pre-Task-17 catalog drift as code 069 above. Their real definitions are,
+// respectively: 026 "Early-Warning / Slow-Start Metrics" (opening-game hold/break rates
+// -- needs a first-N-games-scoped replay this engine does not yet build, not a
+// match-wide PBP stat), 027 "Opponent Finishing Ability" and 036 "Loss Autopsy Metrics"
+// (both keyed off historical match *results*, e.g. lead protection, favorite status,
+// loss surface -- RESULTS_SCHEDULE territory, not point chronology), 038
+// "Opponent-Adjusted Residual Performance" (needs cross-player population norms), 039
+// "Performance Surprise Rating" (needs a pre-match expectation/model output, not point
+// data), 040 "Hidden Decline Detector" (serve-velocity/rate *trend* across recent
+// matches -- velocity is not in PBP data at all, and single-match PBP cannot supply a
+// cross-match trend), 059 "Loss Path Probability" (META_OR_NON_PLAYER -- gets no family
+// at all), and 079 "Additional Differentiating Metrics" (coaching-visit and shot-clock
+// events -- not point-by-point score state). pbp-score-state-recovery.ts already does
+// not target any of these (see its TASK18B_METRIC_CODES comment); leaving them here
+// would let the generic warehouse-level PBP path (deterministicPbpMetric) award false
+// PARTIAL credit toward metrics PBP evidence cannot actually inform. See
+// metric-classification.ts and metric-source-family-policy.test.ts.
+const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
 const RULES_METRICS=new Set(["020","064","075","076"]);
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
