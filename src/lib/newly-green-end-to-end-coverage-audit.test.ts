@@ -26,19 +26,23 @@ const REQUIRED_FAMILIES: Record<string, string[]> = {
   "060": ["ENVIRONMENT", "POINT_BY_POINT"],
   "062": ["RANKING"],
   "064": ["RESULTS_SCHEDULE"],
-  "069": ["RANKING"],
   "071": ["RESULTS_SCHEDULE", "ENVIRONMENT"],
   "075": ["RULES_CONTEXT"],
   "076": ["RESULTS_SCHEDULE"],
   "077": ["RESULTS_SCHEDULE"],
-  "079": ["POINT_BY_POINT"],
-  "081": ["RESULTS_SCHEDULE"],
 };
 
+// 069 (Stakes/Career Context), 079 (Additional Differentiating Metrics), and 081 (Further
+// Differentiating Metrics) were removed from this contract during the Task 19 canonical
+// registry rebuild: their true definitions (public/seed/metrics.txt) require data no
+// approved source provides — retirement-tour announcements/anti-doping schedules for 069,
+// in-match coaching-visit/time-violation events for 079, and locker-room/ceremony/court-
+// assignment/rain-delay events for 081. They're now PROTECTED_UNAVAILABLE (see
+// metric-classification.ts) rather than part of the deterministic newly-green contract.
 const NON_PBP_DETERMINISTIC = [
-  "012", "015", "019", "021", "028", "030", "062", "064", "069", "071", "075", "076", "077", "081",
+  "012", "015", "019", "021", "028", "030", "062", "064", "071", "075", "076", "077",
 ];
-const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060", "079"];
+const PBP_METRICS = ["024", "025", "033", "036", "040", "042", "043", "044", "060"];
 
 describe("newly-green end-to-end coverage audit", () => {
   it("preserves every required newly-green source family while allowing audited Task 13 support", () => {
@@ -69,7 +73,7 @@ describe("newly-green end-to-end coverage audit", () => {
   });
 
   it("has no non-PBP newly-green metric left without a deterministic implementation path", () => {
-    const covered = new Set(["012","028","030","064","071","076","077","081","015","019","021","062","069","075"]);
+    const covered = new Set(["012","028","030","064","071","076","077","015","019","021","062","075"]);
     expect([...NON_PBP_DETERMINISTIC].filter((code) => !covered.has(code))).toEqual([]);
   });
 
@@ -99,9 +103,14 @@ describe("newly-green end-to-end coverage audit", () => {
     expect(summary).toContain("Other tours excluded: **YES**");
   });
 
-  it("does not let ranking-only newly-green metrics accept results/schedule evidence", () => {
+  it("does not let a ranking-only newly-green metric accept results/schedule evidence", () => {
     expect(policyForMetric("062").allowed_families).toEqual(["RANKING"]);
-    expect(policyForMetric("069").allowed_families).toEqual(["RANKING"]);
+  });
+
+  it("keeps metric 069 (Stakes/Career Context) PROTECTED_UNAVAILABLE rather than ranking-eligible", () => {
+    // True 069 is retirement-tour effects and anti-doping testing disruption — not a
+    // ranking metric at all. See metric-classification.ts for the full reasoning.
+    expect(policyForMetric("069").allowed_families).toEqual([]);
   });
 
   it("preserves intended multi-family evidence and keeps Task 13 additions support-only", () => {

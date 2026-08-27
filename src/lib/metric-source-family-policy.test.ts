@@ -9,13 +9,19 @@ const marketRow = { source_id: "odds_api", observation_type: "MARKET", observati
 const weatherRow = { source_id: "open_meteo", observation_type: "ENVIRONMENT", observation_key: "temperature_2m" };
 
 describe("metric source family policy", () => {
-  it("never lets ATP/WTA results or schedules satisfy ranking/stakes metrics", () => {
+  it("never lets ATP/WTA results or schedules satisfy a ranking-only metric", () => {
     expect(metricAllowsObservation("062", matchRow)).toBe(false);
     expect(metricAllowsObservation("062", scheduleRow)).toBe(false);
+    expect(metricAllowsObservation("062", rankingRow)).toBe(true);
+  });
+
+  it("never lets any observation family satisfy a PROTECTED_UNAVAILABLE metric (069 Stakes/Career Context)", () => {
+    // 069's true definition (retirement-tour effects, anti-doping testing disruption) has no
+    // registered source family at all — see metric-classification.ts for the full reasoning.
     expect(metricAllowsObservation("069", matchRow)).toBe(false);
     expect(metricAllowsObservation("069", scheduleRow)).toBe(false);
-    expect(metricAllowsObservation("062", rankingRow)).toBe(true);
-    expect(metricAllowsObservation("069", rankingRow)).toBe(true);
+    expect(metricAllowsObservation("069", rankingRow)).toBe(false);
+    expect(policyForMetric("069").allowed_families).toEqual([]);
   });
 
   it("keeps market evidence out of schedule and ranking metrics", () => {
@@ -25,10 +31,14 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("019", marketRow)).toBe(true);
   });
 
-  it("uses results/schedule rather than environment as the Task 17 Elo source", () => {
+  it("uses results/schedule as the sufficient source for metric 021, environment as support-only", () => {
+    // 021's true definition (Surface & Environmental Context) legitimately includes an
+    // altitude-sensitivity component, so environment evidence is allowed — but only as
+    // support-only; results/schedule alone remains sufficient on its own.
     expect(metricAllowsObservation("021", matchRow)).toBe(true);
-    expect(metricAllowsObservation("021", weatherRow)).toBe(false);
+    expect(metricAllowsObservation("021", weatherRow)).toBe(true);
     expect(policyForMetric("021").sufficient_families).toEqual(["RESULTS_SCHEDULE"]);
+    expect(policyForMetric("021").support_only_families).toContain("ENVIRONMENT");
     expect(metricAllowsObservation("071", weatherRow)).toBe(true);
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
   });
@@ -46,7 +56,7 @@ describe("metric source family policy", () => {
   });
 
   it("marks support-only results/schedule families without silently promoting them", () => {
-    for (const code of ["012", "028", "030", "061", "064", "071", "076", "077", "081"]) {
+    for (const code of ["012", "028", "030", "061", "064", "071", "076", "077"]) {
       const policy = policyForMetric(code);
       expect(policy.allowed_families).toContain("RESULTS_SCHEDULE");
       expect(policy.support_only_families).toContain("RESULTS_SCHEDULE");
