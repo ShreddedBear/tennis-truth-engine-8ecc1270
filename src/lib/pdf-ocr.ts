@@ -24,24 +24,31 @@ export async function ocrPdfLocally(
   const doc = await pdfjs.getDocument({ data }).promise;
   const { createWorker } = await import("tesseract.js");
 
+  const newWorker = () =>
+    createWorker("eng", 1, {
+      logger: (m: { status?: string; progress?: number }) => {
+        if (!onProgress || !m.status) return;
+        const pct = typeof m.progress === "number" ? ` ${Math.round(m.progress * 100)}%` : "";
+        onProgress(`Local OCR: ${m.status}${pct}`);
+      },
+    });
+
   onProgress?.(`PDF opened: ${doc.numPages} page${doc.numPages === 1 ? "" : "s"}. Starting local OCR…`);
-  const worker = await createWorker("eng", 1, {
-    logger: (m: { status?: string; progress?: number }) => {
-      if (!onProgress || !m.status) return;
-      const pct = typeof m.progress === "number" ? ` ${Math.round(m.progress * 100)}%` : "";
-      onProgress(`Local OCR: ${m.status}${pct}`);
-    },
-  });
+  let worker = await newWorker();
 
   // Large scanned pages (tall full-screen screenshots at scale:2 can each be
   // several thousand pixels tall) push mobile Safari's memory hard over a
-  // 30-50 page batch. Two defenses: cap render scale on unusually tall pages
-  // instead of always rendering at a fixed 2x, and yield to the event loop
-  // between pages so the GC gets a real chance to reclaim the previous
-  // page's canvas/OCR buffers before the next one is allocated. Neither can
+  // 30-50 page batch. Several defenses, each addressing a different growth
+  // source: cap render scale on unusually tall pages instead of always
+  // rendering at a fixed 2x; yield to the event loop between pages so the GC
+  // gets a real chance to reclaim the previous page's canvas/OCR buffers; and
+  // periodically recreate the Tesseract worker, since its WASM heap is known
+  // to grow across many recognize() calls in one long-lived worker and isn't
+  // reliably reclaimed until the worker itself is torn down. None of this can
   // save a page whose single canvas allocation alone exceeds what the device
   // can give a tab, but that is a single bad page, not the whole batch.
   const MAX_CANVAS_DIMENSION = 4000;
+  const WORKER_RESTART_EVERY_PAGES = 8;
   const pages: string[] = [];
   try {
     for (let i = 1; i <= doc.numPages; i++) {
@@ -64,6 +71,11 @@ export async function ocrPdfLocally(
       } catch (error) {
         onProgress?.(`Page ${i}/${doc.numPages} failed locally (${error instanceof Error ? error.message : String(error)}) — skipping and continuing.`);
         pages.push("");
+      }
+      if (i < doc.numPages && i % WORKER_RESTART_EVERY_PAGES === 0) {
+        onProgress?.(`Recycling OCR worker to free memory (${i}/${doc.numPages} pages done)…`);
+        await worker.terminate();
+        worker = await newWorker();
       }
       // Let the browser breathe (GC, repaint, respond to input) between
       // pages instead of running dozens of multi-second renders back to back.
