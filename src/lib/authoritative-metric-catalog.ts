@@ -31,12 +31,18 @@
 //     analysis, not observations about a player. See PROCESS_META_CODES below for the
 //     full list with per-code rationale.
 //
-// PRODUCT DECISION NEEDED (not made here): whether PROCESS_META codes should be (a)
-// excluded from the player-evidence coverage denominator entirely, (b) kept in the
-// denominator but permanently reported as N/A rather than counted as lost coverage, or
-// (c) left exactly as today (each one silently drags every match's coverage percentage
-// down, since activeMetrics() currently has no way to tell them apart from a genuinely
-// unavailable player metric). See docs/evidence-coverage/ for the Task 20 writeup.
+// PRODUCT DECISION (Task 20, approved): PROCESS_META codes are excluded from the
+// player-evidence coverage denominator entirely. audit-pipeline.ts's instantiate()
+// marks their metric_results rows EXCLUDED at creation -- an existing, first-class
+// treatment already subtracted from audit-engine.ts's coverageFor() denominator and
+// already skipped by executeMetrics()'s pending filter -- so no recovery engine is ever
+// invoked for them, while the rule_code/rule_name definition itself is preserved
+// (governance/documentation) and unchanged. See PLAYER_METRIC_CODES below for the
+// resulting 69-code denominator, and audit-pipeline.test.ts's guardrail test.
+//
+// ALSO DOCUMENTED HERE, NOT YET RESOLVED: an authoring/parsing defect in
+// public/seed/metrics.txt itself orphans three real sections. See
+// ORPHANED_CATALOG_SECTIONS below.
 
 export type MetricType = "PLAYER_METRIC" | "PROCESS_META";
 
@@ -154,3 +160,91 @@ export function authoritativeMetricRow(code: string): AuthoritativeMetricRow | u
 
 export const PLAYER_METRIC_CODES = AUTHORITATIVE_METRIC_CATALOG.filter((r) => r.type === "PLAYER_METRIC").map((r) => r.code);
 export const PROCESS_META_CODES = AUTHORITATIVE_METRIC_CATALOG.filter((r) => r.type === "PROCESS_META").map((r) => r.code);
+
+// ============================================================================
+// ORPHANED CATALOG SECTIONS (Task 20, Decision 4 — documented, NOT resolved)
+// ============================================================================
+//
+// public/seed/metrics.txt contains a mid-document appendix ("120-MATCH EMPIRICAL
+// METRIC-PRIORITY OVERLAY") that reuses local numbering "1." through "6." for its own
+// unrelated content (an empirical priority table, tier list, anti-double-counting rule,
+// etc.) before the document's real section 4 ("Combined Efficiency"). rule-parser.ts's
+// heading rule accepts a "N." line only when N === (last accepted number) + 1, so it
+// locks onto the appendix's fake "4.", "5.", "6." first (consuming rule_code slots
+// 004-006) — by the time the genuine "4. Combined Efficiency", "5. Recent Form", and
+// "6. Opponent Quality" headings appear later in the raw text, `last` is already 6, so
+// none of them satisfy N === last+1 and all three are swallowed as inert body text
+// inside rule_code 006 ("Recalibration rule")'s body. They never became their own
+// rule_code and are not reachable through the live `rules` table at all.
+//
+// This is confirmed by direct inspection of public/seed/metrics.txt (see
+// authoritative-metric-catalog.test.ts's "documents but does not silently fix" test,
+// which re-parses the file and asserts these three headings' text is present only
+// inside code 006's body, not as their own rule_code).
+//
+// Per Task 20 Decision 4: this is NOT resolved here. All three sections read as
+// genuine PLAYER_METRIC content (measurable-in-principle player attributes, not
+// process/governance text) — Dominance Ratio, Recent Form, and Opponent-Adjusted
+// Strength of Schedule are exactly the kind of thing every other real metric code
+// describes. That means the safe options are (a) fix the source document/parser so
+// these three get their own new, real rule_code entries (a live-catalog change with
+// migration implications for every already-persisted evidence row), or (b) leave them
+// permanently unreachable and accept their content is simply not scored. What this
+// codebase must NOT do is invent a shortcut: no engine may claim one of the 81 existing
+// codes for this content merely because that code happens to be unclaimed or nearby —
+// that was exactly Task 18B's mistake with code 069 ("Dominance Ratio" has no
+// legitimate connection to 069's real definition, "Stakes / Career Context"; see
+// pbp-score-state-recovery.ts). The Dominance Ratio reconstruction has been removed
+// from 069 (Task 20) and not reassigned anywhere pending this decision.
+export type OrphanedCatalogSection = {
+  /** The document's own local section number (never a live rule_code). */
+  localNumber: number;
+  name: string;
+  /** Exact bullet text from public/seed/metrics.txt, for reference. */
+  bullets: string[];
+  /** The rule_code whose body currently, silently contains this section's text. */
+  swallowedInsideCode: string;
+};
+
+export const ORPHANED_CATALOG_SECTIONS: OrphanedCatalogSection[] = [
+  {
+    localNumber: 4,
+    name: "Combined Efficiency",
+    bullets: [
+      "Dominance Ratio: the ratio of a player's return points won percentage to their opponent's return points won percentage.",
+      "Opponent-Adjusted Dominance Ratio: Dominance Ratio recalculated after accounting for the relative strength of the opponents faced.",
+      "Total Points Won %: the overall percentage of all points won in the match, combining serve and return.",
+      "Matchup-Specific Expected Hold %: the hold percentage a player would be expected to achieve against this specific opponent.",
+      "Matchup-Specific Expected Break %: the break percentage a player would be expected to achieve against this specific opponent.",
+      "Expected Hold/Break Differential: the projected gap between expected hold rate and expected break rate for this matchup.",
+    ],
+    swallowedInsideCode: "006",
+  },
+  {
+    localNumber: 5,
+    name: "Recent Form",
+    bullets: [
+      "Last 5 Match Performance: summary results and underlying stats from the player's five most recent matches.",
+      "Last 10 Match Performance: summary results and underlying stats from the player's ten most recent matches.",
+      "Current Hard-Court Swing: performance specifically within the player's current run of hard-court tournaments.",
+      "Trend Direction: whether recent performance is improving, declining, or stable.",
+      "Recent-Performance Acceleration: the rate at which recent performance is improving or declining, not just the direction.",
+      "Quality of Last 3–5 Performances: an assessment of opponent strength and dominance level in the most recent handful of matches.",
+      "Average Games/Sets Conceded in Wins: the typical number of games or sets given up during recent victories.",
+      "Straight-Set Control Rate: the percentage of recent wins completed in straight sets.",
+    ],
+    swallowedInsideCode: "006",
+  },
+  {
+    localNumber: 6,
+    name: "Opponent Quality",
+    bullets: [
+      "Opponent-Adjusted Strength of Schedule: an assessment of how difficult a player's recent opponents have been, weighted by quality.",
+      "Ranking-Adjusted Performance: performance evaluated relative to what would be expected given opponents' rankings.",
+      "Performance Against Comparable-Ranked Players: results specifically against opponents of similar ranking to the player.",
+      "Performance Against Specific Archetypes: results against particular playing styles (e.g., big servers, counterpunchers).",
+      "Bad-Loss Rate: the frequency of losses to significantly lower-ranked or weaker opponents.",
+    ],
+    swallowedInsideCode: "006",
+  },
+];

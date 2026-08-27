@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseRuleDocument } from "./rule-parser";
 import {
   AUTHORITATIVE_METRIC_CATALOG,
+  ORPHANED_CATALOG_SECTIONS,
   PLAYER_METRIC_CODES,
   PROCESS_META_CODES,
   PROCESS_META_RATIONALE,
@@ -73,5 +74,27 @@ describe("authoritative metric catalog", () => {
     expect(authoritativeMetricRow("metric-016")?.name).toBe("Point-by-Point & Score-State Metrics");
     expect(authoritativeMetricRow("082")).toBeUndefined();
     expect(authoritativeMetricRow("000")).toBeUndefined();
+  });
+
+  // Task 20 Decision 4: documents (does not silently fix) the parser/authoring defect
+  // that orphans "Combined Efficiency", "Recent Form", and "Opponent Quality". If this
+  // ever starts failing, the underlying document or parser changed and
+  // ORPHANED_CATALOG_SECTIONS (and whatever code depends on this fact staying true --
+  // e.g. that no engine may claim an unrelated code for this content) needs revisiting.
+  it("documents but does not silently fix the orphaned Combined Efficiency/Recent Form/Opponent Quality sections", () => {
+    expect(ORPHANED_CATALOG_SECTIONS.map((s) => s.name)).toEqual(["Combined Efficiency", "Recent Form", "Opponent Quality"]);
+    const liveCodes = new Set(liveReport.rules.map((r) => r.rule_code));
+    for (const section of ORPHANED_CATALOG_SECTIONS) {
+      // None of these section names ever became a live rule_code's name.
+      expect(liveReport.rules.some((r) => r.rule_name === section.name), `${section.name} unexpectedly has its own rule_code`).toBe(false);
+      // Each is genuinely swallowed inside the body of the code this file claims.
+      expect(liveCodes.has(section.swallowedInsideCode)).toBe(true);
+      const host = liveReport.rules.find((r) => r.rule_code === section.swallowedInsideCode);
+      expect(host?.body ?? "", `${section.name} not found inside code ${section.swallowedInsideCode}'s body`).toContain(section.name);
+      for (const bullet of section.bullets) {
+        const label = bullet.split(":")[0];
+        expect(host?.body ?? "", `bullet "${label}" not found inside code ${section.swallowedInsideCode}'s body`).toContain(label);
+      }
+    }
   });
 });
