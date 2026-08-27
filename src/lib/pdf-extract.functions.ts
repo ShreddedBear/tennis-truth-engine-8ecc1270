@@ -1,5 +1,27 @@
 import { createServerFn } from "@tanstack/react-start";
 
+// Prediction-engine-specific structured sections. Every field here is guidance/reference
+// only -- see the CRITICAL EVIDENCE FIREWALL note on MATRIX_FIELDS in constants.ts. Kept
+// as a nested, semi-structured object (one canonical scalar per named module plus a
+// free-form detail bag) rather than a long flat list of exact sub-field names: the
+// per-module stats a report actually shows can vary, so a rigid fixed schema would break
+// on the first format change. Anything not covered by a named module still lands in
+// other_fields, same as before.
+export interface AiMatrixSummary {
+  confidence_label: string | null;
+  win_probability_range: string | null;
+  agreement_label: string | null;
+  model_votes: Record<string, string> | null;
+  monte_carlo: {
+    win_probability: string | null;
+    range: string | null;
+    expected_sets: string | null;
+    simulations: string | null;
+    set_score_distribution: Record<string, string> | null;
+  } | null;
+  engine_breakdown: Record<string, Record<string, string>> | null;
+}
+
 export interface AiMatchup {
   page_number: number;
   player1_name: string;
@@ -12,6 +34,7 @@ export interface AiMatchup {
   best_of: string | null;
   matrix_predicted_winner: string | null;
   matrix_wp: string | null;
+  matrix_summary: AiMatrixSummary | null;
   other_fields: Record<string, string> | null;
 }
 
@@ -161,10 +184,13 @@ export const extractPdfTextServer = createServerFn({ method: "POST" })
     }
   });
 
-const PROMPT = `This PDF contains tennis match summaries or screenshots (one or more matchups per page).
+const PROMPT = `This PDF contains tennis match summaries or screenshots (one or more matchups per page), possibly including "Tennis Matrix AI" prediction-engine reports with sections like Model Votes, Monte Carlo Simulation, Set Score Distribution, and a Full Engine Breakdown (Surface Elo, Serve & Return, Recent Form, Fatigue Index / Match Load Recovery, Rest/Travel/Injury, Head-to-Head, Style Matchup).
 Read EVERY page, including pages that are only images/screenshots.
-Return strict JSON: {"matchups":[{"page_number":1,"player1_name":"","player2_name":"","tournament":null,"event_level":null,"round":null,"scheduled_date":null,"surface":null,"best_of":null,"matrix_predicted_winner":null,"matrix_wp":null,"other_fields":{}}]}
-Rules: never invent a value — use null when it is not visible. Put any other readable labelled values (odds, win probability, ranking, form, market) in other_fields as string values. player1_name and player2_name must be full player names as printed.`;
+Return strict JSON: {"matchups":[{"page_number":1,"player1_name":"","player2_name":"","tournament":null,"event_level":null,"round":null,"scheduled_date":null,"surface":null,"best_of":null,"matrix_predicted_winner":null,"matrix_wp":null,"matrix_summary":null,"other_fields":{}}]}
+Rules: never invent a value — use null when a field is not visible on the page, and never guess a number.
+If this page shows a "Tennis Matrix AI"-style prediction-engine report, also populate matrix_summary with this shape (omit or null out whatever isn't shown):
+{"confidence_label":"e.g. LOW CONFIDENCE / HIGH CONFIDENCE / EXTREME","win_probability_range":"e.g. 21-99","agreement_label":"e.g. STRONGLY AGREE / HIGH DISAGREEMENT / Close to a coin flip","model_votes":{"<model name as printed, lowercase with underscores, e.g. surface_elo, serve_return, recent_form, head_to_head, market_consensus, general_model, specialist_model>":"<the printed probability pair exactly as shown, e.g. 71/29>"},"monte_carlo":{"win_probability":"e.g. 63.9%","range":"e.g. 21-99","expected_sets":"e.g. 2.4","simulations":"e.g. 10000","set_score_distribution":{"<score, e.g. 6-4>":"<its printed percentage>"}},"engine_breakdown":{"<module name as printed, lowercase with underscores, e.g. surface_elo, serve_return, recent_form, fatigue_index, match_load_recovery, rest_travel_injury, head_to_head, style_matchup>":{"<every labelled stat printed inside that module's panel, key = its label lowercase with underscores, value = exactly as printed>":"..."}}}
+Put any other readable labelled value that doesn't fit a named module in other_fields as a string. player1_name and player2_name must be full player names as printed. This data is prediction-engine output for reference only — extract it faithfully, do not compute or infer values it doesn't show.`;
 
 const EXTRACTION_TIMEOUT_MS = 90_000;
 

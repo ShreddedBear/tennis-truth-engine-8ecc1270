@@ -5,8 +5,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { extractPdfText } from "@/lib/pdf-text";
 import { ocrPdfLocally } from "@/lib/pdf-ocr";
-import { extractMatchupsFromPdf, type AiMatchup } from "@/lib/pdf-extract.functions";
+import { extractMatchupsFromPdf } from "@/lib/pdf-extract.functions";
 import { canonicalKey, normalizeName, parseSummaryText, type ParsedMatchup } from "@/lib/summary-parser";
+import { aiToParsed } from "@/lib/matrix-summary-flatten";
 import { log } from "@/lib/audit-runs";
 import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
 import { resolveMatchContext } from "@/lib/match-context.functions";
@@ -19,7 +20,6 @@ interface UploadError { id:string; at:string; stage:string; file?:string; match?
 const ERROR_KEY="tennis-matrix-upload-errors-v1";
 function loadErrors():UploadError[]{if(typeof window==="undefined")return[];try{return JSON.parse(window.localStorage.getItem(ERROR_KEY)??"[]").slice(0,100);}catch{return[];}}
 function toBase64(file:File):Promise<string>{return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error("Could not read the file"));reader.onload=()=>resolve(String(reader.result).split(",")[1]??"");reader.readAsDataURL(file);});}
-function aiToParsed(m:AiMatchup):ParsedMatchup{const page=m.page_number||1;const entries:Array<[string,string|null]>=[["tournament",m.tournament],["event_level",m.event_level],["round",m.round],["scheduled_date",m.scheduled_date],["surface",m.surface],["best_of",m.best_of],["matrix_predicted_winner",m.matrix_predicted_winner],["matrix_wp",m.matrix_wp],...Object.entries(m.other_fields??{})];return{player1_name:m.player1_name,player2_name:m.player2_name,page_number:page,confidence:.85,fields:entries.filter(([,v])=>v!==null&&v!==undefined&&String(v).trim()!=="").map(([key,v])=>({field_key:key,raw_value:String(v),normalized_value:String(v),extraction_status:"DIRECT" as const,confidence:.85,page_number:page}))};}
 const REVIEW_FIELDS=["tournament","event_level","round","scheduled_date","surface","best_of"];
 const clean=(v:string|null|undefined)=>String(v??"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const nameTokens=(v:string)=>normalizeName(v).split(" ").filter(Boolean);
