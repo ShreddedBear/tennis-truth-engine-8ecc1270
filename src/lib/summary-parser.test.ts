@@ -175,6 +175,36 @@ describe("summary-parser OCR fixture regressions", () => {
     expect(matchup.player2_name).toBe("Felix Auger-Aliassime");
   });
 
+  it("does not treat two section headings joined by a stray dash as a matchup", () => {
+    // Real OCR noise from a dense multi-section match-report screenshot: two
+    // unrelated headings ended up on adjacent lines with a stray dash-like
+    // artifact between them (table border/divider misread by OCR).
+    const page = [
+      "Model Votes",
+      "— Monte Carlo Simulation",
+      "38.6% 27.6%",
+    ].join("\n");
+    expect(parseSummaryText([page])).toEqual([]);
+  });
+
+  it("no longer treats a bare em/en-dash as equivalent to the word 'vs'", () => {
+    // A real "Player1 vs Player2" title always spells out "vs" in every
+    // fixture observed (betting cards and the app's own reports alike); a
+    // bare dash was previously accepted too, which is what let noisy OCR
+    // register unrelated headings as a fake matchup. This locks in the
+    // narrower, deliberate behavior.
+    expect(parseSummaryText(["Oliver Tarvet — Emile Hudd"])).toEqual([]);
+    expect(parseSummaryText(["Oliver Tarvet vs Emile Hudd"])[0]?.player1_name).toBe("Oliver Tarvet");
+  });
+
+  it("rejects a 'vs' anchor when a nearby name-shaped line is actually a known report section heading", () => {
+    const page = [
+      "Roman Safiullin vs Model Votes",
+      "Today @ 6:00pm · ATP Winston Salem",
+    ].join("\n");
+    expect(parseSummaryText([page])).toEqual([]);
+  });
+
   it("resolves a compound three-word given name without treating the extra word as noise", () => {
     const page = [
       "Cerundolo vs Buse",
