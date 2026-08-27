@@ -1,4 +1,5 @@
 import { policyForMetric, type ObservationFamily } from "./metric-source-family-policy";
+import { classifyMetric, metricUniverseAccounting, playerEvidenceDenominatorCodes } from "./metric-classification";
 
 export type EvidenceAvailabilityClass =
   | "EVIDENCE_RETRIEVES_CORRECTLY"
@@ -132,15 +133,29 @@ function classFromRuntimeMetric(match: any, metric: any): EvidenceAvailabilityCl
   return "GENUINELY_UNAVAILABLE";
 }
 
+// Metrics classified META_OR_NON_PLAYER or PROTECTED_UNAVAILABLE never enter
+// the legacy availability buckets above (they are not player evidence, so
+// "genuinely unavailable"/"software loss" semantics don't apply to them) and
+// never enter the PLAYER Evidence Coverage denominator. They stay explicitly
+// visible in metric_universe_accounting on every report instead.
+const PLAYER_DENOMINATOR_CODES = new Set(playerEvidenceDenominatorCodes());
+
 export function enrichEvidenceCoverageAccounting<T extends Record<string, any>>(report: T) {
   const matches = (report.matches ?? []).map((match: any) => {
-    const metrics = (match.metrics ?? []).map((metric: any) => ({
-      ...metric,
-      availability_class: classFromRuntimeMetric(match, metric),
-    }));
+    const metrics = (match.metrics ?? []).map((metric: any) => {
+      const metric_classification = classifyMetric(String(metric.metric_code));
+      const availability_class =
+        metric_classification === "META_OR_NON_PLAYER" || metric_classification === "PROTECTED_UNAVAILABLE"
+          ? metric_classification
+          : classFromRuntimeMetric(match, metric);
+      return { ...metric, metric_classification, availability_class };
+    });
     const classes = metrics.map((metric: any) => metric.availability_class as EvidenceAvailabilityClass);
     const byClass: Record<string, number> = {};
     for (const value of classes) byClass[value] = (byClass[value] ?? 0) + 1;
+
+    const playerMetrics = metrics.filter((metric: any) => PLAYER_DENOMINATOR_CODES.has(String(metric.metric_code)));
+    const playerCredited = playerMetrics.filter((metric: any) => metric.pair_credited).length;
     return {
       ...match,
       metrics,
@@ -148,15 +163,32 @@ export function enrichEvidenceCoverageAccounting<T extends Record<string, any>>(
         by_class: byClass,
         ...summarizeRecoverableCeiling(classes),
       },
+      player_evidence_coverage: {
+        legitimate_player_metrics: playerMetrics.length,
+        usable_cells: playerCredited,
+        percent: playerMetrics.length ? Number((100 * playerCredited / playerMetrics.length).toFixed(2)) : 0,
+      },
     };
   });
   const allClasses = matches.flatMap((match: any) => match.metrics.map((metric: any) => metric.availability_class as EvidenceAvailabilityClass));
+
+  const allPlayerMetrics = matches.flatMap((match: any) => match.metrics.filter((metric: any) => PLAYER_DENOMINATOR_CODES.has(String(metric.metric_code))));
+  const totalPlayerCells = allPlayerMetrics.length;
+  const usablePlayerCells = allPlayerMetrics.filter((metric: any) => metric.pair_credited).length;
+
   return {
     ...report,
     metric_family_audit: allMetricFamilyAudit(),
+    metric_universe_accounting: metricUniverseAccounting(),
     availability_accounting: {
       scope: "FOUR_TOUR_REPRESENTATIVE_METRICS",
       ...summarizeRecoverableCeiling(allClasses),
+    },
+    player_evidence_coverage: {
+      scope: "FOUR_TOUR_REPRESENTATIVE_METRICS_LEGITIMATE_PLAYER_METRICS_ONLY",
+      total_player_metric_tour_cells: totalPlayerCells,
+      usable_player_metric_tour_cells: usablePlayerCells,
+      percent: totalPlayerCells ? Number((100 * usablePlayerCells / totalPlayerCells).toFixed(2)) : 0,
     },
     matches,
   };

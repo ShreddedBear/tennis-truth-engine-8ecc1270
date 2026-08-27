@@ -1,0 +1,332 @@
+// Canonical metric classification registry.
+//
+// Source of truth: public/seed/metrics.txt (the document that seeds the
+// production `rules` table via src/lib/rule-parser.ts + src/lib/bootstrap.ts).
+// Every code/name pair below was read directly from that file after fixing a
+// heading-numbering collision (see git history on public/seed/metrics.txt —
+// an embedded "120-Match Empirical Overlay" sub-section reused numbers
+// 1/2/3/4/5/6 as its own local list, which the sequential-numbering parser in
+// rule-parser.ts silently swallowed into rule codes 004-006, replacing the
+// real metrics "Combined Efficiency" / "Recent Form" / "Opponent Quality").
+//
+// This registry answers a narrower question than recoverability
+// (metric-recoverability-map.ts, which is NOT wired to production and is
+// known to be out of sync with this file's code numbering — do not treat it
+// as authoritative): whether a metric code is a legitimate player-comparison
+// metric at all, and if it is, whether its required evidence is structurally
+// impossible to obtain from the approved evidence universe.
+
+export type MetricClassification =
+  | "LEGITIMATE_PLAYER_METRIC"
+  | "META_OR_NON_PLAYER"
+  | "PROTECTED_UNAVAILABLE"
+  | "UNKNOWN_REQUIRES_REVIEW";
+
+export type ClassificationRecord = {
+  metric_code: string;
+  metric_name: string;
+  classification: MetricClassification;
+  required_raw_fields: string;
+  sources_checked: string[];
+  reconstruction_attempted: boolean;
+  reconstruction_result: string;
+  reason: string;
+  whether_future_ingestion_could_change_status: boolean;
+  date_classified: string;
+  review_status: "REVIEWED" | "NEEDS_HUMAN_REVIEW";
+};
+
+const DATE = "2026-08-27";
+
+// META_OR_NON_PLAYER: the metric's own definition (public/seed/metrics.txt)
+// describes a property of the prediction/model/evidence process itself, not
+// a fact about either tennis player. Excluded from PLAYER Evidence Coverage;
+// reported separately, never silently dropped.
+const META: ClassificationRecord[] = [
+  {
+    metric_code: "048",
+    metric_name: "Independent-Evidence Count",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Count of genuinely independent signals among the model's own agreeing metrics",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Definition: 'the estimated number of genuinely independent signals among those that agree, after accounting for overlapping underlying data.' This describes the model's own evidence-agreement structure, not player A vs player B evidence.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "049",
+    metric_name: "Data Contamination / Circularity Score",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Score reflecting how much of the model's consensus comes from independent vs. recycled inputs",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Definition: 'a 0-100 score reflecting how much of the model's apparent consensus comes from genuinely separate data sources versus recycled/overlapping inputs.' Property of the model's evidence base, not either player.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "050",
+    metric_name: "Robustness Tests",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Perturbation re-runs of the model's own prediction; winner-switch threshold of the pick",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Definition: 'rerunning the prediction thousands of times with small, realistic perturbations to inputs ... to see how often the original winner is retained.' Tests the model's pick stability, not a player fact.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "056",
+    metric_name: "Data-Integrity Layer",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Sample-size adequacy assessment of the system's other metrics",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Definition: 'whether the sample size backing each individual metric is sufficient.' A meta-property of other metrics, not a player fact.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "057",
+    metric_name: "Evidence Freshness & Confirmation",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Weighted freshness score combining a metric's own reliability/recency/sample; independent-confirmation ratio across metrics",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Definition combines 'a metric's value, sample reliability, recency, opponent quality, and surface relevance into a single effective evidence weight' and counts 'independent evidence families that agree' — evaluates the evidence system's own outputs, not a player fact.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "058",
+    metric_name: "Stress Tests & Scenario Analysis",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Re-run of the model's own prediction under shifted/optimistic/pessimistic assumption sets",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Definition: 'rerunning the prediction with reasonable assumptions deliberately shifted' and reporting 'the favorite's win probability under' bear/base/bull cases. Scenario-analyzes the pick, not either player directly.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+];
+
+// PROTECTED_UNAVAILABLE: legitimate player-comparison metrics whose required
+// raw evidence is not present anywhere in the approved evidence universe
+// (repository datasets, database, approved PBP, rankings, schedules,
+// tournament metadata, persisted evidence) and cannot be deterministically
+// reconstructed from evidence that exists. None currently have an approved
+// public-source integration in this project. All are reversible: if a
+// matching dataset is ever ingested, they must be re-evaluated (see
+// metric-classification.test.ts's future-ingestion regression test).
+const PROTECTED: ClassificationRecord[] = [
+  {
+    metric_code: "017",
+    metric_name: "Shot & Rally Metrics",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Per-shot stroke type (forehand/backhand), court position/depth, net-approach events, rally shot sequencing",
+    sources_checked: [
+      "approved BSD PBP adapters (bsd-atp-main-pbp.server.ts, bsd-wta-main-pbp.server.ts, bsd-atp-challenger-pbp.server.ts, bsd-wta-challenger-pbp.server.ts) — point/score-state only, no shot-level fields",
+      "four-tour historical results (runtime-tennis-index) — match-level only",
+      "source_observations table — no shot-tracking observation_type",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS — approved PBP contains point winner and score state, not stroke type or court position",
+    reason: "Requires shot-by-shot stroke/position data (forehand vs backhand outcome, net-point frequency, baseline depth). No shot-tracking data source is ingested anywhere in this system.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "063",
+    metric_name: "Team / Support Context",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Coaching-staff change history, courtside coach-presence per match, equipment-sponsor change dates",
+    sources_checked: [
+      "four-tour historical results / schedules — no coaching or equipment fields",
+      "source_observations table — no coaching/equipment observation_type",
+      "approved BSD PBP — point/score-state only",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Requires coaching-change and courtside-presence history. No such dataset is ingested; this is typically sourced from tennis-media reporting, which is not currently an approved/wired public source in this project.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "065",
+    metric_name: "Physical/Medical (Limited Availability)",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Off-season training/fitness reports, documented minor-illness reports",
+    sources_checked: [
+      "four-tour historical results / schedules — no medical/illness fields",
+      "source_observations table — no medical observation_type",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Requires medical/illness reporting. The metric's own title in the source document ('Limited Availability') flags this by original design. No structured medical dataset exists in the approved evidence universe.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "066",
+    metric_name: "Equipment / Technical",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Racket/string setup changes, shoe/sponsor changes, per-player string-tension weather adjustment history",
+    sources_checked: [
+      "four-tour historical results / schedules — no equipment fields",
+      "source_observations table — no equipment observation_type",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Requires equipment-change tracking. No such dataset is ingested anywhere in this system.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "067",
+    metric_name: "On-Court Behavior / Discipline",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Code-violation history, Hawk-Eye challenge success rate, bathroom/medical-break timing, time-violation rate",
+    sources_checked: [
+      "approved BSD PBP — point/score-state only, no violation/challenge/break-timing fields",
+      "four-tour historical results / schedules — no discipline fields",
+      "source_observations table — no discipline observation_type",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Requires officiating/discipline records (code violations, challenge outcomes, break timing). Not present in any ingested source. Hawk-Eye challenge stats are sometimes publicly reported per-tournament, so this is flagged reversible rather than permanent.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "072",
+    metric_name: "Matchup Nuance",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Backhand grip style (one/two-handed), player reach/wingspan measurements, junior/ITF-era match history",
+    sources_checked: [
+      "four-tour historical results (ATP/WTA Main + Challenger) — main/challenger tour level only, no junior/ITF results",
+      "source_observations table — no biometric/style fields",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Two of three sub-components require physical/style attributes (grip style, wingspan) not tracked anywhere; the third (junior/ITF H2H) needs match data below this system's tour-level scope (ATP/WTA Main and Challenger only).",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "074",
+    metric_name: "Biomechanics / Physical Detail",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Serve toss consistency, racket spec matchup, movement-asymmetry history, grip-size changes",
+    sources_checked: [
+      "approved BSD PBP — point/score-state only, no biomechanical fields",
+      "source_observations table — no biomechanics observation_type",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Requires biomechanical/equipment-spec tracking (toss consistency, racket specs, movement asymmetry). No such dataset exists in the approved evidence universe.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "078",
+    metric_name: "Sponsorship / Off-Court Pressure",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Sponsor/media appearance obligations during tournament week, especially home-market appearances",
+    sources_checked: [
+      "four-tour historical results / schedules — no sponsorship/appearance fields",
+      "source_observations table — no sponsorship observation_type",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "Requires sponsor-obligation/appearance tracking. No such dataset is ingested anywhere in this system.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+];
+
+// UNKNOWN_REQUIRES_REVIEW: mixed metrics whose definition contains both a
+// legitimately-reconstructable player/matchup component and a component that
+// is meta (about the model/prediction, not a player). Kept IN the player
+// denominator (burden of proof for exclusion is not met) pending a human
+// decision on whether to split it into separate rule codes.
+const UNKNOWN: ClassificationRecord[] = [
+  {
+    metric_code: "061",
+    metric_name: "Final Advanced Tests",
+    classification: "UNKNOWN_REQUIRES_REVIEW",
+    required_raw_fields: "Mixed: counterfactual/opponent-upgrade re-runs of the model's own prediction (meta), plus a Historical Twin Match Search over prior matchups with similar Elo/form/market gaps (legitimately player/matchup evidence)",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_YET_DETERMINED — two of three defined sub-items are meta (test the model's pick), one (Historical Twin Match Search) is reconstructable from existing four-tour results",
+    reason: "Definition mixes model-robustness testing with a genuine matchup-similarity search. Not excluded automatically per the 'burden of proof' rule — needs a human decision on whether to split this rule code rather than a one-line classification.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "NEEDS_HUMAN_REVIEW",
+  },
+];
+
+export const META_OR_NON_PLAYER_RECORDS = META;
+export const PROTECTED_UNAVAILABLE_RECORDS = PROTECTED;
+export const UNKNOWN_REQUIRES_REVIEW_RECORDS = UNKNOWN;
+
+export const META_OR_NON_PLAYER_CODES = new Set(META.map((r) => r.metric_code));
+export const PROTECTED_UNAVAILABLE_CODES = new Set(PROTECTED.map((r) => r.metric_code));
+export const UNKNOWN_REQUIRES_REVIEW_CODES = new Set(UNKNOWN.map((r) => r.metric_code));
+
+const ALL_RECORDS = [...META, ...PROTECTED, ...UNKNOWN];
+const BY_CODE = new Map(ALL_RECORDS.map((r) => [r.metric_code, r]));
+
+export function classificationRecordFor(metricCode: string): ClassificationRecord | null {
+  return BY_CODE.get(metricCode.padStart(3, "0")) ?? null;
+}
+
+export function classifyMetric(metricCode: string): MetricClassification {
+  return classificationRecordFor(metricCode)?.classification ?? "LEGITIMATE_PLAYER_METRIC";
+}
+
+// PLAYER Evidence Coverage denominator: every code 001-081 minus
+// META_OR_NON_PLAYER and PROTECTED_UNAVAILABLE. UNKNOWN_REQUIRES_REVIEW stays
+// IN the denominator — it has not (yet) met the exclusion burden of proof.
+export function playerEvidenceDenominatorCodes(): string[] {
+  const codes: string[] = [];
+  for (let i = 1; i <= 81; i++) {
+    const code = String(i).padStart(3, "0");
+    if (META_OR_NON_PLAYER_CODES.has(code) || PROTECTED_UNAVAILABLE_CODES.has(code)) continue;
+    codes.push(code);
+  }
+  return codes;
+}
+
+export function metricUniverseAccounting() {
+  return {
+    total_original_metric_universe: 81,
+    meta_or_non_player_count: META_OR_NON_PLAYER_CODES.size,
+    protected_unavailable_count: PROTECTED_UNAVAILABLE_CODES.size,
+    unknown_requires_review_count: UNKNOWN_REQUIRES_REVIEW_CODES.size,
+    legitimate_player_metric_count: 81 - META_OR_NON_PLAYER_CODES.size - PROTECTED_UNAVAILABLE_CODES.size,
+    meta_or_non_player_codes: [...META_OR_NON_PLAYER_CODES],
+    protected_unavailable_codes: [...PROTECTED_UNAVAILABLE_CODES],
+    unknown_requires_review_codes: [...UNKNOWN_REQUIRES_REVIEW_CODES],
+  };
+}

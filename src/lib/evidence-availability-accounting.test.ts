@@ -109,4 +109,51 @@ describe("evidence availability accounting", () => {
     expect(result.availabilityClass).toBe("MARKET_EXISTS_NOT_WIRED");
     expect(result.accounting.software_loss).toBe(1);
   });
+
+  it("excludes PROTECTED_UNAVAILABLE and META_OR_NON_PLAYER metrics from player evidence coverage, both denominator and numerator", () => {
+    const enriched = enrichEvidenceCoverageAccounting({
+      matches: [{
+        id: "ATP_MAIN",
+        sampling_source: "matches",
+        metrics: [
+          // Legitimate, credited: counts 1/1 toward player coverage.
+          { metric_code:"014", pair_credited:true, p1_credited:true, p2_credited:true, p1_treatment:"DIRECT", p2_treatment:"DIRECT" },
+          // Protected-unavailable: must be excluded from both numerator and denominator.
+          { metric_code:"065", pair_credited:false, p1_credited:false, p2_credited:false, failure_bucket:"INGESTION_MISSING" },
+          // Meta/non-player: must be excluded from both numerator and denominator.
+          { metric_code:"048", pair_credited:false, p1_credited:false, p2_credited:false, failure_bucket:"SOURCE_MISSING" },
+        ],
+      }],
+    });
+    expect(enriched.matches[0].metrics[1].availability_class).toBe("PROTECTED_UNAVAILABLE");
+    expect(enriched.matches[0].metrics[2].availability_class).toBe("META_OR_NON_PLAYER");
+    // Denominator is 1 (only metric 014), not 3 — 065/048 never drag the score down.
+    expect(enriched.matches[0].player_evidence_coverage).toEqual({ legitimate_player_metrics: 1, usable_cells: 1, percent: 100 });
+    expect(enriched.player_evidence_coverage.total_player_metric_tour_cells).toBe(1);
+    expect(enriched.player_evidence_coverage.usable_player_metric_tour_cells).toBe(1);
+    expect(enriched.player_evidence_coverage.percent).toBe(100);
+  });
+
+  it("a protected metric cannot be silently promoted to a software-success/failure availability class", () => {
+    const enriched = enrichEvidenceCoverageAccounting({
+      matches: [{
+        id: "WTA_MAIN",
+        sampling_source: "matches",
+        // Even if runtime signals look like a normal software wiring gap, the
+        // static classification must win — 017 stays PROTECTED_UNAVAILABLE.
+        metrics: [{ metric_code:"017", pair_credited:false, p1_credited:false, p2_credited:false, failure_bucket:"RECONSTRUCTION_FAILURE", observed_families:["POINT_BY_POINT"] }],
+      }],
+    });
+    expect(enriched.matches[0].metrics[0].availability_class).toBe("PROTECTED_UNAVAILABLE");
+    expect(enriched.matches[0].metrics[0].availability_class).not.toBe("PBP_EXISTS_NOT_WIRED");
+  });
+
+  it("publishes complete metric-universe accounting on every report (never hides a category)", () => {
+    const enriched = enrichEvidenceCoverageAccounting({ matches: [] });
+    expect(enriched.metric_universe_accounting.total_original_metric_universe).toBe(81);
+    expect(enriched.metric_universe_accounting).toHaveProperty("meta_or_non_player_count");
+    expect(enriched.metric_universe_accounting).toHaveProperty("protected_unavailable_count");
+    expect(enriched.metric_universe_accounting).toHaveProperty("unknown_requires_review_count");
+    expect(enriched.metric_universe_accounting).toHaveProperty("legitimate_player_metric_count");
+  });
 });

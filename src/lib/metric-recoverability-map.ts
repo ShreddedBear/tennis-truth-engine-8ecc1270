@@ -1,3 +1,14 @@
+// KNOWN DRIFT — NOT AUTHORITATIVE FOR CODE NUMBERING.
+// This file's code/name pairs do not match public/seed/metrics.txt (the
+// document that actually seeds the production `rules` table) — e.g. this
+// file's "017 Return +1 Effectiveness" vs. the true "017 Shot & Rally
+// Metrics", or "048 Outdoor Hard Win%" vs. the true "048 Independent-Evidence
+// Count". Nothing outside this file's own test imports it (verified via
+// repo-wide search), so it does not affect the live evidence-coverage
+// diagnostic. Treat public/seed/metrics.txt + src/lib/metric-classification.ts
+// as the canonical registry. This file's per-metric recoverability content
+// (required_raw_fields/classification) has not been re-verified against the
+// true code numbering and must not be relied on until it is rewritten.
 export type RecoverabilityClass = "DIRECTLY_AVAILABLE" | "RECONSTRUCTABLE" | "PARTIAL" | "TRULY_UNAVAILABLE";
 
 export type MetricRecoverabilityRow = {
