@@ -1,12 +1,12 @@
 // DETERMINISTIC COMPLETION ENGINE
 // Application logic — never AI text — decides completion, gate outcome and color.
 
-import { authoritativeMetricRow, isNoSourceCode } from "./authoritative-metric-catalog";
+import { classifyMetric } from "./metric-classification";
 
 export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"];
 
-// Task 20 reconciliation: a PROCESS_META code's row is initially instantiated with
-// treatment/status "EXCLUDED" (see audit-pipeline.ts's isProcessMetaRuleCode), but
+// Task 20/21 reconciliation: a META_OR_NON_PLAYER code's row is initially instantiated
+// with treatment/status "EXCLUDED" (see audit-pipeline.ts's isProcessMetaRuleCode), but
 // several legitimate downstream meta-analysis writers (meta-derived-evidence.server.ts,
 // final-advanced-meta.server.ts) later overwrite that same row's p1_treatment/
 // p2_treatment/status once other stages complete -- to PARTIAL/RECONSTRUCTED/COMPLETE,
@@ -14,23 +14,25 @@ export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"];
 // after instantiation despite never carrying player evidence. Deriving exclusion from the
 // metric's own code identity here, rather than trusting whatever treatment value a row
 // happens to carry, closes that silent-re-entry path for good: no downstream writer can
-// ever cause a PROCESS_META code to count toward coverage, regardless of what it sets.
+// ever cause a META_OR_NON_PLAYER code to count toward coverage, regardless of what it sets.
 function isProcessMetaCode(code: string | null | undefined): boolean {
   if (!code) return false;
   const match = String(code).match(/(\d{1,3})$/);
   const normalized = match ? match[1].padStart(3, "0") : String(code).padStart(3, "0");
-  return authoritativeMetricRow(normalized)?.type === "PROCESS_META";
+  return classifyMetric(normalized) === "META_OR_NON_PLAYER";
 }
 
-// Denominator-eligibility audit (requested directly): a code with a real, documented
-// determination that no legitimate obtainable/reconstructable evidence pathway exists
-// (see NO_SOURCE_DETERMINATIONS in authoritative-metric-catalog.ts -- currently empty,
-// since no code has actually cleared that bar) is also excluded from the coverage
-// denominator, the same way and for the same silent-re-entry-proof reason as
-// PROCESS_META above -- but tracked as its own distinct bucket, never merged into
-// "excluded", so the two remain separately auditable.
+// A code with a real, documented determination that no legitimate obtainable/
+// reconstructable evidence pathway exists (see PROTECTED_UNAVAILABLE_RECORDS in
+// metric-classification.ts) is also excluded from the coverage denominator, the same
+// way and for the same silent-re-entry-proof reason as META_OR_NON_PLAYER above -- but
+// tracked as its own distinct bucket, never merged into "excluded", so the two remain
+// separately auditable. UNKNOWN_REQUIRES_REVIEW codes are deliberately NOT covered here.
 function isNoSourceMetricCode(code: string | null | undefined): boolean {
-  return isNoSourceCode(code);
+  if (!code) return false;
+  const match = String(code).match(/(\d{1,3})$/);
+  const normalized = match ? match[1].padStart(3, "0") : String(code).padStart(3, "0");
+  return classifyMetric(normalized) === "PROTECTED_UNAVAILABLE";
 }
 
 export interface Countable {

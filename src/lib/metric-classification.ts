@@ -44,6 +44,19 @@ const DATE = "2026-08-27";
 // reported separately, never silently dropped.
 const META: ClassificationRecord[] = [
   {
+    metric_code: "059",
+    metric_name: "Loss Path Probability",
+    classification: "META_OR_NON_PLAYER",
+    required_raw_fields: "Per-pathway probability that the model's own pick loses, broken out by mechanism",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_APPLICABLE_NON_PLAYER_METRIC",
+    reason: "Every one of this code's seven bullets is framed identically: 'the probability THE PICK loses specifically because...' (opponent serves through, return exposed, slow start, physical decline, tiebreak variance, three-set collapse, other). This is a property of the model's own prediction and its failure modes, not an observable fact about either player. Added during the Task 20/21 classification reconciliation -- this branch's earlier metric-source-family-policy.ts already excluded it from every deterministic engine's admissible-family set for the same reason; this record formalizes that into the canonical registry so it is also excluded from the coverage denominator rather than silently starved of evidence forever.",
+    whether_future_ingestion_could_change_status: false,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
     metric_code: "048",
     metric_name: "Independent-Evidence Count",
     classification: "META_OR_NON_PLAYER",
@@ -141,6 +154,7 @@ const PROTECTED: ClassificationRecord[] = [
       "approved BSD PBP adapters (bsd-atp-main-pbp.server.ts, bsd-wta-main-pbp.server.ts, bsd-atp-challenger-pbp.server.ts, bsd-wta-challenger-pbp.server.ts) — point/score-state only, no shot-level fields",
       "four-tour historical results (runtime-tennis-index) — match-level only",
       "source_observations table — no shot-tracking observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS — approved PBP contains point winner and score state, not stroke type or court position",
@@ -158,6 +172,7 @@ const PROTECTED: ClassificationRecord[] = [
       "four-tour historical results / schedules — no coaching or equipment fields",
       "source_observations table — no coaching/equipment observation_type",
       "approved BSD PBP — point/score-state only",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -174,6 +189,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "four-tour historical results / schedules — no medical/illness fields",
       "source_observations table — no medical observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -190,6 +206,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "four-tour historical results / schedules — no equipment fields",
       "source_observations table — no equipment observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -207,6 +224,7 @@ const PROTECTED: ClassificationRecord[] = [
       "approved BSD PBP — point/score-state only, no violation/challenge/break-timing fields",
       "four-tour historical results / schedules — no discipline fields",
       "source_observations table — no discipline observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -223,6 +241,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "four-tour historical results (ATP/WTA Main + Challenger) — main/challenger tour level only, no junior/ITF results",
       "source_observations table — no biometric/style fields",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -239,6 +258,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "approved BSD PBP — point/score-state only, no biomechanical fields",
       "source_observations table — no biomechanics observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -255,6 +275,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "four-tour historical results / schedules — no sponsorship/appearance fields",
       "source_observations table — no sponsorship observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -271,6 +292,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "approved BSD PBP adapters — point winner and score state only, no shot-count or court-position fields",
       "source_observations table — no shot-tracking observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -287,6 +309,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "four-tour historical results / schedules — no retirement-announcement or doping-test fields",
       "source_observations table — no matching observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -303,6 +326,7 @@ const PROTECTED: ClassificationRecord[] = [
     sources_checked: [
       "approved BSD PBP adapters — point winner and score state only, no coaching-visit or violation-event fields",
       "source_observations table — no matching observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -320,6 +344,7 @@ const PROTECTED: ClassificationRecord[] = [
       "four-tour historical results / schedules — no conflict/ceremony/court-assignment fields",
       "environment source (open_meteo) — provides weather conditions, not an in-match delay/interruption event log",
       "source_observations table — no matching observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players, so this pathway is logged as checked rather than silently omitted",
     ],
     reconstruction_attempted: true,
     reconstruction_result: "NO_QUALIFYING_FIELDS",
@@ -345,6 +370,19 @@ const UNKNOWN: ClassificationRecord[] = [
     reconstruction_attempted: false,
     reconstruction_result: "NOT_YET_DETERMINED — two of three defined sub-items are meta (test the model's pick), one (Historical Twin Match Search) is reconstructable from existing four-tour results",
     reason: "Definition mixes model-robustness testing with a genuine matchup-similarity search. Not excluded automatically per the 'burden of proof' rule — needs a human decision on whether to split this rule code rather than a one-line classification.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "NEEDS_HUMAN_REVIEW",
+  },
+  {
+    metric_code: "047",
+    metric_name: "Uncertainty-Adjusted Advantage",
+    classification: "UNKNOWN_REQUIRES_REVIEW",
+    required_raw_fields: "Confidence-Interval-Adjusted Metric Comparison: comparing two players' own statistics with confidence intervals applied, so a small uncertain edge isn't weighted the same as a large well-supported one",
+    sources_checked: ["public/seed/metrics.txt definition text"],
+    reconstruction_attempted: false,
+    reconstruction_result: "NOT_YET_DETERMINED — genuinely ambiguous whether this is a player-comparison metric with a statistical-rigor treatment applied (legitimate, reconstructable from the same underlying stats every other metric uses) or a meta-method for weighing other metrics' outputs (not itself a player fact)",
+    reason: "Added during the Task 20/21 classification reconciliation. The body text is anchored on 'comparing two players' statistics' (unlike 048/049/050/056/057/058/059, which are unambiguously about the model's own prediction or evidence base) -- but the entire point of the metric is a confidence-interval treatment applied to *other* metrics' values, which reads as meta by the same test this registry applies elsewhere. Deliberately not excluded unilaterally: kept IN the player evidence denominator (burden of proof for exclusion not met) pending a human decision, per the same principle already applied to code 061.",
     whether_future_ingestion_could_change_status: true,
     date_classified: DATE,
     review_status: "NEEDS_HUMAN_REVIEW",

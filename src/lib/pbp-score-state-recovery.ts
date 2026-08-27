@@ -4,7 +4,7 @@ export type PbpSide = "player1" | "player2";
 export type PbpTour = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENGER";
 // "069" was previously included here to host a Dominance Ratio reconstruction, per the
 // pre-Task-20 fictional catalog that assigned code 069 = "Dominance Ratio". The
-// authoritative catalog (public/seed/metrics.txt, see authoritative-metric-catalog.ts)
+// authoritative catalog (public/seed/metrics.txt, see metric-classification.ts)
 // shows code 069 is actually "Stakes / Career Context" (retirement-tour/farewell-run
 // effects, anti-doping testing disruption) -- point-by-point data cannot establish
 // either. Removed per the Task 20 reconciliation; see pbp-score-state-recovery.test.ts.
@@ -20,7 +20,7 @@ export type PbpTour = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENG
 // Second reconciliation pass (retargeting the remaining mismatched codes):
 // - "004" removed: its break-point-conversion data was an exact duplicate of "037"'s (both
 //   computed break_chances/break_points_converted/conversion_pct from the same totals); 004
-//   is also PROCESS_META (excluded from scoring, see authoritative-metric-catalog.ts), so
+//   is also META_OR_NON_PLAYER (excluded from scoring, see metric-classification.ts), so
 //   keeping only 037 loses nothing.
 // - "037" retargeted to "032": real 037 is "Win Autopsy Metrics" (unrelated); real 032 is
 //   "Point-to-Game Conversion Efficiency", whose own bullet "Break Opportunities Needed per

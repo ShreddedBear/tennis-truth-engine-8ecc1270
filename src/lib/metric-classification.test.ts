@@ -69,6 +69,21 @@ describe("canonical metric classification registry", () => {
     expect(classifyMetric("001")).toBe("LEGITIMATE_PLAYER_METRIC");
   });
 
+  it("classifies 059 (Loss Path Probability) as META_OR_NON_PLAYER -- every bullet is framed around why THE PICK loses, not a player fact", () => {
+    expect(classifyMetric("059")).toBe("META_OR_NON_PLAYER");
+    const record = classificationRecordFor("059");
+    expect(record?.review_status).toBe("REVIEWED");
+  });
+
+  it("keeps 047 (Uncertainty-Adjusted Advantage) IN the denominator as UNKNOWN_REQUIRES_REVIEW rather than unilaterally excluding it", () => {
+    // Genuinely ambiguous (a confidence-interval treatment applied to two players' own
+    // statistics) -- flagged for human review rather than excluded on inference alone,
+    // the same principle already applied to code 061.
+    expect(classifyMetric("047")).toBe("UNKNOWN_REQUIRES_REVIEW");
+    const denominator = new Set(playerEvidenceDenominatorCodes());
+    expect(denominator.has("047")).toBe(true);
+  });
+
   it("the 10 originally-flagged special metrics each resolve to an explicit classification, not a silent default", () => {
     const flagged = ["017", "029", "048", "063", "065", "066", "067", "072", "074", "078"];
     for (const code of flagged) {
