@@ -9,7 +9,42 @@ type HistoryDetails={sets_for?:number|null;sets_against?:number|null;set_scores?
 type HistoryEntry = [unknown, unknown, unknown, unknown, unknown, unknown, unknown, HistoryDetails?];
 const FAMILIES: EvidenceTourFamily[] = ["ATP_MAIN", "WTA_MAIN", "ATP_CHALLENGER", "WTA_CHALLENGER"];
 function sourceId(family: EvidenceTourFamily) {switch (family) {case "ATP_MAIN": return "atp";case "WTA_MAIN": return "wta";case "ATP_CHALLENGER": return "atp_challenger";case "WTA_CHALLENGER": return "wta_challenger";}}
-function historyRows(player: string, family: EvidenceTourFamily): HistoryEntry[] {const key = normalizeEvidenceIdentity(player);if (!key) return [];const rows = (loadRuntimeIndex() as any)?.matchHistory?.[family]?.[key];return Array.isArray(rows) ? rows as HistoryEntry[] : [];}
+// WTA_CHALLENGER's underlying source (the validated WTA 125 production history CSV --
+// see build-runtime-tennis-index.mjs's WTA125_CONTAMINATION_FIREWALL_BLOCKED check)
+// identifies every player, both as the row's own subject and as every opponent it
+// references, using "Surname InitialOfFirstName" (e.g. "Heisen V."), not the full name
+// used everywhere else in the app. This is a real, confirmed 0%-credit bug, not a missing-
+// data problem: 7,615 real validated matches / 1,096 real WTA_CHALLENGER players are
+// already ingested and sitting in matchHistory.WTA_CHALLENGER, but a full-name lookup
+// ("Victoria Heisen") can never match the bucket's own key ("heisen v"). Because the
+// source CSV uses this abbreviated convention consistently for every name it stores
+// (a player's own bucket key AND every opponent name inside every bucket), resolving only
+// this entry-point lookup keeps the rest of the pipeline (common-opponent
+// cross-referencing in historical-results-recovery.ts, etc.) internally consistent --
+// those comparisons are between two "Surname I." strings either way, so nothing further
+// needs to change. No fuzzy/edit-distance matching: the fallback key is mechanically
+// derived (surname + first initial of the given name), not guessed, and any ambiguity
+// among distinct players sharing a surname+initial is a limitation already baked into the
+// source CSV itself, not something this fallback introduces or worsens.
+function surnameInitialKey(value: string): string | null {
+  const parts = normalizeEvidenceIdentity(value).split(" ").filter(Boolean);
+  if (parts.length < 2) return null;
+  const surname = parts[parts.length - 1], firstInitial = parts[0][0];
+  return `${surname} ${firstInitial}`;
+}
+function historyRows(player: string, family: EvidenceTourFamily): HistoryEntry[] {
+  const key = normalizeEvidenceIdentity(player);
+  if (!key) return [];
+  const lane = (loadRuntimeIndex() as any)?.matchHistory?.[family];
+  const direct = lane?.[key];
+  if (Array.isArray(direct)) return direct as HistoryEntry[];
+  if (family === "WTA_CHALLENGER") {
+    const initialsKey = surnameInitialKey(player);
+    const fallback = initialsKey ? lane?.[initialsKey] : null;
+    if (Array.isArray(fallback)) return fallback as HistoryEntry[];
+  }
+  return [];
+}
 export function repositoryHistoryAvailable(player:string,family:EvidenceTourFamily){return historyRows(player,family).length>0;}
 
 export function inferRepositoryMatchContext(args: { p1: string; p2: string; asOfDate: string; tournament?: string | null }) {
