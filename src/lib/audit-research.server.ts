@@ -18,7 +18,18 @@ import type { SourcedStat } from "./reconstruction/engine";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
-const PROVIDER_TIMEOUT_MS = 30_000;
+// Every browser-triggered pipeline slice is budgeted to 20s
+// (BROWSER_SAFE_BUDGET_MS in audit-pipeline.functions.ts) specifically so the
+// server call returns before the browser's fetch transport drops it. This
+// used to be 30s — longer than that entire slice budget — so one slow
+// provider call could outlive the whole invocation on its own, and with a
+// fallback provider configured, a full attempt sequence could take up to a
+// minute. That's a direct cause of audits reading as "stuck": the slice
+// never returns before something (the platform's own request timeout or the
+// browser tab) gives up on it, over and over, with no error surfaced to
+// explain why. Kept safely under half the slice budget so even a two-provider
+// fallback sequence (Lovable + a configured fallback) finishes inside it.
+const PROVIDER_TIMEOUT_MS = 9_000;
 
 const HOUSE_RULES = `You are the independent research branch of a tennis match audit.
 HARD RULES:
