@@ -19,11 +19,15 @@ function empty(): RuntimeTennisIndex {
   return { generatedAt: "", ATP: {}, WTA: {}, matchHistory: { ATP_MAIN: {}, WTA_MAIN: {}, ATP_CHALLENGER: {}, WTA_CHALLENGER: {} } };
 }
 
-// Lives under public/ (not data/generated/) specifically so it ships as a Cloudflare
-// Workers static asset -- see wrangler.json's ASSETS binding (directory "../public")
-// and scripts/build-runtime-tennis-index.mjs, which writes here.
-const DISK_PATH = join(process.cwd(), "public", "generated", "tennis-runtime-index.json");
-const ASSET_PATH = "/generated/tennis-runtime-index.json";
+// Raw JSON lives under data/generated/ for local/Node dev reads only. It is NOT under
+// public/ -- at 61MB it is well over Cloudflare Workers' hard 25 MiB per-asset limit, so
+// shipping it as a static asset fails deployment outright ("Asset too large"), which is
+// exactly what silently broke every attempt to fix this via the ASSETS binding until this
+// limit was found. The gzip-compressed copy Cloudflare actually serves (~5.2MB, well under
+// the cap) lives under public/ instead -- see scripts/build-runtime-tennis-index.mjs, which
+// writes both.
+const DISK_PATH = join(process.cwd(), "data", "generated", "tennis-runtime-index.json");
+const ASSET_PATH = "/generated/tennis-runtime-index.json.gz";
 
 let cache: RuntimeTennisIndex | null = null;
 
@@ -51,6 +55,13 @@ export type WorkersAssetsBinding = { fetch(request: Request): Promise<Response> 
 // stopped permanently caching a failed read as empty(), did not change the outcome -- the
 // read fails every time, not just transiently).
 //
+// A prior fix (PR #75) added exactly this ASSETS-binding fallback but pointed it at the
+// raw, uncompressed 61MB JSON -- which never actually fixed production, because Cloudflare
+// Workers rejects any individual static asset over 25 MiB at deploy time. The asset points
+// at a gzip-compressed copy instead (see ASSET_PATH / scripts/build-runtime-tennis-index.mjs)
+// and is decompressed here with the standard Web Streams DecompressionStream API, which
+// Cloudflare Workers (and Node/Bun, for tests) implement natively -- no extra dependency.
+//
 // ensureRuntimeIndexLoaded() is called once, at the very top of the Worker's fetch() entry
 // point (src/server.ts), before any request handler runs, so every synchronous
 // loadRuntimeIndex() call throughout the app -- there are several call sites, all
@@ -66,8 +77,10 @@ export async function ensureRuntimeIndexLoaded(assets?: WorkersAssetsBinding): P
   if (!assets) return;
   try {
     const response = await assets.fetch(new Request(`https://assets.internal${ASSET_PATH}`));
-    if (!response.ok) return;
-    const parsed = JSON.parse(await response.text()) as RuntimeTennisIndex;
+    if (!response.ok || !response.body) return;
+    const decompressed = response.body.pipeThrough(new DecompressionStream("gzip"));
+    const text = await new Response(decompressed).text();
+    const parsed = JSON.parse(text) as RuntimeTennisIndex;
     cache = parsed;
   } catch {
     // Leave cache unset. loadRuntimeIndex() below returns empty() for this request, and
