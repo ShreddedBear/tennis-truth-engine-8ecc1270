@@ -3,7 +3,11 @@ import { dirname, join, resolve } from 'node:path';
 
 const root=process.cwd();
 const outputArg=process.argv[2];
-const outputPath=outputArg?resolve(root,outputArg):join(root,'data/generated/tennis-runtime-index.json');
+// Written into public/ (not data/generated/) so it ships as a Cloudflare Workers
+// static asset (see wrangler.json's ASSETS binding, directory "../public") instead of
+// only existing on a filesystem the deployed Worker cannot read from at request time --
+// see runtime-tennis-index-data.server.ts for the loader that depends on this location.
+const outputPath=outputArg?resolve(root,outputArg):join(root,'public/generated/tennis-runtime-index.json');
 const sources=[['ATP','data/public/predixsport/atp/atp_elo_matches.csv'],['WTA','data/public/predixsport/wta/wta_elo_ratings.csv']];
 function parseCsv(text){const rows=[];let r=[],c='',q=false;for(let i=0;i<text.length;i++){const x=text[i];if(x==='"'){if(q&&text[i+1]==='"'){c+='"';i++;}else q=!q;}else if(x===','&&!q){r.push(c);c='';}else if((x==='\n'||x==='\r')&&!q){if(x==='\r'&&text[i+1]==='\n')i++;r.push(c);c='';if(r.some(Boolean))rows.push(r);r=[];}else c+=x;}if(c||r.length){r.push(c);rows.push(r);}if(!rows.length)return[];const h=rows[0].map(x=>x.trim());return rows.slice(1).map(a=>Object.fromEntries(h.map((k,i)=>[k,(a[i]??'').trim()])));}
 function norm(v){return String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}

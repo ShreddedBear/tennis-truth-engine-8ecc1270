@@ -44,7 +44,22 @@ describe("46MB tennis-runtime-index Worker-bundling outage guard", () => {
   it("the only reader of the runtime tennis index data is the approved lazy loader", () => {
     const loader = readFileSync(join(process.cwd(), "src/lib/runtime-tennis-index-data.server.ts"), "utf8");
     expect(loader).toContain("readFileSync");
-    expect(loader).toContain("data/generated/tennis-runtime-index.json");
+    expect(loader).toContain('"public", "generated", "tennis-runtime-index.json"');
     expect(loader).toContain("export function loadRuntimeIndex");
+  });
+
+  // Regression guard for a second real production outage, found in the same file: the
+  // Worker has no filesystem at request time at all, so readFileSync -- while a correct
+  // fallback for local/Node dev -- never succeeds in production regardless of what code is
+  // deployed. The generated index must also be reachable via the Cloudflare Workers ASSETS
+  // binding (a static asset under public/, per wrangler.json), loaded once up front before
+  // any request handler runs, so every synchronous loadRuntimeIndex() call site sees an
+  // already-populated cache.
+  it("also loads the runtime tennis index via the Cloudflare Workers ASSETS binding, and the entry point pre-warms it before any request handler runs", () => {
+    const loader = readFileSync(join(process.cwd(), "src/lib/runtime-tennis-index-data.server.ts"), "utf8");
+    expect(loader).toContain("export async function ensureRuntimeIndexLoaded");
+    expect(loader).toContain("assets.fetch");
+    const serverEntry = readFileSync(join(process.cwd(), "src/server.ts"), "utf8");
+    expect(serverEntry).toContain("ensureRuntimeIndexLoaded");
   });
 });

@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { ensureRuntimeIndexLoaded, type WorkersAssetsBinding } from "./lib/runtime-tennis-index-data.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -47,6 +48,12 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Cloudflare Workers have no filesystem at request time; the generated tennis
+      // runtime index (data/generated -> public/generated, see runtime-tennis-index-
+      // data.server.ts) ships as a static asset and must be loaded via the ASSETS
+      // binding before any request handler runs. Cheap after the first request per
+      // isolate: the loader caches in module scope and short-circuits once populated.
+      await ensureRuntimeIndexLoaded((env as { ASSETS?: WorkersAssetsBinding } | null | undefined)?.ASSETS);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
