@@ -353,6 +353,40 @@ const PROTECTED: ClassificationRecord[] = [
     date_classified: DATE,
     review_status: "REVIEWED",
   },
+  {
+    metric_code: "073",
+    metric_name: "Sentiment / Integrity",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Pre-match interview/press-conference sentiment, social-media engagement-anomaly detection, betting-exchange matched-volume spike data",
+    sources_checked: [
+      "four-tour historical results / schedules — no interview transcript, social-media, or exchange-volume fields",
+      "source_observations table — no matching observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players ahead of a specific match, so this pathway is logged as checked rather than silently omitted",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "All three defined components (public-statement sentiment, social-media engagement anomalies, betting-exchange matched-volume spikes) require data streams this system does not ingest: interview/press-conference transcripts with sentiment labeling, social-media activity monitoring, or per-exchange matched-volume feeds. No such dataset exists in the approved evidence universe.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
+  {
+    metric_code: "076",
+    metric_name: "Scheduling Micro-Context",
+    classification: "PROTECTED_UNAVAILABLE",
+    required_raw_fields: "Match order on the day's schedule / not-before status, outer-court vs stadium-court assignment, official practice-court access time before the match",
+    sources_checked: [
+      "four-tour historical results / schedules — record tournament/round/date but not order-of-play, court assignment, or practice-time fields",
+      "source_observations table — no matching observation_type",
+      "protected-metric-wiring.server.ts live web-search LLM researcher (aiResearcher) -- checked and found not practically productive for this fact type: the required named components essentially never appear in generically web-indexed, LLM-searchable form for individual active pro players' specific matches, so this pathway is logged as checked rather than silently omitted",
+    ],
+    reconstruction_attempted: true,
+    reconstruction_result: "NO_QUALIFYING_FIELDS",
+    reason: "All three defined components (order-of-play position, outer-court/stadium-court assignment, pre-match practice-court access) require day-of order-of-play and court-scheduling data this system does not ingest. Tournament/round/date is not the same as a court assignment or a running order, so this cannot be inferred from existing results/schedule data.",
+    whether_future_ingestion_could_change_status: true,
+    date_classified: DATE,
+    review_status: "REVIEWED",
+  },
 ];
 
 // UNKNOWN_REQUIRES_REVIEW: mixed metrics whose definition contains both a
