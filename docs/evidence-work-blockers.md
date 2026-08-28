@@ -56,3 +56,46 @@ static CSV files under `data/public/` read directly by
 `travel-burden.server.ts`, `datahub-atp-score-profile.server.ts`, etc.) --
 since those I can open, read, and test against directly without any network
 access. That's the actual coverage of the metric-audit-0XX.md series so far.
+
+**Update (this pass):** this blocker turned out to be narrower than first
+written above. *Data-population* verification for the `source_observations`-
+backed engines is still genuinely blocked (whether the table has real rows
+for a given metric/tour/date), but *pure logic/treatment-assignment* defects
+in those same engines do not require live data to find or fix -- they're
+provable by reading the code's own hardcoded output text against the
+already-registered, already-tested certification policies in
+`metric-certification.ts`. Two real bugs were found and fixed this way with
+zero database access: metric 019 (`docs/metric-audit-019-market-calibration.md`)
+and metric 012's second wiring path
+(`docs/metric-audit-012-fatigue-workload-schedule-engine.md`). So: treat "no
+DB access" as blocking *data-coverage* audits of these files, not as
+blocking *all* work on them.
+
+## 2. `certifyMetricFinding` is a blunt instrument -- don't apply it blindly (METHODOLOGY NOTE, not a blocker)
+
+While closing the 012/019 gaps, the same defensive wrap (call
+`certifyMetricFinding` on a live engine's return value) was tried on
+`deterministic-pbp-metrics.server.ts` (codes 024/025, also
+`CERTIFIED_METRIC_POLICIES` entries, also live-wired) on the theory that the
+wrap is a safe no-op when the current treatment is already correct. It
+wasn't safe there: it broke two tests in `deterministic-pbp-metrics.test.ts`
+that deliberately keep aggregate-only BSD PBP data (real point/game totals
+from an already tour-guarded, certified adapter, just missing per-metric
+field derivation) at PARTIAL even though its summary text doesn't contain
+024/025's expected keyword markers either. `certifyMetricFinding`'s
+`exactInputMarkers` matching is keyword-based and can't tell "generic proxy
+with zero real specificity" (the 012/019 bugs) apart from "genuine partial
+evidence that just doesn't use the expected wording" (the PBP aggregate
+case) -- both fail the same regex checks. That edit was reverted.
+
+**Still open:** codes 022, 072, 073, 074, 075, 076 have registered
+certification policies too. 072/073/074/076 are `PROTECTED_UNAVAILABLE` in
+`metric-classification.ts`, so they're short-circuited to `NO_SOURCE` at
+`instantiate()` before any research call happens -- auditing their
+certification wiring is moot (dead code path in production) unless that
+classification changes. 022 and 075 are not protected and are worth a real
+look, but only with the same evidence-first method used for 012/019: find
+the live engine, find its actual output text, check it against the policy's
+markers, and -- critically -- check whether an *existing test already
+approves the current behavior on purpose* before assuming a gap is a bug.
+Not done yet this pass; noted here rather than guessed at.

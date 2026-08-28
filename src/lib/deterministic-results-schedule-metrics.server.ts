@@ -5,6 +5,7 @@ import { metricAllowsObservation } from "./metric-source-family-policy";
 import { inferRepositoryMatchContext, repositoryResultsRows } from "./repository-results-history.server";
 import { deterministicHistoricalResultsMetric } from "./deterministic-historical-results-metrics.server";
 import { TASK18A_HISTORICAL_RESULTS_CODES } from "./historical-results-recovery";
+import { certifyMetricFinding } from "./metric-certification";
 import {
   buildCanonicalEvidenceMatchIdentity,
   classifyEvidenceTourFamily,
@@ -63,5 +64,17 @@ export async function deterministicResultsScheduleMetric(args:{metricCode:string
   const currentHistory=currentEventHistoryRows(historyRows,{p1:args.p1,p2:args.p2,asOfDate:args.asOfDate,tournament:args.tournament,round:args.round},expectedFamily);if(currentHistory.length>1)return null;if(!playerRows.length&&!currentHistory.length)return null;
   const uniqueHistory=currentHistory.length===1?currentHistory[0]:null;const canonicalMatch=buildCanonicalEvidenceMatchIdentity({player1StableId:uniqueHistory?.player1_id,player2StableId:uniqueHistory?.player2_id,player1Name:args.p1,player2Name:args.p2,tournament:args.tournament??uniqueHistory?.tournament_name,date:args.asOfDate,round:args.round??uniqueHistory?.round,tour:expectedFamily,eventLevel:args.eventLevel??uniqueHistory?.event_level});
   const c1=componentsFor(args.p1,args.p2,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),c2=componentsFor(args.p2,args.p1,rows,args.asOfDate,args.tournament??null,expectedFamily,historyRows,args.round),p1=valueFor(code,c1),p2=valueFor(code,c2);if(!p1||!p2)return null;
-  return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse/repository components through ${args.asOfDate}; tour_family=${expectedFamily}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)};
+  // certifyMetricFinding (the same conservative, tested, never-upgrades-only-
+  // downgrades safety net applied in deterministic-market-metrics.server.ts --
+  // see docs/metric-audit-019-market-calibration.md) is required here too: for
+  // code 012 (Fatigue/Workload), valueFor's "matches_Nd=...; days_since_last_
+  // match=..." text has no exact-component marker the registered 012 policy
+  // requires (matches-in-7-days, minutes, sets/games, three-setters, late
+  // finish, rest-hours, qualifying, or travel/timezone) -- it's exactly the
+  // bare match-count/date proxy metric-certification.test.ts's "rejects a
+  // 28-day/date-only proxy" case already proves must be UNAVAILABLE, not
+  // PARTIAL. Without this, that proxy counted as usable evidence on the live
+  // per-request path (this function feeds warehouse-first-researcher.server.ts
+  // directly). Codes without a registered policy pass through unchanged.
+  return certifyMetricFinding({metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:"PARTIAL",p2_treatment:"PARTIAL",differential:null,evidence_family:"RESULTS_SCHEDULE",reliability:80,sample:`deterministic four-tour warehouse/repository components through ${args.asOfDate}; tour_family=${expectedFamily}; match_identity=${canonicalMatch.key}`,unavailable_reason:null,sources:sources(rows)});
 }
