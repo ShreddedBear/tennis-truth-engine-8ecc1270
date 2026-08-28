@@ -48,7 +48,16 @@ function surfaceStrengthValue(replay:Replay,rows:Perspective[],asOf:string,playe
 function eloValue(replay:Replay,player:string,currentSurface:string|null){const key=normalizeEvidenceIdentity(player),overall=replay.overall.get(key);if(!Number.isFinite(overall))return null;const surface=currentSurface?replay.surface.get(currentSurface)?.get(key):null;return`overall_elo=${rounded(overall!)}; surface=${currentSurface??"NA"}; surface_elo=${Number.isFinite(surface)?rounded(surface!):"NA"}; k=${K}; initial=1500`;}
 export function computeHistoryMetric(args:{code:HistoryMetricCode;p1:string;p2:string;asOfDate:string;family:EvidenceTourFamily;surface?:string|null;lane:HistoryLane}):HistoryMetricResult|null{const replay=replayElo(args.lane,args.asOfDate),p1Rows=playerRows(replay,args.p1),p2Rows=playerRows(replay,args.p2);if(!p1Rows.length||!p2Rows.length)return null;const currentSurface=surfaceKey(args.surface)||null;let p1:string|null=null,p2:string|null=null,differential:string|null=null;const treatment:"RECONSTRUCTED"|"PARTIAL"="RECONSTRUCTED",reliability=86,unavailableReason:string|null=null;let window="strict pre-match chronology",calculation="deterministic K=32 Elo replay";
   const elo1=eloValue(replay,args.p1,currentSurface),elo2=eloValue(replay,args.p2,currentSurface);if(!elo1||!elo2)return null;
-  const a=replay.overall.get(normalizeEvidenceIdentity(args.p1)),b=replay.overall.get(normalizeEvidenceIdentity(args.p2));differential=Number.isFinite(a)&&Number.isFinite(b)?`overall_elo_delta_p1_minus_p2=${rounded(a!-b!)}`:null;
+  // "Elo Win Probability" (public/seed/metrics.txt #1) is its own named,
+  // precisely-defined bullet -- "the win probability implied purely by the
+  // Elo rating differential" -- not the raw point delta. The delta alone is
+  // a correlated/neighboring statistic for that value, not the value itself
+  // (exactly the substitution the HOUSE_RULES firewall in
+  // audit-research.server.ts forbids); the standard Elo logistic formula
+  // (`expected`, already used above to run the replay) computes the exact
+  // named quantity, so report it too rather than leaving the AI/downstream
+  // reader to infer a probability from a point spread on their own.
+  const a=replay.overall.get(normalizeEvidenceIdentity(args.p1)),b=replay.overall.get(normalizeEvidenceIdentity(args.p2));differential=Number.isFinite(a)&&Number.isFinite(b)?`overall_elo_delta_p1_minus_p2=${rounded(a!-b!)}; elo_win_probability_p1=${(100*expected(a!,b!)).toFixed(1)}%`:null;
   const strength1=currentSurface?surfaceStrengthValue(replay,p1Rows,args.asOfDate,args.p1,currentSurface):null,strength2=currentSurface?surfaceStrengthValue(replay,p2Rows,args.asOfDate,args.p2,currentSurface):null;
   p1=strength1?`${elo1}; ${strength1}`:elo1;p2=strength2?`${elo2}; ${strength2}`:elo2;
   window=currentSurface?"pre-match Elo chronology + trailing 52 weeks surface record":"pre-match Elo chronology";calculation="deterministic K=32 Elo replay + Elo differential"+(strength1&&strength2?" + surface Elo/W-L":"");

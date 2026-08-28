@@ -88,14 +88,48 @@ with zero real specificity" (the 012/019 bugs) apart from "genuine partial
 evidence that just doesn't use the expected wording" (the PBP aggregate
 case) -- both fail the same regex checks. That edit was reverted.
 
-**Still open:** codes 022, 072, 073, 074, 075, 076 have registered
-certification policies too. 072/073/074/076 are `PROTECTED_UNAVAILABLE` in
-`metric-classification.ts`, so they're short-circuited to `NO_SOURCE` at
-`instantiate()` before any research call happens -- auditing their
-certification wiring is moot (dead code path in production) unless that
-classification changes. 022 and 075 are not protected and are worth a real
-look, but only with the same evidence-first method used for 012/019: find
-the live engine, find its actual output text, check it against the policy's
-markers, and -- critically -- check whether an *existing test already
-approves the current behavior on purpose* before assuming a gap is a bug.
-Not done yet this pass; noted here rather than guessed at.
+**Update (next pass):** 072/073/074/076 confirmed moot as above (still
+`PROTECTED_UNAVAILABLE`, still dead code in production). 075 checked: it has
+its own dedicated, purpose-built provenance firewall
+(`metric-wiring-072-076.server.ts`'s `enforceMetricWiring072076`, chained
+into the live `finalMetricWiringResearcher`), which requires the research
+text to carry explicit `PLAYER=`/`SOURCE=`/`SAMPLE=` tags and validates the
+source is a genuine matching public URL -- a stricter, code-specific
+mechanism than the generic keyword-based `certifyMetricFinding`, and it
+already has four dedicated test files
+(`metric-postfix-wiring-072-076.test.ts`,
+`metric-postfix-wiring-072-076-mixed.test.ts`,
+`metric-wiring-072-076-provenance.test.ts`,
+`metric-certification-072-076.test.ts`). No gap found; left alone.
+
+**Still genuinely open:** code 022 (Serve/Return Shot-Level Efficiency) has a
+registered certification policy but **no deterministic engine anywhere** --
+it isn't in any `deterministic-*-metrics.server.ts` `SUPPORTED`/`OWNED` set,
+so it falls through entirely to the live AI web-search researcher with no
+local warehouse evidence at all. That's not a wiring-gap bug the way 012/019
+were (there's no incorrect local finding to catch) -- it's a missing engine,
+a real feature to build (would need charted serve+1/return+1 shot-outcome
+data, which per `metric-classification.ts` isn't confirmed anywhere in the
+approved evidence universe anyway). Not attempted; flagged as a build item,
+not a fix.
+
+## 3. Metric 001 (Surface Strength) treatment needs an owner decision (OPEN)
+
+`task18c-rank-form-workload.ts`'s live engine for code 001 unconditionally
+returns `treatment: "RECONSTRUCTED"` while only ever delivering 2-3 of the
+metric's 8 named submetrics (see
+`docs/metric-audit-001-surface-strength.md` for the full breakdown -- Surface
+Elo and, after this pass, a correctly-computed Elo Win Probability; missing
+Effective Weighted Sample, Surface Elo Trend/Momentum, Peak Elo vs Current
+Elo, and both Hard-Court Record bullets). This project's own stated rule
+(`audit-research.server.ts`'s HOUSE_RULES: "RECONSTRUCTED is allowed only
+when every required component of the exact definition/formula is sourced")
+would suggest this should be PARTIAL, not RECONSTRUCTED. Not changed this
+pass: an existing test (`task18c-rank-form-workload.test.ts`) explicitly
+asserts RECONSTRUCTED, meaning a prior session already reviewed and set this
+intentionally, and 001 is foundational enough (several other engines build
+on its Elo replay) that downgrading its treatment deserves a deliberate
+decision by whoever owns that test's intent, not a unilateral change. Fixed
+what was safe to fix unilaterally (the win-probability formula gap, purely
+additive, no existing assertion touched) and logged the treatment question
+here instead of guessing at it.
