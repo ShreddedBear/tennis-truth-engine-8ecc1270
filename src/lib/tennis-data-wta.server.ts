@@ -47,9 +47,9 @@ function parseCsv(text: string): Row[] {
 function load(): Row[] {
   if (cache) return cache;
   const path = join(process.cwd(), DATA_PATH);
-  if (!existsSync(path)) return cache = [];
+  if (!existsSync(path)) return [];
   try { return cache = parseCsv(readFileSync(path, "utf8")); }
-  catch { return cache = []; }
+  catch { return []; }
 }
 
 function resolvePlayer(rows: Row[], requested: string): { canonical: string; rows: Row[] } | null {

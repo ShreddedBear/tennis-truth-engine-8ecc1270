@@ -30,6 +30,8 @@ export function loadRuntimeIndex(): RuntimeTennisIndex {
     const text = readFileSync(join(process.cwd(), "data/generated/tennis-runtime-index.json"), "utf8");
     return (cache = JSON.parse(text) as RuntimeTennisIndex);
   } catch {
-    return (cache = empty());
+    // Do not memoize a failed read: a transient miss (cold start, deploy race)
+    // must not permanently freeze this process's data to empty() forever.
+    return empty();
   }
 }
