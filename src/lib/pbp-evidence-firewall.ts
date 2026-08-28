@@ -1,4 +1,4 @@
-import { buildCanonicalEvidenceMatchIdentity, evidenceTourCompatible, type CanonicalEvidenceMatchIdentity, type EvidenceTourFamily } from "./evidence-match-identity";
+import { buildCanonicalEvidenceMatchIdentity, classifyEvidenceTourFamily, evidenceTourCompatible, type CanonicalEvidenceMatchIdentity, type EvidenceTourFamily } from "./evidence-match-identity";
 
 export type ApprovedPbpTour = "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENGER";
 
@@ -20,7 +20,20 @@ export function canonicalApprovedPbpIdentity(args: {
     tour: args.tour,
     eventLevel: args.eventLevel,
   });
-  return evidenceTourCompatible(args.tour as EvidenceTourFamily, identity.tourFamily) ? identity : null;
+  if (!evidenceTourCompatible(args.tour as EvidenceTourFamily, identity.tourFamily)) return null;
+  // Bug fix: the check above is structurally circular and can never actually catch
+  // contamination. buildCanonicalEvidenceMatchIdentity classifies tourFamily from
+  // (tour, eventLevel, tournament) joined together, so args.tour's own text (e.g.
+  // "WTA_CHALLENGER" normalizes to "wta challenger") always self-confirms the
+  // classification regardless of what eventLevel/tournament independently say -- a
+  // claimed WTA_CHALLENGER tour with an "ATP Challenger" tournament name was never
+  // rejected. Independently classify from eventLevel/tournament alone (excluding the
+  // claimed tour) and require it to agree with the claim when it resolves to anything at
+  // all; free text alone often can't disambiguate (a generic tournament name), which is
+  // not evidence of contamination, so only a resolved, disagreeing signal rejects.
+  const freeTextTourFamily = classifyEvidenceTourFamily(args.eventLevel, args.tournament);
+  if (freeTextTourFamily && !evidenceTourCompatible(args.tour as EvidenceTourFamily, freeTextTourFamily)) return null;
+  return identity;
 }
 
 export function claimUniqueApprovedPbp(args: {
