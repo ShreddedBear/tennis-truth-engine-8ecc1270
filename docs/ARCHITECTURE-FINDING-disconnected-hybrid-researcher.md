@@ -1,6 +1,6 @@
 # Major finding: an entire evidence-gathering layer is disconnected from production
 
-Status: CONFIRMED, NOT ACTED ON — needs a human decision before any code changes.
+Status: FIXED — reconnected on explicit user direction (chat instruction: "fix your problem... continue getting the evidence up... without faking any of the information").
 
 ## The finding
 
@@ -113,3 +113,40 @@ codebase's roadmap needs to say which one, and light architectural review
 work (confirming exactly what evidence quality/quantity would change on
 reconnection, or confirming it's genuinely superseded before deletion)
 should happen before either.
+
+## Resolution
+
+The user explicitly chose reconnection over deletion and asked for it
+directly. Implemented in `src/lib/warehouse-first-researcher.server.ts`:
+
+- Added a new deterministic tier, inserted strictly between the existing
+  BSD-PBP-packet recovery tier and the live-AI-search fallback
+  (`finalMetricWiringResearcher.metrics(...)`): for every metric still
+  missing usable evidence at that point, try `localMetricRows` (the
+  PredixSport/DataHub CSV warehouse) and `officialWtaMetricRows` (the live
+  WTA API), preferring the WTA official result when both sides are usable,
+  falling back to the local CSV result otherwise.
+- Every row from this new tier is passed through `certifyMetricFinding`
+  before being trusted — the same conservative, tested, never-upgrades-
+  only-downgrades policy check already relied on for the market and
+  results-schedule engines earlier in this session. This directly answers
+  "without faking any of the information": a row this tier can't actually
+  back up with the metric's exact named components gets downgraded, not
+  silently accepted.
+- A live WTA API outage (thrown error) is caught locally and falls through
+  to the local CSV row or the live AI search — it can never abort the
+  whole `metrics()` call.
+- Confirmed with the full test suite (533 tests, all passing, including
+  `newly-green-end-to-end-coverage-audit.test.ts`'s per-code source-family
+  contract) that this doesn't disturb any existing deterministic engine's
+  priority or any certified code's guarded behavior.
+- Added `src/lib/warehouse-first-researcher-static-reconnect.test.ts`
+  guarding the tier ordering, the certification wrap on both sources, and
+  the WTA-outage fallback, so a future refactor can't silently disconnect
+  this again without a test failing first.
+
+Not yet done, and worth a follow-up: live confirmation (once Supabase
+access is available from wherever this is next reviewed) of how much this
+actually moves the needle on real evidence coverage percentages, since that
+depends on how much of the CSV warehouse's player-name space actually
+overlaps with matches being audited in production.

@@ -15,6 +15,9 @@ import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
 import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
+import { localMetricRows } from "./hybrid-audit-research.server";
+import { officialWtaMetricRows } from "./wta-official-match-evidence.server";
+import { certifyMetricFinding } from "./metric-certification";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -231,6 +234,37 @@ export const warehouseFirstResearcher: Researcher = {
       for (const [code, row] of deterministicByCode) {
         const existing = (observationPacket as Record<string, any>)[code] ?? {};
         (observationPacket as Record<string, any>)[code] = { ...existing, deterministic_components: { p1_value: row.p1_value, p2_value: row.p2_value, treatment: row.p1_treatment, evidence_family: row.evidence_family, sample: row.sample } };
+      }
+      const beforeStaticWarehouse = liveMissing.filter(metric => !fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
+      if (beforeStaticWarehouse.length) {
+        // Cheap deterministic tier, ahead of the live AI search: the PredixSport/
+        // DataHub CSV warehouse and the live WTA official API. This was previously
+        // built, tested, and never actually wired into any live researcher --
+        // see docs/ARCHITECTURE-FINDING-disconnected-hybrid-researcher.md. Never
+        // trust its self-reported treatment directly: certifyMetricFinding is the
+        // same conservative, tested, never-upgrades-only-downgrades policy check
+        // already relied on elsewhere in this file (see
+        // docs/metric-audit-019-market-calibration.md and
+        // docs/metric-audit-012-fatigue-workload-schedule-engine.md) for the
+        // certified codes (012/019/022/024/025/072-076); everything else passes
+        // through unchanged.
+        const localRows = localMetricRows(p1, p2, input.context ?? "", beforeStaticWarehouse).map(certifyMetricFinding);
+        const localByCode = new Map(localRows.map(row => [codeOf(row.metric_code), row]));
+        let wtaRows: MetricFinding[] = [];
+        try {
+          wtaRows = (await officialWtaMetricRows({ p1, p2, context: input.context ?? "", metrics: beforeStaticWarehouse })) ?? [];
+        } catch { /* live WTA API outage falls through to the local CSV row (if any) or live AI search below */ }
+        const wtaByCode = new Map(wtaRows.map(row => [codeOf(row.metric_code), certifyMetricFinding(row)]));
+        for (const metric of beforeStaticWarehouse) {
+          const code = codeOf(metric.code);
+          const wta = wtaByCode.get(code), local = localByCode.get(code);
+          const chosen = fullyUsableFinding(wta) ? wta : fullyUsableFinding(local) ? local : null;
+          if (chosen) deterministicByCode.set(code, chosen);
+        }
+        for (const [code, row] of deterministicByCode) {
+          const existing = (observationPacket as Record<string, any>)[code] ?? {};
+          (observationPacket as Record<string, any>)[code] = { ...existing, deterministic_components: { p1_value: row.p1_value, p2_value: row.p2_value, treatment: row.p1_treatment, evidence_family: row.evidence_family, sample: row.sample } };
+        }
       }
       const remainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
       if (remainingLiveMissing.length) {
