@@ -133,3 +133,55 @@ decision by whoever owns that test's intent, not a unilateral change. Fixed
 what was safe to fix unilaterally (the win-probability formula gap, purely
 additive, no existing assertion touched) and logged the treatment question
 here instead of guessing at it.
+
+## 4. Metric 060's ENVIRONMENT family eligibility looks like a missed reconciliation case (OPEN, likely real, not fixed)
+
+`deterministic-environment-metrics.server.ts` computes only raw ambient
+weather (temperature/humidity/precipitation/wind/gust/pressure from
+Open-Meteo) and applies the identical output uniformly to **four** codes:
+021, 030, 060, 071 (`SUPPORTED = new Set(["021","030","060","071"])`, gated
+by `ENVIRONMENT_METRICS` in `metric-source-family-policy.ts` and asserted as
+"intentional" in `docs/NEWLY_GREEN_COVERAGE_AUDIT.md` and CI-tested in
+`newly-green-end-to-end-coverage-audit.test.ts`'s `REQUIRED_FAMILIES`/
+`PBP_METRICS`).
+
+Checked all four against their real `public/seed/metrics.txt` definitions:
+- **021** (Surface & Environmental Context) genuinely names weather
+  sensitivity and altitude among its 15 bullets -- legitimate, and already
+  correctly capped at PARTIAL/support-only (RESULTS_SCHEDULE is the only
+  *sufficient* family; see the reconciliation comment already in
+  `metric-source-family-policy.ts`).
+- **030** (Tournament-Specific Strength) has one loosely-related bullet
+  ("Performance in Comparable Environmental Conditions") among 12, but the
+  other 11 are court-speed/altitude/ball-type-specific Elo variants and
+  tournament-specific historical Elo -- not raw ambient weather. Marginal.
+- **060** (Interaction / Matchup Residuals) -- Serve-Return Interaction
+  Residual, Opponent-Adjusted Shot Tolerance, Neutral-Point Win Rate,
+  First-Strike Dependency, Serve Dependency Index -- has **zero** bullets
+  touching weather, altitude, or any environmental condition at all.
+- **071** (Session/Environment) is Roof-Open-vs-Closed Split and
+  Start-Time-Uncertainty -- about roof *state* and *scheduling*, not ambient
+  outdoor conditions; raw outdoor weather is a poor and potentially
+  misleading proxy for a match that may have been played indoors under a
+  closed roof (no roof-state field is ever consulted by this engine).
+
+This is the same class of "wrong code number" drift that Task 19/20
+explicitly found and fixed for sibling codes 036, 040, 069, 079, and 081 --
+see the reconciliation comment at the top of
+`newly-green-end-to-end-coverage-audit.test.ts`, which documents removing
+each of those after checking their real definitions directly. 060 (and to a
+lesser extent 071) reads like the same kind of case that was simply missed
+in that pass, not a considered decision -- there's no comment anywhere
+explaining *why* 060 specifically should accept weather evidence, unlike the
+021 case, which does have one.
+
+**Not fixed this pass.** Reversing this touches a documented, CI-tested
+contract across at least four files (`deterministic-environment-metrics.server.ts`,
+`metric-source-family-policy.ts`, `newly-green-end-to-end-coverage-audit.test.ts`,
+`docs/NEWLY_GREEN_COVERAGE_AUDIT.md`), and — learned directly from this
+session's reverted `deterministic-pbp-metrics.server.ts` attempt — a
+"looks like a bug" call on a case with existing test coverage deserves the
+same Task-19/20-grade verification (confirm no downstream evidence-coverage
+math or reliability scoring depends on 060/071 keeping ENVIRONMENT support)
+before changing it, not a same-session unilateral edit. Flagged here with
+the specific evidence needed to make that call quickly.
