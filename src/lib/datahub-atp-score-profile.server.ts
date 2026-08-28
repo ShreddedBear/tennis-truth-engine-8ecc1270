@@ -16,7 +16,7 @@ function parse(text: string) {
   if (c || r.length) { r.push(c); rows.push(r); } if (!rows.length) return []; const h = rows[0].map((x) => x.trim()); return rows.slice(1).map((a) => Object.fromEntries(h.map((k, i) => [k, (a[i] ?? "").trim()])));
 }
 function yearOf(r: Row) { return Number((r.tourney_year_id ?? "").slice(0, 4)); }
-function load() { if (cache) return cache; try { cache = ["match_scores_1991-2016.csv", "match_scores_2017.csv"].flatMap((f) => parse(readFileSync(join(process.cwd(), "data/public/datahub-atp", f), "utf8"))).filter((r) => yearOf(r) >= HISTORICAL_MIN_YEAR); } catch { cache = []; } return cache; }
+function load() { if (cache) return cache; try { return cache = ["match_scores_1991-2016.csv", "match_scores_2017.csv"].flatMap((f) => parse(readFileSync(join(process.cwd(), "data/public/datahub-atp", f), "utf8"))).filter((r) => yearOf(r) >= HISTORICAL_MIN_YEAR); } catch { return []; } }
 function cutoffYear(context: string) { const m = context.match(/(?:date\s+)?(20\d{2})-\d{2}-\d{2}/i); return m ? Number(m[1]) : null; }
 function stat(p: string, k: string, v: number, n: number): SourcedStat { return { key: k, player: p, value: v, surface: null, window: "HISTORICAL_2005_THROUGH_2017", tour_level: null, sample: n, origin: "RECONSTRUCTED", sources: [{ source_name: SOURCE_NAME, url: SOURCE_URL, retrieved_at: new Date().toISOString() }] }; }
 
