@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -44,7 +44,7 @@ describe("46MB tennis-runtime-index Worker-bundling outage guard", () => {
   it("the only reader of the runtime tennis index data is the approved lazy loader", () => {
     const loader = readFileSync(join(process.cwd(), "src/lib/runtime-tennis-index-data.server.ts"), "utf8");
     expect(loader).toContain("readFileSync");
-    expect(loader).toContain('"public", "generated", "tennis-runtime-index.json"');
+    expect(loader).toContain('"data", "generated", "tennis-runtime-index.json"');
     expect(loader).toContain("export function loadRuntimeIndex");
   });
 
@@ -61,5 +61,22 @@ describe("46MB tennis-runtime-index Worker-bundling outage guard", () => {
     expect(loader).toContain("assets.fetch");
     const serverEntry = readFileSync(join(process.cwd(), "src/server.ts"), "utf8");
     expect(serverEntry).toContain("ensureRuntimeIndexLoaded");
+  });
+
+  // Regression guard for the third, and actual, root cause: even with the ASSETS-binding
+  // fallback above, production stayed broken because Cloudflare Workers hard-rejects any
+  // individual static asset over 25 MiB at deploy time ("Asset too large") -- and the raw
+  // runtime index is ~61MB. The asset the Worker fetches must be a gzip-compressed copy
+  // (~5.2MB), decompressed at request time, and the raw file must not live under public/
+  // at all (shipping it there risks the same oversized-asset deploy failure again).
+  it("fetches a gzip-compressed asset, decompresses it, and does not ship the raw 61MB file under public/", () => {
+    const loader = readFileSync(join(process.cwd(), "src/lib/runtime-tennis-index-data.server.ts"), "utf8");
+    expect(loader).toContain('"/generated/tennis-runtime-index.json.gz"');
+    expect(loader).toContain("DecompressionStream");
+    const rawAssetPath = join(process.cwd(), "public", "generated", "tennis-runtime-index.json");
+    expect(existsSync(rawAssetPath), `${rawAssetPath} must not exist -- it exceeds Cloudflare Workers' 25 MiB static asset limit`).toBe(false);
+    const gzAssetPath = join(process.cwd(), "public", "generated", "tennis-runtime-index.json.gz");
+    expect(existsSync(gzAssetPath)).toBe(true);
+    expect(statSync(gzAssetPath).size).toBeLessThan(25 * 1024 * 1024);
   });
 });

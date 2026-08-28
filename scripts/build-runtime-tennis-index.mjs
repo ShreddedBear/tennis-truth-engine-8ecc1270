@@ -1,13 +1,19 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 
 const root=process.cwd();
 const outputArg=process.argv[2];
-// Written into public/ (not data/generated/) so it ships as a Cloudflare Workers
-// static asset (see wrangler.json's ASSETS binding, directory "../public") instead of
-// only existing on a filesystem the deployed Worker cannot read from at request time --
-// see runtime-tennis-index-data.server.ts for the loader that depends on this location.
-const outputPath=outputArg?resolve(root,outputArg):join(root,'public/generated/tennis-runtime-index.json');
+// Written into data/generated/ (a real Node filesystem read, for local dev and build
+// scripts) rather than public/ -- the raw file is 61MB, well over Cloudflare Workers'
+// hard 25 MiB per-asset limit, so shipping it as a static asset fails deployment outright
+// ("Asset too large"). A gzip-compressed copy (~5.2MB, safely under the cap) is written
+// to public/generated/tennis-runtime-index.json.gz below instead; that is what the
+// deployed Worker actually fetches over the ASSETS binding and decompresses at request
+// time -- see runtime-tennis-index-data.server.ts for the loader that depends on both
+// locations.
+const outputPath=outputArg?resolve(root,outputArg):join(root,'data/generated/tennis-runtime-index.json');
+const gzOutputPath=join(root,'public/generated/tennis-runtime-index.json.gz');
 const sources=[['ATP','data/public/predixsport/atp/atp_elo_matches.csv'],['WTA','data/public/predixsport/wta/wta_elo_ratings.csv']];
 function parseCsv(text){const rows=[];let r=[],c='',q=false;for(let i=0;i<text.length;i++){const x=text[i];if(x==='"'){if(q&&text[i+1]==='"'){c+='"';i++;}else q=!q;}else if(x===','&&!q){r.push(c);c='';}else if((x==='\n'||x==='\r')&&!q){if(x==='\r'&&text[i+1]==='\n')i++;r.push(c);c='';if(r.some(Boolean))rows.push(r);r=[];}else c+=x;}if(c||r.length){r.push(c);rows.push(r);}if(!rows.length)return[];const h=rows[0].map(x=>x.trim());return rows.slice(1).map(a=>Object.fromEntries(h.map((k,i)=>[k,(a[i]??'').trim()])));}
 function norm(v){return String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
@@ -106,4 +112,5 @@ if(existsSync(wtaMainDir)){
 }
 
 for(const lane of Object.values(matchHistory))for(const rows of Object.values(lane))rows.sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
-mkdirSync(dirname(outputPath),{recursive:true});writeFileSync(outputPath,JSON.stringify(out));console.log(`Runtime tennis index written to ${outputPath}`);
+mkdirSync(dirname(outputPath),{recursive:true});const json=JSON.stringify(out);writeFileSync(outputPath,json);console.log(`Runtime tennis index written to ${outputPath}`);
+mkdirSync(dirname(gzOutputPath),{recursive:true});writeFileSync(gzOutputPath,gzipSync(json,{level:9}));console.log(`Gzip-compressed runtime tennis index (Cloudflare Workers asset) written to ${gzOutputPath}`);
