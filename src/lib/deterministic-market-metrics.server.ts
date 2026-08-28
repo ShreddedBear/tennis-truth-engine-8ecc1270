@@ -3,6 +3,7 @@ import type { MetricFinding } from "./audit-pipeline";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, evidenceTourCompatible, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
+import { certifyMetricFinding } from "./metric-certification";
 
 const db = supabaseAdmin as any;
 const MARKET_CODES = new Set(["015", "019", "043", "044"]);
@@ -114,5 +115,18 @@ export async function deterministicMarketMetric(args: { metricCode: unknown; p1:
   const sourceName = p1Rows[0]?.source_name ?? p2Rows[0]?.source_name;
   if (!sourceName) return null;
   const isCoreMarket = code === "015" || code === "019";
-  return { metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical four-tour match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; tour_family=${expectedFamily}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] };
+  // certifyMetricFinding is the same conservative, never-upgrades-only-downgrades
+  // safety net this codebase already trusts for metric 019 (see
+  // metric-certification.test.ts's "Market Calibration certification" cases). It
+  // is applied here, at the source, rather than only in the separate completion-
+  // sweep/diagnostic callers -- this function also feeds the live per-request
+  // researcher (warehouse-first-researcher.server.ts), which did not otherwise
+  // run it. Without this, isCoreMarket's RECONSTRUCTED claim for "019" persisted
+  // uncorrected on the live path: current-match-only odds/de-vig text (no
+  // historical price-bucket win-rate, no outcomes count) does not satisfy Market
+  // Calibration's own definition, which requires realized-outcome-linked
+  // calibration, not just today's price. certifyMetricFinding downgrades that
+  // case to UNAVAILABLE; codes without a registered policy (015/043/044 today)
+  // pass through unchanged.
+  return certifyMetricFinding({ metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical four-tour match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; tour_family=${expectedFamily}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] });
 }
