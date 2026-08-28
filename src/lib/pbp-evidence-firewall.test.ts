@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { canonicalApprovedPbpIdentity, claimUniqueApprovedPbp, isApprovedWtaChallengerPbpRow } from "./pbp-evidence-firewall";
+import { canonicalApprovedPbpIdentity, claimUniqueApprovedPbp, isApprovedWtaChallengerPbpRow, type ApprovedPbpTour } from "./pbp-evidence-firewall";
 import { reconstructPbpScoreState } from "./pbp-score-state-recovery";
 
 describe("Task 18B PBP evidence firewall", () => {
@@ -17,6 +17,33 @@ describe("Task 18B PBP evidence firewall", () => {
   it("rejects cross-tour canonical contamination", () => {
     expect(canonicalApprovedPbpIdentity({ tour:"ATP_MAIN", player1:"A", player2:"B", tournament:"WTA 125 Example", date:"2026-08-01", eventLevel:"WTA 125" })).toBeNull();
     expect(canonicalApprovedPbpIdentity({ tour:"WTA_CHALLENGER", player1:"A", player2:"B", tournament:"ATP Challenger 75", date:"2026-08-01", eventLevel:"ATP Challenger" })).toBeNull();
+  });
+
+  // Regression test for a real bug this exact assertion above used to be blind to: the
+  // circular check `evidenceTourCompatible(args.tour, identity.tourFamily)` can never
+  // fail, because identity.tourFamily is classified from (tour, eventLevel, tournament)
+  // *joined together* -- args.tour's own text always self-confirms its own classification.
+  // This was silently broken (returning a real identity instead of null) until the
+  // independent eventLevel/tournament-only cross-check was added. These cases probe the
+  // fix directly rather than relying on the coincidence that the case above happens to
+  // trigger it.
+  it("does not over-reject when eventLevel/tournament text is ambiguous and only the claimed tour disambiguates it (a real production shape: internal category codes, generic tournament names)", () => {
+    // No ATP/WTA/challenger keyword anywhere in the free text -- classifyEvidenceTourFamily
+    // resolves to null on that text alone, which must not be treated as contamination.
+    expect(canonicalApprovedPbpIdentity({ tour:"ATP_MAIN", player1:"A", player2:"B", tournament:"Fixture Open", date:"2026-08-01", eventLevel:"main-draw" })).not.toBeNull();
+    expect(canonicalApprovedPbpIdentity({ tour:"WTA_CHALLENGER", player1:"A", player2:"B", tournament:"Fixture Open", date:"2026-08-01", eventLevel:"qualifying" })).not.toBeNull();
+  });
+
+  it("rejects every cross-tour combination, not just the one case already covered above", () => {
+    const contaminated: Array<[ApprovedPbpTour, string]> = [
+      ["ATP_MAIN", "WTA 125"],
+      ["ATP_CHALLENGER", "WTA 125"],
+      ["WTA_MAIN", "ATP Challenger"],
+      ["WTA_CHALLENGER", "ATP Challenger"],
+    ];
+    for (const [tour, eventLevel] of contaminated) {
+      expect(canonicalApprovedPbpIdentity({ tour, player1:"A", player2:"B", tournament:eventLevel, date:"2026-08-01", eventLevel }), `${tour} vs "${eventLevel}"`).toBeNull();
+    }
   });
 
   it("rejects duplicate match IDs and duplicate canonical matches", () => {
