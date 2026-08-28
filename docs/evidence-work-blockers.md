@@ -185,3 +185,25 @@ same Task-19/20-grade verification (confirm no downstream evidence-coverage
 math or reliability scoring depends on 060/071 keeping ENVIRONMENT support)
 before changing it, not a same-session unilateral edit. Flagged here with
 the specific evidence needed to make that call quickly.
+
+**Update — confidence lowered, still not fixed.** Went looking for the
+multi-file fix and found `protected-metric-wiring.server.ts` has an
+extensive, clearly deliberate `PROTECTED_COMPONENTS["060"]` list (11
+correctly-named sub-items matching the real definition exactly: serve-return
+interaction residual, neutral-point win rate, first-strike dependency,
+etc.), a dedicated forbidden-proxy-input list for 060's AI-generated
+FORMULA text, and a dedicated test file
+(`metric-certification-060-065.test.ts`) that explicitly rejects generic
+proxies like `hold_pct=81%` as evidence for 060. Whoever built that clearly
+read metric 060's real definition carefully -- which weakens (doesn't
+disprove) the "060 = ENVIRONMENT is a missed reconciliation case" theory,
+since the same rigor that correctly listed 060's 11 real sub-items would be
+expected to also have caught an unrelated ENVIRONMENT grant if it were
+obviously wrong. Neither that test file nor `deterministic-environment-metrics.server.ts`
+mentions weather/temperature as either accepted or rejected for 060 -- the
+question was apparently never directly considered by whichever pass
+reviewed each file, so this is still unresolved rather than debunked. Given
+the genuine uncertainty and the multi-file blast radius, still not changed.
+This needs someone to trace whether `deterministic-environment-metrics.server.ts`'s
+ENVIRONMENT grant for 060 was a deliberate call or an oversight -- static
+reading from this sandbox can't settle it further.
