@@ -50,10 +50,22 @@ one-line fix — flagged here so a future pass picks it up systematically
 rather than re-discovering the mismatch from scratch.
 
 **Progress:** 004 (Combined Efficiency) audited 2026-08-29 — PARTIAL, see
-`docs/metric-audit-004-combined-efficiency.md`. 11 of 81 codes now have a
-dedicated, evidence-verified audit doc (001, 002, 003, 004, 007, 008, 009,
-010, 011, 012, 013); 019 is verified TRULY UNAVAILABLE; 69 remain
-UNVERIFIED.
+`docs/metric-audit-004-combined-efficiency.md`.
+
+**Merged with a parallel workstream (2026-08-29):** a second line of work
+("New Signal Batch 1") had been developed directly on `main` without this
+branch's knowledge, independently completing real, correctly-catalog-named
+audits for 027, 029, 031, 036, 037, 039, 041, 046, and 051 (see
+`docs/audit-task-new-batch1-*.md` and `src/lib/audit-metric-0XX-*.ts`).
+Merged `main` into this branch (clean auto-merge, only trivial
+data-freshness-timestamp conflicts) and credited those 9 codes in
+`docs/evidence-coverage/81-metric-recoverability-audit.md`. Nothing was
+lost on either side — the branches had simply diverged and each was only
+visible to its own session until this merge. Combined total: 20 of 81
+codes now have a dedicated, evidence-verified audit doc across both
+workstreams (001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 013, 027,
+029, 031, 036, 037, 039, 041, 046, 051); 019 is verified TRULY UNAVAILABLE;
+60 remain UNVERIFIED.
 
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
