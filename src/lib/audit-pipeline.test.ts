@@ -438,4 +438,35 @@ describe("Run Audit pipeline", () => {
     expect(metaRow!["status"]).toBe("EXCLUDED");
     expect(metaRow!["unavailable_reason"]).toBe("PROCESS_META_NOT_PLAYER_EVIDENCE");
   }, 60_000);
+
+  // Regression: a stage failure whose own FAILED-status DB write also throws (e.g. a
+  // Supabase client that is misconfigured or transiently unreachable while the pipeline
+  // is trying to record the error) must not escape runPipeline as an unhandled
+  // rejection that loses the stage attribution. Previously this surfaced only as a
+  // generic top-level "PIPELINE" failure with no indication of which stage or run was
+  // affected, which is indistinguishable from the stage silently never getting marked
+  // FAILED (the observed "stuck at RUNNING 0/0 forever" symptom) from the caller's
+  // point of view. runPipeline must resolve normally and attribute the failure to the
+  // actual stage, with nextStage pointing at it so a resumed run retries the right
+  // stage instead of restarting blind.
+  it("attributes a failure to the real stage when the error-path status write itself throws, instead of an unhandled rejection", async () => {
+    const { deps } = makeMemoryDeps();
+    deps.getRules = async () => {
+      throw new Error("boom: rule_documents read failed");
+    };
+    const realSetStage = deps.setStage.bind(deps);
+    deps.setStage = async (runId, matchId, stage, patch) => {
+      if (stage === "DEFINITION INSTANTIATION" && patch["status"] === "FAILED") {
+        throw new Error("boom: could not write FAILED status (client misconfigured)");
+      }
+      return realSetStage(runId, matchId, stage, patch);
+    };
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(result.failures.length).toBeGreaterThan(0);
+    expect(result.failures[0]!.stage).toBe("DEFINITION INSTANTIATION");
+    expect(result.failures[0]!.message).toContain("could not persist FAILED status");
+    expect(result.nextStage).toBe("DEFINITION INSTANTIATION");
+  }, 60_000);
 });
