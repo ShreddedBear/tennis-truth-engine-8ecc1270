@@ -267,13 +267,18 @@ to reflect the corrected 236-cell/59-code/166-cell(70%) accounting --
 flagged, not changed, since that file is explicitly disclaimed as
 non-authoritative and doesn't feed the live diagnostic (see item 0).
 
-**Standing recommendation:** the item-4 pattern (021/060/071/020) now has
-four independent, well-documented instances across three different
-engines. This has been deferred three times pending "a considered
-multi-file pass" that never happened. Recommend treating this as the
-next concrete priority, ahead of picking up more AI-DEPENDENT or
-UNVERIFIED codes -- it's a known, bounded, four-code cleanup rather than
-open-ended new audit work.
+**Standing recommendation (revised after the follow-up pass on item 4
+below):** of the four item-4 instances, one (020) turned out to be a
+clear, undefended bug and is now fixed. The other three (021, 030, 071)
+share an engine with 060, and the "considered multi-file pass" this item
+has called for finally happened this session -- it found real, if
+thin, evidence that 060/071's ENVIRONMENT eligibility was actually
+reviewed (a CI-tested contract exists, and the same reconciliation pass
+demonstrably fixed the identical mistake elsewhere when it found one), so
+this is now a genuine open question for the user/test-owner, not a clear
+bug to unilaterally fix. See item 4's second update for the precise
+question and the small, precedented fix if the answer comes back "it was
+never really checked."
 
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
@@ -456,6 +461,46 @@ policy and actual engine behavior even clearer. Still not fixed (same
 shared four-code engine, same reasoning for caution) but this
 strengthens the case that this whole engine's "support-only never means
 it, in practice" pattern is real and applies to more than just 060.
+
+**Update 2026-08-29, second pass (following up the standing recommendation
+above):** looked for the "considered multi-file pass" this item has
+called for three times now, specifically checking whether 060/071's
+ENVIRONMENT eligibility was actually reviewed and deliberately kept
+(unlike 020, which had zero defending comment or test and turned out to
+be a real, fixed bug this same pass). Found real evidence it's not a pure
+oversight: `newly-green-end-to-end-coverage-audit.test.ts` is a genuine,
+CI-enforced contract from the Task 19/20 reconciliation pass, and that
+same pass demonstrably *did* remove other ENVIRONMENT/PBP grants for the
+identical class of reason when they didn't hold up (069/079/081 removed
+from the newly-green contract entirely, with detailed per-code reasoning
+in the test file, once their real definitions were checked; 036/040
+removed from `PBP_METRICS` the same way). So whoever ran that pass was
+capable of, and did, correct this exact mistake elsewhere -- but left no
+comment anywhere explaining *why* 060/071 specifically survived that
+review. `docs/NEWLY_GREEN_COVERAGE_AUDIT.md` also lists 060/071's
+ENVIRONMENT grant as "intentional," but only as a bare assertion, with no
+per-bullet justification the way 021's `metric-source-family-policy.ts`
+comment has one.
+
+**Net: genuinely ambiguous, not resolved.** Real evidence exists both
+that this class of mistake gets caught when checked (069/079/081/036/040)
+and that 060/071 were nonetheless left with a real, CI-tested contract
+requiring ENVIRONMENT -- which is a materially different situation from
+020's, where nothing defended it. Reversing a CI-tested contract on my
+own judgment, without being certain the "intentional" label is wrong
+rather than just under-documented, crosses the line from "fix a clearly
+undefended bug" (020, 043/044, 080 -- all done this session) into
+"override a decision someone else may have made for a reason not written
+down." Recommend this specific question -- is 060/071's ENVIRONMENT
+eligibility a real, considered call or a documentation-only "intentional"
+label nobody actually re-verified -- go to the user or whoever owns that
+test's intent, the same way metric 001's treatment question did earlier
+this session, rather than being decided unilaterally. If the answer is
+"it was never really checked," the fix is small and precedented (same
+pattern as 020): remove 060/071 from `ENVIRONMENT_METRICS` and
+`deterministic-environment-metrics.server.ts`'s `SUPPORTED`, update
+`newly-green-end-to-end-coverage-audit.test.ts`'s `REQUIRED_FAMILIES`
+accordingly.
 
 `deterministic-environment-metrics.server.ts` computes only raw ambient
 weather (temperature/humidity/precipitation/wind/gust/pressure from
