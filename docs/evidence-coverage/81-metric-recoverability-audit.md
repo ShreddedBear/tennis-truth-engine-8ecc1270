@@ -63,9 +63,9 @@ The production persistence tables do not currently retain a 324-cell per-metric 
 
 ## Classification totals (corrected catalog, this pass)
 
-- **PARTIAL, verified via dedicated per-metric audit:** 12 metrics (001, 002, 003, 007, 008, 009, 010, 011, 012, 013)
+- **PARTIAL, verified via dedicated per-metric audit:** 11 metrics (001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 013)
 - **TRULY UNAVAILABLE, verified via dedicated per-metric audit:** 1 metric (019)
-- **UNVERIFIED (name corrected, classification pending re-audit):** 68 metrics
+- **UNVERIFIED (name corrected, classification pending re-audit):** 69 metrics
 - Total: 81
 
 Do not compute a coverage percentage, "potentially usable" count, or four-tour-equivalent figure from this table until the UNVERIFIED rows are resolved -- 68/81 rows have no trustworthy classification right now, and reporting a percentage over them would be exactly the "green workflow without database confirmation" this project's own validation rule (`docs/historical-hard-pull-source-inventory.md`) forbids.
@@ -77,7 +77,7 @@ Do not compute a coverage percentage, "potentially usable" count, or four-tour-e
 | 001 | Surface Strength | PARTIAL | Chronological four-tour Elo replay covers Surface Elo + Elo Win Probability + a rough sample count; 5 of 8 named submetrics (Effective Weighted Sample, Trend/Momentum, Peak-vs-Current, both Hard-Court Record bullets) remain SOURCE REQUIRED. See docs/metric-audit-001-surface-strength.md. | 1.234568 pp max |
 | 002 | Serve Profile | PARTIAL | Approved PBP gives server/point/ace-DF/hold% components; serve-number detail is incomplete. See docs/metric-audit-002-003-serve-return-hold-break.md. | 1.234568 pp max |
 | 003 | Return Profile | PARTIAL | Approved PBP gives return-point/break% components; serve-number detail is incomplete. See docs/metric-audit-002-003-serve-return-hold-break.md. | 1.234568 pp max |
-| 004 | Combined Efficiency | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-004-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 004 | Combined Efficiency | PARTIAL | DataHub-sourced serve/return rates combine into Dominance Ratio, Total Points Won %, Matchup-Specific Expected Hold/Break %, and Expected Hold/Break Differential (5 of 6 named submetrics); Opponent-Adjusted Dominance Ratio needs a schedule-wide opponent-strength weighting scheme not yet built. See docs/metric-audit-004-combined-efficiency.md. | 1.234568 pp max |
 | 005 | Recent Form | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-005-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 006 | Opponent Quality | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-006-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 007 | Common-Opponent Network | PARTIAL | Canonical common-opponent match history supports a real subset; remaining named components are SOURCE REQUIRED. See docs/metric-audit-007-common-opponent.md. | 1.234568 pp max |

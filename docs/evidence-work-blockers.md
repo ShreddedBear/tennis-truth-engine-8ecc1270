@@ -40,14 +40,20 @@ sections were rewritten to stop asserting coverage percentages and
 "55/81 potentially usable" / "47 metric equivalents" figures computed
 against the wrong names — those are explicitly retracted, not restated.
 
-**Still open:** the 68 UNVERIFIED codes each need the same five-step audit
-(exact definition → permitted raw inputs → sources inspected → treatment
-classification → cross-wiring audit → regression test) the 13 already-done
-codes got. `RECOVERY_PRIORITY_CODES` and any Phase 2 wiring plan drawn from
-the old totals is not valid until re-derived from real classifications.
-This is a large amount of remaining work, not a one-line fix — flagged here
-so a future pass picks it up systematically rather than re-discovering the
-mismatch from scratch.
+**Still open:** the remaining UNVERIFIED codes each need the same
+five-step audit (exact definition → permitted raw inputs → sources
+inspected → treatment classification → cross-wiring audit → regression
+test) the already-done codes got. `RECOVERY_PRIORITY_CODES` and any Phase 2
+wiring plan drawn from the old totals is not valid until re-derived from
+real classifications. This is a large amount of remaining work, not a
+one-line fix — flagged here so a future pass picks it up systematically
+rather than re-discovering the mismatch from scratch.
+
+**Progress:** 004 (Combined Efficiency) audited 2026-08-29 — PARTIAL, see
+`docs/metric-audit-004-combined-efficiency.md`. 11 of 81 codes now have a
+dedicated, evidence-verified audit doc (001, 002, 003, 004, 007, 008, 009,
+010, 011, 012, 013); 019 is verified TRULY UNAVAILABLE; 69 remain
+UNVERIFIED.
 
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
