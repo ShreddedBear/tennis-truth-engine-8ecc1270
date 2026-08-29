@@ -62,6 +62,7 @@ export async function createAuditRun(matchId: string) {
       match_id: matchId,
       run_number: (prior?.[0]?.run_number ?? 0) + 1,
       research_lock_at: new Date().toISOString(),
+      heartbeat_at: new Date().toISOString(),
       verification_version_id: verId,
       disagreement_version_id: disId,
       metrics_version_id: metId,

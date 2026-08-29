@@ -141,6 +141,7 @@ export type Database = {
           created_at: string
           disagreement_version_id: string | null
           effective_evidence_count: number
+          heartbeat_at: string | null
           id: string
           independent_decision_committed_at: string | null
           independent_high: number | null
@@ -168,6 +169,7 @@ export type Database = {
           created_at?: string
           disagreement_version_id?: string | null
           effective_evidence_count?: number
+          heartbeat_at?: string | null
           id?: string
           independent_decision_committed_at?: string | null
           independent_high?: number | null
@@ -195,6 +197,7 @@ export type Database = {
           created_at?: string
           disagreement_version_id?: string | null
           effective_evidence_count?: number
+          heartbeat_at?: string | null
           id?: string
           independent_decision_committed_at?: string | null
           independent_high?: number | null
