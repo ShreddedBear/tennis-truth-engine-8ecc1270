@@ -175,6 +175,46 @@ the live pipeline correctly picked up the new classification immediately.
 81 codes now have a dedicated audit doc; 2 verified TRULY
 UNAVAILABLE/PROTECTED_UNAVAILABLE (019, 022); 54 remain UNVERIFIED.
 
+**Progress continued (large batch):** audited the remaining 25 genuinely-
+missing codes in one pass -- 023, 024, 025, 026, 028, 030, 033, 034, 035,
+038, 040, 042, 043, 044, 045, 052, 053, 055, 060, 062, 064, 070, 071, 075,
+077. See `docs/metric-audit-batch-023-to-077.md`. No Supabase access was
+needed for any of it (static code/schema reading only). Findings:
+- **Real cross-wiring bug found and fixed:** 043 ("Favorite Failure-Mode
+  Score") and 044 ("Opponent Upset Compatibility") were wrongly claimed by
+  `deterministic-market-metrics.server.ts` (raw current-match odds data --
+  unrelated to either real definition, built against the same old
+  fictional catalog already found and fixed elsewhere). Worse, this
+  engine ran *before* the correct, already-built,
+  AI-research-firewall-gated pathway (`protected-metric-wiring.server.ts`)
+  in `warehouse-first-researcher.server.ts`, so the wrong evidence was
+  winning live in production whenever odds data existed. Fixed: removed
+  043/044 from `MARKET_CODES`; both now correctly fall through. One test
+  updated (`deterministic-market-metrics.test.ts`); full suite passes.
+- **15 codes got a genuine PARTIAL classification** with real, verified
+  deterministic evidence covering a real subset of their named bullets
+  (023, 024, 025, 028, 030, 033, 035, 042, 053, 055, 060, 064, 071, 075,
+  077) -- three of these (060, 071, and now confirmed for the first time
+  as a *third* instance, plus 021 already found) share the item-4 pattern
+  below: a shared ENVIRONMENT/schedule engine credits ambient
+  weather/generic match-count data toward codes whose real bullets need
+  something else entirely (roof state, start-time uncertainty, matchup
+  residuals). Not fixed (same shared-engine caution as item 4), but now
+  clearly the norm rather than a one-off across four codes (021, 060, 071
+  all confirmed; item 4 originally flagged only 060/071 as suspected).
+- **10 codes have no deterministic engine at all**, only a correctly-
+  targeted live-AI-web-search pathway behind an exact-component firewall
+  (026, 034, 038, 040, 043, 044, 045, 052, 062, 070) -- their component
+  lists were checked against the real catalog and are accurate, but what
+  the live LLM actually returns at request time cannot be verified
+  statically from this sandbox. Recorded as a new, honest "AI-DEPENDENT"
+  bucket, distinct from PARTIAL/TRULY_UNAVAILABLE/UNVERIFIED.
+
+**Running total:** 40 codes verified PARTIAL, 10 AI-DEPENDENT, 2 TRULY
+UNAVAILABLE/PROTECTED_UNAVAILABLE, 29 remain UNVERIFIED (most of which
+likely fall inside the AI-research-only pattern too, or need the same
+kind of check this batch just did -- not yet individually confirmed).
+
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
 **Blocks:** verifying any metric wired through the live `source_observations`

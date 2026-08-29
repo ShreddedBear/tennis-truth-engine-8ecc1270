@@ -6,7 +6,18 @@ import { classifyEvidenceTourFamily, evidenceTourCompatible, normalizeEvidenceTo
 import { certifyMetricFinding } from "./metric-certification";
 
 const db = supabaseAdmin as any;
-const MARKET_CODES = new Set(["015", "019", "043", "044"]);
+// Codes 043/044 removed 2026-08-29: real code 043 is "Favorite Failure-Mode Score"
+// (favorite-role designation, historical failure conditions, opponent compatibility with
+// those conditions) and real 044 is "Opponent Upset Compatibility" (Elo/style/surface/
+// ranking/handedness/rally-style/price/tournament-level similarity to today's favorite,
+// among past upsetters) -- neither is "raw current-match odds/de-vig aggregates," which is
+// all this file computes. This was built against an old, wrong catalog reading ("Favorite
+// Win%"/"Underdog Win%") -- see docs/metric-audit-023-043-044-batch.md. Both codes already
+// have a correctly-targeted pathway: protected-metric-wiring.server.ts's PROTECTED_COMPONENTS
+// firewall over live AI research (wired via metric-wiring-072-076/078-081 into
+// warehouse-first-researcher.server.ts), which this file's early-return was preempting
+// whenever odds data happened to exist for the match.
+const MARKET_CODES = new Set(["015", "019"]);
 const from = "2020-06-06";
 
 type MarketRow = {
