@@ -1,4 +1,14 @@
 const FORCE_RELOAD_MARKERS = ["FORCE_RELOAD", "window.parent.postMessage", "<html", "</html>"];
+const RECOVERABLE_TRANSPORT_MARKERS = [
+  "load failed",
+  "failed to fetch",
+  "networkerror",
+  "network request failed",
+  "fetch failed",
+  "expected content-type header",
+  "server_function_failed",
+  "before returning a valid result",
+];
 
 function rawMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -13,6 +23,11 @@ function rawMessage(error: unknown) {
 export function isPreviewForceReloadError(error: unknown) {
   const message = rawMessage(error).toLowerCase();
   return FORCE_RELOAD_MARKERS.some((marker) => message.includes(marker.toLowerCase()));
+}
+
+export function isRecoverablePipelineTransportError(error:unknown){
+  const message=rawMessage(error).toLowerCase();
+  return RECOVERABLE_TRANSPORT_MARKERS.some(marker=>message.includes(marker));
 }
 
 export function safePipelineErrorMessage(error: unknown) {

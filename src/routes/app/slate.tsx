@@ -1,42 +1,112 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { normalizeName } from "@/lib/summary-parser";
 import { computeExecutionPercent } from "@/lib/audit-progress";
-import { describeFailure, failureSignature, isStuck, type DriveOutcome } from "@/lib/audit-drive";
+import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
 import { ProgressBar } from "@/components/ProgressBar";
-// A run whose stages haven't moved in this long is treated as abandoned (tab
-// closed mid-run, transport dropped and never resumed) and is auto-resumed
-// instead of waiting for a manual "Resume Audit" click. Comfortably above one
-// slice's 20s server-side budget so an actively-driven run is never double-driven.
-const STALE_RUN_MS = 30_000;
-export const Route=createFileRoute("/app/slate")({head:()=>({meta:[{title:"Active Slate — Tennis Matrix Audit System"}]}),component:Slate});
-function playerTokens(v:string){return normalizeName(v).split(" ").filter(Boolean);}
-function samePlayer(a:string,b:string){const x=playerTokens(a),y=playerTokens(b);if(!x.length||!y.length)return false;if(x.join(" ")===y.join(" "))return true;if(x[x.length-1]!==y[y.length-1])return false;const sx=new Set(x),sy=new Set(y),overlap=[...sx].filter(t=>sy.has(t)).length;return overlap===Math.min(sx.size,sy.size)||overlap>=Math.min(2,Math.min(sx.size,sy.size));}
+
+const AUDIT_CONCURRENCY=3;
+
+export const Route=createFileRoute("/app/slate")({
+  head:()=>({meta:[{title:"Active Slate — Tennis Matrix Audit System"}]}),
+  component:Slate,
+});
+
+function playerTokens(value:string){return normalizeName(value).split(" ").filter(Boolean);}
+function samePlayer(a:string,b:string){const x=playerTokens(a),y=playerTokens(b);if(!x.length||!y.length)return false;if(x.join(" ")===y.join(" "))return true;if(x[x.length-1]!==y[y.length-1])return false;const sx=new Set(x),sy=new Set(y),overlap=[...sx].filter(token=>sy.has(token)).length;return overlap===Math.min(sx.size,sy.size)||overlap>=Math.min(2,Math.min(sx.size,sy.size));}
 function samePair(a:any,b:any){return(samePlayer(a.player1_name,b.player1_name)&&samePlayer(a.player2_name,b.player2_name))||(samePlayer(a.player1_name,b.player2_name)&&samePlayer(a.player2_name,b.player1_name));}
-function contextScore(m:any){return[m.tournament_name,m.event_level,m.round,m.scheduled_date,m.surface,m.best_of,m.identity_status==="VERIFIED",m.surface_status==="VERIFIED"].filter(Boolean).length;}
-function mergeGroup(group:any[],runRows:any[]){const ranked=[...group].sort((a,b)=>{const ar=runRows.filter(r=>r.match_id===a.id).sort((x,y)=>y.run_number-x.run_number)[0],br=runRows.filter(r=>r.match_id===b.id).sort((x,y)=>y.run_number-x.run_number)[0];return(br?1:0)-(ar?1:0)||contextScore(b)-contextScore(a)||String(b.created_at??"").localeCompare(String(a.created_at??""));});const k={...ranked[0]};const verified=ranked.filter(x=>x.identity_status==="VERIFIED"||x.surface_status==="VERIFIED"),source=verified.sort((a,b)=>contextScore(b)-contextScore(a))[0]??ranked[0];for(const d of ranked){k.tournament_name ||=d.tournament_name;k.event_level ||=d.event_level;k.round ||=d.round;k.scheduled_date ||=d.scheduled_date;k.surface ||=d.surface;k.best_of ||=d.best_of;}if(source.identity_status==="VERIFIED")k.identity_status="VERIFIED";if(source.surface_status==="VERIFIED"){k.surface_status="VERIFIED";if(source.surface)k.surface=source.surface;}return{...k,_all_ids:ranked.map(x=>x.id)};}
-function transportFailure(error:unknown){return /load failed|failed to fetch|networkerror|network request failed|fetch failed/i.test(error instanceof Error?error.message:String(error??""));}
-const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
-function Slate(){const qc=useQueryClient();const{data}=useQuery({queryKey:["slate"],refetchInterval:4000,queryFn:async()=>{const[{data:matches},{data:runs},{data:decisions},{data:stages},{data:metrics},{data:versions},{data:uploads}]=await Promise.all([supabase.from("matches").select("*").order("created_at",{ascending:false}),supabase.from("audit_runs").select("id, match_id, status, run_number"),supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent"),supabase.from("audit_stage_runs").select("audit_run_id, status, done_count, total_count, started_at, finished_at"),supabase.from("metric_results").select("audit_run_id, p1_treatment, p2_treatment"),supabase.from("summary_versions").select("match_id, upload_id, created_at"),supabase.from("summary_uploads").select("id, created_at").order("created_at",{ascending:false})]);const raw=matches??[],runRows=runs??[],groups:any[][]=[];for(const m of raw){const i=groups.findIndex(g=>samePair(g[0],m));if(i<0)groups.push([m]);else groups[i].push(m);}const newestUpload=(uploads??[])[0]?.id??null;const latestMatchIds=new Set((versions??[]).filter(v=>newestUpload&&v.upload_id===newestUpload).map(v=>v.match_id));return{matches:groups.map(g=>mergeGroup(g,runRows)),runs:runRows,decisions:decisions??[],stages:stages??[],metrics:metrics??[],latestMatchIds:[...latestMatchIds]};}});const[scope,setScope]=useState<"latest"|"all">("latest");const execute=useServerFn(runAuditPipeline);
- const recoverTransportDrop=async(matchId:string)=>{for(let attempt=0;attempt<5;attempt++){await sleep(600);const{data:run}=await supabase.from("audit_runs").select("id,status,run_number").eq("match_id",matchId).order("run_number",{ascending:false}).limit(1).maybeSingle();if(!run)continue;if(run.status==="BLOCKED"){const{data:failedStage}=await supabase.from("audit_stage_runs").select("stage,error_message").eq("audit_run_id",run.id).eq("status","FAILED").limit(1).maybeSingle();throw new Error(failedStage?.error_message?`${failedStage.stage}: ${failedStage.error_message}`:"Audit run is blocked; open the workspace for the persisted failure.");}return{complete:run.status==="COMPLETE",transportRecovered:true};}return null;};
- // Same stuck-detection as the Upload page's drive loop (see audit-drive.ts):
- // a chunk whose current stage fails with the exact same stage+message as
- // the previous chunk has demonstrably stopped making progress, so surface
- // that reason immediately instead of grinding through all 20 chunks and
- // reporting the generic, misleading "Audit is still running."
- const start=useMutation({mutationFn:async(matchId:string)=>{let lastSignature:string|null=null;for(let chunk=0;chunk<20;chunk++){try{const res=await execute({data:{matchId}});if(!res.ok)throw new Error(res.failures[0]?.message??"Pipeline failed");if(res.complete||!res.nextStage)return{...res,transportRecovered:false};const outcome:DriveOutcome={complete:res.complete,nextStage:res.nextStage as string|null,failures:(res.failures??[]) as DriveOutcome["failures"]};const signature=failureSignature(outcome);if(isStuck(lastSignature,signature))throw new Error(describeFailure(outcome));lastSignature=signature;qc.invalidateQueries({queryKey:["slate"]});}catch(error){if(transportFailure(error)){const recovered=await recoverTransportDrop(matchId);if(recovered)return recovered;}throw error;}}throw new Error("Audit is still running. Resume it to continue.");},onSuccess:(result:any)=>{toast.success(result?.transportRecovered?"Audit run is persisted and still processing/resumable":"Audit execution started");qc.invalidateQueries({queryKey:["slate"]});},onError:e=>toast.error((e as Error).message)});
- // Auto-resume: a RUNNING run whose stages haven't been touched recently has
- // no active driver anywhere (upload tab closed, transport dropped and the
- // resume never happened). Pick it back up here instead of leaving the user
- // to notice and click "Resume Audit" themselves. Guarded by autoResuming so
- // an actively-driven run (touched within STALE_RUN_MS) is never double-driven.
- const autoResuming=useRef<Set<string>>(new Set());
- useEffect(()=>{if(!data)return;const now=Date.now();for(const run of data.runs){if(run.status!=="RUNNING"||autoResuming.current.has(run.match_id)||start.isPending)continue;const rows=(data.stages??[]).filter((s:any)=>s.audit_run_id===run.id);const lastTouched=rows.reduce((max:number,s:any)=>Math.max(max,Date.parse(s.finished_at??s.started_at??"")||0),0);if(lastTouched&&now-lastTouched<STALE_RUN_MS)continue;autoResuming.current.add(run.match_id);start.mutate(run.match_id,{onSettled:()=>autoResuming.current.delete(run.match_id)});}},[data]);
- const runFor=(m:any)=>{const ids=m?._all_ids??[m.id];return data?.runs.filter((r:any)=>ids.includes(r.match_id)).sort((a:any,b:any)=>b.run_number-a.run_number)[0];};const executionFor=(run:any)=>{if(!run?.id)return 0;return computeExecutionPercent((data?.stages??[]).filter((s:any)=>s.audit_run_id===run.id),run.status);};const evidenceFor=(runId?:string)=>{if(!runId)return 0;const rows=(data?.metrics??[]).filter((m:any)=>m.audit_run_id===runId);let usable=0,total=0;for(const m of rows)for(const t of[m.p1_treatment,m.p2_treatment]){if(!t)continue;total++;if(t==="DIRECT"||t==="RECONSTRUCTED"||t==="PARTIAL")usable++;}return total?Math.round(usable/total*100):0;};const latest=new Set(data?.latestMatchIds??[]),visible=(data?.matches??[]).filter((m:any)=>scope==="all"||(m._all_ids??[m.id]).some((id:string)=>latest.has(id)));return <div className="space-y-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-xl font-semibold">Active slate</h1><p className="text-sm text-muted-foreground">{scope==="latest"?"Showing only matches from the single most recent upload.":"Showing every match ever ingested."} Execution is persisted stage progress and updates automatically every few seconds — a stalled run resumes on its own. Evidence counts only supported DIRECT, RECONSTRUCTED, or PARTIAL metric treatments.</p></div><Button size="sm" variant="secondary" onClick={()=>setScope(scope==="latest"?"all":"latest")}>{scope==="latest"?`Show all matches (${data?.matches?.length??0})`:"Show latest upload only"}</Button></div><div className="panel overflow-x-auto"><table className="w-full text-sm"><thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""] .map(h=><th key={h} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{h}</th>)}</tr></thead><tbody>{visible.map((m:any)=>{const run=runFor(m),decision=data?.decisions?.find((d:any)=>d.audit_run_id===run?.id);return <tr key={m.id} className="border-t border-border"><td className="px-3 py-2 font-medium">{m.player1_name} vs {m.player2_name}</td><td className="px-3 py-2">{m.tournament_name??"—"}</td><td className="px-3 py-2">{m.round??"—"}</td><td className="px-3 py-2">{m.surface??"—"}</td><td className="px-3 py-2"><StateText state={m.identity_status}/></td><td className="px-3 py-2"><StateText state={m.surface_status}/></td><td className="mono-num px-3 py-2 text-xs">{run?`RUN ${run.run_number} · ${run.status}`:"—"}</td><td className="px-3 py-2"><AuditColorBadge color={decision?.final_audit_color??"INCOMPLETE"}/></td><td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td><td className="mono-num px-3 py-2 text-xs">{evidenceFor(run?.id)}%</td><td className="px-3 py-2 text-right"><div className="flex justify-end gap-2">{run&&<Button asChild size="sm" variant="secondary"><Link to="/app/match/$matchId" params={{matchId:run.match_id}}>Open workspace</Link></Button>}{(!run||run.status!=="COMPLETE")&&<Button size="sm" onClick={()=>start.mutate(run?.match_id??m.id)} disabled={start.isPending}>{run?"Resume Audit":"Run Audit"}</Button>}</div></td></tr>;})}{!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="latest"?"No matches from your latest upload yet.":"No matches ingested yet."}</td></tr>}</tbody></table></div></div>;}
+function contextScore(match:any){return[match.tournament_name,match.event_level,match.round,match.scheduled_date,match.surface,match.best_of,match.identity_status==="VERIFIED",match.surface_status==="VERIFIED"].filter(Boolean).length;}
+function mergeGroup(group:any[],runRows:any[]){const ranked=[...group].sort((a,b)=>{const ar=runRows.filter(run=>run.match_id===a.id).sort((x,y)=>y.run_number-x.run_number)[0],br=runRows.filter(run=>run.match_id===b.id).sort((x,y)=>y.run_number-x.run_number)[0];return(br?1:0)-(ar?1:0)||contextScore(b)-contextScore(a)||String(b.created_at??"").localeCompare(String(a.created_at??""));});const merged={...ranked[0]};const verified=ranked.filter(match=>match.identity_status==="VERIFIED"||match.surface_status==="VERIFIED"),source=verified.sort((a,b)=>contextScore(b)-contextScore(a))[0]??ranked[0];for(const row of ranked){merged.tournament_name ||=row.tournament_name;merged.event_level ||=row.event_level;merged.round ||=row.round;merged.scheduled_date ||=row.scheduled_date;merged.surface ||=row.surface;merged.best_of ||=row.best_of;}if(source.identity_status==="VERIFIED")merged.identity_status="VERIFIED";if(source.surface_status==="VERIFIED"){merged.surface_status="VERIFIED";if(source.surface)merged.surface=source.surface;}return{...merged,_all_ids:ranked.map(row=>row.id)};}
+
+function Slate(){
+  const qc=useQueryClient();
+  const[scope,setScope]=useState<"latest"|"all">("latest");
+  const executeBatch=useServerFn(runAuditBatch);
+  const{data}=useQuery({
+    queryKey:["slate"],
+    refetchInterval:3000,
+    queryFn:async()=>{
+      const[{data:matches},{data:runs},{data:decisions},{data:stages},{data:coverage},{data:versions},{data:uploads}]=await Promise.all([
+        supabase.from("matches").select("*").order("created_at",{ascending:false}),
+        supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at"),
+        supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete"),
+        supabase.from("audit_stage_runs").select("audit_run_id, status, done_count, total_count, started_at, finished_at, heartbeat_at"),
+        supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count"),
+        supabase.from("summary_versions").select("match_id, upload_id, created_at"),
+        supabase.from("summary_uploads").select("id, created_at").order("created_at",{ascending:false}),
+      ]);
+      const raw=matches??[],runRows=runs??[],groups:any[][]=[];
+      for(const match of raw){const index=groups.findIndex(group=>samePair(group[0],match));if(index<0)groups.push([match]);else groups[index].push(match);}
+      const newestUpload=(uploads??[])[0]?.id??null;
+      const latestMatchIds=new Set((versions??[]).filter(version=>newestUpload&&version.upload_id===newestUpload).map(version=>version.match_id));
+      return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions:decisions??[],stages:stages??[],coverage:coverage??[],latestMatchIds:[...latestMatchIds]};
+    },
+  });
+  const drive=useMutation({
+    mutationFn:async(matchIds:string[])=>executeBatch({data:{matchIds,concurrency:AUDIT_CONCURRENCY}}),
+    onSuccess:result=>{
+      if(result.blocked)toast.error(`${result.blocked} audit run${result.blocked===1?" is":"s are"} blocked. Open the workspace for the persisted stage error.`);
+      qc.invalidateQueries({queryKey:["slate"]});
+    },
+    onError:error=>{
+      if(!isRecoverablePipelineTransportError(error))toast.error(safePipelineErrorMessage(error));
+      qc.invalidateQueries({queryKey:["slate"]});
+    },
+  });
+
+  useEffect(()=>{
+    if(!data||drive.isPending)return;
+    const active=[...new Set(data.runs.filter(run=>run.status==="RUNNING").map(run=>run.match_id))];
+    if(active.length)drive.mutate(active);
+  },[data,drive.isPending]);
+
+  const runFor=(match:any)=>{const ids=match?._all_ids??[match.id];return data?.runs.filter((run:any)=>ids.includes(run.match_id)).sort((a:any,b:any)=>b.run_number-a.run_number)[0];};
+  const executionFor=(run:any)=>run?.id?computeExecutionPercent((data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id),run.status):0;
+  const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
+  const latest=new Set(data?.latestMatchIds??[]);
+  const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||(match._all_ids??[match.id]).some((id:string)=>latest.has(id)));
+
+  return <div className="space-y-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className="text-xl font-semibold">Active slate</h1>
+        <p className="text-sm text-muted-foreground">{scope==="latest"?"Showing only matches from the single most recent upload.":"Showing every match ever ingested."} Active runs are claimed in bounded batches and refreshed from persisted stages every few seconds. Evidence is shown only after canonical coverage rows are persisted.</p>
+      </div>
+      <Button size="sm" variant="secondary" onClick={()=>setScope(scope==="latest"?"all":"latest")}>{scope==="latest"?`Show all matches (${data?.matches?.length??0})`:"Show latest upload only"}</Button>
+    </div>
+    <div className="panel overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
+        <tbody>
+          {visible.map((match:any)=>{
+            const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id);
+            return <tr key={match.id} className="border-t border-border">
+              <td className="px-3 py-2 font-medium">{match.player1_name} vs {match.player2_name}</td>
+              <td className="px-3 py-2">{match.tournament_name??"—"}</td>
+              <td className="px-3 py-2">{match.round??"—"}</td>
+              <td className="px-3 py-2">{match.surface??"—"}</td>
+              <td className="px-3 py-2"><StateText state={match.identity_status}/></td>
+              <td className="px-3 py-2"><StateText state={match.surface_status}/></td>
+              <td className="mono-num px-3 py-2 text-xs">{run?`RUN ${run.run_number} · ${run.status}`:"—"}</td>
+              <td className="px-3 py-2"><AuditColorBadge color={decision?.final_audit_color??"INCOMPLETE"}/></td>
+              <td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td>
+              <td className="mono-num px-3 py-2 text-xs">{evidence===null?"—":`${evidence}%`}</td>
+              <td className="px-3 py-2 text-right"><div className="flex justify-end gap-2">
+                {run&&<Button asChild size="sm" variant="secondary"><Link to="/app/match/$matchId" params={{matchId:run.match_id}}>Open workspace</Link></Button>}
+                {(!run||run.status!=="COMPLETE")&&<Button size="sm" onClick={()=>drive.mutate([run?.match_id??match.id])} disabled={drive.isPending}>{run?.status==="BLOCKED"?"Retry blocked stage":run?"Audit running":"Run Audit"}</Button>}
+              </div></td>
+            </tr>;
+          })}
+          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="latest"?"No matches from your latest upload yet.":"No matches ingested yet."}</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>;
+}

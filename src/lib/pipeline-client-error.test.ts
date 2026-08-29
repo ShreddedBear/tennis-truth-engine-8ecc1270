@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPreviewForceReloadError, safePipelineErrorMessage } from "./pipeline-client-error";
+import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePipelineErrorMessage } from "./pipeline-client-error";
 
 describe("pipeline client error handling", () => {
   it("detects Lovable FORCE_RELOAD HTML and never exposes the raw document", () => {
@@ -14,5 +14,15 @@ describe("pipeline client error handling", () => {
   it("strips HTML from ordinary upstream errors", () => {
     const safe = safePipelineErrorMessage(new Error("<b>Provider failed</b> after timeout"));
     expect(safe).toBe("Provider failed after timeout");
+  });
+});
+
+describe("isRecoverablePipelineTransportError",()=>{
+  it.each([
+    "Failed to fetch",
+    "expected content-type header to be set",
+    '{"error":{"code":"SERVER_FUNCTION_FAILED"}}',
+  ])("recognizes recoverable audit transport failures: %s",message=>{
+    expect(isRecoverablePipelineTransportError(new Error(message))).toBe(true);
   });
 });

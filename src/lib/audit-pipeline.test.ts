@@ -498,4 +498,33 @@ describe("Run Audit pipeline", () => {
     expect(result.failures[0]!.message).toContain("could not persist FAILED status");
     expect(result.nextStage).toBe("DEFINITION INSTANTIATION");
   }, 60_000);
+
+  it("does not execute provider work when another driver owns the persisted run lease", async()=>{
+    const{deps,tables}=makeMemoryDeps();
+    let providerCalls=0;
+    deps.acquireRunLease=async()=>false;
+    deps.research={...researcher,async metrics(input){providerCalls++;return researcher.metrics(input);}};
+
+    const result=await runPipeline(deps,MATCH_ID,{budgetMs:120_000});
+
+    expect(result.leaseHeld).toBe(true);
+    expect(result.complete).toBe(false);
+    expect(result.failures).toEqual([]);
+    expect(providerCalls).toBe(0);
+    expect(tables.metric_results).toHaveLength(0);
+  });
+
+  it("renews and releases the run lease while persisting stage progress",async()=>{
+    const{deps}=makeMemoryDeps();
+    let renewals=0,releases=0;
+    deps.acquireRunLease=async()=>true;
+    deps.renewRunLease=async()=>{renewals++;return true;};
+    deps.releaseRunLease=async()=>{releases++;};
+
+    const result=await runPipeline(deps,MATCH_ID,{budgetMs:120_000});
+
+    expect(result.complete).toBe(true);
+    expect(renewals).toBeGreaterThan(0);
+    expect(releases).toBe(1);
+  },60_000);
 });

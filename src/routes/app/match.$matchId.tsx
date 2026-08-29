@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
-import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
+import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
 import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
-import { isPreviewForceReloadError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
+import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuditColorBadge, BucketBadge, StateText } from "@/components/StatusBadge";
@@ -118,6 +118,7 @@ function Workspace() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["match", matchId],
+    refetchInterval: 3000,
     queryFn: async () => {
       const { data: match, error: matchError } = await supabase.from("matches").select("*").eq("id", matchId).single();
       if (matchError) throw new Error(`Could not load match: ${matchError.message}`);
@@ -132,7 +133,7 @@ function Workspace() {
       const calibrationVersionQuery = run.calibration_version_id
         ? supabase.from("calibration_versions").select("*").eq("id", run.calibration_version_id).maybeSingle()
         : supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
-      const [metrics, verification, disagreement, underdog, stress, conflicts, reconstructions, decision, buckets, version, sv] =
+      const [metrics, verification, disagreement, underdog, stress, conflicts, reconstructions, decision, coverage, coverageRates, buckets, version, sv] =
         await Promise.all([
           supabase.from("metric_results").select("*").eq("audit_run_id", run.id).order("metric_code"),
           supabase.from("verification_results").select("*").eq("audit_run_id", run.id).order("rule_code"),
@@ -142,6 +143,8 @@ function Workspace() {
           supabase.from("source_conflicts").select("*").eq("audit_run_id", run.id),
           supabase.from("reconstruction_results").select("*").eq("audit_run_id", run.id),
           supabase.from("final_decisions").select("*").eq("audit_run_id", run.id).maybeSingle(),
+          supabase.from("audit_coverage").select("*").eq("audit_run_id", run.id).order("player_side"),
+          supabase.from("metric_coverage_rates").select("*").eq("audit_run_id", run.id),
           supabase.from("calibration_buckets").select("*").order("wp_min"),
           calibrationVersionQuery,
           supabase.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(),
@@ -161,6 +164,8 @@ function Workspace() {
         conflicts: conflicts.data ?? [],
         reconstructions: reconstructions.data ?? [],
         decision: decision.data,
+        coverage: coverage.data ?? [],
+        coverageRates: coverageRates.data ?? [],
         buckets: (buckets.data ?? []).filter((b) => b.calibration_version_id === activeVersion?.id),
         version: activeVersion,
         fields,
@@ -175,7 +180,7 @@ function Workspace() {
 
   const { data: stages } = useQuery({
     queryKey: ["stages", matchId],
-    refetchInterval: running ? 3000 : false,
+    refetchInterval: 3000,
     queryFn: async () => {
       const { data: rows } = await supabase
         .from("audit_stage_runs")
@@ -186,35 +191,22 @@ function Workspace() {
     },
   });
 
-  const executePipeline = useServerFn(runAuditPipeline);
+  const executeBatch = useServerFn(runAuditBatch);
 
   const runAudit = async () => {
     setRunning(true);
     setPipelineError(null);
     try {
-      // The pipeline is time-budgeted, idempotent and resumable: drive it in
-      // chunks until it reports completion or stops making progress.
-      for (let chunk = 0; chunk < 20; chunk += 1) {
-        const res = await executePipeline({ data: { matchId } });
-        refresh();
-        if (!res.ok) {
-          const message = safePipelineErrorMessage(res.failures[0]?.message ?? "Pipeline failed");
-          setPipelineError(message);
-          toast.error(message);
-          return;
-        }
-        if (res.complete) {
-          toast.success(`Audit executed — ${res.color ?? "gate run"} · ${Math.round(res.completionPercent ?? 0)}%`);
-          return;
-        }
-        if (!res.nextStage) {
-          const message = safePipelineErrorMessage(res.failures[0]?.message ?? "Pipeline stopped before completing all stages.");
-          setPipelineError(message);
-          toast.warning("Pipeline stopped early — see stage diagnostics");
-          return;
-        }
+      const batch = await executeBatch({ data: { matchIds: [matchId], concurrency: 1 } });
+      const res=batch.results[0];
+      refresh();
+      if (!res?.ok) {
+        const message = safePipelineErrorMessage(res?.failures?.[0]?.message ?? "Pipeline failed");
+        setPipelineError(message);
+        toast.error(message);
+        return;
       }
-      toast.warning("Pipeline still running — press Run Audit again to resume");
+      if (res.complete) toast.success(`Audit executed — ${res.color ?? "gate run"} · ${Math.round(res.completionPercent ?? 0)}%`);
     } catch (e) {
       const message = safePipelineErrorMessage(e);
       setPipelineError(message);
@@ -223,12 +215,18 @@ function Workspace() {
         window.setTimeout(() => window.location.reload(), 350);
         return;
       }
-      toast.error(message);
+      if (!isRecoverablePipelineTransportError(e)) toast.error(message);
     } finally {
       setRunning(false);
       refresh();
     }
   };
+
+  useEffect(() => {
+    if(data?.run?.status!=="RUNNING"||running)return;
+    const timer=window.setTimeout(()=>void runAudit(),500);
+    return()=>window.clearTimeout(timer);
+  },[data?.run?.status,data?.run?.heartbeat_at,running]);
 
   if (isLoading || !data?.match) return <div className="panel p-6 text-sm">Loading match…</div>;
   const { match, run } = data;
@@ -277,6 +275,7 @@ function Workspace() {
   const committed = !!run.independent_decision_committed_at;
 
   const patch = async (table: "metric_results" | "verification_results" | "disagreement_results" | "underdog_results" | "stress_results", id: string, values: Record<string, unknown>, stage: string) => {
+    if(run.status==="RUNNING"||run.status==="COMPLETE"){toast.error("Persisted audit evidence cannot be edited while an audit is running or after its final decision is complete.");return;}
     const { error } = await supabase.from(table).update(values as never).eq("id", id);
     if (error) {
       toast.error(`Could not update ${table}: ${error.message}`);
@@ -287,114 +286,19 @@ function Workspace() {
   };
 
   const commitIndependent = async () => {
-    if (!winner) {
-      toast.error("Select the independent winner first");
-      return;
-    }
-    const families = new Set(
-      (data.metrics ?? []).filter((m) => !m.matrix_derived && m.status === "COMPLETE" && m.evidence_family).map((m) => m.evidence_family),
-    );
-    const { error } = await supabase
-      .from("audit_runs")
-      .update({
-        independent_winner: winner,
-        independent_low: low ? Number(low) : null,
-        independent_high: high ? Number(high) : null,
-        independent_decision_committed_at: new Date().toISOString(),
-        effective_evidence_count: families.size,
-        raw_signal_count: (data.metrics ?? []).filter((m) => m.status === "COMPLETE").length,
-      })
-      .eq("id", run.id);
-    if (error) {
-      toast.error(`Could not commit independent conclusion: ${error.message}`);
-      return;
-    }
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "INDEPENDENT EVIDENCE CONCLUSION", status: "COMPLETE", output: { winner, families: families.size }, matrix_visible: false });
-    toast.success("Independent conclusion committed and timestamped");
-    refresh();
+    await runAudit();
   };
 
   const revealMatrix = async () => {
-    if (!committed) {
-      toast.error("Matrix firewall: commit the independent conclusion first");
-      return;
-    }
-    const { error } = await supabase.from("audit_runs").update({ matrix_revealed_at: new Date().toISOString() }).eq("id", run.id);
-    if (error) {
-      toast.error(`Could not persist Matrix reveal: ${error.message}`);
-      return;
-    }
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "MATRIX REVEAL AND COMPARISON", status: "COMPLETE", matrix_visible: true });
-    setShowMatrix(true);
-    refresh();
+    await runAudit();
   };
 
   const applyCalibration = async () => {
-    if (!run.matrix_revealed_at) {
-      toast.error("Calibration runs after the Matrix comparison");
-      return;
-    }
-    const snapshot = buildCalibrationSnapshot({
-      versionId: data.version?.id ?? null,
-      matrixWp,
-      buckets: data.buckets ?? [],
-      independentLow: run.independent_low,
-      independentHigh: run.independent_high,
-    });
-    const { error } = await supabase
-      .from("audit_runs")
-      .update({
-        calibration_version_id: snapshot.calibrationVersionId,
-        calibrated_low: snapshot.calibratedLow,
-        calibrated_high: snapshot.calibratedHigh,
-      })
-      .eq("id", run.id);
-    if (error) {
-      toast.error(`Could not persist calibration snapshot: ${error.message}`);
-      return;
-    }
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "CURRENT CALIBRATION APPLICATION", status: "COMPLETE", output: snapshot });
-    refresh();
+    await runAudit();
   };
 
   const runGate = async () => {
-    const snapshot = buildCalibrationSnapshot({
-      versionId: run.calibration_version_id ?? data.version?.id ?? null,
-      matrixWp,
-      buckets: data.buckets ?? [],
-      independentLow: run.independent_low,
-      independentHigh: run.independent_high,
-    });
-    const payload = {
-      audit_run_id: run.id,
-      final_audit_color: report.color,
-      final_selection: report.color.includes("GREEN") ? run.independent_winner : null,
-      action: report.action,
-      gate_report: { ...report, calibration_snapshot: snapshot } as unknown as Record<string, unknown>,
-      completion_percent: report.completionPercent,
-      audit_complete: report.auditComplete,
-      matrix_firewall_valid: report.matrixFirewallValid,
-      calibration_bucket: snapshot.bucketCode,
-      verified_win_rate: snapshot.verifiedWinRate,
-    };
-    const decisionResult = data.decision
-      ? await supabase.from("final_decisions").update(payload as never).eq("id", data.decision.id)
-      : await supabase.from("final_decisions").insert(payload as never);
-    if (decisionResult.error) {
-      toast.error(`Could not persist final decision: ${decisionResult.error.message}`);
-      return;
-    }
-    const { error: matchStatusError } = await supabase
-      .from("matches")
-      .update({ match_status: report.auditComplete ? "COMPLETE" : "PARTIALLY BLOCKED" })
-      .eq("id", matchId);
-    if (matchStatusError) {
-      toast.error(`Decision saved, but match status failed to update: ${matchStatusError.message}`);
-      return;
-    }
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "FINAL COMBINATION GATE", status: report.auditComplete ? "COMPLETE" : "BLOCKED", output: { color: report.color } });
-    toast.success(`Gate executed — ${report.color}`);
-    refresh();
+    await runAudit();
   };
 
   const counts = report.counts;
@@ -476,7 +380,7 @@ function Workspace() {
               <span className="truncate">{st.stage}</span>
               <span className="mono-num flex shrink-0 items-center gap-2">
                 <span>
-                  {st.done_count}/{st.total_count}
+                  {st.done_count}/{st.total_count} · attempt {st.attempts}
                 </span>
                 <StateText state={st.status} />
               </span>
@@ -499,6 +403,9 @@ function Workspace() {
             ["Stress tests", counts.stress],
             ["Reconstructions", counts.reconstructions],
             ["Critical conflicts resolved", counts.criticalConflicts],
+            ["Coverage records", { done: data.coverage?.length ?? 0, total: 2 }],
+            ["Metric coverage records", { done: data.coverageRates?.length ?? 0, total: (data.metrics?.length ?? 0) * 2 }],
+            ["Final decision", { done: data.decision ? 1 : 0, total: 1 }],
           ].map(([label, c]) => {
             const pair = c as { done: number; total: number };
             return (

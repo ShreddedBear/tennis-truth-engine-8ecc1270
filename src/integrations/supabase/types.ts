@@ -142,6 +142,7 @@ export type Database = {
           disagreement_version_id: string | null
           effective_evidence_count: number
           id: string
+          heartbeat_at: string | null
           independent_decision_committed_at: string | null
           independent_high: number | null
           independent_inputs: Json
@@ -155,6 +156,8 @@ export type Database = {
           raw_signal_count: number
           research_lock_at: string | null
           run_number: number
+          lease_expires_at: string | null
+          lease_owner: string | null
           stale_reason: string | null
           status: string
           updated_at: string
@@ -169,6 +172,7 @@ export type Database = {
           disagreement_version_id?: string | null
           effective_evidence_count?: number
           id?: string
+          heartbeat_at?: string | null
           independent_decision_committed_at?: string | null
           independent_high?: number | null
           independent_inputs?: Json
@@ -182,6 +186,8 @@ export type Database = {
           raw_signal_count?: number
           research_lock_at?: string | null
           run_number?: number
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           stale_reason?: string | null
           status?: string
           updated_at?: string
@@ -196,6 +202,7 @@ export type Database = {
           disagreement_version_id?: string | null
           effective_evidence_count?: number
           id?: string
+          heartbeat_at?: string | null
           independent_decision_committed_at?: string | null
           independent_high?: number | null
           independent_inputs?: Json
@@ -209,6 +216,8 @@ export type Database = {
           raw_signal_count?: number
           research_lock_at?: string | null
           run_number?: number
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           stale_reason?: string | null
           status?: string
           updated_at?: string
@@ -242,6 +251,7 @@ export type Database = {
           error_code: string | null
           error_message: string | null
           finished_at: string | null
+          heartbeat_at: string | null
           id: string
           match_id: string | null
           stage: string
@@ -261,6 +271,7 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           finished_at?: string | null
+          heartbeat_at?: string | null
           id?: string
           match_id?: string | null
           stage: string
@@ -280,6 +291,7 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           finished_at?: string | null
+          heartbeat_at?: string | null
           id?: string
           match_id?: string | null
           stage?: string

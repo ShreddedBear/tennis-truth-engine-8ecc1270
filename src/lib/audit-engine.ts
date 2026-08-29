@@ -66,6 +66,9 @@ export interface EngineInput {
     evidence_family: string | null;
     metric_name?: string | null;
     metric_code?: string | null;
+    p1_value?: string | null;
+    p2_value?: string | null;
+    sources?: unknown;
   }>;
   verification: Array<{ status: string; outcome: string; severity: string | null }>;
   disagreement: Array<{ status: string; contradiction_severity: string | null }>;
@@ -134,7 +137,11 @@ function coverageFor(metrics: EngineInput["metrics"], side: "p1" | "p2"): Covera
   const statuses = metrics.map((metric) => {
     if (isProcessMetaCode(metric.metric_code)) return "EXCLUDED" as const;
     if (isNoSourceMetricCode(metric.metric_code)) return "NO_SOURCE" as const;
-    const value = side === "p1" ? (metric.p1_treatment ?? metric.p1_status) : (metric.p2_treatment ?? metric.p2_status);
+    const treatment = side === "p1" ? (metric.p1_treatment ?? metric.p1_status) : (metric.p2_treatment ?? metric.p2_status);
+    const hasEvidenceColumns=Object.prototype.hasOwnProperty.call(metric,`${side}_value`)||Object.prototype.hasOwnProperty.call(metric,"sources");
+    const sideValue=side==="p1"?metric.p1_value:metric.p2_value;
+    const backed=!hasEvidenceColumns||Boolean(String(sideValue??"").trim()&&Array.isArray(metric.sources)&&metric.sources.some(source=>source&&typeof source==="object"&&String((source as {source_name?:unknown}).source_name??"").trim()));
+    const value=["DIRECT","RECONSTRUCTED","PARTIAL"].includes(treatment)&&!backed?"UNAVAILABLE":treatment;
     return ["DIRECT", "RECONSTRUCTED", "PARTIAL", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"].includes(value)
       ? (value as CoverageReport["statuses"][number])
       : "UNAVAILABLE";

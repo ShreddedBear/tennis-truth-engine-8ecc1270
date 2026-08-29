@@ -21,7 +21,12 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+function isServerFunctionRequest(request: Request): boolean {
+  const contentType=request.headers.get("content-type")??"";
+  return request.method==="POST"&&(contentType.includes("application/json")||request.headers.has("x-tanstack-start-server-fn")||request.headers.has("x-server-fn"));
+}
+
+async function normalizeCatastrophicSsrResponse(request:Request,response: Response): Promise<Response> {
   if (response.status < 500) return response;
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return response;
@@ -30,6 +35,10 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   if (!isH3SwallowedErrorBody(body)) return response;
 
   console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
+  if(isServerFunctionRequest(request))return new Response(JSON.stringify({ok:false,error:{code:"SERVER_FUNCTION_FAILED",message:"The audit request failed before returning a valid result. Persisted progress is safe and can be resumed."}}),{
+    status:500,
+    headers:{"content-type":"application/json; charset=utf-8"},
+  });
   return new Response(renderErrorPage(), {
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },
@@ -56,9 +65,13 @@ export default {
       await ensureRuntimeIndexLoaded((env as { ASSETS?: WorkersAssetsBinding } | null | undefined)?.ASSETS);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return await normalizeCatastrophicSsrResponse(request,response);
     } catch (error) {
       console.error(error);
+      if(isServerFunctionRequest(request))return new Response(JSON.stringify({ok:false,error:{code:"SERVER_FUNCTION_FAILED",message:error instanceof Error?error.message:"Server function failed"}}),{
+        status:500,
+        headers:{"content-type":"application/json; charset=utf-8"},
+      });
       return new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },

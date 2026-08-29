@@ -19,11 +19,14 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async getLatestRun(matchId) { const { data } = await db.from("audit_runs").select("*").eq("match_id",matchId).order("run_number",{ascending:false}).limit(1); return ((data?.[0] as never)??null) as RunRow|null; },
     async createRun(row) { const { data,error }=await db.from("audit_runs").insert({...row,user_id} as never).select().single(); if(error||!data)throw new Error(`Could not create audit run: ${error?.message}`); return data as never; },
     async updateRun(runId,patch){const{error}=await db.from("audit_runs").update(patch as never).eq("id",runId);if(error)throw new Error(`Database update failed (audit_runs): ${error.message}`);},
+    async acquireRunLease(runId,owner,leaseMs){const{data,error}=await db.rpc("claim_audit_run" as never,{p_run_id:runId,p_lease_owner:owner,p_lease_seconds:Math.ceil(leaseMs/1000)} as never);if(error)throw new Error(`Could not claim audit run: ${error.message}`);return data===true;},
+    async renewRunLease(runId,owner,leaseMs){const{data,error}=await db.rpc("renew_audit_run_lease" as never,{p_run_id:runId,p_lease_owner:owner,p_lease_seconds:Math.ceil(leaseMs/1000)} as never);if(error)throw new Error(`Could not renew audit run lease: ${error.message}`);return data===true;},
+    async releaseRunLease(runId,owner){const{error}=await db.rpc("release_audit_run_lease" as never,{p_run_id:runId,p_lease_owner:owner} as never);if(error)throw new Error(`Could not release audit run lease: ${error.message}`);},
     async list(table:ChildTable,runId){const{data,error}=await db.from(table).select("*").eq("audit_run_id",runId);if(error)throw new Error(`Database read failed (${table}): ${error.message}`);return(data??[])as never;},
     async insert(table:ChildTable,rows){for(let i=0;i<rows.length;i+=200){const{error}=await db.from(table).insert(rows.slice(i,i+200).map(r=>({...r,user_id}))as never);if(error)throw new Error(`Database insert failed (${table}): ${error.message}`);}},
     async update(table:ChildTable,id,patch){const{error}=await db.from(table).update(patch as never).eq("id",id);if(error)throw new Error(`Database update failed (${table}): ${error.message}`);},
-    async getStages(runId){const{data}=await db.from("audit_stage_runs").select("stage, status, attempts, error_message, done_count, total_count").eq("audit_run_id",runId);return(data??[])as never;},
-    async setStage(runId,matchId,stage:Stage,patch){const{error}=await db.from("audit_stage_runs").upsert({audit_run_id:runId,match_id:matchId,stage,stage_order:STAGES.indexOf(stage),user_id,...patch}as never,{onConflict:"audit_run_id,stage"});if(error)throw new Error(`Database write failed (audit_stage_runs): ${error.message}`);},
+    async getStages(runId){const{data,error}=await db.from("audit_stage_runs").select("stage, status, attempts, error_message, done_count, total_count, heartbeat_at, started_at, finished_at").eq("audit_run_id",runId);if(error)throw new Error(`Database read failed (audit_stage_runs): ${error.message}`);return(data??[])as never;},
+    async setStage(runId,matchId,stage:Stage,patch){const heartbeat_at=patch["heartbeat_at"]??new Date().toISOString();const{error}=await db.from("audit_stage_runs").upsert({audit_run_id:runId,match_id:matchId,stage,stage_order:STAGES.indexOf(stage),user_id,heartbeat_at,...patch}as never,{onConflict:"audit_run_id,stage"});if(error)throw new Error(`Database write failed (audit_stage_runs): ${error.message}`);},
     async saveIdentityRecords(matchId,rows){await db.from("match_identity_records").delete().eq("match_id",matchId).in("field",rows.map(r=>String(r["field"])));await db.from("match_identity_records").insert(rows.map(r=>({...r,match_id:matchId,user_id}))as never);},
     async saveSnapshots(runId,rows){if(!rows.length)return;await db.from("source_snapshots").insert(rows.map(r=>({...r,audit_run_id:runId,user_id}))as never);},
     async saveConflicts(runId,rows){if(!rows.length)return;await db.from("source_conflicts").insert(rows.map(r=>({...r,audit_run_id:runId,user_id}))as never);},
@@ -81,6 +84,19 @@ export async function makeDeps(): Promise<PipelineDeps> {
       const coverageRows=sourceRows.map(row=>({metric_code:String(row["metric_code"]),player_side:row["player_side"],treatment:row["treatment"]??"UNAVAILABLE",usable:Boolean(row["usable"]),recorded_at:row["recorded_at"]??now,audit_run_id:runId,user_id}));
       const{error}=await db.from("metric_coverage_rates").upsert(coverageRows as never,{onConflict:"metric_code,player_side,audit_run_id"});
       if(error)throw new Error(`Database write failed (metric_coverage_rates): ${error.message}`);
+    },
+    async verifyFinalPersistence(runId,expectedMetricSides,expectedAuditComplete){
+      const[coverage,rates,decision]=await Promise.all([
+        db.from("audit_coverage").select("player_side,total_count,usable_coverage_percent").eq("audit_run_id",runId),
+        db.from("metric_coverage_rates").select("metric_code,player_side,treatment,usable").eq("audit_run_id",runId),
+        db.from("final_decisions").select("id,audit_complete,completion_percent").eq("audit_run_id",runId).maybeSingle(),
+      ]);
+      if(coverage.error)throw new Error(`Final persistence invariant failed (audit_coverage): ${coverage.error.message}`);
+      if(rates.error)throw new Error(`Final persistence invariant failed (metric_coverage_rates): ${rates.error.message}`);
+      if(decision.error||!decision.data)throw new Error(`Final persistence invariant failed (final_decisions): ${decision.error?.message??"missing row"}`);
+      if((coverage.data??[]).length!==2)throw new Error(`Final persistence invariant failed: expected 2 audit coverage rows, found ${(coverage.data??[]).length}.`);
+      if((rates.data??[]).length!==expectedMetricSides)throw new Error(`Final persistence invariant failed: expected ${expectedMetricSides} metric coverage rows, found ${(rates.data??[]).length}.`);
+      if(Boolean(decision.data.audit_complete)!==expectedAuditComplete)throw new Error("Final persistence invariant failed: decision completion flag does not match the deterministic gate.");
     },
     async log(entry){await db.from("execution_logs").insert({user_id,audit_run_id:(entry["audit_run_id"]as string)??null,match_id:(entry["match_id"]as string)??null,stage:String(entry["stage"]),status:String(entry["status"]),output:(entry["output"]??null)as never,matrix_visible:Boolean(entry["matrix_visible"])}as never);},
   };
