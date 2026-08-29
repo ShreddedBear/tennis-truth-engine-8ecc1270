@@ -1,14 +1,52 @@
 # 81-Metric Recoverability Audit
 
+## ⚠️ Catalog-integrity correction (2026-08-29) — read before using this document
+
+Cross-checking every row's **Metric** column against the actual numbered
+sections in `public/seed/metrics.txt` (the authoritative catalog; see
+`metric-classification.ts`'s own header comment on the parser collision
+this stems from) found that **68 of the 81 rows below named the wrong
+metric** for their code number -- not a handful of drifted codes, but most
+of the table. Examples: row 004 said "Break-Point Performance" (real 004 is
+"Combined Efficiency"); row 016 said "Serve +1 Effectiveness" (real 016 is
+"Point-by-Point & Score-State Metrics", the code `pbp-score-state-recovery.ts`
+already wires PBP evidence into); row 069 said "Dominance Ratio" (real 069
+is "Stakes/Career Context"). This is the same class of code/name mismatch
+this project already found and fixed piecemeal for 036/040/069/079/060 (see
+`newly-green-end-to-end-coverage-audit.test.ts`'s reconciliation comment and
+`docs/evidence-work-blockers.md` item 4) -- this pass found it is the norm
+for this document, not the exception.
+
+**What changed this pass:** every row's Metric name is corrected against
+`public/seed/metrics.txt`. For the 13 codes that already have a dedicated,
+evidence-verified `docs/metric-audit-0XX-*.md` (001, 002, 003, 007, 008,
+009, 010, 011, 012, 013, 019 -- note 004-006 do **not** have one, despite
+the old table implying otherwise), that doc's real classification is used
+here instead of the old mismatched-code entry. **The other 68 rows are
+marked `UNVERIFIED`, not reclassified by guesswork** -- their old
+classification and evidence-basis text described a different metric
+entirely and is not trustworthy evidence for the metric actually at that
+code number. The Classification totals, Evidence inventory, and coverage
+percentages below are updated to reflect this: they no longer claim
+precision this document cannot currently support.
+
+**What this means for the recovery queue:** `RECOVERY_PRIORITY_CODES` and
+any Phase 2 wiring plan built from the old totals here needs to be
+re-derived once the UNVERIFIED rows get their own per-metric audits (same
+five-step pattern as the 13 already-verified docs). Treat the "55/81
+potentially usable" and "47 metric equivalents" figures from the prior
+version of this document as **retracted**, not as a still-usable estimate
+-- they were computed against wrong metric names for most of the table.
+
 ## Scope and accounting
 
 This audit treats the repository and production database as one evidence universe. It does **not** equate `metric_evidence_store` with total evidence. The inventory includes the four-tour repository history, production ranking/schedule/result observations, approved BSD point-by-point assets, event/surface context, persisted evidence, and confirmed market persistence.
 
-Four representative tours × 81 metrics = **324 metric-tour coverage cells**. The reported 12.04% baseline corresponds to **39 / 324 = 12.0370%**, rounded to 12.04%. A 70% threshold requires **227 usable cells** because 226 / 324 is only 69.7531%. Therefore the exact minimum increase is **188 additional pair-usable cells**. If a recovered metric becomes pair-usable on all four tours, that is 4 cells, so the theoretical minimum is **47 full four-tour metric equivalents**. 227 / 324 = **70.0617%**.
+324 metric-tour coverage cells (4 representative tours × 81 metrics) is still the right denominator once the catalog is correct. The prior 12.04%/39-cell baseline, the 227-cell/70% threshold, and the 47-metric-equivalent estimate were all computed against a table where most rows named the wrong metric -- they are retracted pending re-derivation from the corrected classifications below, not restated here as if still valid.
 
-A metric is never credited merely because a source family exists. DIRECT, RECONSTRUCTED, or PARTIAL treatment still requires legitimate raw evidence for both player sides in the particular tour/match cell. One-sided evidence remains unavailable. The recovery queue must therefore fill **188 currently unavailable cells**, not simply rename 47 metrics green.
+A metric is never credited merely because a source family exists. DIRECT, RECONSTRUCTED, or PARTIAL treatment still requires legitimate raw evidence for both player sides in the particular tour/match cell. One-sided evidence remains unavailable.
 
-The production persistence tables do not currently retain the 324-cell per-metric diagnostic snapshot needed to assign the existing 39 cells to exact metric codes after the fact. The map below therefore records confirmed persisted evidence separately and gives each metric's **potential** four-tour contribution. The runtime recovery pass must subtract already-usable cells before selecting the final 188 cells. This avoids inventing a false exact per-code baseline allocation.
+The production persistence tables do not currently retain a 324-cell per-metric diagnostic snapshot. Live row counts by metric/tour also require a Supabase connection this environment cannot reach directly (see `docs/evidence-work-blockers.md` item 1) -- pending that verification (routed per this project's standing workflow), this document records classification and evidence-basis only, not live cell counts.
 
 ## Evidence inventory used
 
@@ -20,109 +58,109 @@ The production persistence tables do not currently retain the 324-cell per-metri
 - WTA rankings: production `ranking_wta` observations; WTA 125 uses the WTA ranking circuit.
 - ATP/WTA schedules and result observations in production.
 - Approved BSD PBP adapters for ATP Main, WTA Main, ATP Challenger, and WTA Challenger/WTA 125.
-- Persisted evidence confirmed for codes 001, 005, 007, 014, 020, 021, 043, 044, and 058 on the inspected persisted pair.
 - No broad raw `odds_api` MARKET observation set was confirmed in the production inventory; market claims are therefore kept partial/unavailable rather than inferred.
+- The "persisted evidence confirmed for codes 001, 005, 007, 014, 020, 021, 043, 044, 058" claim in the prior version of this document is retracted along with the rest of the mismatched table -- several of those code numbers refer to different metrics under the corrected catalog (e.g. real 020 is "Level/Tour Transition", not what the prior claim likely meant), so the claim cannot be carried forward without re-verification.
 
-## Classification totals
+## Classification totals (corrected catalog, this pass)
 
-- **DIRECTLY AVAILABLE:** 1 metric
-- **RECONSTRUCTABLE:** 41 metrics
-- **PARTIAL:** 13 metrics
-- **TRULY UNAVAILABLE:** 26 metrics
-- **Potentially usable without weakening the firewall:** 55 / 81 metric families, subject to the raw evidence existing for the particular matchup/tour cell.
+- **PARTIAL, verified via dedicated per-metric audit:** 12 metrics (001, 002, 003, 007, 008, 009, 010, 011, 012, 013)
+- **TRULY UNAVAILABLE, verified via dedicated per-metric audit:** 1 metric (019)
+- **UNVERIFIED (name corrected, classification pending re-audit):** 68 metrics
+- Total: 81
 
-Each metric that is legitimately usable across all four tours can contribute at most **4 / 324 = 1.234568 percentage points**. One recovered tour cell contributes **1 / 324 = 0.308642 percentage points**.
+Do not compute a coverage percentage, "potentially usable" count, or four-tour-equivalent figure from this table until the UNVERIFIED rows are resolved -- 68/81 rows have no trustworthy classification right now, and reporting a percentage over them would be exactly the "green workflow without database confirmation" this project's own validation rule (`docs/historical-hard-pull-source-inventory.md`) forbids.
 
 ## 81-row recovery map
 
 | # | Metric | Classification | Raw evidence required / evidence basis | Potential four-tour contribution |
 |---:|---|---|---|---:|
-| 001 | Surface Strength | RECONSTRUCTABLE | Results + surface + rankings; rebuild overall/surface strength timeline | 1.234568 pp |
-| 002 | Serve Profile | PARTIAL | Approved PBP gives server/point/ace-DF components; serve-number detail is incomplete | 1.234568 pp max |
-| 003 | Return Profile | PARTIAL | Approved PBP gives return-point components; serve-number detail is incomplete | 1.234568 pp max |
-| 004 | Break-Point Performance | RECONSTRUCTABLE | PBP score state + server/returner + point winner | 1.234568 pp |
-| 005 | Recent Form | RECONSTRUCTABLE | Recent results + surface + opponent quality/rankings | 1.234568 pp |
-| 006 | Head-to-Head | RECONSTRUCTABLE | Canonical pair history + date + surface/context | 1.234568 pp |
-| 007 | Schedule / Load | PARTIAL | Dates/sets/games/rest exist; hours/travel/time-zone components are incomplete | 1.234568 pp max |
-| 008 | Injury / Fitness | TRULY UNAVAILABLE | Needs structured injury/illness/medical severity evidence not present | 0 |
-| 009 | Clutch / Pressure | RECONSTRUCTABLE | PBP deciding/tiebreak/late-set score states + winner | 1.234568 pp |
-| 010 | Straight-Set Dominance | RECONSTRUCTABLE | Historical scorelines + surface | 1.234568 pp |
-| 011 | Volatility / Floor | RECONSTRUCTABLE | Set/game score distributions + TB/lopsided frequencies | 1.234568 pp |
-| 012 | Environment Fit | PARTIAL | Event/surface context exists; weather/altitude/roof/ball context incomplete | 1.234568 pp max |
-| 013 | Common-Opponent Results | RECONSTRUCTABLE | Results + opponent identity + rankings/quality + surface | 1.234568 pp |
-| 014 | Ranking & Rating | DIRECTLY AVAILABLE | Existing ATP/WTA official ranking observations | 1.234568 pp |
-| 015 | Market View | TRULY UNAVAILABLE | Needs broad paired bookmaker odds/snapshots; raw MARKET rows not confirmed | 0 |
-| 016 | Serve +1 Effectiveness | TRULY UNAVAILABLE | Needs serve shot and next-shot outcome/placement not exposed by approved PBP | 0 |
-| 017 | Return +1 Effectiveness | TRULY UNAVAILABLE | Needs return shot and next-shot outcome not exposed by approved PBP | 0 |
-| 018 | Rally-Length Profile | TRULY UNAVAILABLE | Needs rally shot count; raw PBP does not confirm this field | 0 |
-| 019 | Scoreline Calibration | TRULY UNAVAILABLE | Needs historical prediction + market probability + realized result calibration data | 0 |
-| 020 | Recent Quality | RECONSTRUCTABLE | Recent results + rankings/opponent quality + surface | 1.234568 pp |
-| 021 | Elo Delta | RECONSTRUCTABLE | Chronological four-tour results + surface can rebuild Elo timelines | 1.234568 pp |
-| 022 | H2H Similar-Conditions | RECONSTRUCTABLE | H2H results + surface/event context | 1.234568 pp |
-| 023 | Bagel/Blowout Rate | RECONSTRUCTABLE | Set scores + surface | 1.234568 pp |
-| 024 | Deciding-Set Win Rate | RECONSTRUCTABLE | Scorelines/deciding-set result; PBP where needed | 1.234568 pp |
-| 025 | Tiebreak Performance | RECONSTRUCTABLE | Tiebreak set/point outcomes | 1.234568 pp |
-| 026 | Hold% | RECONSTRUCTABLE | PBP server/game state + break outcomes | 1.234568 pp |
-| 027 | Break% | RECONSTRUCTABLE | PBP return games + break outcomes | 1.234568 pp |
-| 028 | First-Serve% | TRULY UNAVAILABLE | Needs first/second serve-attempt indicator not confirmed in raw PBP | 0 |
-| 029 | 1st Serve Points Won% | TRULY UNAVAILABLE | Needs first-serve indicator + outcome | 0 |
-| 030 | 2nd Serve Points Won% | TRULY UNAVAILABLE | Needs second-serve indicator + outcome | 0 |
-| 031 | Ace Rate | RECONSTRUCTABLE | Approved PBP ace indicator + service points | 1.234568 pp |
-| 032 | Double-Fault Rate | RECONSTRUCTABLE | Approved PBP DF indicator + service points | 1.234568 pp |
-| 033 | Return Points Won% | RECONSTRUCTABLE | PBP server/returner identity + point winner | 1.234568 pp |
-| 034 | 1st Return Points Won% | TRULY UNAVAILABLE | Needs first-serve indicator + return outcome | 0 |
-| 035 | 2nd Return Points Won% | TRULY UNAVAILABLE | Needs second-serve indicator + return outcome | 0 |
-| 036 | BP Saved% | RECONSTRUCTABLE | Break-point score state + service point winner | 1.234568 pp |
-| 037 | BP Converted% | RECONSTRUCTABLE | Break-point score state + return point winner | 1.234568 pp |
-| 038 | BP Faced/Game | RECONSTRUCTABLE | Break-point states + service-game count | 1.234568 pp |
-| 039 | BP Chances/Game | RECONSTRUCTABLE | Break-point states + return-game count | 1.234568 pp |
-| 040 | Deuce Outcomes | RECONSTRUCTABLE | Deuce score states + point winner/server | 1.234568 pp |
-| 041 | First-Ball (<4 Shot) Win Rate | TRULY UNAVAILABLE | Needs rally shot count under four | 0 |
-| 042 | Extended Rally (9+) Win Rate | TRULY UNAVAILABLE | Needs rally shot count nine-plus | 0 |
-| 043 | Favorite Win% | PARTIAL | Limited persisted market evidence exists; broad raw closing-odds history absent | 1.234568 pp max |
-| 044 | Underdog Win% | PARTIAL | Limited persisted market evidence exists; broad raw closing-odds history absent | 1.234568 pp max |
-| 045 | Three-Set Frequency | RECONSTRUCTABLE | Match score + BO3 format | 1.234568 pp |
-| 046 | Surface Match Win% | RECONSTRUCTABLE | Results + surface | 1.234568 pp |
-| 047 | Indoor Win% | PARTIAL | Results exist; indoor flag only partially available | 1.234568 pp max |
-| 048 | Outdoor Hard Win% | PARTIAL | Hard results exist; outdoor flag not uniform | 1.234568 pp max |
-| 049 | Clay Win% | RECONSTRUCTABLE | Results + clay surface | 1.234568 pp |
-| 050 | Grass Win% | RECONSTRUCTABLE | Results + grass surface | 1.234568 pp |
-| 051 | Sets Lost per Match | RECONSTRUCTABLE | Scorelines + match counts | 1.234568 pp |
-| 052 | Avg Games per Set | RECONSTRUCTABLE | Set scores + set counts | 1.234568 pp |
-| 053 | Straight-Set Win% | RECONSTRUCTABLE | Straight-set scorelines + completed BO3 wins | 1.234568 pp |
-| 054 | 6-0 Set Rate | RECONSTRUCTABLE | Set scorelines | 1.234568 pp |
-| 055 | Blowout Set Rate | RECONSTRUCTABLE | Set score differentials | 1.234568 pp |
-| 056 | Tiebreaks per Match | RECONSTRUCTABLE | Tiebreak sets + match count | 1.234568 pp |
-| 057 | Retirements/Walkovers Rate | PARTIAL | Schedules/results exist; R/W/O status not uniformly preserved in runtime index | 1.234568 pp max |
-| 058 | Opponent-Quality Win% | RECONSTRUCTABLE | Results + opponent ranking/Elo band | 1.234568 pp |
-| 059 | Rest-Shortfall Rate | RECONSTRUCTABLE | Consecutive match dates + rest calculation | 1.234568 pp |
-| 060 | Travel Load | PARTIAL | Tournament sequence/date exists; coordinates/time zones incomplete | 1.234568 pp max |
-| 061 | Workload | PARTIAL | Matches/sets/games reconstructable; match duration incomplete | 1.234568 pp max |
-| 062 | Altitude Win% | TRULY UNAVAILABLE | Needs event altitude field not confirmed in existing data | 0 |
-| 063 | Heat Win% | TRULY UNAVAILABLE | Needs historical event temperature | 0 |
-| 064 | Cold Win% | TRULY UNAVAILABLE | Needs historical event temperature | 0 |
-| 065 | Wind Win% | TRULY UNAVAILABLE | Needs historical wind | 0 |
-| 066 | Humidity Win% | TRULY UNAVAILABLE | Needs historical humidity | 0 |
-| 067 | Roof/Indoor Transition | PARTIAL | Results/events exist; roof/indoor state is sparse | 1.234568 pp max |
-| 068 | Left/Right-Handed Opponent Splits | TRULY UNAVAILABLE | Needs opponent handedness not confirmed in current evidence universe | 0 |
-| 069 | Dominance Ratio | RECONSTRUCTABLE | PBP point-winner totals | 1.234568 pp |
-| 070 | Breakback Rate | RECONSTRUCTABLE | PBP game break sequence + next return game | 1.234568 pp |
-| 071 | Close-Out Rate | RECONSTRUCTABLE | Serving-for-set/match state + game outcome | 1.234568 pp |
-| 072 | Return Depth / Placement | TRULY UNAVAILABLE | Needs return landing/depth coordinates | 0 |
-| 073 | Serve Placement | TRULY UNAVAILABLE | Needs serve-placement coordinates | 0 |
-| 074 | Rally Direction / Patterns | TRULY UNAVAILABLE | Needs shot direction/type sequence | 0 |
-| 075 | Unforced Error Rate | TRULY UNAVAILABLE | Needs structured UE labels | 0 |
-| 076 | Winner Rate | TRULY UNAVAILABLE | Needs structured shot-winner labels | 0 |
-| 077 | Net Approach Success | TRULY UNAVAILABLE | Needs net-approach indicator/outcome | 0 |
-| 078 | First-Strike Efficiency | TRULY UNAVAILABLE | Needs first-strike shot sequence | 0 |
-| 079 | Pressure Index | RECONSTRUCTABLE | PBP score-state pressure points + outcome | 1.234568 pp |
-| 080 | Stability / Variance | RECONSTRUCTABLE | Match/set/game score history | 1.234568 pp |
-| 081 | Tournament Context | PARTIAL | Event level/round/surface exist; draw/indoor/altitude context incomplete | 1.234568 pp max |
+| 001 | Surface Strength | PARTIAL | Chronological four-tour Elo replay covers Surface Elo + Elo Win Probability + a rough sample count; 5 of 8 named submetrics (Effective Weighted Sample, Trend/Momentum, Peak-vs-Current, both Hard-Court Record bullets) remain SOURCE REQUIRED. See docs/metric-audit-001-surface-strength.md. | 1.234568 pp max |
+| 002 | Serve Profile | PARTIAL | Approved PBP gives server/point/ace-DF/hold% components; serve-number detail is incomplete. See docs/metric-audit-002-003-serve-return-hold-break.md. | 1.234568 pp max |
+| 003 | Return Profile | PARTIAL | Approved PBP gives return-point/break% components; serve-number detail is incomplete. See docs/metric-audit-002-003-serve-return-hold-break.md. | 1.234568 pp max |
+| 004 | Combined Efficiency | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-004-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 005 | Recent Form | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-005-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 006 | Opponent Quality | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-006-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 007 | Common-Opponent Network | PARTIAL | Canonical common-opponent match history supports a real subset; remaining named components are SOURCE REQUIRED. See docs/metric-audit-007-common-opponent.md. | 1.234568 pp max |
+| 008 | Set Profile | PARTIAL | Historical set-score history supports a real subset of named components; remainder SOURCE REQUIRED. See docs/metric-audit-008-set-profile.md. | 1.234568 pp max |
+| 009 | Comeback/Pressure Behavior | PARTIAL | Set-1-deficit comeback + tiebreak record (DataHub) plus break-point/deuce/tiebreak pressure-point evidence (approved BSD PBP, confirmed this pass) cover a real subset; Break-Consolidation Rate and Serving-for-Set/Match Conversion remain SOURCE REQUIRED for this code. See docs/metric-audit-009-comeback-pressure.md. | 1.234568 pp max |
+| 010 | Straight-Set / 2–0 Metrics | PARTIAL | Historical scorelines support a real subset; remainder SOURCE REQUIRED. See docs/metric-audit-010-straight-set.md. | 1.234568 pp max |
+| 011 | Volatility/Floor | PARTIAL | Set/game score distributions support a real subset; remainder SOURCE REQUIRED. See docs/metric-audit-011-volatility-floor.md. | 1.234568 pp max |
+| 012 | Fatigue/Workload | PARTIAL | Matches/sets/games/rest reconstructable; several named components remain SOURCE REQUIRED (wiring verified honest, no fabricated evidence found). See docs/metric-audit-012-fatigue-workload.md and docs/metric-audit-012-fatigue-workload-schedule-engine.md. | 1.234568 pp max |
+| 013 | Availability | PARTIAL | A real subset of named components is reconstructable from existing schedule/result history; remainder SOURCE REQUIRED. See docs/metric-audit-013-availability.md. | 1.234568 pp max |
+| 014 | Ranking Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-014-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 015 | Market Layer | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-015-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 016 | Point-by-Point & Score-State Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-016-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 017 | Shot & Rally Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-017-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 018 | Momentum & Closing Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-018-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 019 | Market Calibration | TRULY UNAVAILABLE | No genuine historical price-bucket-vs-outcome join exists on any path; live scoring bug (false RECONSTRUCTED) already fixed. See docs/metric-audit-019-market-calibration.md. | 0 |
+| 020 | Level/Tour Transition | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-020-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 021 | Surface & Environmental Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-021-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 022 | Serve/Return Shot-Level Efficiency | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-022-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 023 | Matchup-Adjusted Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-023-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 024 | Hidden Performance Quality | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-024-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 025 | Match Deterioration Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-025-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 026 | Early-Warning / Slow-Start Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-026-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 027 | Opponent Finishing Ability | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-027-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 028 | Scheduling/Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-028-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 029 | Psychological/Behavioral Proxies | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-029-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 030 | Tournament-Specific Strength | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-030-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 031 | Extended Opponent-Network Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-031-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 032 | Point-to-Game Conversion Efficiency | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-032-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 033 | Break Quality Differential | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-033-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 034 | Scoreline Deception Index | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-034-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 035 | False-Form Detector | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-035-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 036 | Loss Autopsy Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-036-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 037 | Win Autopsy Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-037-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 038 | Opponent-Adjusted Residual Performance | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-038-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 039 | Performance Surprise Rating | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-039-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 040 | Hidden Decline Detector | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-040-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 041 | Hidden Improvement Detector | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-041-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 042 | Opponent Win Pathways | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-042-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 043 | Favorite Failure-Mode Score | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-043-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 044 | Opponent Upset Compatibility | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-044-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 045 | Favorite Fragility Under Resistance | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-045-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 046 | Match-State Elo | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-046-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 047 | Uncertainty-Adjusted Advantage | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-047-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 048 | Independent-Evidence Count | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-048-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 049 | Data Contamination / Circularity Score | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-049-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 050 | Robustness Tests | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-050-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 051 | Opponent-Specific Set/Match Probabilities | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-051-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 052 | Entropy & Lead Durability | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-052-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 053 | Pressure & Clean-Game Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-053-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 054 | Additional Shot-Level Efficiency | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-054-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 055 | Trajectory / Rolling Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-055-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 056 | Data-Integrity Layer | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-056-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 057 | Evidence Freshness & Confirmation | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-057-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 058 | Stress Tests & Scenario Analysis | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-058-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 059 | Loss Path Probability | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-059-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 060 | Interaction / Matchup Residuals | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-060-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 061 | Final Advanced Tests | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-061-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 062 | Motivation / Stakes | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-062-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 063 | Team / Support Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-063-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 064 | Draw Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-064-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 065 | Physical/Medical (Limited Availability) | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-065-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 066 | Equipment / Technical | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-066-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 067 | On-Court Behavior / Discipline | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-067-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 068 | Streaks / Milestones | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-068-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 069 | Stakes / Career Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-069-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 070 | Support Team / Prep | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-070-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 071 | Session / Environment | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-071-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 072 | Matchup Nuance | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-072-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 073 | Sentiment / Integrity | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-073-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 074 | Biomechanics / Physical Detail | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-074-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 075 | Match Format / Rules Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-075-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 076 | Scheduling Micro-Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-076-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 077 | Season-Long Fatigue Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-077-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 078 | Sponsorship / Off-Court Pressure | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-078-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 079 | Additional Differentiating Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-079-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 080 | Common-Opponent & Opponent-Caliber Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-080-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 081 | Further Differentiating Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-081-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+
 
 ## Recovery order
 
-The committed `RECOVERY_PRIORITY_CODES` follows the requested order: historical-results-derived metrics first; then objective PBP/score-state metrics; rankings/form/workload/scheduling; surface/event/context; market-derived partials last. The queue contains all 55 legitimately recoverable metric families. Runtime execution must walk this queue and count only previously unavailable pair-complete tour cells until **188 new cells** have been recovered.
+The committed `RECOVERY_PRIORITY_CODES` was built against the old, mismatched-code table and needs re-derivation once enough UNVERIFIED rows above get their own `docs/metric-audit-0XX-*.md` pass -- a priority order over wrong metric names is not a valid priority order. Until then, treat only the 13 already-verified codes (001, 002, 003, 007, 008, 009, 010, 011, 012, 013, 019, plus whichever of 004-081 gets audited next) as safe to reason about for Phase 2 wiring decisions.
 
 ## False-green firewall
 
-The 26 `TRULY_UNAVAILABLE` metrics remain unavailable unless a new raw dataset actually supplies the missing fields. A generic PBP row cannot satisfy shot placement, rally length, serve number, UE/winner, or net-approach metrics merely because it is point-by-point. Likewise, historical results cannot fabricate injury, weather, altitude, handedness, or market data. PARTIAL is allowed only when the available raw evidence genuinely addresses a defined component of the metric for both players.
+The false-green firewall principle is unchanged: a raw PBP row cannot satisfy shot placement, rally length, serve number, UE/winner, or net-approach metrics merely because it is point-by-point, and historical results cannot fabricate injury, weather, altitude, handedness, or market data. PARTIAL is allowed only when the available raw evidence genuinely addresses a defined component of the metric for both players. Which specific codes are TRULY_UNAVAILABLE under the *corrected* catalog is itself one of the things the 68 UNVERIFIED rows above need to establish -- the old "26 TRULY UNAVAILABLE" count was computed against the wrong metric names and is not restated here as still valid.

@@ -5,6 +5,50 @@ Running log of blockers hit during the sequential metric-audit series
 so they can be picked up and actually fixed later rather than silently
 skipped.
 
+## 0. `docs/evidence-coverage/81-metric-recoverability-audit.md` used the wrong metric names for 68 of 81 rows (FOUND AND PARTIALLY FIXED 2026-08-29, OPEN)
+
+Attempting to re-audit metric 004 ("Break-Point Performance" per the
+recoverability audit and per this ticket's own Phase-1 priority list)
+against BSD PBP found there is no such metric at code 004 in
+`public/seed/metrics.txt` — real code 004 is **"Combined Efficiency"**.
+Checking the rest of the Phase-1 list, then every row in the table, found
+this is systemic: 68 of 81 rows named a metric that does not match its own
+code number in the authoritative catalog. This is the exact same
+code/name-mismatch defect class already found and fixed piecemeal elsewhere
+in this project (036/040/069/079/060 in `pbp-score-state-recovery.ts` and
+`newly-green-end-to-end-coverage-audit.test.ts`) — it turns out to be the
+norm for this particular document, not an exception.
+
+**Root cause:** `metric-classification.ts`'s own header comment already
+documents that `public/seed/metrics.txt` has an embedded "120-Match
+Empirical Overlay" sub-section whose internal Tier numbering once collided
+with the real sequential section numbering in a naive parser pass,
+corrupting codes 004-006 specifically. The 81-row recoverability audit
+appears to have been produced independently of that later-corrected
+registry (`metric-classification.ts`), and diverges far beyond just
+004-006 — it does not track the real catalog for almost any code past 005.
+
+**Fixed this pass:** every row's Metric name corrected against
+`public/seed/metrics.txt` directly. For the 13 codes with an existing,
+evidence-verified `docs/metric-audit-0XX-*.md` (001, 002, 003, 007, 008,
+009, 010, 011, 012, 013, 019), that doc's real classification now populates
+the row. The other 68 rows are marked `UNVERIFIED` rather than guessed at —
+their old classification/evidence-basis text was written for a different
+metric and is not valid evidence for the real one at that code. The
+document's Scope/Accounting, Evidence Inventory, and Classification Totals
+sections were rewritten to stop asserting coverage percentages and
+"55/81 potentially usable" / "47 metric equivalents" figures computed
+against the wrong names — those are explicitly retracted, not restated.
+
+**Still open:** the 68 UNVERIFIED codes each need the same five-step audit
+(exact definition → permitted raw inputs → sources inspected → treatment
+classification → cross-wiring audit → regression test) the 13 already-done
+codes got. `RECOVERY_PRIORITY_CODES` and any Phase 2 wiring plan drawn from
+the old totals is not valid until re-derived from real classifications.
+This is a large amount of remaining work, not a one-line fix — flagged here
+so a future pass picks it up systematically rather than re-discovering the
+mismatch from scratch.
+
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
 **Blocks:** verifying any metric wired through the live `source_observations`
