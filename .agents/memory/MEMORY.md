@@ -1,1 +1,2 @@
 - [Audit PBP batching](audit-pbp-batching.md) — bound concurrent candidate retrieval and skip PBP work for batches that cannot use it.
+- [Supabase migration verification](supabase-migration-verification.md) — post-merge setup does not guarantee external Supabase migrations were applied; verify schema before audits.
