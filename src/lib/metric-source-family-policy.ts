@@ -21,7 +21,12 @@ export type MetricSourcePolicy = { metric_code:string; allowed_families:Observat
 // whatever family eligibility their genuinely-reconstructable sub-component already had
 // before classification review -- narrowing that further is a separate decision, not
 // made here on inference alone.
-const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","030","031","034","035","036","037","038","041","045","046","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
+// "022" removed 2026-08-29: metric-classification.ts now classifies it PROTECTED_UNAVAILABLE
+// (real "Serve/Return Shot-Level Efficiency" needs charted serve+1/return+1/shot-level
+// outcomes; results/schedule data cannot establish any of its ~26 named bullets). Per this
+// file's own rule above, PROTECTED_UNAVAILABLE codes must never receive ANY family
+// eligibility. See docs/metric-audit-021-022-surface-environment-and-shot-level.md.
+const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","023","024","025","026","027","028","030","031","034","035","036","037","038","041","045","046","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
 // "036" ("Loss Autopsy Metrics") added: verified against public/seed/metrics.txt --
 // every bullet is keyed to what happened in specific past *losses* (favorite status,
 // opponent quality, surface, point/break differential, physical problem, match length),
@@ -75,7 +80,10 @@ const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 // would let the generic warehouse-level PBP path (deterministicPbpMetric) award false
 // PARTIAL credit toward metrics PBP evidence cannot actually inform. See
 // metric-classification.ts and metric-source-family-policy.test.ts.
-const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
+// "022" removed 2026-08-29 (same reason as the RESULTS_SCHEDULE_METRICS removal above):
+// PROTECTED_UNAVAILABLE per metric-classification.ts, needs shot-level data approved PBP
+// (point winner/score-state only) does not carry.
+const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
 const RULES_METRICS=new Set(["020","064","075","076"]);
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}

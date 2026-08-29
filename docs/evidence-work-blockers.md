@@ -95,11 +95,13 @@ diagnostic, and the canonical classification/policy files. Findings:
   set, and its invariant-throw behavior means any fix must recompute the
   real numbers first). No committed source could be found anywhere in the
   repo for the reported "24/24 owned cells" / "+4 NEW" Task 18C figures.
-- **The true legitimate player-metric denominator is 60, not 81** (81 − 7
-  `META_OR_NON_PLAYER` − 14 `PROTECTED_UNAVAILABLE`, per
-  `metric-classification.ts::metricUniverseAccounting()`), so the
-  metric-tour denominator is 240, not 324, and the 70% target is 168 cells,
-  not 227. This document's own "TARGET_USABLE_CELLS"-style totals (and the
+- **The true legitimate player-metric denominator is 59, not 81** (81 − 7
+  `META_OR_NON_PLAYER` − 15 `PROTECTED_UNAVAILABLE` as of the 2026-08-29
+  addition of code 022, see below — was 60/14 when this note was first
+  written earlier the same day), per
+  `metric-classification.ts::metricUniverseAccounting()`, so the
+  metric-tour denominator is 236, not 324, and the 70% target is 166 cells
+  (`Math.ceil(236*0.7)`), not 227. This document's own "TARGET_USABLE_CELLS"-style totals (and the
   matching constants in `metric-recoverability-map.ts`) still compute off
   324 — flagged, not changed, in that reconciliation pass; the doc's
   Classification-totals section above now carries a note.
@@ -148,6 +150,30 @@ either treatment field) before changing. See
 `docs/metric-audit-014-ranking-context.md` and
 `docs/metric-audit-015-market-layer.md`. 24 of 81 codes now have a
 dedicated audit doc; 019 verified TRULY UNAVAILABLE; 56 remain UNVERIFIED.
+
+**Progress continued:** 021 (Surface & Environmental Context) and 022
+(Serve/Return Shot-Level Efficiency) audited 2026-08-29. 021: found the
+same class of issue already open at item 4 below (060's ENVIRONMENT
+eligibility), independently, for a different code -- the only wired
+engine reports shared ambient weather, not player-specific evidence for
+any of 021's 15 named bullets, and policy already says ENVIRONMENT alone
+should never be sufficient for 021 (RESULTS_SCHEDULE is), but no
+RESULTS_SCHEDULE engine for 021 exists. Documented, not fixed (shared
+four-code engine, same caution as item 4). 022: three independent,
+already-existing pieces of evidence (a registered certification policy
+nobody could satisfy, an explicit prior Task 20 comment, and this file's
+own item 2) all already agreed 022 has no legitimate evidence pathway --
+none had been formalized into `metric-classification.ts`. Fixed: added a
+full `PROTECTED_UNAVAILABLE` record for 022 (matching its 14 siblings'
+format/rigor), removed it from `RESULTS_SCHEDULE_METRICS`/`PBP_METRICS` in
+`metric-source-family-policy.ts`, and updated one real blast-radius hit
+(`audit-pipeline.test.ts`'s hardcoded 14-code protected list, now 15) --
+the live pipeline correctly picked up the new classification immediately.
+**True denominator now 59** (was 60), metric-tour denominator 236 (was
+240), 70% target 166 cells (was 168). See
+`docs/metric-audit-021-022-surface-environment-and-shot-level.md`. 25 of
+81 codes now have a dedicated audit doc; 2 verified TRULY
+UNAVAILABLE/PROTECTED_UNAVAILABLE (019, 022); 54 remain UNVERIFIED.
 
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
@@ -315,6 +341,21 @@ additive, no existing assertion touched) and logged the treatment question
 here instead of guessing at it.
 
 ## 4. Metric 060's ENVIRONMENT family eligibility looks like a missed reconciliation case (OPEN, likely real, not fixed)
+
+**Update 2026-08-29:** auditing 021 independently (see
+`docs/metric-audit-021-022-surface-environment-and-shot-level.md`) found a
+closely related, better-documented version of this same concern for a
+*different* code on this same shared engine: 021's own family policy
+explicitly says ENVIRONMENT should be support-only (RESULTS_SCHEDULE is
+the sufficient family), yet no RESULTS_SCHEDULE engine for 021 exists, so
+ENVIRONMENT alone is the entire basis for every 021 finding in practice --
+the opposite of the documented intent. Unlike 060 (no defending comment
+found), 021's grant is explicitly defended as support-only in
+`metric-source-family-policy.ts`, which makes the gap between stated
+policy and actual engine behavior even clearer. Still not fixed (same
+shared four-code engine, same reasoning for caution) but this
+strengthens the case that this whole engine's "support-only never means
+it, in practice" pattern is real and applies to more than just 060.
 
 `deterministic-environment-metrics.server.ts` computes only raw ambient
 weather (temperature/humidity/precipitation/wind/gust/pressure from

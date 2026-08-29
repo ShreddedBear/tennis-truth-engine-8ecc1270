@@ -75,9 +75,9 @@ line by this document's author — see each linked `docs/audit-task-new-batch1-*
 for the primary source. #062 was evaluated by that workstream and found
 BLOCKED (skipped, still UNVERIFIED here pending its own dedicated row note).
 
-- **PARTIAL, verified via a dedicated per-metric audit (either workstream):** 24 metrics (001, 002, 003, 004, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 027, 029, 031, 036, 037, 039, 041, 046, 051, 080)
-- **TRULY UNAVAILABLE, verified via dedicated per-metric audit:** 1 metric (019)
-- **UNVERIFIED (name corrected, classification pending re-audit):** 56 metrics
+- **PARTIAL, verified via a dedicated per-metric audit (either workstream):** 25 metrics (001, 002, 003, 004, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 021, 027, 029, 031, 036, 037, 039, 041, 046, 051, 080)
+- **TRULY UNAVAILABLE, verified via dedicated per-metric audit:** 2 metrics (019, 022 — 022 also newly added to metric-classification.ts's PROTECTED_UNAVAILABLE registry, so it is now permanently excluded from the true 59-code denominator, not just labeled unavailable in this table)
+- **UNVERIFIED (name corrected, classification pending re-audit):** 54 metrics
 - Total: 81
 
 **Denominator correction (2026-08-29 reconciliation audit):** this 81-wide
@@ -85,18 +85,20 @@ table double-counts against the true player-evidence denominator. Per
 `src/lib/metric-classification.ts::metricUniverseAccounting()` (the
 canonical, tested registry, reconciled at Task 20/21, independent of this
 document), 7 of the 81 codes are `META_OR_NON_PLAYER` (properties of the
-model's own prediction, not a player fact) and 14 are `PROTECTED_UNAVAILABLE`
+model's own prediction, not a player fact) and 15 are `PROTECTED_UNAVAILABLE`
 (real player metrics with a documented, tested determination that no
-obtainable evidence pathway exists) — neither bucket is ever counted toward
+obtainable evidence pathway exists — code 022 added to this bucket
+2026-08-29 during its own audit; see `docs/metric-audit-021-022-surface-environment-and-shot-level.md`)
+— neither bucket is ever counted toward
 player-evidence coverage in the live diagnostic. **The true legitimate
-player-metric denominator is 60, not 81**, and the metric-tour denominator
-is 240 (60×4), not 324. Of the 58 rows marked UNVERIFIED above, several
-fall inside the 21 excluded codes and do not need a `docs/metric-audit-0XX.md`
+player-metric denominator is 59, not 81**, and the metric-tour denominator
+is 236 (59×4), not 324. Of the remaining UNVERIFIED rows below, several
+fall inside the 22 excluded codes and do not need a `docs/metric-audit-0XX.md`
 pass at all — they are already correctly, definitively classified in
 `metric-classification.ts` with detailed per-code reasoning and tests. See
 `docs/evidence-work-blockers.md` item 0 for the full reconciliation and the
-corrected 240-cell/168-cell(70%) math. This row-by-row table is not being
-restructured to remove those 21 rows in this pass to avoid renumbering
+corrected 236-cell/166-cell(70%) math. This row-by-row table is not being
+restructured to remove those 22 rows in this pass to avoid renumbering
 churn; treat the totals above as a superset that still includes them.
 
 Do not compute a coverage percentage, "potentially usable" count, or four-tour-equivalent figure from this table until the UNVERIFIED rows are resolved -- 60/81 rows have no trustworthy classification right now, and reporting a percentage over them would be exactly the "green workflow without database confirmation" this project's own validation rule (`docs/historical-hard-pull-source-inventory.md`) forbids. Two of the 20 verified PARTIAL rows (027, 029, 046) are further capped at 2-of-4 tours (WTA_MAIN/ATP_CHALLENGER only) by a structural schema gap, not sparse data — their "Potential four-tour contribution" column is halved accordingly rather than claimed at the full 1.234568pp.
@@ -125,8 +127,8 @@ Do not compute a coverage percentage, "potentially usable" count, or four-tour-e
 | 018 | Momentum & Closing Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-018-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 019 | Market Calibration | TRULY UNAVAILABLE | No genuine historical price-bucket-vs-outcome join exists on any path; live scoring bug (false RECONSTRUCTED) already fixed. See docs/metric-audit-019-market-calibration.md. | 0 |
 | 020 | Level/Tour Transition | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-020-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
-| 021 | Surface & Environmental Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-021-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
-| 022 | Serve/Return Shot-Level Efficiency | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-022-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 021 | Surface & Environmental Context | PARTIAL (thin) | The only wired engine (deterministic-environment-metrics.server.ts) reports shared, non-player-specific ambient weather at the match venue -- real evidence for none of 021's 15 named bullets on its own (Weather/Altitude Sensitivity need historical performance correlated with conditions, not a single current reading). Policy already marks RESULTS_SCHEDULE, not ENVIRONMENT, as the *sufficient* family for 021, but no RESULTS_SCHEDULE-based engine for 021 exists. Not changed this pass (shared engine code, same class of issue already open at evidence-work-blockers.md item 4 for code 060). See docs/metric-audit-021-022-surface-environment-and-shot-level.md. | 1.234568 pp max, currently unrealized |
+| 022 | Serve/Return Shot-Level Efficiency | TRULY UNAVAILABLE | Added to metric-classification.ts's PROTECTED_UNAVAILABLE set this pass. Every one of this code's ~26 named bullets needs charted shot-level outcome/direction/depth/rally-state data; approved PBP is point/score-state only (same missing-data class as codes 017/054/074). No deterministic engine exists anywhere in this repository; a registered metric-certification.ts policy already correctly required this same shot-level data and was never satisfiable. See docs/metric-audit-021-022-surface-environment-and-shot-level.md. | 0 |
 | 023 | Matchup-Adjusted Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-023-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 024 | Hidden Performance Quality | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-024-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 025 | Match Deterioration Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-025-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
