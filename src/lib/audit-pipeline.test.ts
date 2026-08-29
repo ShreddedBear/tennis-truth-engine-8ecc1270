@@ -453,7 +453,13 @@ describe("Run Audit pipeline", () => {
     expect(noSourceRow!["status"]).toBe("NO_SOURCE");
     expect(noSourceRow!["p1_status"]).toBe("NO_SOURCE");
     expect(noSourceRow!["p2_status"]).toBe("NO_SOURCE");
-    expect(noSourceRow!["p1_treatment"]).toBe("NO_SOURCE");
+    // p1_treatment/p2_treatment intentionally stay "UNAVAILABLE" (a schema-safe,
+    // allow-listed value) rather than "NO_SOURCE" -- see the comment above instantiate()
+    // in audit-pipeline.ts. status/p1_status/p2_status above carry the real "NO_SOURCE"
+    // signal, and audit-engine.ts's coverage math re-derives NO_SOURCE from the metric
+    // code independently of the stored treatment (see audit-engine.test.ts).
+    expect(noSourceRow!["p1_treatment"]).toBe("UNAVAILABLE");
+    expect(noSourceRow!["p2_treatment"]).toBe("UNAVAILABLE");
     expect(noSourceRow!["unavailable_reason"]).toBe("NO_SOURCE_NO_LEGITIMATE_PATHWAY");
     expect(seenByResearch.has("M70"), "metric M70 was sent to the research provider").toBe(false);
 
