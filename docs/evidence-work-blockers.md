@@ -67,6 +67,71 @@ workstreams (001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 013, 027,
 029, 031, 036, 037, 039, 041, 046, 051); 019 is verified TRULY UNAVAILABLE;
 60 remain UNVERIFIED.
 
+**Full reconciliation audit performed (2026-08-29), no code changed during
+the audit itself.** In response to a direct request to reconcile this
+document's state against the actual Task 17/18A/18B/18C implementation on
+`main`, traced every claim through git history, the live production
+diagnostic, and the canonical classification/policy files. Findings:
+- Task 18A/18B/18C's *live* engines (`historical-results-recovery.ts`,
+  `pbp-score-state-recovery.ts`, `task18c-rank-form-workload.ts`) were
+  already correctly retargeted to the real catalog by a **Task 20
+  reconciliation that happened entirely on `main`, before this session** —
+  nothing from Task 18 was lost or stranded by this session's work.
+- This document (`docs/evidence-coverage/81-metric-recoverability-audit.md`)
+  and `metric-recoverability-map.ts` were never load-bearing — the latter
+  carries its own in-code disclaimer since Task 19 ("KNOWN DRIFT — NOT
+  AUTHORITATIVE... does not affect the live evidence-coverage diagnostic").
+  The real coverage number can only come from
+  `evidence-coverage-runtime-diagnostic.server.ts` actually running against
+  production, which this sandbox cannot reach (see item 1).
+- `scripts/task18b-pbp-recovery-audit.ts` (the source of the historically-
+  reported "+36 metric-tour cells" figure) still hardcodes the *pre*-Task-20
+  code list (004, 026, 027, 033, 036-040, 069-071, 079) and does not count
+  the 3 codes Task 20 actually assigned to PBP (016, 018, 032). Its
+  hardcoded invariant (`if(...!==36...)throw`) locks in stale numbers; it
+  still passes CI because nothing cross-validates it against
+  `pbp-score-state-recovery.test.ts`. Not fixed this pass (flagged, not a
+  quick fix — the script needs a full rewrite against the current 6-code
+  set, and its invariant-throw behavior means any fix must recompute the
+  real numbers first). No committed source could be found anywhere in the
+  repo for the reported "24/24 owned cells" / "+4 NEW" Task 18C figures.
+- **The true legitimate player-metric denominator is 60, not 81** (81 − 7
+  `META_OR_NON_PLAYER` − 14 `PROTECTED_UNAVAILABLE`, per
+  `metric-classification.ts::metricUniverseAccounting()`), so the
+  metric-tour denominator is 240, not 324, and the 70% target is 168 cells,
+  not 227. This document's own "TARGET_USABLE_CELLS"-style totals (and the
+  matching constants in `metric-recoverability-map.ts`) still compute off
+  324 — flagged, not changed, in that reconciliation pass; the doc's
+  Classification-totals section above now carries a note.
+- Found one genuine, previously-uncaught **stranded-work case**:
+  `historical-results-recovery.ts`'s code-017 engine computes real,
+  correctly-scoped PARTIAL evidence, but `metric-classification.ts`
+  classifies 017 `PROTECTED_UNAVAILABLE`, and the live diagnostic's
+  `activeMetrics()` filters out every `PROTECTED_UNAVAILABLE` code before
+  querying anything — so that engine's output can never be counted,
+  structurally, regardless of what it computes. Not fixed this pass
+  (needs a human call on which of the two conflicting determinations is
+  right, same as item 4 below); flagged here as new.
+
+Direct answer given to the user: **PARTIALLY** — Task 18 code is intact and
+already correctly targeted; what was stale was documentation/tooling
+layered on top of it, not the underlying engineering.
+
+**Progress (resumed after the reconciliation audit):** 006 (Opponent
+Quality) and 080 (Common-Opponent & Opponent-Caliber Metrics) audited
+2026-08-29 — both PARTIAL, see `docs/metric-audit-006-opponent-quality.md`
+and `docs/metric-audit-080-common-opponent-caliber.md`. Found and fixed a
+real evidence-inflation bug while auditing 006: `SUMMARY_KEYS["080"]` in
+`hybrid-audit-research.server.ts` had been wrongly duplicating all five of
+006's own keys plus two of 007's, none of which satisfy 080's real
+definition -- removed. 080's genuine evidence (Common-Opponent Divergent
+Outcome) already existed via `historical-results-recovery.ts`'s Task 18A
+engine, previously undocumented. 22 of 81 codes now have a dedicated audit
+doc; 019 verified TRULY UNAVAILABLE; 58 remain UNVERIFIED (of which several
+fall inside the 21 META/PROTECTED codes already correctly classified in
+`metric-classification.ts` and don't need a doc at all -- see the
+denominator correction above).
+
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
 **Blocks:** verifying any metric wired through the live `source_observations`

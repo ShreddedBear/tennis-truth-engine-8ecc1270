@@ -75,10 +75,29 @@ line by this document's author — see each linked `docs/audit-task-new-batch1-*
 for the primary source. #062 was evaluated by that workstream and found
 BLOCKED (skipped, still UNVERIFIED here pending its own dedicated row note).
 
-- **PARTIAL, verified via a dedicated per-metric audit (either workstream):** 20 metrics (001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 013, 027, 029, 031, 036, 037, 039, 041, 046, 051)
+- **PARTIAL, verified via a dedicated per-metric audit (either workstream):** 22 metrics (001, 002, 003, 004, 006, 007, 008, 009, 010, 011, 012, 013, 027, 029, 031, 036, 037, 039, 041, 046, 051, 080)
 - **TRULY UNAVAILABLE, verified via dedicated per-metric audit:** 1 metric (019)
-- **UNVERIFIED (name corrected, classification pending re-audit):** 60 metrics
+- **UNVERIFIED (name corrected, classification pending re-audit):** 58 metrics
 - Total: 81
+
+**Denominator correction (2026-08-29 reconciliation audit):** this 81-wide
+table double-counts against the true player-evidence denominator. Per
+`src/lib/metric-classification.ts::metricUniverseAccounting()` (the
+canonical, tested registry, reconciled at Task 20/21, independent of this
+document), 7 of the 81 codes are `META_OR_NON_PLAYER` (properties of the
+model's own prediction, not a player fact) and 14 are `PROTECTED_UNAVAILABLE`
+(real player metrics with a documented, tested determination that no
+obtainable evidence pathway exists) — neither bucket is ever counted toward
+player-evidence coverage in the live diagnostic. **The true legitimate
+player-metric denominator is 60, not 81**, and the metric-tour denominator
+is 240 (60×4), not 324. Of the 58 rows marked UNVERIFIED above, several
+fall inside the 21 excluded codes and do not need a `docs/metric-audit-0XX.md`
+pass at all — they are already correctly, definitively classified in
+`metric-classification.ts` with detailed per-code reasoning and tests. See
+`docs/evidence-work-blockers.md` item 0 for the full reconciliation and the
+corrected 240-cell/168-cell(70%) math. This row-by-row table is not being
+restructured to remove those 21 rows in this pass to avoid renumbering
+churn; treat the totals above as a superset that still includes them.
 
 Do not compute a coverage percentage, "potentially usable" count, or four-tour-equivalent figure from this table until the UNVERIFIED rows are resolved -- 60/81 rows have no trustworthy classification right now, and reporting a percentage over them would be exactly the "green workflow without database confirmation" this project's own validation rule (`docs/historical-hard-pull-source-inventory.md`) forbids. Two of the 20 verified PARTIAL rows (027, 029, 046) are further capped at 2-of-4 tours (WTA_MAIN/ATP_CHALLENGER only) by a structural schema gap, not sparse data — their "Potential four-tour contribution" column is halved accordingly rather than claimed at the full 1.234568pp.
 
@@ -91,7 +110,7 @@ Do not compute a coverage percentage, "potentially usable" count, or four-tour-e
 | 003 | Return Profile | PARTIAL | Approved PBP gives return-point/break% components; serve-number detail is incomplete. See docs/metric-audit-002-003-serve-return-hold-break.md. | 1.234568 pp max |
 | 004 | Combined Efficiency | PARTIAL | DataHub-sourced serve/return rates combine into Dominance Ratio, Total Points Won %, Matchup-Specific Expected Hold/Break %, and Expected Hold/Break Differential (5 of 6 named submetrics); Opponent-Adjusted Dominance Ratio needs a schedule-wide opponent-strength weighting scheme not yet built. See docs/metric-audit-004-combined-efficiency.md. | 1.234568 pp max |
 | 005 | Recent Form | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-005-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
-| 006 | Opponent Quality | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-006-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 006 | Opponent Quality | PARTIAL | Derived-Elo strength-of-schedule proxy, Bad-Loss Rate, Performance Against Comparable-Ranked Players, and Ranking-Adjusted Performance all covered (4 of 5 named submetrics); Performance Against Specific Archetypes needs a playing-style classification not present anywhere. See docs/metric-audit-006-opponent-quality.md. | 1.234568 pp max |
 | 007 | Common-Opponent Network | PARTIAL | Canonical common-opponent match history supports a real subset; remaining named components are SOURCE REQUIRED. See docs/metric-audit-007-common-opponent.md. | 1.234568 pp max |
 | 008 | Set Profile | PARTIAL | Historical set-score history supports a real subset of named components; remainder SOURCE REQUIRED. See docs/metric-audit-008-set-profile.md. | 1.234568 pp max |
 | 009 | Comeback/Pressure Behavior | PARTIAL | Set-1-deficit comeback + tiebreak record (DataHub) plus break-point/deuce/tiebreak pressure-point evidence (approved BSD PBP, confirmed this pass) cover a real subset; Break-Consolidation Rate and Serving-for-Set/Match Conversion remain SOURCE REQUIRED for this code. See docs/metric-audit-009-comeback-pressure.md. | 1.234568 pp max |
@@ -165,7 +184,7 @@ Do not compute a coverage percentage, "potentially usable" count, or four-tour-e
 | 077 | Season-Long Fatigue Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-077-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 078 | Sponsorship / Off-Court Pressure | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-078-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 079 | Additional Differentiating Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-079-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
-| 080 | Common-Opponent & Opponent-Caliber Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-080-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 080 | Common-Opponent & Opponent-Caliber Metrics | PARTIAL | Common-Opponent Divergent Outcome covered via historical-results-recovery.ts (Task 18A, previously undocumented); Opponent-Caliber Performance Gap needs per-player historical rank/Elo-at-match-time not carried by this row type. A real cross-wiring bug (080 falsely inheriting codes 006/007's keys) was found and fixed this pass. See docs/metric-audit-080-common-opponent-caliber.md. | 1.234568 pp max |
 | 081 | Further Differentiating Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-081-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 
 
