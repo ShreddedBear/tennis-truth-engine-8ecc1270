@@ -113,7 +113,34 @@ data, which per `metric-classification.ts` isn't confirmed anywhere in the
 approved evidence universe anyway). Not attempted; flagged as a build item,
 not a fix.
 
-## 3. Metric 001 (Surface Strength) treatment needs an owner decision (OPEN)
+**Re-confirmed 2026-08-29** (Truth Engine metrics-recovery ticket, Phase 0):
+identical `403` from the egress gateway's CONNECT tunnel to
+`teblxzfqdqzwwooswncc.supabase.co:443`, both via direct `curl` and via
+`$HTTPS_PROXY/__agentproxy/status`'s `recentRelayFailures` (`connect_rejected`,
+"gateway answered 403 to CONNECT (policy denial or upstream failure)"). This
+is the third session in which this exact host produces the same 403 with no
+change in behavior — treat it as a standing, non-transient property of this
+sandbox's network policy, not something to keep re-testing per session.
+
+**Standing workflow (adopted this pass, per the ticket's Phase 0.2):** any
+task step that requires confirming live-database state — row counts, date
+ranges, whether `source_observations` actually has rows for a given
+metric/tour cell, the 324-cell coverage recount — cannot be completed from
+a Claude Code Remote/sandbox session against this project. Split such work
+into two steps: (1) write/update the code and tests here, where full
+static analysis, local file/test evidence, and the existing test suite are
+available; (2) run the actual live-DB verification query from a session
+with real network access to `*.supabase.co` — Replit's own Shell has been
+confirmed to have this in prior sessions, or the user's own machine. Do not
+re-attempt the Supabase connection from this sandbox on future passes;
+check this file's timestamp instead and treat the constraint as still
+current unless a session with real DB access has since confirmed otherwise.
+Also note: `bun install`'s configured private registry (`*.pkg.dev`) is
+separately blocked from this sandbox (403) — `npm install` against the
+default `registry.npmjs.org` works and was used instead to run the test
+suite this pass.
+
+## 3. Metric 001 (Surface Strength) treatment needs an owner decision — RESOLVED 2026-08-29
 
 `task18c-rank-form-workload.ts`'s live engine for code 001 unconditionally
 returns `treatment: "RECONSTRUCTED"` while only ever delivering 2-3 of the
@@ -124,10 +151,19 @@ Effective Weighted Sample, Surface Elo Trend/Momentum, Peak Elo vs Current
 Elo, and both Hard-Court Record bullets). This project's own stated rule
 (`audit-research.server.ts`'s HOUSE_RULES: "RECONSTRUCTED is allowed only
 when every required component of the exact definition/formula is sourced")
-would suggest this should be PARTIAL, not RECONSTRUCTED. Not changed this
-pass: an existing test (`task18c-rank-form-workload.test.ts`) explicitly
-asserts RECONSTRUCTED, meaning a prior session already reviewed and set this
-intentionally, and 001 is foundational enough (several other engines build
+would suggest this should be PARTIAL, not RECONSTRUCTED.
+
+**Resolved 2026-08-29:** changed to `PARTIAL` per that same house rule, after
+confirming the treatment constant is scoped only to code 001
+(`HISTORY_CODES` is locked to `["001"]`) and that no other consumer reads
+the `treatment` field off this engine (`historical-twin-match-search.server.ts`
+uses `replayElo` directly). `task18c-rank-form-workload.test.ts` updated;
+full 534-test suite passes. See `docs/metric-audit-001-surface-strength.md`
+§5 for the full blast-radius check. Historical context below, left as
+originally written: an existing test (`task18c-rank-form-workload.test.ts`)
+explicitly asserted RECONSTRUCTED, meaning a prior session already reviewed
+and set this intentionally, and 001 is foundational enough (several other
+engines build
 on its Elo replay) that downgrading its treatment deserves a deliberate
 decision by whoever owns that test's intent, not a unilateral change. Fixed
 what was safe to fix unilaterally (the win-probability formula gap, purely
@@ -207,3 +243,18 @@ the genuine uncertainty and the multi-file blast radius, still not changed.
 This needs someone to trace whether `deterministic-environment-metrics.server.ts`'s
 ENVIRONMENT grant for 060 was a deliberate call or an oversight -- static
 reading from this sandbox can't settle it further.
+
+## 5. Root-level backup/export files are not in this git checkout at all (2026-08-29)
+
+The metrics-recovery ticket's Phase 4 housekeeping item asked to reconcile
+`bucket-database_export_28_08_26-files.zip` and
+`tennis-truth-engine_260828.backup` at the repo root. Neither file exists in
+this Claude Code Remote sandbox's checkout of the repository: `ls` finds
+nothing at either path, `git log --all` finds no commit ever touching either
+filename, `git ls-files` finds no tracked file matching `*.zip`/`*.backup`
+at the root, and neither name appears in `.gitignore`. They must exist only
+in the Replit filesystem (or another environment) outside what this
+sandbox's git clone contains -- there is nothing here to move, label, or
+diff against. This needs whoever has access to that Replit filesystem (or
+wherever these files actually live) to do the reconciliation the ticket
+asked for; it cannot be done from a plain git checkout.

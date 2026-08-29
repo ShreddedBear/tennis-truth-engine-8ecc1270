@@ -28,7 +28,37 @@ The engine unconditionally returns `treatment: "RECONSTRUCTED"` while only ever 
 Of the defect found, only one component was fixed this pass, and precisely: the existing `differential` value reported `overall_elo_delta_p1_minus_p2` (a raw Elo point spread, e.g. `+120`) and treated that as satisfying "Elo Win Probability." A point spread is a correlated/neighboring statistic for a win probability, not the exact named value itself — precisely the substitution `audit-research.server.ts`'s HOUSE_RULES firewall forbids ("Never substitute a proxy, correlated statistic, broader aggregate, or neighboring metric for the exact statistic named by a metric definition"). The standard Elo logistic formula that converts a rating differential into a win probability (`expected(a,b)`) was already implemented in this same file, just never applied to produce the actual named output. Fixed: `differential` now also reports `elo_win_probability_p1=XX.X%`, computed via that same formula, alongside the existing raw delta (kept for backward compatibility with any existing consumer of that exact substring).
 
 ## 5. Treatment classification
-Left unchanged (`RECONSTRUCTED`) this pass, deliberately: an existing test (`task18c-rank-form-workload.test.ts`) explicitly asserts this treatment, meaning a prior session already reviewed and set this behavior intentionally. Downgrading it to PARTIAL — which the remaining gap (5 of 8 submetrics genuinely missing) would likely justify under this project's own "every component of the exact definition" bar for RECONSTRUCTED — is a real, defensible next step, but changing an established, tested treatment value for a metric this widely relied upon (both surface Elo and this replay's overall Elo underpin several other engines, e.g. `ranking-performance.server.ts`) deserves a deliberate decision by whoever owns that test's intent, not a unilateral change buried inside an additive fix. Logged as the next item rather than done unilaterally.
+
+**Owner decision made (this pass, closing `docs/evidence-work-blockers.md`
+item 3).** Changed from `RECONSTRUCTED` to `PARTIAL`. Rationale: this
+project's own stated rule in `audit-research.server.ts`'s HOUSE_RULES is
+that "RECONSTRUCTED is allowed only when every required component of the
+exact definition/formula is sourced." This engine only ever delivers 2-3 of
+code 001's 8 named submetrics (Surface Elo, Elo Win Probability, and a
+rough 52-week match count standing in for Surface Sample Depth); it never
+computes Effective Weighted Sample, Surface Elo Trend/Momentum, Peak Elo vs
+Current Elo, or either Hard-Court Record bullet. That is not "every
+required component," so by the project's own bar this cannot be
+RECONSTRUCTED.
+
+Blast-radius check before changing it: `HistoryMetricCode` /
+`HISTORY_CODES` in `deterministic-ranking-metrics.server.ts` are locked to
+`["001"]` only (a Task 20 reconciliation already moved 005/007/021/061 off
+this file), so the treatment constant is not shared with any other metric
+code. The only other consumer of this file's Elo replay,
+`historical-twin-match-search.server.ts`, calls `replayElo` directly and
+never reads the `treatment` field, so it is unaffected. No other test file
+references code 001's treatment as RECONSTRUCTED (checked via grep across
+`src/lib/*.test.ts`). `task18c-rank-form-workload.test.ts` updated to
+assert `PARTIAL` with a comment pointing back here; full test suite (534
+tests, 80 files) passes after the change.
+
+This does not, by itself, change the 324-cell coverage count: 001 was
+already counted as RECONSTRUCTABLE-potential in
+`docs/evidence-coverage/81-metric-recoverability-audit.md` row 001, and
+PARTIAL still keeps its 55/81-family "potentially usable" status per that
+audit's own classification totals — it changes the per-request treatment
+label surfaced to callers, not whether the cell counts as usable.
 
 ## 6. Reconstruction/formula verification
 - `elo_win_probability_p1` = `100 / (1 + 10^(-(elo_p1 - elo_p2)/400))`, the same standard logistic Elo formula already used internally by `replayElo`'s `expected()` to run the K=32 rating updates — not a new or independently-invented formula.

@@ -24,9 +24,9 @@ describe("Task 18C rank/form/workload recovery",()=>{
     expect(matches.every(m=>m.date<base.asOfDate)).toBe(true);
     expect(matches.some(m=>m.tournament==="Current"||m.tournament==="Future")).toBe(false);
   });
-  it("reconstructs surface strength plus overall Elo differential for real code 001",()=>{
+  it("reconstructs surface strength plus overall Elo differential for real code 001, kept PARTIAL since only 2-3 of 8 named submetrics are covered (see docs/metric-audit-001-surface-strength.md §5)",()=>{
     const result=computeHistoryMetric({...base,code:"001",family:"ATP_MAIN",lane:lane()});
-    expect(result?.treatment).toBe("RECONSTRUCTED");
+    expect(result?.treatment).toBe("PARTIAL");
     expect(result?.p1_value).toContain("overall_elo=");
     expect(result?.p1_value).toContain(`surface=${base.surface.toLowerCase()}`);
     expect(result?.differential).toContain("overall_elo_delta_p1_minus_p2=");
