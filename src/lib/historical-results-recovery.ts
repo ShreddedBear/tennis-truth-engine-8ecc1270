@@ -90,9 +90,24 @@ import type { Treatment } from "./audit-pipeline";
 //   isolated hard-court result) and "Recent-Performance Acceleration" (a rate-of-change
 //   figure finer than a two-window trend comparison) are not honestly derivable from this
 //   row type and are left uncovered; treatment stays PARTIAL.
-// 9 -> 10 codes: ["005","007","008","010","011","013","017","020","068","080"].
+// "020" removed 2026-08-29: unlike every other code in this set, it never got its
+// own individual justification comment above -- it was simply carried over from
+// the original ungroomed 21-code list without re-verification against the real
+// catalog. Its code==="020" branch below computed a 90-day opponent-quality-banded
+// win rate (conceptually closer to real 005's "Quality of Last 3-5 Performances"
+// bullet, or a generic "Recent Quality" label from an old fictional catalog that
+// does not exist in the real 81-section document at all) -- it answers none of
+// real code 020's three actual bullets ("Level/Tour Transition": Performance vs
+// Opponent Elo Differential, Tour-Level Transition Performance, Post-Strong/Weak-
+// Tournament Performance). It was also being swept into this file's own generic
+// "reconstructs every full historical family... treatment RECONSTRUCTED" test loop,
+// the highest treatment bar, for content with zero relationship to the real
+// definition. Removed rather than guessed at a retarget -- see
+// docs/metric-audit-batch-005-016-018-020-032-068.md for the finding and
+// docs/evidence-work-blockers.md item 4 for the related pattern (021/060/071).
+// 10 -> 9 codes: ["005","007","008","010","011","013","017","068","080"].
 export const TASK18A_HISTORICAL_RESULTS_CODES = [
-  "005","007","008","010","011","013","017","020","068","080",
+  "005","007","008","010","011","013","017","068","080",
 ] as const;
 
 export type Task18aMetricCode = (typeof TASK18A_HISTORICAL_RESULTS_CODES)[number];
@@ -210,10 +225,6 @@ export function deriveHistoricalResultMetric(args:{code:string;player:string;opp
       if(iEverLost&&theyEverWon)unfavorable++;
     }
     return reconstruction(`common_opponents=${sharedOpponents.length}; favorable_divergent_outcomes=${favorable}; unfavorable_divergent_outcomes=${unfavorable}`,sharedOpponents.length,{common_opponents:sharedOpponents.slice(0,50)},"Intersect canonical opponent identities across both players (same method as code 007); for each shared opponent, flag a favorable divergence when this player has ever beaten them while the other match player has ever lost to them, and an unfavorable divergence in the reverse case. \"Opponent-Caliber Performance Gap\" is not covered -- it requires each player's own historical rank/Elo at match time to compute a ceiling-vs-floor gap relative to their own level, which this row type does not carry -- so treatment stays PARTIAL.","PARTIAL");
-  }
-  if(code==="020"){
-    const r=recent(history,args.asOfDate,90).filter(x=>isCompleted(x)&&quality(x)!==null);if(!r.length)return null;const q=rankedRecord(r);const w=r.filter(x=>x.won).length;
-    return reconstruction(`window_days=90; quality_observed_matches=${r.length}; wins=${w}; win_pct=${pct(w,r.length)??"NA"}; bands=${JSON.stringify(q.bands)}`,r.length,{window_start_days:90,quality_observations:r.map(x=>({date:x.date,opponent:x.opponent,quality:quality(x),surface:x.surface,won:x.won})).slice(0,100)},"Use only prior 90-day realized results with observed opponent rank/Elo; preserve quality bands rather than imputing missing quality.");
   }
   if(code==="017"){
     if(!score.sets)return null;return reconstruction(`sets=${score.sets}; bagel_sets=${score.bagelSets}; bagel_set_pct=${pct(score.bagelSets,score.sets)??"NA"}; blowout_sets=${score.blowoutSets}; blowout_set_pct=${pct(score.blowoutSets,score.sets)??"NA"}`,score.matches,{scored_matches:score.matches,set_count:score.sets},"Parse player-oriented set scores; count 6-0 sets and sets with a game margin of at least four. Retargeted/merged from the mismatched codes 023/054/055 to real code 017 (\"Shot & Rally Metrics\"), satisfying only its \"Set-Level Dominance\" bullet; the other 017 bullets (forehand/backhand, net play, hold vulnerability, etc.) require shot-level data this file does not have, so treatment stays PARTIAL.","PARTIAL");

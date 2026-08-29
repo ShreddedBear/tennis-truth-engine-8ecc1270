@@ -35,7 +35,12 @@ describe("Task 18A historical/results recovery",()=>{
  // win rate, trend direction, straight-set control rate and average sets conceded in recent
  // wins, and average recent opponent rank are all recoverable here; "Current Hard-Court
  // Swing" and "Recent-Performance Acceleration" are not, so treatment stays PARTIAL.
- it("owns exactly the 10 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["005","007","008","010","011","013","017","020","068","080"].sort());});
+ // "020" removed 2026-08-29: its content (a 90-day opponent-quality-banded win
+ // rate) answered none of real code 020's three actual bullets ("Level/Tour
+ // Transition") and had no individual justification comment, unlike every other
+ // code here -- a genuine oversight, not a considered call. See
+ // docs/metric-audit-batch-005-016-018-020-032-068.md.
+ it("owns exactly the 9 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["005","007","008","010","011","013","017","068","080"].sort());});
  it("reconstructs every full historical family from observed prior inputs",()=>{
    for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="005"&&c!=="013"&&c!=="017"&&c!=="068"&&c!=="080")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});

@@ -3,7 +3,11 @@ import { buildTrustedInternalFinding } from "./trusted-internal-evidence";
 
 const BASE = "https://api.wtatennis.com/tennis";
 const RANKED = `${BASE}/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=500`;
-const SUPPORTED = new Set(["005", "006", "007", "008", "009", "010", "011", "012", "013", "020", "028", "030", "068", "080"]);
+// "020" removed 2026-08-29: same_level_matches/same_level_win_pct is aggregate
+// performance AT a level, not performance AT THE TRANSITION between levels real
+// code 020 ("Level/Tour Transition") asks for -- see
+// docs/metric-audit-batch-005-016-018-020-032-068.md.
+const SUPPORTED = new Set(["005", "006", "007", "008", "009", "010", "011", "012", "013", "028", "030", "068", "080"]);
 
 type PlayerRef = { id?: string | number; fullName?: string };
 type RankingRow = { player?: PlayerRef };
@@ -198,7 +202,6 @@ function metricValue(code:string,s:SideSummary){switch(code){
   case"011":return `performance_variance=${fmt(s.performanceVariance,3)}; performance_floor_ceiling_set_margin_range=${fmt(s.floorCeilingRange,0)}`;
   case"012":return `matches_last_7_days=${s.matches7}; matches_last_14_days=${s.matches14}; matches_last_28_days=${s.matches28}; sets_last_14_days=${s.sets14}; three_setters_last_14_days=${s.threeSetters14}; qualifying_matches_last_14_days=${s.qualifying14}; days_since_last_match=${fmt(s.daysSinceLastMatch,0)}; recent_inter_match_gap_days=${fmt(s.recentInterMatchGapDays,0)}; tournament_switches_last10=${s.tournamentSwitchesLast10}`;
   case"013":return `longest_observed_layoff_days=${fmt(s.longestLayoffDays,0)}; observed_layoffs_30d_plus=${s.layoffs30}; observed_layoffs_60d_plus=${s.layoffs60}; observed_layoffs_90d_plus=${s.layoffs90}; return_after_layoff_win_pct=${fmt(s.returnAfterLayoffWinPct)}`;
-  case"020":return `same_level_matches=${s.sameLevelMatches}; same_level_win_pct=${fmt(s.sameLevelWinPct)}`;
   case"028":return `matches_last_14_days=${s.matches14}; matches_last_28_days=${s.matches28}; days_since_last_match=${fmt(s.daysSinceLastMatch,0)}; recent_inter_match_gap_days=${fmt(s.recentInterMatchGapDays,0)}; tournament_switches_last10=${s.tournamentSwitchesLast10}`;
   case"030":return s.sameTournamentMatches?`same_tournament_matches=${s.sameTournamentMatches}; same_tournament_win_pct=${fmt(s.sameTournamentWinPct)}`:null;
   case"068":return `current_streak_signed=${s.currentStreakSigned}; longest_win_streak_observed=${s.longestWinStreak}`;

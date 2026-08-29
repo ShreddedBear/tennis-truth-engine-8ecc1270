@@ -47,7 +47,12 @@ const SUMMARY_KEYS:Record<string,string[]>={
 "011":["performance_variance","performance_floor_ceiling_set_margin_range","close_match_dependency_pct","deciding_tiebreak_win_reliance_pct"],
 "012":["matches_last_7_days","matches_last_14_days","matches_last_28_days","sets_last_14_days","three_setters_last_14_days","rest_days","qualifying_matches_last_14_days","days_since_last_match","recent_inter_match_gap_days","tournament_switches_last10","country_changes_last10","observed_travel_km_last10","avg_observed_travel_km_per_move","long_haul_moves_3000km_plus_last10","observed_timezone_shift_hours_last10","max_observed_timezone_shift_hours_last10"],
 "013":["longest_observed_layoff_days","observed_layoffs_30d_plus","observed_layoffs_60d_plus","observed_layoffs_90d_plus","return_after_layoff_win_pct"],
-"020":["same_level_matches","same_level_win_pct"],
+// "020" removed 2026-08-29: same_level_matches/same_level_win_pct measures aggregate
+// performance AT a tour level, not performance specifically AT THE TRANSITION between
+// levels, which is what real code 020 ("Level/Tour Transition") actually asks for --
+// the same wrong-grain-of-evidence pattern as the historical-results-recovery.ts fix
+// (see docs/metric-audit-batch-005-016-018-020-032-068.md). Removed rather than left
+// to falsely credit an unrelated aggregate under this code's name.
 "021":["match_surface_hard","match_surface_clay","match_surface_grass","match_surface_carpet","match_indoor","verified_court_speed_index","verified_court_speed_band","match_temperature_c","match_humidity_pct","match_wind_kph","match_altitude_m","match_roof_closed"],
 "023":["serve_vs_opponent_return_edge","return_vs_opponent_serve_edge","serve_aggression_proxy","serve_reliance_proxy","return_pressure_proxy","balanced_efficiency_proxy","close_match_resilience_proxy","style_serve_vs_return_edge","style_return_vs_serve_edge","style_balance_edge","style_resilience_edge"],
 "028":["matches_last_14_days","matches_last_28_days","days_since_last_match","recent_inter_match_gap_days","tournament_switches_last10","country_changes_last10","observed_travel_km_last10","avg_observed_travel_km_per_move","long_haul_moves_3000km_plus_last10","observed_timezone_shift_hours_last10","max_observed_timezone_shift_hours_last10","same_round_matches","same_round_win_pct"],

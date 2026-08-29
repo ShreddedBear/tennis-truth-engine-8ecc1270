@@ -219,23 +219,44 @@ kind of check this batch just did -- not yet individually confirmed).
 codes in the true 59-code denominator that had a real engine but no
 narrative doc (005, 016, 018, 020, 032, 068 -- the "connected but
 undocumented" set from the original reconciliation audit). See
-`docs/metric-audit-batch-005-016-018-020-032-068.md`. All six PARTIAL,
-with real evidence. Two follow-ups logged, not fixed: 018 (Momentum &
-Closing Metrics) is currently marked RECONSTRUCTED but only genuinely
-covers ~2 of its 3 named bullets (and only half of one of those) --
-plausibly the same over-claim class already fixed for 001/014/015, and
-the clearest concrete next fix. 020 (Level/Tour Transition) has a
-granularity concern -- its wiring measures aggregate same-level
-performance, not performance specifically at the transition between
-levels the real definition asks for -- likely a fifth instance of the
-item-4 pattern (021/060/071/020, all sharing the same "engine credits
-the wrong granularity/family of evidence" shape).
+`docs/metric-audit-batch-005-016-018-020-032-068.md`. All six PARTIAL
+initially, with real evidence.
+
+**Immediate follow-up (same session): both flagged concerns investigated
+and fixed, not left open.**
+- **018 (Momentum & Closing Metrics):** downgraded `RECONSTRUCTED` →
+  `PARTIAL` in `pbp-score-state-recovery.ts` (only genuinely covers ~2 of
+  3 named bullets, and only half of one of those) -- same over-claim
+  class already fixed for 001/014/015. `pbp-score-state-recovery.test.ts`
+  updated; full suite passes.
+- **020 (Level/Tour Transition):** investigation found the granularity
+  concern was actually the smaller of two problems.
+  `historical-results-recovery.ts`'s `code==="020"` branch turned out to
+  compute a 90-day opponent-quality-banded win rate that answers *none*
+  of 020's real bullets (closer to a "Recent Quality" concept that
+  doesn't exist anywhere in the real catalog) -- and unlike every other
+  code in that file's reconciled set, it had never received its own
+  justification comment, meaning it was simply carried over unreviewed.
+  It was also being swept into that file's generic
+  "asserts RECONSTRUCTED" test loop. Separately, the same-level proxy
+  (`same_level_matches`/`same_level_win_pct`) was wired in 3 more places,
+  all measuring the wrong grain of evidence. **Removed all of it** from
+  all 4 files (`historical-results-recovery.ts`,
+  `hybrid-audit-research.server.ts`, `completion-sweep-research.server.ts`,
+  `wta-official-match-evidence.server.ts`) rather than leave any of it as
+  false credit -- 020 now has no deterministic evidence and is honestly
+  SOURCE REQUIRED, not PARTIAL. This is the **fourth** confirmed instance
+  of the item-4 pattern (021/060/071/020), via a completely different
+  engine each time -- strong enough now to treat as a systemic pattern in
+  this codebase, not four coincidences. `historical-results-recovery.test.ts`
+  updated; full suite passes; no new tsc errors.
 
 **Final tally, this session's full sequential audit pass:** every one of
 the 59 codes in the true player-evidence denominator has now been
-examined at least once. 46 verified PARTIAL (2 flagged as needing a
-follow-up treatment correction: 018, 020), 10 AI-DEPENDENT (correctly-
-targeted live-research pathway, not statically verifiable), 2 UNKNOWN_
+examined at least once, and both follow-ups from the final batch were
+resolved in the same session. 45 verified PARTIAL, 10 AI-DEPENDENT
+(correctly-targeted live-research pathway, not statically verifiable), 1
+SOURCE REQUIRED with false credit freshly removed (020), 2 UNKNOWN_
 REQUIRES_REVIEW (047, 061, pending a human classification call), 1
 verified TRULY UNAVAILABLE (019). The other 22 codes are META_OR_NON_PLAYER
 (7) or PROTECTED_UNAVAILABLE (15, including 022 added this session) --
@@ -245,6 +266,14 @@ in need of further audit work. `RECOVERY_PRIORITY_CODES` and the
 to reflect the corrected 236-cell/59-code/166-cell(70%) accounting --
 flagged, not changed, since that file is explicitly disclaimed as
 non-authoritative and doesn't feed the live diagnostic (see item 0).
+
+**Standing recommendation:** the item-4 pattern (021/060/071/020) now has
+four independent, well-documented instances across three different
+engines. This has been deferred three times pending "a considered
+multi-file pass" that never happened. Recommend treating this as the
+next concrete priority, ahead of picking up more AI-DEPENDENT or
+UNVERIFIED codes -- it's a known, bounded, four-code cleanup rather than
+open-ended new audit work.
 
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
