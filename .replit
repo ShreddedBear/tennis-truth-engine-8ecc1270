@@ -26,3 +26,8 @@ author = 64742427
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bun run dev"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npx", "wrangler", "dev", "--config", ".output/server/wrangler.json", "--local", "--ip", "0.0.0.0", "--port", "5000"]
+build = ["bun", "run", "build"]
