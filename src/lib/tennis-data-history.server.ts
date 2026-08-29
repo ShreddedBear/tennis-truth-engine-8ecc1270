@@ -21,7 +21,7 @@ function tournament(ctx:string){return ctx.match(/tournament\s+([^·]+)/i)?.[1]?
 function round(ctx:string){return ctx.match(/round\s+([^·]+)/i)?.[1]?.trim()??null;}
 function level(ctx:string){return ctx.match(/(?:event_?level|level)\s+([^·]+)/i)?.[1]?.trim()??null;}
 function n(v:string){const x=Number(v);return Number.isFinite(x)?x:null;}
-function stat(player:string,key:string,value:number,sample:number,url:string,surfaceName:string|null=null):SourcedStat{return{key,player,value,surface:surfaceName,window:"HISTORICAL_2005_PRE_MATCH",tour_level:null,sample,origin:"DIRECT",sources:[{source_name:SOURCE_NAME,url,retrieved_at:new Date().toISOString()}]};}
+function stat(player:string,key:string,value:number,sample:number,url:string,surfaceName:string|null=null):SourcedStat{return{key,player,value,surface:surfaceName,window:"HISTORICAL_2005_PRE_MATCH",tour_level:null,sample,origin:"DIRECT",sources:[{source_name:SOURCE_NAME,url,retrieved_at:null}]};}
 function playerMatches(player:string,ctx:string){const pn=norm(player),c=cut(ctx);return load().filter(m=>(!c||m.date<c)&&m.date>=HISTORICAL_START_DATE&&(norm(m.winner)===pn||norm(m.loser)===pn)).sort((a,b)=>a.date.localeCompare(b.date));}
 function won(m:MatchRow,p:string){return norm(m.winner)===norm(p);}
 function sets(score:string){return score.split(/\s+/).map(s=>s.match(/^(\d+)-(\d+)/)).filter((m):m is RegExpMatchArray=>!!m).map(m=>[Number(m[1]),Number(m[2])] as [number,number]);}

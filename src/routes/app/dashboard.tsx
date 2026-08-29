@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { winRate } from "@/lib/audit-engine";
 import { resetOperationalSlate } from "@/lib/reset-slate.functions";
 import { APP_BUILD_INFO } from "@/generated/app-build-info";
+import { currentAuditRows } from "@/lib/current-audit-state";
 
 export const Route = createFileRoute("/app/dashboard")({
   head: () => ({
@@ -27,18 +28,20 @@ function Dashboard() {
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
-      const [matches, decisions, version, uploads] = await Promise.all([
+      const [matches, runs, decisions, version, uploads] = await Promise.all([
         supabase.from("matches").select("id, match_status, identity_status, surface_status"),
-        supabase.from("final_decisions").select("final_audit_color, audit_complete"),
+        supabase.from("audit_runs").select("id, match_id, run_number, status"),
+        supabase.from("final_decisions").select("audit_run_id, final_audit_color, audit_complete"),
         supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle(),
         supabase.from("summary_uploads").select("id"),
       ]);
       const buckets = version.data
         ? (await supabase.from("calibration_buckets").select("*").eq("calibration_version_id", version.data.id).order("wp_min")).data ?? []
         : [];
+      const currentRows = currentAuditRows(matches.data ?? [], runs.data ?? [], decisions.data ?? []);
       return {
         matches: matches.data ?? [],
-        decisions: decisions.data ?? [],
+        currentRows,
         version: version.data,
         buckets,
         uploads: uploads.data?.length ?? 0,
@@ -64,7 +67,8 @@ function Dashboard() {
     },
   });
 
-  const colorCount = (c: string) => data?.decisions.filter((d) => d.final_audit_color === c).length ?? 0;
+  const completed = data?.currentRows.filter((row) => row.decision?.audit_complete) ?? [];
+  const colorCount = (c: string) => completed.filter((row) => row.decision?.final_audit_color === c).length;
   const builtAt = APP_BUILD_INFO.builtAt ? new Date(APP_BUILD_INFO.builtAt) : null;
   const buildLabel = builtAt && !Number.isNaN(builtAt.getTime()) ? builtAt.toLocaleString() : "development build";
 
@@ -75,7 +79,8 @@ function Dashboard() {
     { label: "Green", value: colorCount("GREEN") },
     { label: "Yellow", value: colorCount("YELLOW") },
     { label: "Red / Pass", value: colorCount("RED / PASS") },
-    { label: "Incomplete", value: (data?.matches.length ?? 0) - (data?.decisions.filter((d) => d.audit_complete).length ?? 0) },
+    { label: "Insufficient evidence", value: colorCount("INSUFFICIENT EVIDENCE") },
+    { label: "Incomplete", value: (data?.currentRows.length ?? 0) - completed.length },
   ];
 
   return (
@@ -94,7 +99,7 @@ function Dashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         {tiles.map((t) => (
           <div key={t.label} className="panel p-4">
             <p className="mono-num text-2xl font-semibold">{t.value}</p>

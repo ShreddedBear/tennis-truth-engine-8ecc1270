@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
 import { runAuditPipeline } from "@/lib/audit-pipeline.functions";
-import { bucketFor, evaluate, winRate, type EngineInput } from "@/lib/audit-engine";
+import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
+import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
 import { isPreviewForceReloadError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
@@ -118,14 +119,19 @@ function Workspace() {
   const { data, isLoading } = useQuery({
     queryKey: ["match", matchId],
     queryFn: async () => {
-      const { data: match } = await supabase.from("matches").select("*").eq("id", matchId).single();
-      const { data: runs } = await supabase
+      const { data: match, error: matchError } = await supabase.from("matches").select("*").eq("id", matchId).single();
+      if (matchError) throw new Error(`Could not load match: ${matchError.message}`);
+      const { data: runs, error: runsError } = await supabase
         .from("audit_runs")
         .select("*")
         .eq("match_id", matchId)
         .order("run_number", { ascending: false });
+      if (runsError) throw new Error(`Could not load audit runs: ${runsError.message}`);
       const run = runs?.[0] ?? null;
       if (!run) return { match, run: null };
+      const calibrationVersionQuery = run.calibration_version_id
+        ? supabase.from("calibration_versions").select("*").eq("id", run.calibration_version_id).maybeSingle()
+        : supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
       const [metrics, verification, disagreement, underdog, stress, conflicts, reconstructions, decision, buckets, version, sv] =
         await Promise.all([
           supabase.from("metric_results").select("*").eq("audit_run_id", run.id).order("metric_code"),
@@ -137,7 +143,7 @@ function Workspace() {
           supabase.from("reconstruction_results").select("*").eq("audit_run_id", run.id),
           supabase.from("final_decisions").select("*").eq("audit_run_id", run.id).maybeSingle(),
           supabase.from("calibration_buckets").select("*").order("wp_min"),
-          supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle(),
+          calibrationVersionQuery,
           supabase.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(),
         ]);
       const fields = sv.data
@@ -271,7 +277,11 @@ function Workspace() {
   const committed = !!run.independent_decision_committed_at;
 
   const patch = async (table: "metric_results" | "verification_results" | "disagreement_results" | "underdog_results" | "stress_results", id: string, values: Record<string, unknown>, stage: string) => {
-    await supabase.from(table).update(values as never).eq("id", id);
+    const { error } = await supabase.from(table).update(values as never).eq("id", id);
+    if (error) {
+      toast.error(`Could not update ${table}: ${error.message}`);
+      return;
+    }
     await log({ audit_run_id: run.id, match_id: matchId, stage, status: "COMPLETE", output: values, matrix_visible: !!run.matrix_revealed_at });
     refresh();
   };
@@ -284,7 +294,7 @@ function Workspace() {
     const families = new Set(
       (data.metrics ?? []).filter((m) => !m.matrix_derived && m.status === "COMPLETE" && m.evidence_family).map((m) => m.evidence_family),
     );
-    await supabase
+    const { error } = await supabase
       .from("audit_runs")
       .update({
         independent_winner: winner,
@@ -295,6 +305,10 @@ function Workspace() {
         raw_signal_count: (data.metrics ?? []).filter((m) => m.status === "COMPLETE").length,
       })
       .eq("id", run.id);
+    if (error) {
+      toast.error(`Could not commit independent conclusion: ${error.message}`);
+      return;
+    }
     await log({ audit_run_id: run.id, match_id: matchId, stage: "INDEPENDENT EVIDENCE CONCLUSION", status: "COMPLETE", output: { winner, families: families.size }, matrix_visible: false });
     toast.success("Independent conclusion committed and timestamped");
     refresh();
@@ -305,7 +319,11 @@ function Workspace() {
       toast.error("Matrix firewall: commit the independent conclusion first");
       return;
     }
-    await supabase.from("audit_runs").update({ matrix_revealed_at: new Date().toISOString() }).eq("id", run.id);
+    const { error } = await supabase.from("audit_runs").update({ matrix_revealed_at: new Date().toISOString() }).eq("id", run.id);
+    if (error) {
+      toast.error(`Could not persist Matrix reveal: ${error.message}`);
+      return;
+    }
     await log({ audit_run_id: run.id, match_id: matchId, stage: "MATRIX REVEAL AND COMPARISON", status: "COMPLETE", matrix_visible: true });
     setShowMatrix(true);
     refresh();
@@ -316,42 +334,64 @@ function Workspace() {
       toast.error("Calibration runs after the Matrix comparison");
       return;
     }
-    const bucket = bucketFor(matrixWp, data.buckets ?? []);
-    const rate = bucket ? winRate(bucket.wins, bucket.graded) : null;
-    const centre = rate ?? ((run.independent_low ?? 0) + (run.independent_high ?? 0)) / 2;
-    await supabase
+    const snapshot = buildCalibrationSnapshot({
+      versionId: data.version?.id ?? null,
+      matrixWp,
+      buckets: data.buckets ?? [],
+      independentLow: run.independent_low,
+      independentHigh: run.independent_high,
+    });
+    const { error } = await supabase
       .from("audit_runs")
       .update({
-        calibration_version_id: data.version?.id ?? null,
-        calibrated_low: Math.max(0, Math.round(centre - 5)),
-        calibrated_high: Math.min(100, Math.round(centre + 5)),
+        calibration_version_id: snapshot.calibrationVersionId,
+        calibrated_low: snapshot.calibratedLow,
+        calibrated_high: snapshot.calibratedHigh,
       })
       .eq("id", run.id);
-    await log({ audit_run_id: run.id, match_id: matchId, stage: "CURRENT CALIBRATION APPLICATION", status: "COMPLETE", output: { bucket: bucket?.bucket_code, rate } });
+    if (error) {
+      toast.error(`Could not persist calibration snapshot: ${error.message}`);
+      return;
+    }
+    await log({ audit_run_id: run.id, match_id: matchId, stage: "CURRENT CALIBRATION APPLICATION", status: "COMPLETE", output: snapshot });
     refresh();
   };
 
   const runGate = async () => {
-    const bucket = bucketFor(matrixWp, data.buckets ?? []);
-    const rate = bucket ? winRate(bucket.wins, bucket.graded) : null;
+    const snapshot = buildCalibrationSnapshot({
+      versionId: run.calibration_version_id ?? data.version?.id ?? null,
+      matrixWp,
+      buckets: data.buckets ?? [],
+      independentLow: run.independent_low,
+      independentHigh: run.independent_high,
+    });
     const payload = {
       audit_run_id: run.id,
       final_audit_color: report.color,
       final_selection: report.color.includes("GREEN") ? run.independent_winner : null,
       action: report.action,
-      gate_report: report as unknown as Record<string, unknown>,
+      gate_report: { ...report, calibration_snapshot: snapshot } as unknown as Record<string, unknown>,
       completion_percent: report.completionPercent,
       audit_complete: report.auditComplete,
       matrix_firewall_valid: report.matrixFirewallValid,
-      calibration_bucket: bucket?.bucket_code ?? null,
-      verified_win_rate: rate,
+      calibration_bucket: snapshot.bucketCode,
+      verified_win_rate: snapshot.verifiedWinRate,
     };
-    if (data.decision) await supabase.from("final_decisions").update(payload as never).eq("id", data.decision.id);
-    else await supabase.from("final_decisions").insert(payload as never);
-    await supabase
+    const decisionResult = data.decision
+      ? await supabase.from("final_decisions").update(payload as never).eq("id", data.decision.id)
+      : await supabase.from("final_decisions").insert(payload as never);
+    if (decisionResult.error) {
+      toast.error(`Could not persist final decision: ${decisionResult.error.message}`);
+      return;
+    }
+    const { error: matchStatusError } = await supabase
       .from("matches")
       .update({ match_status: report.auditComplete ? "COMPLETE" : "PARTIALLY BLOCKED" })
       .eq("id", matchId);
+    if (matchStatusError) {
+      toast.error(`Decision saved, but match status failed to update: ${matchStatusError.message}`);
+      return;
+    }
     await log({ audit_run_id: run.id, match_id: matchId, stage: "FINAL COMBINATION GATE", status: report.auditComplete ? "COMPLETE" : "BLOCKED", output: { color: report.color } });
     toast.success(`Gate executed — ${report.color}`);
     refresh();

@@ -27,7 +27,7 @@ export async function makeDeps(): Promise<PipelineDeps> {
     async saveIdentityRecords(matchId,rows){await db.from("match_identity_records").delete().eq("match_id",matchId).in("field",rows.map(r=>String(r["field"])));await db.from("match_identity_records").insert(rows.map(r=>({...r,match_id:matchId,user_id}))as never);},
     async saveSnapshots(runId,rows){if(!rows.length)return;await db.from("source_snapshots").insert(rows.map(r=>({...r,audit_run_id:runId,user_id}))as never);},
     async saveConflicts(runId,rows){if(!rows.length)return;await db.from("source_conflicts").insert(rows.map(r=>({...r,audit_run_id:runId,user_id}))as never);},
-    async getCalibration(){const{data:version}=await db.from("calibration_versions").select("id, label, version_number").eq("is_active",true).order("version_number",{ascending:false}).limit(1).maybeSingle();if(!version)return{version:null,buckets:[]};const{data:buckets}=await db.from("calibration_buckets").select("bucket_code, wp_min, wp_max, wins, graded").eq("calibration_version_id",version.id).order("wp_min");return{version,buckets:(buckets??[])as never};},
+    async getCalibration(versionId){let query=db.from("calibration_versions").select("id, label, version_number");query=versionId?query.eq("id",versionId):query.eq("is_active",true).order("version_number",{ascending:false}).limit(1);const{data:version,error:versionError}=await query.maybeSingle();if(versionError)throw new Error(`Database read failed (calibration_versions): ${versionError.message}`);if(!version)return{version:null,buckets:[]};const{data:buckets,error:bucketError}=await db.from("calibration_buckets").select("bucket_code, wp_min, wp_max, wins, graded").eq("calibration_version_id",version.id).order("wp_min");if(bucketError)throw new Error(`Database read failed (calibration_buckets): ${bucketError.message}`);return{version,buckets:(buckets??[])as never};},
     async getDecisionId(runId){const{data}=await db.from("final_decisions").select("id").eq("audit_run_id",runId).maybeSingle();return data?.id??null;},
     async saveDecision(runId,existingId,payload){
       const extras = {
@@ -35,6 +35,9 @@ export async function makeDeps(): Promise<PipelineDeps> {
         independent_winner: payload["independent_winner"] ?? null,
         independent_range: payload["independent_range"] ?? null,
         calibrated_range: payload["calibrated_range"] ?? null,
+        calibration_version_id: payload["calibration_version_id"] ?? null,
+        calibration_wins: payload["calibration_wins"] ?? null,
+        calibration_graded: payload["calibration_graded"] ?? null,
         green_locked: payload["green_locked"] ?? null,
         green_lock_reasons: payload["green_lock_reasons"] ?? [],
       };

@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
-import { classifyEvidenceTourFamily } from "./evidence-match-identity";
+import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
 import { inferRepositoryMatchContext } from "./repository-results-history.server";
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
@@ -104,10 +104,11 @@ async function inferCanonicalMatchContext(args: { p1: string; p2: string; asOfDa
     evidencePairMatches(row.player1_name, row.player2_name, args.p1, args.p2) ||
     evidencePairMatches(row.player1_name, row.player2_name, args.p2, args.p1));
   const classified = matches.map((row: any) => ({ row, tour: classifyEvidenceTourFamily(row.event_level, row.tournament_name) })).filter((entry: any) => entry.tour);
-  const tours = unique(classified.map((entry: any) => entry.tour));
+  const tours = unique(classified.map((entry: any) => entry.tour)) as EvidenceTourFamily[];
   if (classified.length !== 1 || tours.length !== 1) return null;
   const row = classified[0].row;
-  return [`Tournament: ${row.tournament_name ?? "unknown"}`, `Level: ${row.event_level ?? tours[0].replaceAll("_", " ")}`, `Tour: ${tours[0].replaceAll("_", " ")}`, row.surface ? `Surface: ${row.surface}` : null, `Date: ${args.asOfDate}`, row.round ? `Round: ${row.round}` : null].filter(Boolean).join(" | ");
+  const tour = tours[0]!;
+  return [`Tournament: ${row.tournament_name ?? "unknown"}`, `Level: ${row.event_level ?? tour.replaceAll("_", " ")}`, `Tour: ${tour.replaceAll("_", " ")}`, row.surface ? `Surface: ${row.surface}` : null, `Date: ${args.asOfDate}`, row.round ? `Round: ${row.round}` : null].filter(Boolean).join(" | ");
 }
 
 async function approvedPbpPacket(args: { metrics: MetricLike[]; p1: string; p2: string; asOfDate: string; context?: string | null }, rows: ObservationRow[]) {

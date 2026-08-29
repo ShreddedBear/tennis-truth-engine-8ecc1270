@@ -69,6 +69,32 @@ function ttlHours(code: string) {
 function fullyUsableFinding(row: MetricFinding | undefined) {
   return Boolean(row && USABLE.has(row.p1_treatment) && USABLE.has(row.p2_treatment) && row.p1_value && row.p2_value);
 }
+
+function usableSide(row: MetricFinding | undefined, side: "p1" | "p2") {
+  return Boolean(row && USABLE.has(row[`${side}_treatment`]) && row[`${side}_value`]);
+}
+
+export function mergeMetricFindingSides(primary: MetricFinding | undefined, fallback: MetricFinding | undefined) {
+  if (!primary) return fallback;
+  if (!fallback) return primary;
+  const p1 = usableSide(primary, "p1") ? primary : fallback;
+  const p2 = usableSide(primary, "p2") ? primary : fallback;
+  const sources = [...(primary.sources ?? []), ...(fallback.sources ?? [])].filter(
+    (source, index, rows) => rows.findIndex(other => other.source_name === source.source_name && other.url === source.url) === index,
+  );
+  const reliabilities = [primary.reliability, fallback.reliability].filter((value): value is number => typeof value === "number");
+  return {
+    ...fallback,
+    ...primary,
+    p1_value: p1.p1_value,
+    p1_treatment: p1.p1_treatment,
+    p2_value: p2.p2_value,
+    p2_treatment: p2.p2_treatment,
+    evidence_family: p1.evidence_family ?? p2.evidence_family ?? primary.evidence_family ?? fallback.evidence_family,
+    reliability: reliabilities.length ? Math.min(...reliabilities) : null,
+    sources,
+  };
+}
 function rowTime(row: StoredEvidence) {
   return Date.parse(row.updated_at ?? row.computed_at ?? `${row.as_of_date}T00:00:00Z`) || 0;
 }
@@ -304,7 +330,21 @@ export const warehouseFirstResearcher: Researcher = {
         output.push({ metric_code: code, p1_value: a.value_text, p2_value: b.value_text, p1_treatment: a.treatment, p2_treatment: b.treatment, differential: null, evidence_family: a.evidence_family ?? b.evidence_family, reliability: Math.min(a.reliability ?? 100, b.reliability ?? 100), sample: [a.sample_label, b.sample_label].filter(Boolean).join(" | ") || null, unavailable_reason: null, sources: mergedSources });
         continue;
       }
-      const chosen=fullyUsableFinding(live)?live:fullyUsableFinding(deterministic)?deterministic:live&&(USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment))?live:deterministic??live;
+      const cached: MetricFinding = {
+        metric_code: code,
+        p1_value: a?.value_text ?? null,
+        p2_value: b?.value_text ?? null,
+        p1_treatment: a?.treatment ?? "UNAVAILABLE",
+        p2_treatment: b?.treatment ?? "UNAVAILABLE",
+        differential: null,
+        evidence_family: a?.evidence_family ?? b?.evidence_family ?? null,
+        reliability: Math.min(a?.reliability ?? 100, b?.reliability ?? 100),
+        sample: [a?.sample_label, b?.sample_label].filter(Boolean).join(" | ") || null,
+        unavailable_reason: null,
+        sources: [...sourcesOf(a), ...sourcesOf(b)],
+      };
+      const computed = mergeMetricFindingSides(live, deterministic);
+      const chosen = mergeMetricFindingSides(cached, computed);
       if (!chosen) continue;
       output.push(chosen);
       await Promise.all([

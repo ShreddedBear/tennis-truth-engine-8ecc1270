@@ -1,0 +1,581 @@
+I need you to perform a full end-to-end Supabase wiring audit and repair of the Tennis Matrix Audit metric system.
+
+This is a data-integrity and wiring audit, not a redesign of the metric policy.
+
+The objective is to prove that the existing metric architecture is correctly connected from real evidence → Supabase → calculation → audit result → UI.
+
+CRITICAL EXISTING ARCHITECTURE
+
+The application currently has:
+
+* 60 legitimate player-level metrics that belong in the evidence denominator.
+* 7 model/process metrics that must remain excluded from player evidence coverage.
+* 14 metrics classified as protected unavailable because there is currently no legitimate approved evidence path for them.
+* 2 metrics currently marked as requiring review.
+
+DO NOT change these classifications simply to improve coverage.
+
+The existing metric-to-evidence-family policy is defined in:
+
+* src/lib/metric-source-family-policy.ts
+* src/lib/metric-classification.ts
+
+The primary database/audit wiring is in:
+
+* src/lib/audit-repo.server.ts
+* src/lib/audit-pipeline.ts
+* src/lib/evidence-coverage-runtime-diagnostic.server.ts
+
+Treat these files as authoritative starting points and trace the implementation from there.
+
+⸻
+
+1. INVENTORY THE 60 LEGITIMATE PLAYER METRICS
+
+First, obtain the complete authoritative list of the 60 player-level metrics from the application.
+
+For every one, record:
+
+* Metric ID
+* Metric name
+* Definition
+* Evidence family
+* Classification
+* Whether it contributes to evidence coverage
+* Supabase source
+* Calculation function/file
+* Storage location
+* Retrieval location
+* Final audit output location
+
+The six approved evidence families are:
+
+Results & Schedule
+
+Match results, schedules, dates, surfaces, tournaments, recent form, H2H, opponent quality, loss analysis.
+
+Rankings
+
+Ranking, ranking points, Elo-related and opponent-adjusted ranking metrics.
+
+Market
+
+Odds, implied probability, market disagreement, performance-surprise inputs.
+
+Environment
+
+Weather, altitude, indoor/outdoor, court and environmental context.
+
+Point-by-Point
+
+Serve, return, hold/break, tiebreak, set profile, momentum, pressure, comeback and point-state metrics.
+
+Rules/Context
+
+Tournament, format, round, best-of, eligibility and other rules-based context.
+
+⸻
+
+2. DO NOT ALTER THE 60/7/14/2 POLICY
+
+This is extremely important.
+
+Do NOT:
+
+* Add the 7 process metrics to the player evidence denominator.
+* Force the 14 protected-unavailable metrics to produce values.
+* Convert unavailable metrics into fake/estimated metrics.
+* Reclassify metrics simply to increase coverage.
+* Change the approved evidence-family policy merely because a metric is difficult to populate.
+* Manufacture evidence to make the system appear more complete.
+
+If a legitimate metric lacks approved evidence, report it honestly.
+
+If an unavailable metric has no approved evidence path, it should remain unavailable.
+
+If a process metric is intentionally excluded from player coverage, keep it excluded.
+
+If one of the 2 review metrics is genuinely unresolved, leave it flagged until the underlying issue is proven.
+
+⸻
+
+3. TRACE EVERY METRIC END-TO-END
+
+For each of the 60 legitimate metrics, trace the complete path:
+
+REAL SOURCE DATA
+→ source observation/evidence
+→ Supabase storage
+→ evidence retrieval
+→ metric calculation
+→ metric_results
+→ coverage calculation
+→ audit result
+→ API/backend response
+→ frontend display
+
+Identify exactly where the value originates.
+
+Do not assume a metric is correctly wired because a number exists.
+
+Determine whether the number is actually derived from the correct underlying evidence.
+
+⸻
+
+4. AUDIT THESE SUPABASE TABLES
+
+Inspect the actual schema, relationships, queries and usage of:
+
+Evidence/input tables
+
+* matches
+* summary_versions
+* parsed_summary_fields
+* source_observations
+* metric_evidence_store
+* source_snapshots
+* rule_documents
+* rules
+
+Metric/audit output tables
+
+* metric_results
+* reconstruction_results
+* audit_coverage
+* metric_coverage_rates
+* metric_registry
+* execution_logs
+
+Related audit tables
+
+* verification_results
+* disagreement_results
+* underdog_results
+* stress_results
+* source_conflicts
+* audit_runs
+* audit_stage_runs
+* final_decisions
+* calibration_versions
+* calibration_buckets
+* calibration_ledger
+
+For each relevant table verify:
+
+* Correct columns
+* Correct data types
+* Correct relationships
+* Correct player IDs
+* Correct match IDs
+* Correct timestamps
+* Correct tour
+* Correct surface
+* Correct tournament
+* Correct round
+* Correct joins
+* Correct filters
+* Correct null handling
+* Correct historical ordering
+
+⸻
+
+5. AUDIT metric-source-family-policy.ts
+
+For EVERY legitimate metric:
+
+Verify that the implementation agrees with the policy.
+
+Specifically determine:
+
+1. What evidence family the policy allows.
+2. What evidence family the implementation actually uses.
+3. Whether the underlying evidence exists.
+4. Whether Supabase contains that evidence.
+5. Whether the metric calculation actually consumes it.
+6. Whether the resulting metric is stored correctly.
+
+Flag any mismatch.
+
+Example:
+
+If a metric is classified as Point-by-Point, but the implementation is actually deriving it from a generic match result or another metric, flag that as a wiring problem.
+
+⸻
+
+6. AUDIT metric-classification.ts
+
+Verify that every metric is classified correctly according to the existing policy.
+
+Pay particular attention to:
+
+* Player metrics
+* Process metrics
+* Protected unavailable metrics
+* Review metrics
+* Evidence denominator inclusion/exclusion
+
+Confirm that the evidence denominator is actually based on the intended 60 legitimate player metrics.
+
+Do not allow the denominator to silently change because of a database query, join, NULL behavior, or frontend calculation.
+
+⸻
+
+7. AUDIT audit-repo.server.ts
+
+Trace every Supabase read/write operation involved in metrics.
+
+Determine:
+
+* What tables are queried.
+* What records are retrieved.
+* How player identity is matched.
+* How match identity is matched.
+* How evidence is selected.
+* How metrics are written.
+* How metrics are retrieved.
+* Whether stale records can be returned.
+* Whether duplicate records can occur.
+* Whether incorrect rows can be selected.
+
+Look specifically for:
+
+* Incorrect joins
+* Incorrect filters
+* Missing filters
+* Player/opponent reversal
+* ATP/WTA mixing
+* Surface mixing
+* Tournament mixing
+* Date-window errors
+* Duplicate evidence
+* Stale evidence
+* Silent fallback values
+
+⸻
+
+8. AUDIT audit-pipeline.ts
+
+Trace the actual execution order.
+
+Document:
+
+1. How an audit begins.
+2. How evidence is loaded.
+3. How metrics are calculated.
+4. How unavailable metrics are handled.
+5. How process metrics are excluded.
+6. How coverage is calculated.
+7. How results are persisted.
+8. How final decisions are produced.
+
+Verify that the pipeline does not accidentally:
+
+* Calculate a metric before its evidence exists.
+* Use the wrong player.
+* Use future information.
+* Reuse stale calculations.
+* Double-count evidence.
+* Count excluded metrics.
+* Count unavailable metrics as failures incorrectly.
+* Treat missing evidence as zero.
+* Substitute another metric for missing evidence.
+
+⸻
+
+9. AUDIT evidence-coverage-runtime-diagnostic.server.ts
+
+Determine exactly how runtime evidence coverage is calculated.
+
+Verify:
+
+60 legitimate metrics = denominator
+
+and that:
+
+7 process metrics = excluded
+
+and:
+
+14 protected unavailable metrics = handled according to policy
+
+and:
+
+2 review metrics = accurately represented
+
+Confirm that coverage is based on real evidence rather than simply whether a database row exists.
+
+A populated metric_results row is NOT sufficient proof of evidence.
+
+⸻
+
+10. VERIFY THE ACTUAL METRIC MATH
+
+For every legitimate metric where practical, inspect the calculation itself.
+
+Verify:
+
+* Correct formula
+* Correct numerator
+* Correct denominator
+* Correct aggregation
+* Correct time window
+* Correct surface
+* Correct opponent
+* Correct player
+* Correct tournament context
+* Correct historical cutoff
+
+Do not accept:
+
+* Hard-coded values
+* Placeholder values
+* Mock data
+* Arbitrary defaults
+* Copied values from another metric
+* UI-generated values
+* Fake completeness
+* Silent estimates
+* Incorrect fallback calculations
+
+If required evidence does not exist, preserve the application’s legitimate unavailable/insufficient-evidence behavior.
+
+⸻
+
+11. CHRONOLOGICAL INTEGRITY / DATA LEAKAGE
+
+This is a major requirement.
+
+For historical audits and historical predictions, verify that the metric only uses information that would have been available at that point in time.
+
+Look for:
+
+* Future match results
+* Future rankings
+* Future statistics
+* Future injuries
+* Future weather
+* Future tournament information
+* Recalculated historical metrics using today’s database state
+
+Flag any temporal leakage.
+
+⸻
+
+12. LOCAL GENERATED DATA VS SUPABASE
+
+The application may use local generated files such as:
+
+data/generated/tennis-runtime-index.json
+
+and external sources.
+
+Determine exactly where those sources feed into the metric system.
+
+For every such source, verify:
+
+SOURCE
+→ INGESTION
+→ NORMALIZATION
+→ SUPABASE persistence where required
+→ METRIC CALCULATION
+→ AUDIT RESULT
+
+Do not assume that because the final result is in Supabase, the underlying evidence was correctly sourced.
+
+⸻
+
+13. RAW-DATA SPOT CHECKS
+
+Select real representative records covering:
+
+* ATP
+* WTA
+* Multiple surfaces
+* Multiple tournament levels
+* Recent matches
+* Older matches
+* High-evidence matches
+* Low-evidence matches
+* Missing-data matches
+
+For each selected metric/test case show:
+
+RAW SOURCE
+→ SUPABASE RECORD
+→ CALCULATION
+→ metric_results
+→ COVERAGE RESULT
+→ FINAL AUDIT OUTPUT
+
+Where applicable, verify that the value shown to the user is the same value generated by the backend.
+
+⸻
+
+14. FIND DUPLICATE SOURCES OF TRUTH
+
+Search the codebase for every place metrics are calculated.
+
+Identify whether the same metric is being calculated independently in:
+
+* Supabase
+* Server/backend
+* Audit pipeline
+* Prediction engine
+* API routes
+* Frontend
+* Utility functions
+* Generated files
+
+If multiple implementations exist, determine which one is authoritative.
+
+Do not automatically delete duplicates. First determine whether each is intentional.
+
+⸻
+
+15. FRONTEND VERIFICATION
+
+For every metric displayed to users:
+
+Trace:
+
+Supabase/backend
+→ API
+→ frontend
+→ displayed value
+
+Verify:
+
+* Correct metric ID
+* Correct player
+* Correct match
+* Correct percentage conversion
+* Correct decimal formatting
+* Correct NULL handling
+* Correct unavailable state
+* No frontend recalculation that contradicts backend
+* No stale cached value
+
+⸻
+
+16. FIX ONLY REAL PROBLEMS
+
+After the audit, repair genuine wiring/calculation/data-integrity problems.
+
+Prioritize:
+
+1. Wrong source
+2. Wrong evidence family
+3. Wrong player/match
+4. Wrong Supabase query
+5. Wrong calculation
+6. Wrong coverage denominator
+7. Incorrect unavailable handling
+8. Data leakage
+9. Duplicate/conflicting sources of truth
+10. Frontend/API mismatch
+
+Do NOT perform broad refactoring just for cleanliness.
+
+Preserve working behavior.
+
+⸻
+
+17. AUTOMATED REGRESSION TESTS
+
+Add tests where practical to prevent these failures from returning.
+
+At minimum test:
+
+* 60-metric denominator integrity
+* 7 process metrics remain excluded
+* 14 protected-unavailable metrics remain correctly classified
+* 2 review metrics remain flagged appropriately
+* Evidence-family mapping
+* Player identity
+* Opponent identity
+* Match identity
+* Surface filtering
+* Tour filtering
+* Date filtering
+* Missing evidence
+* NULL handling
+* Metric calculation
+* metric_results persistence
+* Coverage calculation
+* API output
+* Historical chronology
+* No future-data leakage
+
+Tests should fail loudly if a metric becomes disconnected or begins using fabricated/default data.
+
+⸻
+
+18. PRODUCE A COMPLETE AUDIT REPORT
+
+Create a report containing a row for EACH of the 60 legitimate player metrics:
+
+Metric	Definition	Evidence Family	Source	Supabase Table	Calculation	Coverage	Status	Problem	Fix
+
+Status must be one of:
+
+* VERIFIED
+* FIXED
+* BROKEN
+* INCOMPLETE
+* UNAVAILABLE BY POLICY
+* REQUIRES REVIEW
+
+Also report:
+
+* Total legitimate player metrics: 60
+* Process metrics excluded: 7
+* Protected unavailable: 14
+* Review metrics: 2
+* Total verified
+* Total fixed
+* Total broken
+* Total incomplete
+* Any evidence-family mismatches
+* Any duplicate calculations
+* Any Supabase wiring errors
+* Any data leakage
+* Any coverage denominator errors
+* Any remaining limitations
+
+⸻
+
+19. ABSOLUTE DATA-INTEGRITY RULE
+
+DO NOT optimize the numbers.
+
+Do NOT try to increase evidence coverage, confidence, accuracy, or completeness unless the underlying real evidence genuinely supports it.
+
+The objective is:
+
+REAL EVIDENCE → CORRECT SUPABASE STORAGE → CORRECT CALCULATION → CORRECT METRIC RESULT → CORRECT COVERAGE → CORRECT DISPLAY
+
+If the evidence is missing, the correct answer is:
+
+MISSING / UNAVAILABLE / INSUFFICIENT EVIDENCE
+
+—not a fabricated value.
+
+⸻
+
+FINAL DELIVERABLE
+
+Before telling me the system is fixed, I want you to prove the wiring.
+
+Start with the audit and metric map.
+
+Then identify the actual defects.
+
+Then fix only the confirmed defects.
+
+Then run the regression/validation tests.
+
+Finally provide the complete 60-metric audit report and a concise summary of every change made.
+
+Do NOT report “all metrics are wired correctly” merely because the application builds or numbers appear on the screen.
+
+I need evidence that the underlying Supabase data, calculations, classifications, coverage logic, and displayed results all agree.

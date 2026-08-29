@@ -5,6 +5,7 @@ import { AuditColorBadge, BucketBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { buildBoardPdf } from "@/lib/report-pdf";
 import { toast } from "sonner";
+import { currentAuditRows } from "@/lib/current-audit-state";
 
 export const Route = createFileRoute("/app/board")({
   head: () => ({
@@ -42,13 +43,26 @@ export function useBoardRows() {
   return useQuery({
     queryKey: ["board"],
     queryFn: async (): Promise<BoardRow[]> => {
-      const [{ data: decisions }, { data: runs }, { data: matches }, { data: fields }, { data: versions }] = await Promise.all([
+      const [decisionResult, runResult, matchResult, fieldResult, versionResult] = await Promise.all([
         supabase.from("final_decisions").select("*"),
         supabase.from("audit_runs").select("*"),
         supabase.from("matches").select("*"),
         supabase.from("parsed_summary_fields").select("summary_version_id, field_key, normalized_value"),
         supabase.from("summary_versions").select("id, match_id, is_active"),
       ]);
+      const failed = [
+        ["final decisions", decisionResult.error],
+        ["audit runs", runResult.error],
+        ["matches", matchResult.error],
+        ["summary fields", fieldResult.error],
+        ["summary versions", versionResult.error],
+      ].find(([, error]) => error);
+      if (failed) throw new Error(`Could not load ${failed[0]}: ${(failed[1] as { message: string }).message}`);
+      const decisions = decisionResult.data ?? [];
+      const runs = runResult.data ?? [];
+      const matches = matchResult.data ?? [];
+      const fields = fieldResult.data ?? [];
+      const versions = versionResult.data ?? [];
 
       const matrixFor = (matchId: string, key: string) => {
         const sv = versions?.find((v) => v.match_id === matchId && v.is_active);
@@ -56,26 +70,28 @@ export function useBoardRows() {
         return fields?.find((f) => f.summary_version_id === sv.id && f.field_key === key)?.normalized_value ?? null;
       };
 
-      return (decisions ?? []).map((d) => {
-        const run = runs?.find((r) => r.id === d.audit_run_id);
-        const match = matches?.find((m) => m.id === run?.match_id);
+      return currentAuditRows(matches, runs, decisions).filter((row) => row.decision).map(({ match, run, decision: d }) => {
+        const snapshot = (d!.gate_report as Record<string, any> | null)?.calibration_snapshot;
+        const frozenRange = snapshot?.calibratedLow != null && snapshot?.calibratedHigh != null
+          ? `${snapshot.calibratedLow}–${snapshot.calibratedHigh}%`
+          : null;
         return {
-          matchLabel: match ? `${match.player1_name} vs ${match.player2_name}` : "—",
-          selection: d.final_selection ?? run?.independent_winner ?? "—",
+          matchLabel: `${match.player1_name} vs ${match.player2_name}`,
+          selection: d!.final_selection ?? run?.independent_winner ?? "—",
           tournament: match?.tournament_name ?? "—",
           surface: match?.surface ?? "—",
-          matrixPick: (match && matrixFor(match.id, "matrix_predicted_winner")) ?? "—",
-          matrixWp: (match && matrixFor(match.id, "matrix_wp")) ?? "—",
-          bucket: d.calibration_bucket,
-          verifiedWinRate: d.verified_win_rate,
+          matrixPick: matrixFor(match.id, "matrix_predicted_winner") ?? "—",
+          matrixWp: matrixFor(match.id, "matrix_wp") ?? "—",
+          bucket: d!.calibration_bucket,
+          verifiedWinRate: d!.verified_win_rate,
           independentWinner: run?.independent_winner ?? "—",
           independentRange:
             run?.independent_low != null ? `${run.independent_low}–${run.independent_high}%` : "—",
-          calibratedRange: run?.calibrated_low != null ? `${run.calibrated_low}–${run.calibrated_high}%` : "—",
+          calibratedRange: frozenRange ?? (run?.calibrated_low != null ? `${run.calibrated_low}–${run.calibrated_high}%` : "—"),
           evidence: run?.effective_evidence_count ?? 0,
-          color: d.final_audit_color,
-          action: d.action ?? "—",
-          completion: Number(d.completion_percent),
+          color: d!.audit_complete ? d!.final_audit_color : "INCOMPLETE",
+          action: d!.action ?? "—",
+          completion: Number(d!.completion_percent),
         };
       });
     },

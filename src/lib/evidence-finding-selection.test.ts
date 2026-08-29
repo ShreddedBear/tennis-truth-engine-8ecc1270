@@ -1,18 +1,15 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
-const source = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, " ");
+import { mergeMetricFindingSides } from "./warehouse-first-researcher.server";
 
 describe("warehouse evidence finding selection", () => {
-  it("prefers pair-complete live evidence first", () => {
-    expect(source).toContain("fullyUsableFinding(live)?live");
-  });
-
-  it("falls back to pair-complete deterministic evidence before accepting one-sided live output", () => {
-    expect(source).toContain("fullyUsableFinding(deterministic)?deterministic");
-    const pairDeterministic = source.indexOf("fullyUsableFinding(deterministic)?deterministic");
-    const oneSidedLive = source.indexOf("live&&(USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment))?live");
-    expect(pairDeterministic).toBeGreaterThan(-1);
-    expect(oneSidedLive).toBeGreaterThan(pairDeterministic);
+  it("keeps pair-complete primary evidence intact", () => {
+    const live = {
+      metric_code: "001", p1_value: "A", p2_value: "B",
+      p1_treatment: "DIRECT" as const, p2_treatment: "DIRECT" as const,
+      differential: null, evidence_family: "RESULTS_SCHEDULE", reliability: 90,
+      sample: null, unavailable_reason: null, sources: [],
+    };
+    const fallback = { ...live, p1_value: "fallback A", p2_value: "fallback B" };
+    expect(mergeMetricFindingSides(live, fallback)).toMatchObject({ p1_value: "A", p2_value: "B" });
   });
 });

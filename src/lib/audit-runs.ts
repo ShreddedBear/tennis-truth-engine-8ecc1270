@@ -1,22 +1,54 @@
 import { supabase } from "@/integrations/supabase/client";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
+import { classifyMetric } from "./metric-classification";
+
+type MetricRuleSeed = { rule_code: string; rule_name: string };
+
+export function metricResultSeedRows(runId: string, metricRules: MetricRuleSeed[]) {
+  return metricRules.map((rule) => {
+    const classification = classifyMetric(rule.rule_code);
+    const excluded = classification === "META_OR_NON_PLAYER";
+    const noSource = classification === "PROTECTED_UNAVAILABLE";
+    const initialStatus = excluded ? "EXCLUDED" : noSource ? "NO_SOURCE" : "NOT STARTED";
+    return {
+      audit_run_id: runId,
+      metric_code: rule.rule_code,
+      metric_name: rule.rule_name,
+      category: null,
+      evidence_family: rule.rule_name,
+      matrix_derived: false,
+      status: initialStatus,
+      p1_status: initialStatus,
+      p2_status: initialStatus,
+      p1_treatment: excluded ? "EXCLUDED" : "UNAVAILABLE",
+      p2_treatment: excluded ? "EXCLUDED" : "UNAVAILABLE",
+      unavailable_reason: excluded
+        ? "PROCESS_META_NOT_PLAYER_EVIDENCE"
+        : noSource
+          ? "NO_SOURCE_NO_LEGITIMATE_PATHWAY"
+          : null,
+    };
+  });
+}
 
 async function activeVersionId(docType: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("rule_documents")
     .select("id, active_version_id, doc_type")
     .eq("doc_type", docType)
     .maybeSingle();
+  if (error) throw new Error(`Could not load active ${docType} definitions: ${error.message}`);
   return data?.active_version_id ?? null;
 }
 
 async function rulesFor(versionId: string | null) {
   if (!versionId) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("rules")
     .select("id, rule_code, rule_name, severity, blocking, mapping_status")
     .eq("version_id", versionId)
     .order("rule_code");
+  if (error) throw new Error(`Could not load rules for ${versionId}: ${error.message}`);
   return data ?? [];
 }
 
@@ -30,7 +62,7 @@ export async function log(entry: {
   output?: unknown;
   matrix_visible?: boolean;
 }) {
-  await supabase.from("execution_logs").insert({
+  const { error } = await supabase.from("execution_logs").insert({
     audit_run_id: entry.audit_run_id ?? null,
     match_id: entry.match_id ?? null,
     stage: entry.stage,
@@ -40,6 +72,7 @@ export async function log(entry: {
     output: (entry.output ?? null) as never,
     matrix_visible: entry.matrix_visible ?? false,
   });
+  if (error) throw new Error(`Could not persist execution log: ${error.message}`);
 }
 
 export async function createAuditRun(matchId: string) {
@@ -49,12 +82,13 @@ export async function createAuditRun(matchId: string) {
     activeVersionId("METRICS"),
   ]);
 
-  const { data: prior } = await supabase
+  const { data: prior, error: priorError } = await supabase
     .from("audit_runs")
     .select("run_number")
     .eq("match_id", matchId)
     .order("run_number", { ascending: false })
     .limit(1);
+  if (priorError) throw new Error(`Could not read prior audit runs: ${priorError.message}`);
 
   const { data: run, error } = await supabase
     .from("audit_runs")
@@ -73,26 +107,22 @@ export async function createAuditRun(matchId: string) {
 
   const [metricRules, verRules, disRules] = await Promise.all([rulesFor(metId), rulesFor(verId), rulesFor(disId)]);
 
-  const chunked = async <T,>(rows: T[], insert: (batch: T[]) => PromiseLike<unknown>) => {
-    for (let i = 0; i < rows.length; i += 200) await insert(rows.slice(i, i + 200));
+  const chunked = async <T,>(label: string, rows: T[], insert: (batch: T[]) => PromiseLike<unknown>) => {
+    for (let i = 0; i < rows.length; i += 200) {
+      const result = await insert(rows.slice(i, i + 200));
+      const insertError = (result as { error?: { message?: string } | null } | null)?.error;
+      if (insertError) throw new Error(`Could not seed ${label}: ${insertError.message ?? "database insert failed"}`);
+    }
   };
 
   await chunked(
-    metricRules.map((r) => ({
-      audit_run_id: run.id,
-      metric_code: r.rule_code,
-      metric_name: r.rule_name,
-      category: null,
-      evidence_family: r.rule_name,
-      matrix_derived: false,
-      status: "NOT STARTED",
-      p1_status: "NOT STARTED",
-      p2_status: "NOT STARTED",
-    })),
+    "metric results",
+    metricResultSeedRows(run.id, metricRules),
     (batch) => supabase.from("metric_results").insert(batch),
   );
 
   await chunked(
+    "verification results",
     verRules.map((r) => ({
       audit_run_id: run.id,
       rule_id: r.id,
@@ -106,6 +136,7 @@ export async function createAuditRun(matchId: string) {
   );
 
   await chunked(
+    "disagreement results",
     disRules.map((r) => ({
       audit_run_id: run.id,
       rule_id: r.id,
@@ -116,14 +147,15 @@ export async function createAuditRun(matchId: string) {
     (batch) => supabase.from("disagreement_results").insert(batch),
   );
 
-  const { data: match } = await supabase
+  const { data: match, error: matchError } = await supabase
     .from("matches")
     .select("player1_name, player2_name")
     .eq("id", matchId)
     .single();
+  if (matchError) throw new Error(`Could not load match identity: ${matchError.message}`);
 
   const sides = [match?.player1_name ?? "Player 1", match?.player2_name ?? "Player 2"];
-  await supabase.from("underdog_results").insert(
+  const { error: underdogError } = await supabase.from("underdog_results").insert(
     sides.flatMap((side) =>
       UNDERDOG_PATHWAYS.map(([code, name]) => ({
         audit_run_id: run.id,
@@ -135,8 +167,9 @@ export async function createAuditRun(matchId: string) {
       })),
     ),
   );
+  if (underdogError) throw new Error(`Could not seed underdog results: ${underdogError.message}`);
 
-  await supabase.from("stress_results").insert(
+  const { error: stressError } = await supabase.from("stress_results").insert(
     STRESS_TESTS.map(([code, name]) => ({
       audit_run_id: run.id,
       test_code: code,
@@ -145,6 +178,7 @@ export async function createAuditRun(matchId: string) {
       outcome: "NOT STARTED",
     })),
   );
+  if (stressError) throw new Error(`Could not seed stress results: ${stressError.message}`);
 
   await log({
     audit_run_id: run.id,

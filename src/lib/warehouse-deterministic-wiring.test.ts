@@ -21,8 +21,8 @@ describe("warehouse deterministic calculator wiring", () => {
   });
 
   it("does not let a live unavailable result erase deterministic warehouse evidence", () => {
-    expect(compact).toContain("fullyUsableFinding(deterministic)?deterministic");
-    expect(compact).toContain("USABLE.has(live.p1_treatment)||USABLE.has(live.p2_treatment)");
+    expect(compact).toContain("constcomputed=mergeMetricFindingSides(live,deterministic)");
+    expect(compact).toContain("constchosen=mergeMetricFindingSides(cached,computed)");
   });
 
   it("passes deterministic components into the metric-scoped fallback context", () => {
