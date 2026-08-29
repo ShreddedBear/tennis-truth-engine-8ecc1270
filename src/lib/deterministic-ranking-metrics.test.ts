@@ -12,7 +12,7 @@ describe("ranking ingestion and deterministic Task 18C wiring", () => {
     expect(metricAllowsObservation("014", schedule)).toBe(false);
   });
 
-  it("maps ranking history into pair-complete DIRECT metric 014", () => {
+  it("maps ranking history into pair-complete PARTIAL metric 014 (see docs/metric-audit-014-ranking-context.md)", () => {
     expect(policyForMetric("014").allowed_families).toContain("RANKING");
     expect(policyForMetric("014").sufficient_families).toContain("RANKING");
     const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
@@ -21,8 +21,11 @@ describe("ranking ingestion and deterministic Task 18C wiring", () => {
     // deterministic-ranking-metrics.server.ts for the full rationale.
     expect(calculator).toContain('const OWNED = new Set(["001", "014"])');
     expect(calculator).toContain('if (code === "014") return directRankingFinding(args)');
-    expect(calculator).toContain('p1_treatment: "DIRECT"');
-    expect(calculator).toContain('p2_treatment: "DIRECT"');
+    // Downgraded from DIRECT to PARTIAL this pass: only "Current Ranking" (one of
+    // four named bullets) is a raw published value; Ranking-Performance Disconnect
+    // is not computed. See docs/metric-audit-014-ranking-context.md.
+    expect(calculator).toContain('p1_treatment: "PARTIAL"');
+    expect(calculator).toContain('p2_treatment: "PARTIAL"');
     expect(calculator).toContain("if (!p1 || !p2) return null");
   });
 

@@ -114,7 +114,20 @@ export async function deterministicMarketMetric(args: { metricCode: unknown; p1:
   const sourceUrl = p1Rows[0]?.source_url ?? p2Rows[0]?.source_url;
   const sourceName = p1Rows[0]?.source_name ?? p2Rows[0]?.source_name;
   if (!sourceName) return null;
-  const isCoreMarket = code === "015" || code === "019";
+  // Treatment for "015" is PARTIAL, not RECONSTRUCTED: per docs/metric-audit-015-market-layer.md,
+  // real code 015 ("Market Layer") has 7 named bullets. This function's single-event_date
+  // query genuinely covers Sportsbook Moneyline Consensus (avg_raw), No-Vig Implied
+  // Probability (avg_de_vig), and Market Movement / Opening-vs-Current-Closing-Price
+  // (move, the same first-to-last snapshot delta honestly satisfying both). It does not
+  // compute Multiple-Book Comparison (a per-bookmaker side-by-side breakdown -- bookmakerKey
+  // is only used internally for de-vig pairing, never exposed), Model-vs-Market Divergence
+  // (needs this project's own model probability, which this file never has access to and
+  // should not import from TennisMatrixAi -- see docs/metric-audit-015-market-layer.md),
+  // or Prediction-Market Consensus (a genuinely different data source -- prediction markets,
+  // not sportsbooks -- never ingested here). 4 of 7 named bullets missing fails this
+  // project's own house rule for RECONSTRUCTED ("every required component of the exact
+  // definition/formula is sourced").
+  const isCoreMarket = code === "019";
   // certifyMetricFinding is the same conservative, never-upgrades-only-downgrades
   // safety net this codebase already trusts for metric 019 (see
   // metric-certification.test.ts's "Market Calibration certification" cases). It
@@ -128,5 +141,5 @@ export async function deterministicMarketMetric(args: { metricCode: unknown; p1:
   // calibration, not just today's price. certifyMetricFinding downgrades that
   // case to UNAVAILABLE; codes without a registered policy (015/043/044 today)
   // pass through unchanged.
-  return certifyMetricFinding({ metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical four-tour match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; tour_family=${expectedFamily}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : null, sources: [{ source_name: sourceName, url: sourceUrl }] });
+  return certifyMetricFinding({ metric_code: code, p1_value: valueText(p1Summary), p2_value: valueText(p2Summary), p1_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", p2_treatment: isCoreMarket ? "RECONSTRUCTED" : "PARTIAL", differential: p1Summary.avg_devig_probability != null && p2Summary.avg_devig_probability != null ? `${((p1Summary.avg_devig_probability - p2Summary.avg_devig_probability) * 100).toFixed(1)} pp de-vig` : null, evidence_family: "MARKET", reliability: Math.min(95, 55 + Math.min(40, Math.floor((p1Summary.paired_devig_observations + p2Summary.paired_devig_observations) / 4))), sample: `The Odds API canonical four-tour match ${args.asOfDate}${args.tournament ? ` @ ${args.tournament}` : ""}; tour_family=${expectedFamily}; p1_n=${p1Summary.observations}; p2_n=${p2Summary.observations}`, unavailable_reason: code === "019" ? "Outcome-linked calibration completion still requires verified result labels; this row supplies deterministic historical market probability components." : code === "015" ? "Sportsbook Moneyline Consensus, No-Vig Implied Probability, and Market Movement/Opening-vs-Closing are covered from this event's odds snapshots. Multiple-Book Comparison (per-bookmaker breakdown), Model-vs-Market Divergence (needs this project's own model probability), and Prediction-Market Consensus (a different data source, never ingested) are not inferred." : null, sources: [{ source_name: sourceName, url: sourceUrl }] });
 }

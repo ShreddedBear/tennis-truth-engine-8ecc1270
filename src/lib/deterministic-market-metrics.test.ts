@@ -19,8 +19,16 @@ describe("deterministic market metrics", () => {
     expect(calc).toContain('favorite_share');
   });
 
-  it("keeps 043 and 044 support-only while 015 and 019 can be reconstructed", () => {
-    expect(calc).toContain('const isCoreMarket = code === "015" || code === "019"');
+  it("keeps 043/044/015 PARTIAL while 019 is core-market reconstructed pre-certification (see docs/metric-audit-015-market-layer.md)", () => {
+    // Downgraded from `code === "015" || code === "019"` this pass: 015's real
+    // 7-bullet definition is only 3/7 covered by this single-event_date query
+    // (Multiple-Book Comparison, Model-vs-Market Divergence, and Prediction-Market
+    // Consensus are missing), which fails this project's own RECONSTRUCTED bar.
+    // 019 stays isCoreMarket=true here because certifyMetricFinding's registered
+    // policy downgrades its current-odds-only output to UNAVAILABLE regardless
+    // (see deterministic-market-metrics-certification.test.ts) -- this file's own
+    // pre-certification value for 019 is not the final word either way.
+    expect(calc).toContain('const isCoreMarket = code === "019"');
     expect(calc).toContain('isCoreMarket ? "RECONSTRUCTED" : "PARTIAL"');
   });
 

@@ -132,6 +132,23 @@ fall inside the 21 META/PROTECTED codes already correctly classified in
 `metric-classification.ts` and don't need a doc at all -- see the
 denominator correction above).
 
+**Progress continued:** 014 (Ranking Context) and 015 (Market Layer)
+audited 2026-08-29 -- both found live-wired but with a treatment that
+over-claimed relative to the real definition, the same class of bug
+already fixed for metric 001. 014: downgraded DIRECT -> PARTIAL (only 1 of
+4 named bullets, Current Ranking, is a raw published value); added a real,
+additive Rapid Riser/Faller Status computation (a documented threshold on
+the already-computed 30-day rank delta) while fixing it. 015: downgraded
+RECONSTRUCTED -> PARTIAL (only 3 of 7 named bullets covered by the live
+Odds API wiring; the existing test's own comment justifying RECONSTRUCTED
+had undercounted the real definition to 3 bullets). Both required updating
+an existing test that explicitly asserted the old, over-claimed treatment
+value -- blast radius checked in both cases (no other consumer reads
+either treatment field) before changing. See
+`docs/metric-audit-014-ranking-context.md` and
+`docs/metric-audit-015-market-layer.md`. 24 of 81 codes now have a
+dedicated audit doc; 019 verified TRULY UNAVAILABLE; 56 remain UNVERIFIED.
+
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
 **Blocks:** verifying any metric wired through the live `source_observations`

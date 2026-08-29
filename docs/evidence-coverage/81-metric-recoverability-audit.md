@@ -75,9 +75,9 @@ line by this document's author — see each linked `docs/audit-task-new-batch1-*
 for the primary source. #062 was evaluated by that workstream and found
 BLOCKED (skipped, still UNVERIFIED here pending its own dedicated row note).
 
-- **PARTIAL, verified via a dedicated per-metric audit (either workstream):** 22 metrics (001, 002, 003, 004, 006, 007, 008, 009, 010, 011, 012, 013, 027, 029, 031, 036, 037, 039, 041, 046, 051, 080)
+- **PARTIAL, verified via a dedicated per-metric audit (either workstream):** 24 metrics (001, 002, 003, 004, 006, 007, 008, 009, 010, 011, 012, 013, 014, 015, 027, 029, 031, 036, 037, 039, 041, 046, 051, 080)
 - **TRULY UNAVAILABLE, verified via dedicated per-metric audit:** 1 metric (019)
-- **UNVERIFIED (name corrected, classification pending re-audit):** 58 metrics
+- **UNVERIFIED (name corrected, classification pending re-audit):** 56 metrics
 - Total: 81
 
 **Denominator correction (2026-08-29 reconciliation audit):** this 81-wide
@@ -118,8 +118,8 @@ Do not compute a coverage percentage, "potentially usable" count, or four-tour-e
 | 011 | Volatility/Floor | PARTIAL | Set/game score distributions support a real subset; remainder SOURCE REQUIRED. See docs/metric-audit-011-volatility-floor.md. | 1.234568 pp max |
 | 012 | Fatigue/Workload | PARTIAL | Matches/sets/games/rest reconstructable; several named components remain SOURCE REQUIRED (wiring verified honest, no fabricated evidence found). See docs/metric-audit-012-fatigue-workload.md and docs/metric-audit-012-fatigue-workload-schedule-engine.md. | 1.234568 pp max |
 | 013 | Availability | PARTIAL | A real subset of named components is reconstructable from existing schedule/result history; remainder SOURCE REQUIRED. See docs/metric-audit-013-availability.md. | 1.234568 pp max |
-| 014 | Ranking Context | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-014-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
-| 015 | Market Layer | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-015-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
+| 014 | Ranking Context | PARTIAL | Official ranking snapshots cover Current Ranking, Ranking Trajectory, and (added this pass) a documented Rapid Riser/Faller threshold; downgraded from a false DIRECT (only 1 of 4 named bullets was a raw published value). Ranking-Performance Disconnect needs a performance baseline (e.g. derived Elo) not cross-referenced. See docs/metric-audit-014-ranking-context.md. | 1.234568 pp max |
+| 015 | Market Layer | PARTIAL | A real, live, production odds feed (The Odds API) already covers Sportsbook Moneyline Consensus, No-Vig Implied Probability, and Market Movement/Opening-vs-Closing (3 of 7 named bullets); downgraded from a false RECONSTRUCTED. Multiple-Book Comparison, Model-vs-Market Divergence, and Prediction-Market Consensus remain SOURCE REQUIRED. See docs/metric-audit-015-market-layer.md. | 1.234568 pp max |
 | 016 | Point-by-Point & Score-State Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-016-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 017 | Shot & Rally Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-017-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |
 | 018 | Momentum & Closing Metrics | UNVERIFIED | Name corrected against public/seed/metrics.txt this pass; classification/evidence-basis inherited from this table's prior (mismatched-code) entry is UNRELIABLE and not carried forward. Needs its own docs/metric-audit-018-*.md pass before being trusted for recovery-queue or coverage-count decisions. | TBD |

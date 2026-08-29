@@ -36,13 +36,15 @@ describe("deterministic-market-metrics.server.ts wraps its return in certifyMetr
     expect(out.p2_treatment).toBe("UNAVAILABLE");
   });
 
-  it("leaves code 015 (Market Layer, which genuinely only needs current-match consensus) unaffected", () => {
-    // 015's own definition (Sportsbook Moneyline Consensus, Market Movement,
-    // No-Vig Implied Probability) is exactly current-match pricing -- unlike
-    // 019, it has no registered certification policy, so certifyMetricFinding
-    // must pass it through unchanged.
-    const out = certifyMetricFinding(currentOddsOnlyFinding("015"));
-    expect(out.p1_treatment).toBe("RECONSTRUCTED");
-    expect(out.p2_treatment).toBe("RECONSTRUCTED");
+  it("passes code 015 through unchanged (it has no registered certification policy; the live engine now emits PARTIAL for it directly, not RECONSTRUCTED -- see docs/metric-audit-015-market-layer.md)", () => {
+    // certifyMetricFinding itself is a pass-through for any code without a
+    // registered policy -- this proves that behavior in isolation, using a
+    // synthetic PARTIAL input (deterministic-market-metrics.server.ts's real
+    // output for 015 as of this pass; see the dedicated 015 fixture below for
+    // the live engine's actual current-odds-only text and treatment).
+    const finding = currentOddsOnlyFinding("015");
+    const out = certifyMetricFinding({ ...finding, p1_treatment: "PARTIAL", p2_treatment: "PARTIAL" });
+    expect(out.p1_treatment).toBe("PARTIAL");
+    expect(out.p2_treatment).toBe("PARTIAL");
   });
 });
