@@ -76,6 +76,13 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
   for (const provider of attempts) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+    // Throughput measurement: this line is the entire cost of "measure #2" from
+    // the stuck-audit investigation -- every provider attempt's outcome and
+    // wall-clock time, so real production traffic answers whether providers are
+    // timing out/falling back (the 9s-per-attempt tax) versus batch count being
+    // the actual limiter, without needing DB/provider credentials to find out.
+    // Remove once the throughput question is settled.
+    const attemptStartedAt = Date.now();
     try {
       let res = await fetch(provider.url, {
         method: "POST",
@@ -100,11 +107,13 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
       if (!res.ok) {
         const text = await res.text();
         errors.push(`${provider.name} ${res.status}: ${text.slice(0, 300)}`);
+        console.log(`[research-timing] ${provider.name} FAIL(${res.status}) ${Date.now() - attemptStartedAt}ms`);
         continue;
       }
       const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
       const content = json.choices?.[0]?.message?.content ?? "";
       const unwrap = (v: unknown): T => (Array.isArray(v) ? ((v[0] ?? {}) as T) : (v as T));
+      console.log(`[research-timing] ${provider.name} OK ${Date.now() - attemptStartedAt}ms`);
       try {
         return unwrap(JSON.parse(content));
       } catch {
@@ -114,6 +123,7 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
       }
     } catch (error) {
       errors.push(`${provider.name}: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`[research-timing] ${provider.name} ERROR ${Date.now() - attemptStartedAt}ms: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       clearTimeout(timeout);
     }
