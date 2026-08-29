@@ -17,6 +17,7 @@ localPort = 8080
 externalPort = 8080
 
 [workflows]
+runButton = "Start"
 
 [[workflows.workflow]]
 name = "Start"
@@ -26,6 +27,17 @@ author = 64742427
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bun run dev"
+
+[[workflows.workflow]]
+name = "typecheck"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun run typecheck"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [deployment]
 deploymentTarget = "autoscale"
