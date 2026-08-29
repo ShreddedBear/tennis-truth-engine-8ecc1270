@@ -3,6 +3,20 @@
 Status: **DONE**, tour-scoped GO per `docs/audit-task-new-batch1-step0.md`'s
 resolution. 16 new unit tests, all passing.
 
+**Wiring update (later pass, code 027 only — 029 is out of that task's
+scope):** this module was built and tested but never actually called from
+the live pipeline (`warehouse-first-researcher.server.ts`'s
+`Researcher.metrics()`) — see
+`docs/ARCHITECTURE-FINDING-disconnected-hybrid-researcher.md` for the prior
+precedent this exact situation follows. Code 027 is now wired in via
+`src/lib/deterministic-batch1-standalone-metrics.server.ts`, a new tier
+tried after the existing deterministic engines and before the PBP-packet/
+CSV-warehouse/live-AI tiers. See
+`src/lib/deterministic-batch1-standalone-metrics.test.ts` for an
+integration-style test proving the wired path produces a real finding
+against the real generated index. No changes to this module's own math.
+029 remains unwired (not part of that task's assigned code list).
+
 Files: `src/lib/audit-metric-027-opponent-finishing-ability.ts` (+
 `.test.ts`), `src/lib/audit-metric-029-psychological-response-proxy.ts` (+
 `.test.ts`).

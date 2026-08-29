@@ -3,6 +3,13 @@
 Status: **DONE**, GO across all four lanes (per
 `docs/audit-task-new-batch1-step0.md`'s resolution: Elo substitution turns
 both from lane-inconsistent PARTIAL into fully GO). 15 new unit tests, all
+
+**Wiring update (later pass):** both modules were built and tested but
+never actually called from the live pipeline. Now wired in via
+`src/lib/deterministic-batch1-standalone-metrics.server.ts` (see
+`docs/ARCHITECTURE-FINDING-disconnected-hybrid-researcher.md` for the prior
+precedent this follows, and that file's own integration test). No changes
+to either module's own math.
 passing.
 
 Files: `src/lib/audit-metric-031-common-opponent-point-differential.ts` (+

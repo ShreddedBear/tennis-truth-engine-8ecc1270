@@ -4,6 +4,11 @@ Status: **DONE**, restricted to WTA_MAIN/ATP_CHALLENGER per
 `docs/audit-task-new-batch1-step0.md`'s resolution. 6 new unit tests, all
 passing.
 
+**Wiring update (later pass):** this module was built and tested but never
+actually called from the live pipeline. Now wired in via
+`src/lib/deterministic-batch1-standalone-metrics.server.ts`. No changes to
+this module's own math.
+
 Files: `src/lib/audit-metric-046-match-state-elo.ts` (+ `.test.ts`).
 
 ## Scope
