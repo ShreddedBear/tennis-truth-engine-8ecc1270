@@ -1,0 +1,1 @@
+- [Audit PBP batching](audit-pbp-batching.md) — bound concurrent candidate retrieval and skip PBP work for batches that cannot use it.

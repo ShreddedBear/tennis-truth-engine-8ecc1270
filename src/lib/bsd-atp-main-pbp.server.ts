@@ -18,6 +18,14 @@ function explicitContext(c:string|null|undefined){const s=norm(c);if(!s||/(^| )w
 function strictRow(r:IndexRow){const blob=norm(`${r.category??""} ${r.tournament??""}`);return String(r.circuit??"").toUpperCase()==="ATP"&&r.structurally_present===true&&!["challenger","wta","itf","futures","utr","satellite","exhibition"].some(x=>blob.includes(x));}
 async function loadIndex(year:number):Promise<IndexRow[]>{try{const p=JSON.parse(await readFile(join(process.cwd(),"data","audit","bsd-atp-main-pbp-history",String(year),"results.json"),"utf8"));return Array.isArray(p)?p:[];}catch{return[];}}
 async function fetchPbp(id:string|number){const token=process.env.BSD_TENNIS_API_KEY;if(!token)return null;try{const r=await fetch(`${BASE}/matches/${encodeURIComponent(String(id))}/point-by-point/`,{headers:{Authorization:`Token ${token}`,"User-Agent":"tennis-truth-engine-task18b-atp-main/1.0"},signal:AbortSignal.timeout(12000)});if(!r.ok)return null;const p=await r.json();return p&&typeof p==="object"&&(p as any).available===true?p:null;}catch{return null;}}
+async function fetchCandidatePbp(rows:IndexRow[],concurrency=6){
+ const out:Array<{row:IndexRow;payload:any}>=[];
+ for(let offset=0;offset<rows.length;offset+=concurrency){
+  const chunk=rows.slice(offset,offset+concurrency);
+  out.push(...await Promise.all(chunk.map(async row=>({row,payload:row.match_id==null?null:await fetchPbp(row.match_id)}))));
+ }
+ return out;
+}
 function candidates(rows:IndexRow[],p1:string,p2:string){const sorted=[...rows].sort((a,b)=>String(b.date??"").localeCompare(String(a.date??""))),seen=new Set<string>();return[...sorted.filter(r=>(r.players??[]).map(norm).includes(p1)).slice(0,12),...sorted.filter(r=>(r.players??[]).map(norm).includes(p2)).slice(0,12)].filter(r=>{const k=String(r.match_id??"");if(!k||seen.has(k))return false;seen.add(k);return true;}).sort((a,b)=>String(b.date??"").localeCompare(String(a.date??"")));}
 
 type ObservationStatus={eligible:boolean;reason:string;matches_used:number;rejected_pbp:number;coverage_start:string;source:string};
@@ -61,7 +69,11 @@ async function computeObservations(args:{p1:string;p2:string;asOfDate:string;con
 }
 
 export async function buildBsdAtpMainPbpContext(args:{metrics:MetricLike[];p1:string;p2:string;asOfDate:string;context?:string|null}){
- const{status,observations}=await computeObservations(args);
+ const status={eligible:false,reason:"",matches_used:0,rejected_pbp:0,coverage_start:COVERAGE_START,source:"BSD/Bzzoiro ATP Main PBP"};
+ if(!explicitContext(args.context)){status.reason="Fail-closed tour guard: context is not explicitly ATP Main.";return{packet:{} as Record<string,unknown>,status};}
+ if(args.asOfDate<COVERAGE_START){status.reason="Outside confirmed BSD ATP Main PBP coverage boundary.";return{packet:{} as Record<string,unknown>,status};}
+ if(!args.metrics.some(metric=>PBP_CODES.has(codeOf(metric.code)))){status.reason="No requested metric uses the approved ATP Main PBP family.";return{packet:{} as Record<string,unknown>,status};}
+ const{status:computedStatus,observations}=await computeObservations(args);
  const packet:Record<string,unknown>={};for(const metric of args.metrics){const code=codeOf(metric.code),codeRows=observations.filter(o=>Boolean(o.value?.derived?.[code]));if(!PBP_CODES.has(code)||!codeRows.length)continue;const p=policyForMetric(code);packet[code]={metric_name:metric.name,allowed_families:[...new Set([...p.allowed_families,"POINT_BY_POINT"])],sufficient_families:[...new Set([...p.sufficient_families,"POINT_BY_POINT"])],support_only_families:(p.support_only_families??[]).filter(x=>x!=="POINT_BY_POINT"),observed_families:["POINT_BY_POINT"],direct_satisfaction_allowed:false,observations:codeRows.slice(0,80),tour_guard:"STRICT_ATP_MAIN_ONLY",evidence_treatment:"RECONSTRUCTED_OR_TASK17_PARTIAL_ONLY"};}
- return{packet,status:{...status}};
+ return{packet,status:{...computedStatus}};
 }

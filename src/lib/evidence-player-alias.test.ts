@@ -21,6 +21,17 @@ describe("evidence player alias firewall", () => {
     expect(uniqueCanonicalWarehouseIdentity("Smith", ["John Smith", "Alex Smith"])).toBeNull();
   });
 
+  it("collapses one matching initial alias into the unique full identity", () => {
+    expect(uniqueCanonicalWarehouseIdentity("Nakashima", ["B. Nakashima", "Brandon Nakashima"]))
+      .toBe("Brandon Nakashima");
+    expect(uniqueCanonicalWarehouseIdentity("Tiafoe", ["F. Tiafoe", "Frances Tiafoe"]))
+      .toBe("Frances Tiafoe");
+  });
+
+  it("does not collapse a conflicting initial alias", () => {
+    expect(uniqueCanonicalWarehouseIdentity("Smith", ["J. Smith", "Alex Smith"])).toBeNull();
+  });
+
   it("does not treat a surname-only warehouse row as canonical proof", () => {
     expect(uniqueCanonicalWarehouseIdentity("Gauff", ["Gauff"])).toBeNull();
   });

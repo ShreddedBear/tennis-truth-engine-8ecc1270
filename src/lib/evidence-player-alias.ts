@@ -39,7 +39,31 @@ export function uniqueCanonicalWarehouseIdentity(
     if (parts.length < 2 || parts[parts.length - 1] !== wantedSurname) continue;
     if (!byNormalized.has(normalized)) byNormalized.set(normalized, display);
   }
-  return byNormalized.size === 1 ? [...byNormalized.values()][0] : null;
+  if (byNormalized.size === 1) return [...byNormalized.values()][0];
+
+  // Official feeds commonly carry both a full display name and an
+  // initial+surname alias for the same player (for example "Brandon
+  // Nakashima" and "B. Nakashima"). Collapse that pair only when there is
+  // exactly one full-name candidate and every remaining candidate has the
+  // same surname and matching first initial. Multiple full names still fail
+  // closed as genuinely ambiguous.
+  const candidates = [...byNormalized.entries()].map(([normalized, display]) => ({
+    display,
+    parts: normalized.split(" ").filter(Boolean),
+  }));
+  const full = candidates.filter(({ parts }) => parts.length >= 2 && parts[0].length > 1);
+  if (full.length !== 1) return null;
+  const [canonical] = full;
+  const firstInitial = canonical.parts[0][0];
+  const canonicalSurname = canonical.parts[canonical.parts.length - 1];
+  const aliasesMatch = candidates.every(({ parts }) => {
+    if (parts.join(" ") === canonical.parts.join(" ")) return true;
+    return parts.length === 2
+      && parts[0].length === 1
+      && parts[0] === firstInitial
+      && parts[1] === canonicalSurname;
+  });
+  return aliasesMatch ? canonical.display : null;
 }
 
 /**

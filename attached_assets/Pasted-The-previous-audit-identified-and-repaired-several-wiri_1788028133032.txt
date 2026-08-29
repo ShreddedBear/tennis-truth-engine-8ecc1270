@@ -1,0 +1,335 @@
+The previous audit identified and repaired several wiring problems, but it also confirmed that the LIVE Supabase data is still incomplete:
+
+* 324 existing metric rows = 4 × 81
+* No metric currently has values for BOTH P1 and P2
+* Existing populated historical values are P1-only
+* audit_coverage = 0
+* metric_coverage_rates = 0
+* final_decisions = 0
+* calibration_ledger = 0
+
+I now need you to move beyond auditing and ACTUALLY REWIRE, REPAIR, EXECUTE, AND VALIDATE THE 60 LEGITIMATE PLAYER-LEVEL METRICS THROUGH P1 AND P2.
+
+PRIMARY OBJECTIVE
+
+For every one of the 60 legitimate player-level metrics, establish this complete working path:
+
+REAL APPROVED EVIDENCE
+→ SUPABASE EVIDENCE
+→ CORRECT METRIC CALCULATION
+→ P1 RESULT
+AND INDEPENDENTLY
+→ P2 RESULT
+→ metric_results
+→ evidence coverage
+→ audit output
+
+The goal is not merely to identify whether this path works.
+
+If the path is broken, FIX IT.
+
+⸻
+
+1. START WITH THE 60 METRICS
+
+Use the authoritative metric definitions and classifications already implemented in:
+
+* src/lib/metric-source-family-policy.ts
+* src/lib/metric-classification.ts
+
+Do NOT change the existing 60 / 7 / 14 / 2 policy.
+
+The requirements remain:
+
+* 60 legitimate player-level metrics = evidence denominator
+* 7 process/meta metrics = excluded
+* 14 protected-unavailable metrics = unavailable according to policy
+* 2 review metrics = remain review-required unless legitimately resolved
+
+Do not manipulate these classifications to improve coverage.
+
+⸻
+
+2. TRACE P1 AND P2 SEPARATELY
+
+For EACH of the 60 metrics, trace P1 and P2 independently.
+
+Do NOT treat a metric as successfully wired simply because P1 has a value.
+
+The required test is:
+
+METRIC X
+→ P1 evidence
+→ P1 calculation
+→ P1 result
+
+AND
+
+METRIC X
+→ P2 evidence
+→ P2 calculation
+→ P2 result
+
+Player orientation must remain correct.
+
+P1 must never accidentally receive P2’s evidence.
+
+P2 must never accidentally receive P1’s evidence.
+
+⸻
+
+3. IF P1 OR P2 IS MISSING, FIX THE PIPELINE
+
+This is the most important requirement.
+
+If a legitimate metric has:
+
+P1 = value
+P2 = missing
+
+do NOT simply report “P2 unavailable.”
+
+First determine WHY.
+
+Trace:
+
+source
+→ Supabase query
+→ evidence selection
+→ player identity
+→ metric calculation
+→ persistence
+
+Then FIX the broken path if legitimate evidence exists.
+
+Likewise, if:
+
+P1 = missing
+P2 = value
+
+repair P1.
+
+If both are missing, determine whether:
+
+A. legitimate evidence exists but wiring is broken
+B. calculation is broken
+C. Supabase query is broken
+D. player/match mapping is broken
+E. evidence-family mapping is wrong
+F. persistence is broken
+G. evidence genuinely does not exist
+
+Only G should remain unavailable.
+
+⸻
+
+4. DO NOT ACCEPT ONE-SIDED SUCCESS
+
+The previous implementation claims that one-sided metric selection was fixed.
+
+Now PROVE that it works in a fresh audit.
+
+For each fresh audit run, calculate P1 and P2 independently.
+
+Do not merge players in a way that allows one player’s missing evidence to suppress the other.
+
+Do not use a shared nullable result that causes P2 to disappear when P1 exists.
+
+Do not copy a P1 value into P2.
+
+Do not infer P2 from P1 unless the metric definition explicitly requires a symmetric derivation.
+
+⸻
+
+5. REPAIR SUPABASE QUERIES IF NECESSARY
+
+Inspect all relevant queries in:
+
+* src/lib/audit-repo.server.ts
+* src/lib/audit-pipeline.ts
+* src/lib/evidence-coverage-runtime-diagnostic.server.ts
+
+Also inspect any metric calculation modules and API routes involved.
+
+Look specifically for:
+
+* player_id filtering errors
+* P1/P2 orientation errors
+* incorrect joins
+* missing player filters
+* opponent/player reversal
+* ATP/WTA mixing
+* surface filtering errors
+* date filtering errors
+* wrong match IDs
+* evidence-selection bugs
+* NULL suppression
+* array/object orientation bugs
+* JSON/JSONB field mapping errors
+* persistence bugs
+* stale cache behavior
+
+If the problem is in the code, FIX THE CODE.
+
+⸻
+
+6. REPAIR THE ACTUAL METRIC CALCULATIONS
+
+Do not stop at database wiring.
+
+If the Supabase evidence exists but the metric calculation does not produce P1/P2 correctly, repair the calculation.
+
+Verify:
+
+* correct numerator
+* correct denominator
+* correct player
+* correct opponent
+* correct surface
+* correct time window
+* correct tournament
+* correct historical cutoff
+* correct missing-data behavior
+
+Never substitute fabricated values.
+
+⸻
+
+7. RUN FRESH AUDITS
+
+After repairing the wiring, run fresh audit runs against the existing real matches.
+
+Do NOT rewrite historical rows merely to make them look correct.
+
+Generate new audit runs using the repaired pipeline.
+
+The fresh runs must create the appropriate:
+
+* metric_results
+* audit_coverage
+* metric_coverage_rates
+* final_decisions
+* calibration outputs where legitimately applicable
+
+⸻
+
+8. VERIFY SUPABASE DIRECTLY
+
+After the fresh runs, query Supabase directly.
+
+Report:
+
+* Fresh audit runs created
+* Metric rows created per run
+* P1 metric values
+* P2 metric values
+* Metrics with both P1 and P2
+* Metrics with P1 only
+* Metrics with P2 only
+* Metrics with neither
+* Legitimately unavailable metrics
+* audit_coverage rows
+* metric_coverage_rates rows
+* final_decisions
+* calibration ledger rows
+
+The objective is to eliminate unexplained one-sided results.
+
+⸻
+
+9. CREATE A 60-METRIC P1/P2 MATRIX
+
+Produce a table:
+
+Metric	P1	P2	Evidence Family	P1 Source	P2 Source	Status
+
+Status:
+
+* VERIFIED BOTH
+* FIXED BOTH
+* P1 ONLY — INVESTIGATE
+* P2 ONLY — INVESTIGATE
+* LEGITIMATELY UNAVAILABLE
+* REQUIRES REVIEW
+
+There must be an explicit explanation for every metric that does not have both P1 and P2.
+
+⸻
+
+10. NO FABRICATION
+
+Absolutely no:
+
+* zero-filling
+* copied values
+* averages
+* synthetic values
+* arbitrary defaults
+* placeholder metrics
+* fake evidence
+* future information
+* today’s data substituted for historical data
+
+If evidence genuinely does not exist, preserve the legitimate unavailable state.
+
+⸻
+
+11. VERIFY THE FINAL DATA PATH
+
+For representative metrics, prove:
+
+REAL SOURCE
+→ SUPABASE EVIDENCE
+→ P1 CALCULATION
+→ P2 CALCULATION
+→ metric_results
+→ audit_coverage
+→ FINAL AUDIT OUTPUT
+
+The values must be traceable.
+
+⸻
+
+12. ADD REGRESSION TESTS
+
+Add tests that specifically prevent:
+
+* P1-only metric results
+* P2-only metric results
+* player orientation reversal
+* one player’s evidence suppressing the other
+* incorrect player IDs
+* incorrect match IDs
+* incorrect surface
+* incorrect tour
+* incorrect date window
+* future-data leakage
+* silent Supabase write failures
+
+⸻
+
+13. SUCCESS CRITERIA
+
+Do NOT declare this complete because tests pass.
+
+Do NOT declare this complete because the build passes.
+
+Do NOT declare this complete because metric_results contains rows.
+
+Completion requires that the fresh audit runs demonstrate that the repaired system can actually take legitimate Supabase evidence and produce correctly oriented P1 AND P2 metric results.
+
+For every metric that cannot produce both P1 and P2, prove that the reason is genuinely missing/unavailable evidence or an explicit policy restriction—not an unresolved wiring defect.
+
+The ultimate requirement is:
+
+REAL SUPABASE EVIDENCE
+→ CORRECT METRIC
+→ CORRECT P1
+→ CORRECT P2
+→ CORRECT SUPABASE PERSISTENCE
+→ CORRECT COVERAGE
+→ CORRECT AUDIT OUTPUT
+
+If you discover another wiring defect while running the fresh audits, repair it rather than merely documenting it.
+
+Do not stop at an audit report. Fix, execute, validate, and prove the repaired P1/P2 pipeline.
