@@ -30,5 +30,26 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# User-uploaded screenshots and image attachments
+attached_assets/*.png
+attached_assets/*.jpg
+attached_assets/*.jpeg
+attached_assets/*.gif
+attached_assets/*.webp
+attached_assets/*.svg
+attached_assets/*.bmp
+attached_assets/*.tif
+attached_assets/*.tiff
+screenshots/*.png
+screenshots/*.jpg
+screenshots/*.jpeg
+screenshots/*.gif
+screenshots/*.webp
+screenshots/*.svg
+screenshots/*.bmp
+screenshots/*.tif
+screenshots/*.tiff
+
 ⁠bucket-database_export_28_08_26-files.zip⁠
 tennis-truth-engine_260828.backup
