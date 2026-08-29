@@ -5,6 +5,24 @@
 // take -- see their headers for why this population is bounded to the
 // audit DB and never extended to the four-tour historical index.
 //
+// NOT A SUBSTITUTE FOR PER-PLAYER METRIC 036/037/039 EVIDENCE. This file
+// (and audit-metric-036-037-loss-win-autopsy.ts's summarizeAutopsyDistribution
+// / audit-metric-039-performance-surprise.ts's whole-population aggregator)
+// classifies TennisMatrixAi's WHOLE scored-match population into a single
+// DB-wide category distribution -- it answers "how does TennisMatrixAi's
+// calibration/surprise look across every match it has scored," not "for
+// player X specifically, what do their own recent losses/wins/surprises
+// look like." evidence-gap.ts's metric 036 ("Loss Autopsy Metrics")
+// definition is explicitly per-player ("chronological recent losses" for
+// THIS player), which a single whole-DB distribution cannot answer for
+// either side of a specific p1-vs-p2 audit request -- there is no way to
+// derive a p1_value/p2_value pair from one shared population-wide number.
+// This is why it is intentionally NOT wired into
+// warehouse-first-researcher.server.ts's Researcher.metrics() pipeline: it
+// is a separate internal/admin calibration-style report, not per-player
+// audit evidence. The real, per-player, evidence-gap.ts-spec-compliant
+// metric 036 is audit-metric-036-loss-autopsy.ts, wired in separately.
+//
 // Follows the same supabaseAdmin/ownerId/LOCAL_WORKSPACE_ID convention as
 // audit-repo.server.ts, and the same summary_versions(match_id, is_active)
 // -> parsed_summary_fields(summary_version_id) join it already uses for

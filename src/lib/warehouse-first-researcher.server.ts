@@ -7,6 +7,7 @@ import { deterministicRankingMetric } from "./deterministic-ranking-metrics.serv
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
 import { deterministicBatch1StandaloneMetric } from "./deterministic-batch1-standalone-metrics.server";
+import { deterministicBatch2NewMetric } from "./deterministic-batch2-new-metrics.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
@@ -212,7 +213,10 @@ export const warehouseFirstResearcher: Researcher = {
       // docs/audit-task-new-batch1-standalone-modules-wiring.md, same pattern as
       // docs/ARCHITECTURE-FINDING-disconnected-hybrid-researcher.md. Tried last
       // in this cheap deterministic chain since it needs a resolved tourFamily.
-      return deterministicBatch1StandaloneMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily });
+      const batch1 = await deterministicBatch1StandaloneMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily }); if (batch1) return batch1;
+      // Batch2 newly-built modules (020/036/045/052) --
+      // docs/audit-task-020-026-034-036-045-052-053.md.
+      return deterministicBatch2NewMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily });
     }))).filter((row): row is MetricFinding => Boolean(row));
     const deterministicByCode = new Map(deterministicRows.map(row => [codeOf(row.metric_code), row]));
     const liveMissing = missing.filter(metric => !fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
