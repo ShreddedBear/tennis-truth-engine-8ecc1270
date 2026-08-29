@@ -29,7 +29,7 @@ describe("post-fix exact runtime wiring for 078/079/081", () => {
     expect(repo).toContain("research: warehouseFirstResearcher");
     expect(warehouse).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
     expect(warehouse).toContain("...finalMetricWiringResearcher");
-    expect(warehouse).toContain("await finalMetricWiringResearcher.metrics");
+    expect(warehouse).toContain("finalMetricWiringResearcher.metrics");
   });
 
   it("accepts exact 078 public evidence only with correct player/source/sample orientation", () => {

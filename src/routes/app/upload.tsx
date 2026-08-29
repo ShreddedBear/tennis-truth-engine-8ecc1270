@@ -21,7 +21,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 // simultaneous calls to the research provider — kept modest to avoid trading
 // "stuck for 10 minutes" for "rate-limited for 10 minutes." Tune once real
 // provider rate limits at 30-90 matches/batch are known.
-const AUDIT_CONCURRENCY = 3;
+const AUDIT_CONCURRENCY = 4;
 // A PDF built from full-page app screenshots (as opposed to a real text
 // export) has no embedded text layer at all, so both the local and server
 // text-extraction tiers are guaranteed to find nothing — they only add two

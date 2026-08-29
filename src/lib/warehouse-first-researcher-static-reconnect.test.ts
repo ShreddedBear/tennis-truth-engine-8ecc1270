@@ -26,9 +26,11 @@ describe("warehouse-first-researcher.server.ts reconnects the static CSV/WTA-off
   });
 
   it("never lets an officialWtaMetricRows outage (thrown error) abort the whole metrics() call", () => {
-    const tryIndex = collapsed.indexOf("try { wtaRows = (await officialWtaMetricRows");
+    const tryIndex = collapsed.indexOf('try { wtaRows = (await researchWorkPool.runWithBudget( "official-wta"');
     expect(tryIndex).toBeGreaterThan(-1);
-    expect(collapsed.slice(tryIndex, tryIndex + 400)).toContain("catch {");
+    const guardedBlock = collapsed.slice(tryIndex, tryIndex + 700);
+    expect(guardedBlock).toContain("officialWtaMetricRows(");
+    expect(guardedBlock).toContain("catch {");
   });
 
   it("runs strictly after the deterministic-PBP-packet recovery tier and before the live AI search fallback", () => {

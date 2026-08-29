@@ -514,6 +514,19 @@ describe("Run Audit pipeline", () => {
     expect(tables.metric_results).toHaveLength(0);
   });
 
+  it("uses wide bounded metric batches instead of repeating five-metric provider calls", async()=>{
+    const{deps}=makeMemoryDeps();
+    const batchSizes:number[]=[];
+    deps.research={...researcher,async metrics(input){batchSizes.push(input.metrics.length);return researcher.metrics(input);}};
+
+    const result=await runPipeline(deps,MATCH_ID,{budgetMs:120_000});
+
+    expect(result.complete).toBe(true);
+    expect(Math.max(...batchSizes)).toBeLessThanOrEqual(15);
+    expect(batchSizes.some(size=>size===15)).toBe(true);
+    expect(batchSizes.length).toBeLessThanOrEqual(12);
+  },60_000);
+
   it("renews and releases the run lease while persisting stage progress",async()=>{
     const{deps}=makeMemoryDeps();
     let renewals=0,releases=0;

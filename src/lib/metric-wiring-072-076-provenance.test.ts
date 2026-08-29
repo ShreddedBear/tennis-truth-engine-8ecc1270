@@ -22,7 +22,7 @@ describe("072-076 side-specific provenance and orientation",()=>{
     expect(repo).toContain("research: warehouseFirstResearcher");
     expect(warehouse).toContain('import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server"');
     expect(warehouse).toContain("...finalMetricWiringResearcher");
-    expect(warehouse).toContain("await finalMetricWiringResearcher.metrics");
+    expect(warehouse).toContain("finalMetricWiringResearcher.metrics");
     expect(finalLayer).toContain('import { metricWiring072076Researcher } from "./metric-wiring-072-076.server"');
     expect(finalLayer).toContain("...metricWiring072076Researcher");
     expect(finalLayer).toContain("await metricWiring072076Researcher.metrics");

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 
-const AUDIT_CONCURRENCY=3;
+const AUDIT_CONCURRENCY=4;
 
 export const Route=createFileRoute("/app/slate")({
   head:()=>({meta:[{title:"Active Slate — Tennis Matrix Audit System"}]}),
@@ -37,7 +37,7 @@ function Slate(){
         supabase.from("matches").select("*").order("created_at",{ascending:false}),
         supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at"),
         supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete"),
-        supabase.from("audit_stage_runs").select("audit_run_id, status, done_count, total_count, started_at, finished_at, heartbeat_at"),
+        supabase.from("audit_stage_runs").select("audit_run_id, stage, stage_order, status, done_count, total_count, started_at, finished_at, heartbeat_at"),
         supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count"),
         supabase.from("summary_versions").select("match_id, upload_id, created_at"),
         supabase.from("summary_uploads").select("id, created_at").order("created_at",{ascending:false}),
@@ -69,6 +69,7 @@ function Slate(){
 
   const runFor=(match:any)=>{const ids=match?._all_ids??[match.id];return data?.runs.filter((run:any)=>ids.includes(run.match_id)).sort((a:any,b:any)=>b.run_number-a.run_number)[0];};
   const executionFor=(run:any)=>run?.id?computeExecutionPercent((data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id),run.status):0;
+  const activeStageFor=(run:any)=>run?.id?(data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id&&stage.status==="RUNNING").sort((a:any,b:any)=>b.stage_order-a.stage_order)[0]:null;
   const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
   const latest=new Set(data?.latestMatchIds??[]);
   const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||(match._all_ids??[match.id]).some((id:string)=>latest.has(id)));
@@ -86,7 +87,7 @@ function Slate(){
         <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
         <tbody>
           {visible.map((match:any)=>{
-            const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id);
+            const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id),activeStage=activeStageFor(run);
             return <tr key={match.id} className="border-t border-border">
               <td className="px-3 py-2 font-medium">{match.player1_name} vs {match.player2_name}</td>
               <td className="px-3 py-2">{match.tournament_name??"—"}</td>
@@ -94,7 +95,7 @@ function Slate(){
               <td className="px-3 py-2">{match.surface??"—"}</td>
               <td className="px-3 py-2"><StateText state={match.identity_status}/></td>
               <td className="px-3 py-2"><StateText state={match.surface_status}/></td>
-              <td className="mono-num px-3 py-2 text-xs">{run?`RUN ${run.run_number} · ${run.status}`:"—"}</td>
+              <td className="mono-num px-3 py-2 text-xs">{run?<div>{`RUN ${run.run_number} · ${run.status}`}{activeStage&&<div className="mt-1 text-[10px] text-muted-foreground">{activeStage.stage} · {activeStage.done_count??0}/{activeStage.total_count??0}</div>}</div>:"—"}</td>
               <td className="px-3 py-2"><AuditColorBadge color={decision?.final_audit_color??"INCOMPLETE"}/></td>
               <td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td>
               <td className="mono-num px-3 py-2 text-xs">{evidence===null?"—":`${evidence}%`}</td>

@@ -21,9 +21,25 @@ import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server
 import { localMetricRows } from "./hybrid-audit-research.server";
 import { officialWtaMetricRows } from "./wta-official-match-evidence.server";
 import { certifyMetricFinding } from "./metric-certification";
+import { BoundedPromiseCache } from "./bounded-promise-cache";
+import { BoundedOperationPool } from "./async-time-budget";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
+const metricCallCache = new BoundedPromiseCache<MetricFinding[]>(256, 15 * 60_000);
+const SOURCE_PACKET_BUDGET_MS = 7_000;
+const LIVE_PROVIDER_BUDGET_MS = 12_000;
+const researchWorkPool = new BoundedOperationPool(4);
+
+function metricCallKey(input: Parameters<Researcher["metrics"]>[0]) {
+  return JSON.stringify([
+    input.p1,
+    input.p2,
+    input.context,
+    input.dossier ?? "",
+    input.metrics.map(metric => [metric.code, metric.name, metric.body]),
+  ]);
+}
 
 type StoredEvidence = {
   metric_code: string;
@@ -212,7 +228,16 @@ function mergeObservationPackets(base: Record<string, unknown>, extra: Record<st
 export const warehouseFirstResearcher: Researcher = {
   ...finalMetricWiringResearcher,
   async metrics(input) {
-    const identities = await resolveCanonicalEvidencePair(input.p1, input.p2);
+    return metricCallCache.getOrCreate(metricCallKey(input), async () => {
+    const callStartedAt = Date.now();
+    const identityFallback = (name: string) => ({ input: name, canonical: name, status: "QUERY_FAILED" as const, candidates: [], query_errors: ["Canonical identity lookup exceeded its time budget."] });
+    const identities = await researchWorkPool.runWithBudget(
+      "canonical-identity",
+      SOURCE_PACKET_BUDGET_MS,
+      () => resolveCanonicalEvidencePair(input.p1, input.p2),
+      () => ({ p1: identityFallback(input.p1), p2: identityFallback(input.p2) }),
+    );
+    console.log(`[research-timing] canonical identity ${Date.now()-callStartedAt}ms`);
     input = { ...input, p1: identities.p1.canonical, p2: identities.p2.canonical };
     const { p1, p2, metrics } = input;
     const date = asOfDate(input.context);
@@ -220,17 +245,23 @@ export const warehouseFirstResearcher: Researcher = {
     const surface = surfaceFromContext(input.context);
     const tourFamily = classifyEvidenceTourFamily(input.context, tournament);
     const codes = metrics.map(metric => codeOf(metric.code));
-    const [p1Stored, p2Stored] = await Promise.all([
-      lookup(codes, p1, p2, date, input.context, tournament, surface),
-      lookup(codes, p2, p1, date, input.context, tournament, surface),
-    ]);
+    const [p1Stored, p2Stored] = await researchWorkPool.runWithBudget(
+      "stored-evidence",
+      SOURCE_PACKET_BUDGET_MS,
+      () => Promise.all([
+        lookup(codes, p1, p2, date, input.context, tournament, surface),
+        lookup(codes, p2, p1, date, input.context, tournament, surface),
+      ]),
+      () => [new Map<string, StoredEvidence>(), new Map<string, StoredEvidence>()],
+    );
+    console.log(`[research-timing] stored evidence ${Date.now()-callStartedAt}ms`);
 
     const missing = metrics.filter(metric => {
       const code = codeOf(metric.code), a = p1Stored.get(code), b = p2Stored.get(code);
       return !a || !b || !USABLE.has(a.treatment) || !USABLE.has(b.treatment) || !a.value_text || !b.value_text;
     });
 
-    const deterministicRows = (await Promise.all(missing.map(async metric => {
+    const deterministicResult = await researchWorkPool.runWithBudget("deterministic-metrics", SOURCE_PACKET_BUDGET_MS, () => Promise.all(missing.map(async metric => {
       const ranking = await deterministicRankingMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (ranking) return ranking;
       const rules = await deterministicRulesContextMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (rules) return rules;
       const environment = await deterministicEnvironmentMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament }); if (environment) return environment;
@@ -244,19 +275,34 @@ export const warehouseFirstResearcher: Researcher = {
       // Batch2 newly-built modules (020/036/045/052) --
       // docs/audit-task-020-026-034-036-045-052-053.md.
       return deterministicBatch2NewMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily });
-    }))).filter((row): row is MetricFinding => Boolean(row));
+    })), () => []);
+    const deterministicRows = deterministicResult.filter((row): row is MetricFinding => Boolean(row));
+    console.log(`[research-timing] deterministic tier ${Date.now()-callStartedAt}ms`);
     const deterministicByCode = new Map(deterministicRows.map(row => [codeOf(row.metric_code), row]));
     const liveMissing = missing.filter(metric => !fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
 
     let liveRows: MetricFinding[] = [];
     if (liveMissing.length) {
-      const [warehousePacket, bsdAtpChallengerPbp, bsdAtpMainPbp, bsdWtaMainPbp, bsdWtaChallengerPbp] = await Promise.all([
-        buildMetricObservationContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-        buildBsdAtpChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-        buildBsdAtpMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-        buildBsdWtaMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-        buildBsdWtaChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-      ]);
+      const sourceFallback = { packet: {}, status: { outcome: "SOURCE_TIMEOUT" } } as any;
+      const [warehouseResult, challengerResult, atpMainResult, wtaMainResult, wtaChallengerResult] = await researchWorkPool.runWithBudget(
+        "source-packets",
+        SOURCE_PACKET_BUDGET_MS,
+        () => Promise.all([
+          buildMetricObservationContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+          buildBsdAtpChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+          buildBsdAtpMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+          buildBsdWtaMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+          buildBsdWtaChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+        ]),
+        () => [{}, sourceFallback, sourceFallback, sourceFallback, sourceFallback],
+      );
+      console.log(`[research-timing] source packets ${Date.now()-callStartedAt}ms`);
+      const unavailablePbp = sourceFallback;
+      const warehousePacket = warehouseResult ?? {};
+      const bsdAtpChallengerPbp = challengerResult ?? unavailablePbp;
+      const bsdAtpMainPbp = atpMainResult ?? unavailablePbp;
+      const bsdWtaMainPbp = wtaMainResult ?? unavailablePbp;
+      const bsdWtaChallengerPbp = wtaChallengerResult ?? unavailablePbp;
       let observationPacket = mergeObservationPackets(warehousePacket, bsdAtpChallengerPbp.packet);
       observationPacket = mergeObservationPackets(observationPacket, bsdAtpMainPbp.packet);
       observationPacket = mergeObservationPackets(observationPacket, bsdWtaMainPbp.packet);
@@ -299,7 +345,12 @@ export const warehouseFirstResearcher: Researcher = {
         const localByCode = new Map(localRows.map(row => [codeOf(row.metric_code), row]));
         let wtaRows: MetricFinding[] = [];
         try {
-          wtaRows = (await officialWtaMetricRows({ p1, p2, context: input.context ?? "", metrics: beforeStaticWarehouse })) ?? [];
+          wtaRows = (await researchWorkPool.runWithBudget(
+            "official-wta",
+            SOURCE_PACKET_BUDGET_MS,
+            () => officialWtaMetricRows({ p1, p2, context: input.context ?? "", metrics: beforeStaticWarehouse }),
+            () => [],
+          )) ?? [];
         } catch { /* live WTA API outage falls through to the local CSV row (if any) or live AI search below */ }
         const wtaByCode = new Map(wtaRows.map(row => [codeOf(row.metric_code), certifyMetricFinding(row)]));
         for (const metric of beforeStaticWarehouse) {
@@ -317,7 +368,14 @@ export const warehouseFirstResearcher: Researcher = {
       if (remainingLiveMissing.length) {
         const identityResolution = { p1: identities.p1, p2: identities.p2 };
         const context = appendMetricObservationContext(input.context, { ...observationPacket, _canonical_identity_resolution: identityResolution, _bsd_atp_challenger_pbp_status: bsdAtpChallengerPbp.status, _bsd_atp_main_pbp_status: bsdAtpMainPbp.status, _bsd_wta_main_pbp_status: bsdWtaMainPbp.status, _bsd_wta_challenger_pbp_status: bsdWtaChallengerPbp.status });
-        liveRows = await finalMetricWiringResearcher.metrics({ ...input, context, metrics: remainingLiveMissing });
+        const providerRows = await researchWorkPool.runWithBudget(
+          "live-provider",
+          LIVE_PROVIDER_BUDGET_MS,
+          () => finalMetricWiringResearcher.metrics({ ...input, context, metrics: remainingLiveMissing }),
+          () => [],
+        );
+        liveRows = providerRows;
+        console.log(`[research-timing] live provider ${Date.now()-callStartedAt}ms`);
       }
     }
     const liveByCode = new Map(liveRows.map(row => [codeOf(row.metric_code), row]));
@@ -353,5 +411,6 @@ export const warehouseFirstResearcher: Researcher = {
       ]);
     }
     return output;
+    });
   },
 };
