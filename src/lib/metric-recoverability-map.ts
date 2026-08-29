@@ -3,12 +3,39 @@
 // document that actually seeds the production `rules` table) — e.g. this
 // file's "017 Return +1 Effectiveness" vs. the true "017 Shot & Rally
 // Metrics", or "048 Outdoor Hard Win%" vs. the true "048 Independent-Evidence
-// Count". Nothing outside this file's own test imports it (verified via
-// repo-wide search), so it does not affect the live evidence-coverage
-// diagnostic. Treat public/seed/metrics.txt + src/lib/metric-classification.ts
-// as the canonical registry. This file's per-metric recoverability content
+// Count". Nothing outside this file's own test imports it (re-confirmed
+// during the 020/026/031/034/036/041/045/046/051/052/053 audit-metrics
+// task: only historical-results-recovery.ts and metric-classification.ts
+// *mention* this file's name in a comment, and neither actually imports
+// from it), so it does not affect the live evidence-coverage diagnostic or
+// the live audit dispatch path at all. Treat public/seed/metrics.txt +
+// src/lib/evidence-gap.ts + src/lib/metric-classification.ts as the
+// canonical registry. This file's per-metric recoverability content
 // (required_raw_fields/classification) has not been re-verified against the
 // true code numbering and must not be relied on until it is rewritten.
+//
+// Specific known-stale rows re-confirmed during that same audit task (left
+// in place, not rewritten, per this header's own standing policy -- flagged
+// here so a future reader does not mistake either for the real catalog
+// entry):
+//   - row("006", ...) below is labeled "Head-to-Head" here; the real code
+//     006 (evidence-gap.ts, public/seed/metrics.txt) is "Opponent-Adjusted
+//     Strength of Schedule" / "Opponent Quality" -- a completely different
+//     metric (comparable-strength results / bad-loss rate, not raw H2H).
+//   - row("020", ...) below is labeled "Recent Quality" here; the real code
+//     020 is "Level/Tour Transition" (event-level history, opponent Elo
+//     gap, previous-tournament trajectory) -- see
+//     historical-results-recovery.ts's TASK18A_HISTORICAL_RESULTS_CODES
+//     comment for the live-pipeline version of this exact mismatch, which
+//     WAS fixed on the live path (retargeted to real 006); this file's
+//     "020" row was left as-is per the no-rewrite policy above.
+//   - row("034", ...) below is not present under a "034" label matching real
+//     034 ("Scoreline Deception Index": final scoreline vs. total points
+//     won, expected-games model, Dominance Ratio, clutch-dependency PBP
+//     evidence) at all -- this file's own numbering scheme has already
+//     drifted so far from the real catalog by code 034 ("1st Return Points
+//     Won%") that there is no meaningful correction to annotate short of a
+//     full rewrite this header already declines to do.
 export type RecoverabilityClass = "DIRECTLY_AVAILABLE" | "RECONSTRUCTABLE" | "PARTIAL" | "TRULY_UNAVAILABLE";
 
 export type MetricRecoverabilityRow = {
