@@ -1,6 +1,6 @@
 # New Signal Batch 1 — Step 0 Data Audit + Resolution
 
-Status: Step 0 complete and resolved. Phase 1 build in progress (see per-metric status below as it lands).
+Status: Step 0 complete and resolved. **Phase 1 build complete**: #051, #036/#037/#039, #027/#029, #031/#041, #046 all DONE (code, tests, leakage guards, per-metric docs — see each metric's own doc file in this directory). #062 confirmed BLOCKED and skipped per the resolution below. Phase 2 not yet started. Real audit-DB population size for #036/#037/#039 remains pending GitHub issue #82's Copilot read-only query.
 
 ## The two data universes
 
