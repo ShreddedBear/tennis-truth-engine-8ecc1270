@@ -339,6 +339,29 @@ describe("Run Audit pipeline", () => {
     expect(result.complete).toBe(true);
   }, 60_000);
 
+  // Regression: production's metric_results.p1_treatment/p2_treatment columns are
+  // `not null` with a check constraint restricted to a fixed allow-list. instantiate()
+  // once inserted `null` for any not-yet-researched row (the placeholder before
+  // executeMetrics ever runs), which is legal against this in-memory fake but violates
+  // the real not-null constraint and rejects the whole batch insert -- surfacing as
+  // Definition Instantiation permanently stuck (see the DB error this test file's
+  // sibling migration 20260829091200_allow_no_source_treatment.sql documents). Every
+  // instantiated row must carry a real, allow-listed treatment value on both sides at
+  // all times, before any research has run.
+  it("never instantiates a metric row with a null or non-allow-listed treatment value", async () => {
+    const ALLOWED = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"]);
+    const { deps, tables } = makeMemoryDeps();
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    for (const row of tables["metric_results"]!) {
+      expect(row["p1_treatment"], `metric ${row["metric_code"]} p1_treatment must not be null`).not.toBeNull();
+      expect(row["p2_treatment"], `metric ${row["metric_code"]} p2_treatment must not be null`).not.toBeNull();
+      expect(ALLOWED.has(String(row["p1_treatment"])), `metric ${row["metric_code"]} p1_treatment "${row["p1_treatment"]}" not allow-listed`).toBe(true);
+      expect(ALLOWED.has(String(row["p2_treatment"])), `metric ${row["metric_code"]} p2_treatment "${row["p2_treatment"]}" not allow-listed`).toBe(true);
+    }
+  }, 60_000);
+
   it("is idempotent: a second run adds no duplicate records", async () => {
     const { deps, tables } = makeMemoryDeps();
     await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
