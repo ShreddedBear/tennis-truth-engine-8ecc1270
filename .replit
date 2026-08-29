@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "python-3.12", "web", "postgresql-16"]
+modules = ["nodejs-22", "python-3.12", "web", "postgresql-16"]
 
 [nix]
 channel = "stable-25_05"
@@ -11,3 +11,18 @@ run = "bun run dev"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[workflows]
+
+[[workflows.workflow]]
+name = "Start"
+mode = "sequential"
+author = 64742427
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun run dev"

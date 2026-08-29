@@ -26,12 +26,18 @@ const appBuildInfo = {
   builtAt: new Date().toISOString(),
 };
 
-export default defineConfig({
-  vite: {
-    define: {
-      __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
-    },
-  },
+  export default defineConfig({
+    vite: {
+      define: {
+        __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
+      },
+      server: {
+        host: "0.0.0.0",
+        port: 5000,
+        allowedHosts: true,
+      },
+   },
+  
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
