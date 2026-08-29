@@ -6,6 +6,7 @@ import { deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.se
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
+import { deterministicBatch1StandaloneMetric } from "./deterministic-batch1-standalone-metrics.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
@@ -206,7 +207,12 @@ export const warehouseFirstResearcher: Researcher = {
       const rules = await deterministicRulesContextMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (rules) return rules;
       const environment = await deterministicEnvironmentMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament }); if (environment) return environment;
       const market = await deterministicMarketMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament, context: input.context }); if (market) return market;
-      return deterministicResultsScheduleMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament, eventLevel: null, tourFamily, context: input.context });
+      const resultsSchedule = await deterministicResultsScheduleMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament, eventLevel: null, tourFamily, context: input.context }); if (resultsSchedule) return resultsSchedule;
+      // Batch1 standalone modules (027/031/041/046/051) -- reconnected per
+      // docs/audit-task-new-batch1-standalone-modules-wiring.md, same pattern as
+      // docs/ARCHITECTURE-FINDING-disconnected-hybrid-researcher.md. Tried last
+      // in this cheap deterministic chain since it needs a resolved tourFamily.
+      return deterministicBatch1StandaloneMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily });
     }))).filter((row): row is MetricFinding => Boolean(row));
     const deterministicByCode = new Map(deterministicRows.map(row => [codeOf(row.metric_code), row]));
     const liveMissing = missing.filter(metric => !fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
