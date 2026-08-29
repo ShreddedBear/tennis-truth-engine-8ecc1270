@@ -215,6 +215,37 @@ UNAVAILABLE/PROTECTED_UNAVAILABLE, 29 remain UNVERIFIED (most of which
 likely fall inside the AI-research-only pattern too, or need the same
 kind of check this batch just did -- not yet individually confirmed).
 
+**Final batch -- denominator now fully covered:** audited the last 6
+codes in the true 59-code denominator that had a real engine but no
+narrative doc (005, 016, 018, 020, 032, 068 -- the "connected but
+undocumented" set from the original reconciliation audit). See
+`docs/metric-audit-batch-005-016-018-020-032-068.md`. All six PARTIAL,
+with real evidence. Two follow-ups logged, not fixed: 018 (Momentum &
+Closing Metrics) is currently marked RECONSTRUCTED but only genuinely
+covers ~2 of its 3 named bullets (and only half of one of those) --
+plausibly the same over-claim class already fixed for 001/014/015, and
+the clearest concrete next fix. 020 (Level/Tour Transition) has a
+granularity concern -- its wiring measures aggregate same-level
+performance, not performance specifically at the transition between
+levels the real definition asks for -- likely a fifth instance of the
+item-4 pattern (021/060/071/020, all sharing the same "engine credits
+the wrong granularity/family of evidence" shape).
+
+**Final tally, this session's full sequential audit pass:** every one of
+the 59 codes in the true player-evidence denominator has now been
+examined at least once. 46 verified PARTIAL (2 flagged as needing a
+follow-up treatment correction: 018, 020), 10 AI-DEPENDENT (correctly-
+targeted live-research pathway, not statically verifiable), 2 UNKNOWN_
+REQUIRES_REVIEW (047, 061, pending a human classification call), 1
+verified TRULY UNAVAILABLE (019). The other 22 codes are META_OR_NON_PLAYER
+(7) or PROTECTED_UNAVAILABLE (15, including 022 added this session) --
+already correctly and definitively excluded from the denominator, not
+in need of further audit work. `RECOVERY_PRIORITY_CODES` and the
+324/240-cell math in `metric-recoverability-map.ts` still need updating
+to reflect the corrected 236-cell/59-code/166-cell(70%) accounting --
+flagged, not changed, since that file is explicitly disclaimed as
+non-authoritative and doesn't feed the live diagnostic (see item 0).
+
 ## 1. No network path to Supabase from this sandbox (OPEN)
 
 **Blocks:** verifying any metric wired through the live `source_observations`
