@@ -31,3 +31,7 @@ args = "bun run dev"
 deploymentTarget = "autoscale"
 run = ["npx", "wrangler", "dev", "--config", ".output/server/wrangler.json", "--local", "--ip", "0.0.0.0", "--port", "5000"]
 build = ["bun", "run", "build"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
