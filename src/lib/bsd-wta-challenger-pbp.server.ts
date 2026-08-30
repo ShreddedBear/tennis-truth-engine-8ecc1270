@@ -7,6 +7,19 @@ import { canonicalApprovedPbpIdentity, claimUniqueApprovedPbp, isApprovedWtaChal
 const COVERAGE_START="2025-01-01";
 const APPROVED_INDEX=join(process.cwd(),"data","metrics","pbp","wta_challenger","approved-index.jsonl");
 const LEGACY_PBP_CODES=new Set(["016","024","025","033","042","043","044","060"]);
+// "034" and "053" (and 026's within-match opening-window detector) are deliberately NOT
+// added here, verified against this file's own row shape rather than assumed: every
+// observation this file builds carries only aggregate set_scores/match_winner_slot/
+// total_games/total_points/breaks (task18b_raw_fields_available:false,
+// server_oriented_point_chronology_preserved:false above) -- there is no per-game
+// server/point-winner sequence in the APPROVED_INDEX rows at all, so reconstructPbpScoreState
+// (and its 034/053/opening-window sibling) is never even called in this file, unlike the
+// other three bsd-*-pbp.server.ts lanes. Crediting 034/053 here would mean pointing at a
+// packet with no derived[code] to satisfy them -- structurally impossible, not merely
+// unimplemented. This WTA Challenger lane genuinely has NOT_ENOUGH_DATA for 026/034/053
+// until BSD starts retaining server-oriented point chronology for it. See
+// docs/audit-task-026-034-053.md.
+
 type MetricLike={code:string;name:string};
 type ApprovedRow={tour?:string;year?:number;match_id?:string|number;date?:string;tournament?:string;player1?:string;player2?:string;metrics?:{set_scores?:Array<[number,number]>;match_winner_slot?:string;total_games?:number;total_points?:number;breaks?:number};status?:string};
 const norm=(v:unknown)=>String(v??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();const codeOf=(v:unknown)=>{const m=String(v??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(v??"").padStart(3,"0");};
