@@ -1,11 +1,12 @@
-// Wires the five "New Signal Batch 1" standalone audit-metric modules
-// (027/031/041/046/051) into the LIVE researcher pipeline.
+// Wires the "New Signal Batch 1" standalone audit-metric modules
+// (027/029/031/041/046/051) into the LIVE researcher pipeline.
 //
 // Context: docs/ARCHITECTURE-FINDING-disconnected-hybrid-researcher.md
 // documents (and fixed) an earlier disconnected-evidence-layer problem for a
 // different subsystem (the PredixSport/DataHub CSV warehouse + live WTA
 // API). This file follows the exact same remediation pattern for a second,
 // unrelated disconnected layer: audit-metric-027-opponent-finishing-ability.ts,
+// audit-metric-029-psychological-response-proxy.ts,
 // audit-metric-031-common-opponent-point-differential.ts,
 // audit-metric-041-hidden-improvement-detector.ts,
 // audit-metric-046-match-state-elo.ts, and
@@ -13,6 +14,9 @@
 // documented against the real evidence-gap.ts catalog entries for their
 // codes, but never called from warehouse-first-researcher.server.ts (or
 // anywhere else in the live pipeline) -- only from their own unit tests.
+// (029 was reconnected in a later pass than the other five -- same finding,
+// same fix, applied to this file rather than a separate one since it is the
+// exact same single-player LaneOutcome<T> reconnection pattern.)
 //
 // This module does not change any of those five modules' math or logic. It
 // only adapts their `LaneOutcome<T>` return shape into this app's
@@ -31,11 +35,21 @@ import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 import { replayElo } from "./task18c-rank-form-workload";
 import { computeOpponentFinishingAbility } from "./audit-metric-027-opponent-finishing-ability";
 import { computeCommonOpponentPointDifferential } from "./audit-metric-031-common-opponent-point-differential";
+import { computePsychologicalResponseProxy } from "./audit-metric-029-psychological-response-proxy";
 import { computeHiddenImprovementDetector } from "./audit-metric-041-hidden-improvement-detector";
 import { computeMatchStateElo } from "./audit-metric-046-match-state-elo";
 import { computeOpponentSpecificProbability } from "./audit-metric-051-opponent-specific-probability";
 
-const OWNED = new Set(["027", "031", "041", "046", "051"]);
+// "029" (Psychological Response Proxy) added to this same reconnection tier
+// per the same finding this file's header already documents for
+// 027/031/041/046/051: audit-metric-029-psychological-response-proxy.ts was
+// built, tested in isolation, and documented against evidence-gap.ts's real
+// #029 catalog entry, but (verified by grep -- nothing outside its own
+// .test.ts imported it) was never called from warehouse-first-researcher.
+// server.ts or any live dispatch path. This module does not change its
+// math/logic -- only adapts its LaneOutcome<T> return into MetricFinding,
+// exactly like the other five codes here.
+const OWNED = new Set(["027", "029", "031", "041", "046", "051"]);
 
 function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
@@ -61,6 +75,21 @@ function finishingAbility027(p1: string, p2: string, lane: TourLane, asOfDate: s
     p2Value: fmt({ lead_protection_n: b.value.lead_protection.n, lead_protection_rate_pct: b.value.lead_protection.rate, closing_as_underdog_n: b.value.closing_as_underdog.n, closing_as_underdog_rate_pct: b.value.closing_as_underdog.rate, trailing_n_used: b.value.trailing_n_used }),
     n: Math.min(a.n, b.n),
   };
+}
+
+function psychologicalResponseProxy029(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
+  const a = computePsychologicalResponseProxy({ player: p1, lane, asOfDate });
+  const b = computePsychologicalResponseProxy({ player: p2, lane, asOfDate });
+  if (a.status !== "GO" || b.status !== "GO") return null;
+  const fmtSide = (r: typeof a.value) => fmt({
+    trailing_n_used: r.trailing_n_used,
+    baseline_match_win_rate_n: r.baseline_match_win_rate.n,
+    baseline_match_win_rate_pct: r.baseline_match_win_rate.rate,
+    after_close_set_loss_n: r.after_close_set_loss.n,
+    after_close_set_loss_next_set_win_pct: r.after_close_set_loss.next_set_win_rate,
+    after_close_set_loss_match_win_pct: r.after_close_set_loss.match_win_rate,
+  });
+  return { p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }
 
 function commonOpponentDifferential031(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
@@ -132,6 +161,7 @@ export async function deterministicBatch1StandaloneMetric(args: { metricCode: st
   let evidenceFamily = "";
   try {
     if (code === "027") { found = finishingAbility027(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_OPPONENT_FINISHING_ABILITY"; }
+    else if (code === "029") { found = psychologicalResponseProxy029(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_PSYCHOLOGICAL_RESPONSE_PROXY"; }
     else if (code === "031") { found = commonOpponentDifferential031(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_COMMON_OPPONENT_DIFFERENTIAL"; }
     else if (code === "041") { found = hiddenImprovement041(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_HIDDEN_IMPROVEMENT"; }
     else if (code === "046") { found = matchStateElo046(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_MATCH_STATE_ELO"; }

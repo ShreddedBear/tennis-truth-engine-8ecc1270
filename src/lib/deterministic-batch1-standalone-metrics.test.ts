@@ -22,7 +22,7 @@ const P2 = "andrea collarini";
 const LANE = "ATP_CHALLENGER" as const;
 const AS_OF = "2026-08-29"; // after all indexed history for this pair
 
-describe("deterministicBatch1StandaloneMetric (live pipeline wiring for 027/031/041/046/051)", () => {
+describe("deterministicBatch1StandaloneMetric (live pipeline wiring for 027/029/031/041/046/051)", () => {
   it("returns null for a code it does not own", async () => {
     const result = await deterministicBatch1StandaloneMetric({ metricCode: "005", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: LANE });
     expect(result).toBeNull();
@@ -46,6 +46,22 @@ describe("deterministicBatch1StandaloneMetric (live pipeline wiring for 027/031/
 
   it("027: falls through to null on a lane with no set-sequence data (ATP_MAIN)", async () => {
     const result = await deterministicBatch1StandaloneMetric({ metricCode: "027", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: "ATP_MAIN" });
+    expect(result).toBeNull();
+  });
+
+  it("029 Psychological Response Proxy: produces a real, non-fabricated close-set-loss response finding for a data-rich ATP_CHALLENGER pair", async () => {
+    const result = await deterministicBatch1StandaloneMetric({ metricCode: "029", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: LANE });
+    expect(result).not.toBeNull();
+    expect(result!.p1_treatment).toBe("RECONSTRUCTED");
+    expect(result!.p2_treatment).toBe("RECONSTRUCTED");
+    expect(result!.p1_value).toMatch(/after_close_set_loss_next_set_win_pct=/);
+    expect(result!.p2_value).toMatch(/baseline_match_win_rate_pct=/);
+    expect(result!.evidence_family).toBe("STANDALONE_PSYCHOLOGICAL_RESPONSE_PROXY");
+    expect(result!.sources.length).toBeGreaterThan(0);
+  });
+
+  it("029: falls through to null on a lane with no set-sequence data (ATP_MAIN)", async () => {
+    const result = await deterministicBatch1StandaloneMetric({ metricCode: "029", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: "ATP_MAIN" });
     expect(result).toBeNull();
   });
 
