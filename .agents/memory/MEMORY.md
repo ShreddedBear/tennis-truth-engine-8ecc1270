@@ -3,3 +3,4 @@
 - [Audit source latency](audit-source-latency.md) — select synchronous local analyzers by requested metric family and bound every async source/provider phase.
 - [GitHub workflow pushes](github-workflow-pushes.md) — Git smart-HTTP token pushes need Basic auth, and workflow-file changes need the separate workflow scope.
 - [Symmetric metric persistence](symmetric-metric-persistence.md) — persist paired research together, but still run each player’s reconstruction; evidence refreshes must be transactional.
+- [Completed audit retention](completed-audit-retention.md) — normal slate cleanup must preserve completed run snapshots and every upload still referenced by retained summaries.

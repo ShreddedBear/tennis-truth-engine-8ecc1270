@@ -24,6 +24,11 @@ async function deleteIn(db: any, table: string, column: string, ids: string[]) {
   }
 }
 
+export function removableOperationalMatchIds(matchIds: string[], completedMatchIds: Iterable<string>) {
+  const protectedIds = new Set(completedMatchIds);
+  return matchIds.filter(id => !protectedIds.has(id));
+}
+
 /**
  * Clears only operational slate/upload/audit data.
  * Calibration versions/buckets, rule documents/definitions, metric registry,
@@ -41,10 +46,20 @@ export const resetOperationalSlate = createServerFn({ method: "POST" })
     if (matchError) throw new Error(`Could not read matches: ${matchError.message}`);
     const matchIds = (matchRows ?? []).map((r: any) => String(r.id));
 
-    const runIds: string[] = [];
-    const versionIds: string[] = [];
+    const protectedMatchIds = new Set<string>();
     for (let i = 0; i < matchIds.length; i += 200) {
       const batch = matchIds.slice(i, i + 200);
+      if (!batch.length) continue;
+      const { data: completed, error } = await db.from("audit_runs").select("match_id").in("match_id", batch).eq("status", "COMPLETE");
+      if (error) throw new Error(`Could not identify completed audit snapshots: ${error.message}`);
+      for (const row of completed ?? []) protectedMatchIds.add(String(row.match_id));
+    }
+    const removableMatchIds = removableOperationalMatchIds(matchIds, protectedMatchIds);
+
+    const runIds: string[] = [];
+    const versionIds: string[] = [];
+    for (let i = 0; i < removableMatchIds.length; i += 200) {
+      const batch = removableMatchIds.slice(i, i + 200);
       if (!batch.length) continue;
       const [{ data: runs, error: runError }, { data: versions, error: versionError }] = await Promise.all([
         db.from("audit_runs").select("id").in("match_id", batch),
@@ -58,21 +73,26 @@ export const resetOperationalSlate = createServerFn({ method: "POST" })
 
     for (const table of CHILD_RUN_TABLES) await deleteIn(db, table, "audit_run_id", runIds);
     await deleteIn(db, "execution_logs", "audit_run_id", runIds);
-    await deleteIn(db, "execution_logs", "match_id", matchIds);
+    await deleteIn(db, "execution_logs", "match_id", removableMatchIds);
     await deleteIn(db, "audit_runs", "id", runIds);
-    await deleteIn(db, "match_identity_records", "match_id", matchIds);
+    await deleteIn(db, "match_identity_records", "match_id", removableMatchIds);
     await deleteIn(db, "parsed_summary_fields", "summary_version_id", versionIds);
     await deleteIn(db, "summary_versions", "id", versionIds);
-    await deleteIn(db, "matches", "id", matchIds);
+    await deleteIn(db, "matches", "id", removableMatchIds);
 
-    const { data: uploads, error: uploadReadError } = await db.from("summary_uploads").select("id");
+    const [{ data: uploads, error: uploadReadError }, { data: retainedVersions, error: retainedVersionError }] = await Promise.all([
+      db.from("summary_uploads").select("id"),
+      db.from("summary_versions").select("upload_id"),
+    ]);
     if (uploadReadError) throw new Error(`Could not read uploads: ${uploadReadError.message}`);
-    const uploadIds = (uploads ?? []).map((r: any) => String(r.id));
+    if (retainedVersionError) throw new Error(`Could not read retained summary versions: ${retainedVersionError.message}`);
+    const retainedUploadIds = new Set((retainedVersions ?? []).map((r: any) => String(r.upload_id)));
+    const uploadIds = (uploads ?? []).map((r: any) => String(r.id)).filter(id => !retainedUploadIds.has(id));
     await deleteIn(db, "summary_uploads", "id", uploadIds);
 
     return {
       ok: true as const,
-      deleted: { matches: matchIds.length, auditRuns: runIds.length, summaryVersions: versionIds.length, uploads: uploadIds.length },
-      preserved: ["calibration", "rules", "metric registry", "historical evidence"],
+      deleted: { matches: removableMatchIds.length, auditRuns: runIds.length, summaryVersions: versionIds.length, uploads: uploadIds.length },
+      preserved: ["completed audit snapshots", "calibration", "rules", "metric registry", "historical evidence"],
     };
   });

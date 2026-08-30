@@ -39,6 +39,9 @@ function metricCallKey(input: Parameters<Researcher["metrics"]>[0]) {
     input.p2,
     input.context,
     input.dossier ?? "",
+    input.researchSide ?? "",
+    input.researchPlayer ?? "",
+    input.researchOpponent ?? "",
     input.metrics.map(metric => [metric.code, metric.name, metric.body]),
   ]);
 }
@@ -90,6 +93,17 @@ function fullyUsableFinding(row: MetricFinding | undefined) {
 
 function usableSide(row: MetricFinding | undefined, side: "p1" | "p2") {
   return Boolean(row && USABLE.has(row[`${side}_treatment`]) && row[`${side}_value`]);
+}
+
+export function restoreRequestedOrientation(row: MetricFinding, reversed: boolean): MetricFinding {
+  if (!reversed) return row;
+  const restored = { ...row } as Record<string, unknown>;
+  const original = row as unknown as Record<string, unknown>;
+  for (const key of Object.keys(row)) {
+    if (key.startsWith("p1_")) restored[key] = original[`p2_${key.slice(3)}`];
+    if (key.startsWith("p2_")) restored[key] = original[`p1_${key.slice(3)}`];
+  }
+  return restored as unknown as MetricFinding;
 }
 
 export function mergeMetricFindingSides(primary: MetricFinding | undefined, fallback: MetricFinding | undefined) {
@@ -221,13 +235,16 @@ export const warehouseFirstResearcher: Researcher = {
   ...finalMetricWiringResearcher,
   async metrics(input) {
     return metricCallCache.getOrCreate(metricCallKey(input), async () => {
+    const reversedOrientation = input.researchSide === "p2";
+    const requestedP1 = reversedOrientation ? (input.researchPlayer ?? input.p2) : input.p1;
+    const requestedP2 = reversedOrientation ? (input.researchOpponent ?? input.p1) : input.p2;
     const callStartedAt = Date.now();
     const identityFallback = (name: string) => ({ input: name, canonical: name, status: "QUERY_FAILED" as const, candidates: [], query_errors: ["Canonical identity lookup exceeded its time budget."] });
     const identities = await researchWorkPool.runWithBudget(
       "canonical-identity",
       SOURCE_PACKET_BUDGET_MS,
-      () => resolveCanonicalEvidencePair(input.p1, input.p2),
-      () => ({ p1: identityFallback(input.p1), p2: identityFallback(input.p2) }),
+      () => resolveCanonicalEvidencePair(requestedP1, requestedP2),
+      () => ({ p1: identityFallback(requestedP1), p2: identityFallback(requestedP2) }),
     );
     console.log(`[research-timing] canonical identity ${Date.now()-callStartedAt}ms`);
     input = { ...input, p1: identities.p1.canonical, p2: identities.p2.canonical };
@@ -415,7 +432,7 @@ export const warehouseFirstResearcher: Researcher = {
         saveSide({ code, name: metric.name, player: p2, opponent: p1, date, treatment: chosen.p2_treatment, value: chosen.p2_value, reliability: chosen.reliability, sample: chosen.sample, family: chosen.evidence_family, sources: chosen.sources ?? [], unavailableReason: chosen.unavailable_reason, tournament, surface, tourFamily }),
       ]);
     }
-    return output;
+    return output.map(row => restoreRequestedOrientation(row, reversedOrientation));
     });
   },
 };

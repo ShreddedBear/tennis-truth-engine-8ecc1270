@@ -28,9 +28,17 @@ describe("warehouse deterministic calculator wiring", () => {
   });
 
   it("persists each paired finding atomically at the pipeline boundary", () => {
-    expect(pipeline).toContain("preserveSettledOppositeSide(metricPairPatch(byCode.get(String(row[\"metric_code\"])),providerError,retrievedAt),row,side)");
+    expect(pipeline).toContain("constpaired=metricPairPatch(byCode.get(String(row[\"metric_code\"])),providerError,retrievedAt)");
+    expect(pipeline).toContain("constoriented=preserveSettledOppositeSide(paired,row,side)");
     expect(pipeline).toContain("p1_value:p1.value,p2_value:p2.value");
     expect(pipeline).toContain("p1_unavailable_reason:p1.reason,p2_unavailable_reason:p2.reason");
+  });
+
+  it("keys paired research independently by player orientation", () => {
+    expect(compact).toContain("input.researchSide??");
+    expect(compact).toContain("input.researchPlayer??");
+    expect(compact).toContain("input.researchOpponent??");
+    expect(pipeline).toContain('researchSide:side,researchPlayer:side==="p1"?match.player1_name:match.player2_name');
   });
 
   it("uses the normalized evidence uniqueness key for conflict-safe refreshes", () => {
