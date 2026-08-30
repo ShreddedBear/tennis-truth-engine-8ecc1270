@@ -183,23 +183,13 @@ async function saveSide(args: { code: string; name: string; player: string; oppo
   if (!USABLE.has(treatment) || !value) return;
   const validUntil = new Date(Date.now() + ttlHours(code) * 3_600_000).toISOString();
   const sourceIds = (sources ?? []).map(source => source.source_name).filter(Boolean);
-  let deletion = db.from("metric_evidence_store").delete().eq("metric_code", code).eq("player_name", player).eq("opponent_name", opponent).eq("as_of_date", date);
-  deletion = tournament ? deletion.eq("tournament", tournament) : deletion.is("tournament", null);
-  deletion = surface ? deletion.eq("surface", surface) : deletion.is("surface", null);
-  const { error: deleteError } = await deletion;
-  if (deleteError) {
-    // Persistence failures here are not fatal to the current run (the computed
-    // finding is already used from `output` regardless), but a swallowed error
-    // would otherwise silently drop legitimately-computed evidence from
-    // metric_evidence_store forever, forcing it to be re-derived on every future
-    // run and making it invisible to coverage diagnostics that read the store.
-    console.error(`[metric_evidence_store] delete failed for ${code} ${player} vs ${opponent} (${date}): ${deleteError.message}`);
-    return;
-  }
   const sampleLabel = [sample, tourFamily ? `tour_family=${tourFamily}` : null].filter(Boolean).join(" | ") || null;
-  const { error: insertError } = await db.from("metric_evidence_store").insert({ metric_code: code, metric_name: name, player_name: player, opponent_name: opponent, tournament, surface, as_of_date: date, treatment, value_text: value, reliability, sample_label: sampleLabel, evidence_family: family, source_ids: sourceIds, sources: sources ?? [], unavailable_reason: unavailableReason, valid_until: validUntil, updated_at: new Date().toISOString() });
-  if (insertError) {
-    console.error(`[metric_evidence_store] insert failed for ${code} ${player} vs ${opponent} (${date}): ${insertError.message}`);
+  const payload = { metric_code: code, metric_name: name, player_name: player, opponent_name: opponent, tournament, surface, as_of_date: date, treatment, value_text: value, reliability, sample_label: sampleLabel, evidence_family: family, source_ids: sourceIds, sources: sources ?? [], unavailable_reason: unavailableReason, valid_until: validUntil, updated_at: new Date().toISOString() };
+  const persisted = await db.rpc("upsert_metric_evidence_side", { p_payload: payload });
+  if (persisted.error || !persisted.data?.id) throw new Error(`[metric_evidence_store] write failed for ${code} ${player} vs ${opponent} (${date}): ${persisted.error?.message ?? "persisted row was not returned"}`);
+  const verification = await db.from("metric_evidence_store").select("id,treatment,value_text").eq("id", persisted.data.id).maybeSingle();
+  if (verification.error || !verification.data || verification.data.treatment !== treatment || verification.data.value_text !== value) {
+    throw new Error(`[metric_evidence_store] verification failed for ${code} ${player} vs ${opponent} (${date}): ${verification.error?.message ?? "persisted row does not match the computed side"}`);
   }
 }
 

@@ -2,3 +2,4 @@
 - [Supabase migration verification](supabase-migration-verification.md) — post-merge setup does not guarantee external Supabase migrations were applied; verify schema before audits.
 - [Audit source latency](audit-source-latency.md) — select synchronous local analyzers by requested metric family and bound every async source/provider phase.
 - [GitHub workflow pushes](github-workflow-pushes.md) — Git smart-HTTP token pushes need Basic auth, and workflow-file changes need the separate workflow scope.
+- [Symmetric metric persistence](symmetric-metric-persistence.md) — persist paired research together, but still run each player’s reconstruction; evidence refreshes must be transactional.

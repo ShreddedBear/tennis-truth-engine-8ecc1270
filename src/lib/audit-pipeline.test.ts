@@ -5,7 +5,7 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { runPipeline, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow } from "./audit-pipeline";
+import { metricPairPatch, preserveSettledOppositeSide, runPipeline, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow } from "./audit-pipeline";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 
 // Code 070 ("Support Team / Prep") is a genuine LEGITIMATE_PLAYER_METRIC in the real
@@ -263,6 +263,65 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
 }
 
 describe("Run Audit pipeline", () => {
+  it("keeps mixed-availability diagnostics on the unavailable side only", () => {
+    const patch = metricPairPatch({
+      metric_code: "001", p1_value: "72", p2_value: null,
+      p1_treatment: "DIRECT", p2_treatment: "UNAVAILABLE",
+      differential: null, evidence_family: "RANKING", reliability: .9, sample: "current",
+      unavailable_reason: null, p2_unavailable_reason: "Player 2 ranking was not found.",
+      sources: [{ source_name: "official rankings" }],
+    }, null, "2026-04-11T10:00:00Z");
+    expect(patch.p1_unavailable_reason).toBeNull();
+    expect(patch.p2_unavailable_reason).toBe("PLAYER_NOT_FOUND");
+    expect(patch.unavailable_detail).toBe("P1: usable | P2: Player 2 ranking was not found.");
+  });
+
+  it("does not overwrite a settled opposite side when resuming a legacy one-sided run", () => {
+    const patch = preserveSettledOppositeSide(metricPairPatch(undefined, "provider timeout", "2026-04-11T10:00:00Z"), {
+      p1_status: "COMPLETE", p1_value: "72", p1_treatment: "DIRECT",
+      p2_status: "NOT STARTED",
+    }, "p2");
+    expect(patch).not.toHaveProperty("p1_value");
+    expect(patch).not.toHaveProperty("p1_treatment");
+    expect(patch).not.toHaveProperty("p1_unavailable_reason");
+    expect(patch.p2_status).toBe("UNAVAILABLE");
+    expect(patch.status).toBe("COMPLETE");
+  });
+
+  it("persists both independently oriented metric sides from one paired research pass", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    const metrics = vi.fn(researcher.metrics);
+    deps.research = { ...researcher, metrics };
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    expect(result.complete).toBe(true);
+    const executed = tables.metric_results.filter(row => !["EXCLUDED", "NO_SOURCE"].includes(String(row["p1_status"]))).length;
+    expect(metrics).toHaveBeenCalledTimes(Math.ceil(executed / 15));
+    for (const row of tables.metric_results) {
+      if (row["p1_status"] === "EXCLUDED" || row["p1_status"] === "NO_SOURCE") continue;
+      expect(row["p1_value"]).not.toBeNull();
+      expect(row["p2_value"]).not.toBeNull();
+      expect(row["p1_status"]).toBe("COMPLETE");
+      expect(row["p2_status"]).toBe("COMPLETE");
+    }
+  });
+
+  it("still runs each player's reconstruction pass after paired research settles both statuses", async () => {
+    const { deps } = makeMemoryDeps();
+    const extractStats = vi.fn(async ({ player }: { player: string }) => [{
+      key: "surface_strength", value: player === P1 ? 71 : 69, player,
+      origin: "RECONSTRUCTED" as const, surface: null, window: null,
+      sources: [{ source_name: "paired history" }],
+    }]);
+    deps.research = { ...researcher, extractStats };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    expect(extractStats).toHaveBeenCalledWith(expect.objectContaining({ player: P1 }));
+    expect(extractStats).toHaveBeenCalledWith(expect.objectContaining({ player: P2 }));
+  });
+
   it("keeps every required denominator when all research providers fail", async () => {
     const { deps, tables, stages } = makeMemoryDeps();
     const failure = async () => {
