@@ -4,7 +4,7 @@ import { validateMetric } from "./validated-completion-research.server";
 import { familyOf, STAT_CATALOG } from "./reconstruction/stat-catalog";
 
 const sources=[{source_name:"Exact field source",url:"https://example.test/source",retrieved_at:"2026-08-22T00:00:00Z"}];
-const PROTECTED=new Set(["034","036","038","039","040"]);
+const PROTECTED=new Set(["034","036","037","038","039","040"]);
 function finding(code:string,p1:string|null,p2:string|null,treatment:"DIRECT"|"RECONSTRUCTED"|"PARTIAL"="RECONSTRUCTED"){
   return {metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:treatment,p2_treatment:treatment,differential:null,evidence_family:`POSTFIX_${code}`,reliability:.9,sample:"10",unavailable_reason:null,sources};
 }
@@ -25,6 +25,15 @@ describe("post-fix metric wiring 034/036/038/039/040",()=>{
     expect(meta).toContain('const STRESS_META_CODES = ["050", "058"]');
   });
 
+  it("routes 037/039 through the owned audit-DB adapter and never into generic live fallback",()=>{
+    const warehouse=readFileSync("src/lib/warehouse-first-researcher.server.ts","utf8");
+    expect(warehouse).toContain('import { auditDbCompositeMetric, isAuditDbCompositeMetric }');
+    expect(warehouse).toContain("const auditDb = await auditDbCompositeMetric");
+    expect(warehouse).toContain("return !isAuditDbCompositeMetric(code) && !fullyUsableFinding");
+    const completion=readFileSync("src/lib/completion-sweep-research.server.ts","utf8");
+    expect(completion).not.toContain('"037":[');
+  });
+
   it("034 rejects raw neighboring inputs unless the required scoreline comparisons are actually formed",()=>{
     const result=validateMetric({code:"034",name:"Scoreline Deception Index",body:null},finding("034","scoreline=6-4 6-4; total points won=52%; expected games=12.4; break opportunities=7; dominance ratio=1.08; score state available","scoreline=4-6 4-6; total points won=48%; expected games=10.6; break opportunities=4; dominance ratio=.93; score state available"));
     expect(result.p1_treatment).toBe("UNAVAILABLE"); expect(result.p2_treatment).toBe("UNAVAILABLE"); expect(result.p1_value).toBeNull();
@@ -42,6 +51,15 @@ describe("post-fix metric wiring 034/036/038/039/040",()=>{
     const result=validateMetric({code:"036",name:"Loss Autopsy Metrics",body:null},finding("036",partial,partial,"DIRECT"));
     expect(result.p1_treatment).toBe("PARTIAL"); expect(result.p2_treatment).toBe("PARTIAL");
     expect(result.missing_inputs).toEqual(expect.arrayContaining(["loss serve deterioration","loss return deterioration","lost after leading","loss physical problem","bad-loss severity index"]));
+  });
+
+  it("037 requires real scored-win inputs rather than generic recent form",()=>{
+    const generic="straight set win pct=64; recent win pct=70; opponent rank mean=38";
+    const rejected=validateMetric({code:"037",name:"Win Autopsy Metrics",body:null},finding("037",generic,generic));
+    expect(rejected.p1_treatment).toBe("UNAVAILABLE"); expect(rejected.p2_treatment).toBe("UNAVAILABLE");
+    const exact="recent scored wins=50; pre match win probability range=45-80 pct; final score margin close wins=14/50; win autopsy category distribution=DOMINANT:12,ROUTINE:20,ESCAPE:8,UPSET_WIN:10";
+    const accepted=validateMetric({code:"037",name:"Win Autopsy Metrics",body:null},finding("037",exact,exact));
+    expect(accepted.p1_treatment).toBe("RECONSTRUCTED"); expect(accepted.p2_treatment).toBe("RECONSTRUCTED");
   });
 
   it("038 requires the same-opponent norm in every residual rather than accepting generic residual labels",()=>{
@@ -81,6 +99,6 @@ describe("post-fix metric wiring 034/036/038/039/040",()=>{
 
   it("the five protected metric definitions remain exact and unchanged",()=>{
     const master=readFileSync("public/seed/metrics.txt","utf8");
-    for(const marker of ["34. Scoreline Deception Index","36. Loss Autopsy Metrics","38. Opponent-Adjusted Residual Performance","39. Performance Surprise Rating","40. Hidden Decline Detector"]) expect(master).toContain(marker);
+    for(const marker of ["34. Scoreline Deception Index","36. Loss Autopsy Metrics","37. Win Autopsy Metrics","38. Opponent-Adjusted Residual Performance","39. Performance Surprise Rating","40. Hidden Decline Detector"]) expect(master).toContain(marker);
   });
 });

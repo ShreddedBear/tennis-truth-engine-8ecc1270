@@ -23,6 +23,7 @@ import { officialWtaMetricRows } from "./wta-official-match-evidence.server";
 import { certifyMetricFinding } from "./metric-certification";
 import { BoundedPromiseCache } from "./bounded-promise-cache";
 import { BoundedOperationPool } from "./async-time-budget";
+import { auditDbCompositeMetric, isAuditDbCompositeMetric } from "./audit-metric-036-037-039-live.server";
 
 const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
@@ -258,10 +259,12 @@ export const warehouseFirstResearcher: Researcher = {
 
     const missing = metrics.filter(metric => {
       const code = codeOf(metric.code), a = p1Stored.get(code), b = p2Stored.get(code);
+      if (isAuditDbCompositeMetric(code)) return true;
       return !a || !b || !USABLE.has(a.treatment) || !USABLE.has(b.treatment) || !a.value_text || !b.value_text;
     });
 
     const deterministicResult = await researchWorkPool.runWithBudget("deterministic-metrics", SOURCE_PACKET_BUDGET_MS, () => Promise.all(missing.map(async metric => {
+      const auditDb = await auditDbCompositeMetric({ metricCode: metric.code, p1, p2, asOfDate: date }); if (auditDb) return auditDb;
       const ranking = await deterministicRankingMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (ranking) return ranking;
       const rules = await deterministicRulesContextMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (rules) return rules;
       const environment = await deterministicEnvironmentMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament }); if (environment) return environment;
@@ -279,7 +282,10 @@ export const warehouseFirstResearcher: Researcher = {
     const deterministicRows = deterministicResult.filter((row): row is MetricFinding => Boolean(row));
     console.log(`[research-timing] deterministic tier ${Date.now()-callStartedAt}ms`);
     const deterministicByCode = new Map(deterministicRows.map(row => [codeOf(row.metric_code), row]));
-    const liveMissing = missing.filter(metric => !fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
+    const liveMissing = missing.filter(metric => {
+      const code = codeOf(metric.code);
+      return !isAuditDbCompositeMetric(code) && !fullyUsableFinding(deterministicByCode.get(code));
+    });
 
     let liveRows: MetricFinding[] = [];
     if (liveMissing.length) {
@@ -382,7 +388,8 @@ export const warehouseFirstResearcher: Researcher = {
 
     const output: MetricFinding[] = [];
     for (const metric of metrics) {
-      const code = codeOf(metric.code), a = p1Stored.get(code), b = p2Stored.get(code), live = liveByCode.get(code), deterministic = deterministicByCode.get(code);
+      const code = codeOf(metric.code), auditDbOwned = isAuditDbCompositeMetric(code);
+      const a = auditDbOwned ? undefined : p1Stored.get(code), b = auditDbOwned ? undefined : p2Stored.get(code), live = liveByCode.get(code), deterministic = deterministicByCode.get(code);
       if (a && b && USABLE.has(a.treatment) && USABLE.has(b.treatment) && a.value_text && b.value_text) {
         const mergedSources = [...sourcesOf(a), ...sourcesOf(b)].filter((source, index, rows) => rows.findIndex(other => other.source_name === source.source_name && other.url === source.url) === index);
         output.push({ metric_code: code, p1_value: a.value_text, p2_value: b.value_text, p1_treatment: a.treatment, p2_treatment: b.treatment, differential: null, evidence_family: a.evidence_family ?? b.evidence_family, reliability: Math.min(a.reliability ?? 100, b.reliability ?? 100), sample: [a.sample_label, b.sample_label].filter(Boolean).join(" | ") || null, unavailable_reason: null, sources: mergedSources });

@@ -127,6 +127,12 @@ const COMPOSITE_COMPONENTS:Record<string,Array<{name:string;terms:string[]}>>={
     {name:"competitive vs blowout loss",terms:["competitive vs blowout","competitive loss","blowout loss"]},
     {name:"bad-loss severity index",terms:["bad loss severity index","bad loss severity"]},
   ],
+  "037":[
+    {name:"recent scored wins",terms:["recent scored wins","prior scored wins"]},
+    {name:"pre-match win probability",terms:["pre match win probability","frozen pre match win probability"]},
+    {name:"final score margin",terms:["final score margin","close wins"]},
+    {name:"win autopsy category",terms:["win autopsy category","dominant","routine","escape","upset win"]},
+  ],
   "038":[
     {name:"hold residual vs opponent norm",terms:["hold residual vs opponent norm","hold residual versus opponent norm","hold compared to opponent norm"]},
     {name:"break residual vs opponent norm",terms:["break residual vs opponent norm","break residual versus opponent norm","break compared to opponent norm"]},
