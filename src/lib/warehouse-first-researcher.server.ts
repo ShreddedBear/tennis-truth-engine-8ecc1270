@@ -9,6 +9,7 @@ import { deterministicRulesContextMetric } from "./deterministic-rules-context-m
 import { deterministicBatch1StandaloneMetric } from "./deterministic-batch1-standalone-metrics.server";
 import { deterministicBatch2NewMetric } from "./deterministic-batch2-new-metrics.server";
 import { deterministicBatch3EarlyWarningMetric } from "./deterministic-batch3-early-warning.server";
+import { deterministicBatch4FavoriteUnderdogPatterns } from "./deterministic-batch4-favorite-underdog-patterns.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
@@ -268,6 +269,13 @@ export const warehouseFirstResearcher: Researcher = {
       const ranking = await deterministicRankingMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (ranking) return ranking;
       const rules = await deterministicRulesContextMetric({ metricCode: metric.code, p1, p2, asOfDate: date, context: input.context }); if (rules) return rules;
       const environment = await deterministicEnvironmentMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament }); if (environment) return environment;
+      // Batch4 favorite/underdog pattern modules (043/044) -- real per-player
+      // historical-pattern engines (docs/audit-task-043-044-opponent-upset-
+      // compatibility.md), tried BEFORE the market tier below so they take
+      // priority; deterministicMarketMetric's de-vig pricing remains a real
+      // fallback for 043/044 (price/favorite-designation are named inputs to
+      // both codes) when this tier can't resolve either player.
+      const batch4 = await deterministicBatch4FavoriteUnderdogPatterns({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily, surface }); if (batch4) return batch4;
       const market = await deterministicMarketMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament, context: input.context }); if (market) return market;
       const resultsSchedule = await deterministicResultsScheduleMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tournament, eventLevel: null, tourFamily, context: input.context }); if (resultsSchedule) return resultsSchedule;
       // Batch1 standalone modules (027/031/041/046/051) -- reconnected per

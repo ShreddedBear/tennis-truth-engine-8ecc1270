@@ -21,7 +21,26 @@ export type MetricSourcePolicy = { metric_code:string; allowed_families:Observat
 // whatever family eligibility their genuinely-reconstructable sub-component already had
 // before classification review -- narrowing that further is a separate decision, not
 // made here on inference alone.
-const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","030","031","034","035","036","037","038","041","045","046","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
+const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","029","030","031","034","035","036","037","038","041","043","044","045","046","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
+// "029" added: audit-metric-029-psychological-response-proxy.ts computes its close-set-
+// loss-then-next-set/match win-rate response entirely from repository-results-
+// history.server.ts's set_scores-bearing rows (the same RESULTS_SCHEDULE-level static
+// four-tour history source #027's finishing-ability engine already reads and is already
+// listed here for) -- not from any point-by-point/PBP source, so it belongs in this set,
+// not PBP_METRICS. Previously had no family membership at all (an oversight from before
+// the module was wired live -- see deterministic-batch4-favorite-underdog-patterns.server.ts's
+// sibling wiring doc for the reconnection pattern this follows).
+// "043"/"044" added: verified against evidence-gap.ts and public/seed/metrics.txt --
+// 043 ("Favorite Failure-Mode Score") is keyed to what happened in the player's own
+// past favorite-role LOSSES (pre-match favorite designation, set-state failure
+// conditions) cross-referenced against the opponent's own past underdog-role WIN
+// history -- both are chronological historical-match content, RESULTS_SCHEDULE-level
+// data, computed by audit-metric-043-favorite-failure-mode.ts /
+// audit-metric-044-opponent-upset-compatibility.ts (wired via
+// deterministic-batch4-favorite-underdog-patterns.server.ts) from the same static
+// four-tour history index #036/#046 already use. Deliberately NOT added to
+// PBP_METRICS for the same reason #036 above stays out of it -- neither module reads
+// the generic warehouse-level PBP path.
 // "036" ("Loss Autopsy Metrics") added: verified against public/seed/metrics.txt --
 // every bullet is keyed to what happened in specific past *losses* (favorite status,
 // opponent quality, surface, point/break differential, physical problem, match length),
