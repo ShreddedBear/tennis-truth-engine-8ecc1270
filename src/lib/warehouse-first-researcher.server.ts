@@ -8,6 +8,7 @@ import { deterministicResultsScheduleMetric } from "./deterministic-results-sche
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
 import { deterministicBatch1StandaloneMetric } from "./deterministic-batch1-standalone-metrics.server";
 import { deterministicBatch2NewMetric } from "./deterministic-batch2-new-metrics.server";
+import { deterministicBatch3EarlyWarningMetric } from "./deterministic-batch3-early-warning.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
@@ -237,6 +238,16 @@ export const warehouseFirstResearcher: Researcher = {
 
       for (const metric of liveMissing) {
         const code = codeOf(metric.code);
+        // Metric 026's cross-match slow-start-recovery aggregation is its own live-fetch
+        // shape (a player's own past PBP-covered matches, not this match's own packet) --
+        // see deterministic-batch3-early-warning.server.ts's header comment for why it is
+        // tried here rather than in the cheap deterministic chain above or through the
+        // per-match packet path below.
+        if (code === "026") {
+          const earlyWarning = await deterministicBatch3EarlyWarningMetric({ metricCode: code, p1, p2, asOfDate: date, tourFamily });
+          if (fullyUsableFinding(earlyWarning ?? undefined)) deterministicByCode.set(code, earlyWarning!);
+          continue;
+        }
         const recovered=deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket});
         if (fullyUsableFinding(recovered ?? undefined)) deterministicByCode.set(code, recovered!);
       }
