@@ -237,7 +237,7 @@ export function evaluate(input: EngineInput): GateReport {
     input.disagreement.some((d) => d.contradiction_severity === "CRITICAL");
 
   const checks = [
-    { key: "identity", label: "Match identity verified or unavailable", pass: ["VERIFIED", "UNAVAILABLE"].includes(match.identity_status), detail: match.identity_status },
+    { key: "identity", label: "Match identity resolved to a terminal state", pass: ["VERIFIED", "UNVERIFIED", "UNAVAILABLE"].includes(match.identity_status), detail: match.identity_status },
     { key: "surface", label: "Surface verified or unavailable", pass: ["VERIFIED", "UNAVAILABLE"].includes(match.surface_status), detail: match.surface_status },
     { key: "lock", label: "Pre-match research lock set", pass: !!run.research_lock_at, detail: run.research_lock_at ?? "not locked" },
     { key: "conflicts", label: "Critical source conflicts resolved", pass: criticalConflicts.done === criticalConflicts.total, detail: `${criticalConflicts.done}/${criticalConflicts.total}` },

@@ -140,3 +140,49 @@ describe("audit-engine coverage: NO_SOURCE denominator-eligibility bucket", () =
     expect(report.coverage.p1.usablePercent).toBe(100);
   });
 });
+
+describe("audit-engine terminal identity outcomes", () => {
+  it("completes an UNVERIFIED identity audit as insufficient evidence instead of blocking the final gate", () => {
+    const report = evaluate({
+      match: { ...baseMatch, identity_status: "UNVERIFIED" },
+      run: {
+        ...baseRun,
+        research_lock_at: "2026-08-30T03:30:00.000Z",
+        independent_decision_committed_at: "2026-08-30T03:31:00.000Z",
+        matrix_revealed_at: "2026-08-30T03:32:00.000Z",
+        calibration_version_id: "calibration-v1",
+      },
+      metrics: [
+        {
+          status: "UNAVAILABLE",
+          p1_status: "UNAVAILABLE",
+          p2_status: "UNAVAILABLE",
+          p1_treatment: "UNAVAILABLE",
+          p2_treatment: "UNAVAILABLE",
+          matrix_derived: false,
+          evidence_family: null,
+          metric_name: "Unavailable metric",
+          metric_code: "007",
+          p1_value: null,
+          p2_value: null,
+          sources: [],
+        },
+      ],
+      verification: [{ status: "COMPLETE", outcome: "UNAVAILABLE", severity: "STANDARD" }],
+      disagreement: [{ status: "COMPLETE", contradiction_severity: "NONE" }],
+      underdog: [{ status: "COMPLETE", classification: "UNRESOLVED", player_side: "Alpha" }],
+      stress: [{ status: "COMPLETE", test_code: "ST01", outcome: "STABLE" }],
+      reconstructions: [],
+      conflicts: [],
+      matrixWp: null,
+    });
+
+    expect(report.auditComplete).toBe(true);
+    expect(report.completionPercent).toBe(100);
+    expect(report.color).toBe("INSUFFICIENT EVIDENCE");
+    expect(report.checks.find((check) => check.key === "identity")).toMatchObject({
+      pass: true,
+      detail: "UNVERIFIED",
+    });
+  });
+});
