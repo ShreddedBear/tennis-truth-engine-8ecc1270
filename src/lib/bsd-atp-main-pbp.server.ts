@@ -5,7 +5,11 @@ import { reconstructPbpScoreState, TASK18B_METRIC_CODES, type PbpSide } from "./
 import { canonicalApprovedPbpIdentity, claimUniqueApprovedPbp } from "./pbp-evidence-firewall";
 
 const BASE="https://sports.bzzoiro.com/tennis/api/v2",COVERAGE_START="2024-01-01";
-const PBP_CODES=new Set(["016","024","025","033","042","043","044","060",...TASK18B_METRIC_CODES]);
+// "034" and "053" added: both were already computed by reconstructPbpScoreState (see that
+// file's add("034",...)/add("053",...) calls) but silently dropped from every packet built
+// here because this allowlist never named them -- a wiring gap, not a data gap. See
+// docs/audit-task-026-034-053.md.
+const PBP_CODES=new Set(["016","024","025","033","034","042","043","044","053","060",...TASK18B_METRIC_CODES]);
 type MetricLike={code:string;name:string};
 type IndexRow={match_id?:string|number|null;date?:string|null;players?:string[];tournament?:string|null;circuit?:string|null;category?:string|null;surface?:string|null;structurally_present?:boolean};
 const norm=(v:unknown)=>String(v??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();

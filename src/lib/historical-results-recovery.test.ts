@@ -29,13 +29,22 @@ describe("Task 18A historical/results recovery",()=>{
  // Divergent Outcome" bullet reuses the exact same common-opponent intersection already
  // built for 007; "Opponent-Caliber Performance Gap" is not recoverable (needs each
  // player's own historical rank/Elo, which this row type does not carry), so PARTIAL.
+ // Task 22: "020" (90-day recent-quality-adjusted win record) retargeted to real "006"
+ // ("Opponent-Adjusted Strength of Schedule") -- see the dedicated code-006 describe block
+ // below and the long comment on TASK18A_HISTORICAL_RESULTS_CODES for the full rationale.
  // "005" (Recent Form) added: task18c-rank-form-workload.ts's removal of "005" was based
  // on a stale catalog reading (it called real 005 PROCESS_META, which the phase9 metrics.txt
  // fix corrected -- real 005 is "Recent Form", an ordinary player metric). Last-5/last-10
  // win rate, trend direction, straight-set control rate and average sets conceded in recent
  // wins, and average recent opponent rank are all recoverable here; "Current Hard-Court
  // Swing" and "Recent-Performance Acceleration" are not, so treatment stays PARTIAL.
- it("owns exactly the 10 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["005","007","008","010","011","013","017","020","068","080"].sort());});
+ // Task 22 reconciliation: old "020" branch (90-day recent-quality-adjusted win record)
+ // retargeted to real code "006" ("Opponent-Adjusted Strength of Schedule" -- exact
+ // bullet match: "recent opponent strength"/"comparable-strength results"), freeing real
+ // code 020 ("Level/Tour Transition") to be built fresh elsewhere against its actual
+ // definition. See the long comment on TASK18A_HISTORICAL_RESULTS_CODES in
+ // historical-results-recovery.ts for the full rationale.
+ it("owns exactly the 10 reconciled historical/results codes",()=>{expect([...TASK18A_HISTORICAL_RESULTS_CODES].sort()).toEqual(["005","006","007","008","010","011","013","017","068","080"].sort());});
  it("reconstructs every full historical family from observed prior inputs",()=>{
    for(const code of TASK18A_HISTORICAL_RESULTS_CODES.filter(c=>c!=="005"&&c!=="013"&&c!=="017"&&c!=="068"&&c!=="080")){
      const value=deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
@@ -49,7 +58,7 @@ describe("Task 18A historical/results recovery",()=>{
  it("fails closed when no common-opponent network exists",()=>{expect(deriveHistoricalResultMetric({code:"007",player:"Alpha",opponent:"NeverPlayed",rows,asOfDate,surface:"Hard"})).toBeNull();});
  it("does not promote set-total-only history to game-score volatility evidence",()=>{const totalsOnly:HistoricalResultRow[]=[r("Alpha","X","2026-08-10",true,"Hard",2,0,[],{opponentRank:null,opponentElo:null}),r("Alpha","Y","2026-08-01",false,"Hard",1,2,[],{opponentRank:null,opponentElo:null})];expect(deriveHistoricalResultMetric({code:"011",player:"Alpha",opponent:"Beta",rows:totalsOnly,asOfDate,surface:"Hard"})).toBeNull();});
  it("never writes player evidence into PROCESS_META or removed mismatched codes (regression against silent re-entry)",()=>{
-   for(const code of ["006","023","045","046","049","050","051","052","053","054","055","056","057","058","059"]){
+   for(const code of ["020","023","045","046","049","050","051","052","053","054","055","056","057","058","059"]){
      expect(deriveHistoricalResultMetric({code,player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"}),code).toBeNull();
    }
  });
@@ -86,6 +95,32 @@ describe("Task 18A historical/results recovery",()=>{
    });
    it("fails closed with no prior completed history instead of fabricating a form summary",()=>{
      expect(deriveHistoricalResultMetric({code:"005",player:"NeverPlayed",opponent:"Beta",rows,asOfDate,surface:"Hard"})).toBeNull();
+   });
+ });
+ describe("code 006 (Opponent-Adjusted Strength of Schedule, retargeted from mismatched code 020)",()=>{
+   // Alpha's completed history strictly within the trailing 90 days of asOfDate
+   // (2026-08-26), with observed opponent rank/Elo: Beta(W,08-20,rank42/default),
+   // Common(W,08-12,rank25), ClayOpp(L,07-20,rank80), GrassOpp(W,06-20,rank55).
+   // OldOpp (01-10) falls outside the 90-day window and is excluded.
+   //   quality_observed_matches=4; wins=3 (Beta,Common,GrassOpp); win_pct=75.
+   //   rank_11_50 band (Beta rank42, Common rank25): matches=2, wins=2, winPct=100.
+   //   rank_51_100 band (ClayOpp rank80 L, GrassOpp rank55 W): matches=2, wins=1, winPct=50.
+   it("computes the trailing-90-day opponent-quality-banded win record, hand-traced against the fixture",()=>{
+     const value=deriveHistoricalResultMetric({code:"006",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(value?.treatment).toBe("RECONSTRUCTED");
+     expect(value?.value).toContain("window_days=90");
+     expect(value?.value).toContain("quality_observed_matches=4");
+     expect(value?.value).toContain("wins=3");
+     expect(value?.value).toContain("win_pct=75");
+     expect(value?.value).toContain('"rank_11_50":{"matches":2,"wins":2,"winPct":100}');
+     expect(value?.value).toContain('"rank_51_100":{"matches":2,"wins":1,"winPct":50}');
+   });
+   it("excludes matches outside the 90-day window instead of quietly including them",()=>{
+     const value=deriveHistoricalResultMetric({code:"006",player:"Alpha",opponent:"Beta",rows,asOfDate,surface:"Hard"});
+     expect(JSON.stringify(value?.rawInputs)).not.toContain("OldOpp");
+   });
+   it("fails closed with no prior completed quality-observed history instead of fabricating a record",()=>{
+     expect(deriveHistoricalResultMetric({code:"006",player:"NeverPlayed",opponent:"Beta",rows,asOfDate,surface:"Hard"})).toBeNull();
    });
  });
  describe("code 068 (Streaks / Milestones)",()=>{

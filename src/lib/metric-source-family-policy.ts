@@ -59,9 +59,20 @@ const MARKET_METRICS=new Set(["015","019","043","044","047","073"]);
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 // "026"/"027"/"036"/"038"/"039"/"040"/"059"/"079" were previously listed here, inherited
 // from the same pre-Task-17 catalog drift as code 069 above. Their real definitions are,
-// respectively: 026 "Early-Warning / Slow-Start Metrics" (opening-game hold/break rates
-// -- needs a first-N-games-scoped replay this engine does not yet build, not a
-// match-wide PBP stat), 027 "Opponent Finishing Ability" and 036 "Loss Autopsy Metrics"
+// respectively: 026 "Early-Warning / Slow-Start Metrics" -- UPDATE (docs/audit-task-026-034-053.md):
+// 026 now HAS a real, dedicated engine (deriveOpeningWindowProfile's first-N-games-scoped
+// replay in pbp-score-state-recovery.ts, plus audit-metric-026-early-warning-slow-start.ts's
+// cross-match slow-start-recovery aggregation, wired via deterministic-batch3-early-warning.
+// server.ts) -- the prior "does not yet build" note is stale and corrected here. 026 still
+// deliberately stays OUT of this PBP_METRICS set, though, for a narrower reason than before:
+// that dedicated engine is reached through its own wired tier in warehouse-first-
+// researcher.server.ts, never through the generic warehouse-level PBP path this set gates
+// (deterministicPbpMetric in deterministic-pbp-metrics.server.ts, which only ever produces a
+// generic "some point-by-point observations exist" summary from persisted rows, with nothing
+// opening-game-specific in it) -- listing 026 here would let that unrelated generic path
+// award false PARTIAL credit toward a metric it cannot actually inform, exactly the failure
+// mode this comment already warns about for the other codes below. 027 "Opponent Finishing
+// Ability" and 036 "Loss Autopsy Metrics"
 // (both keyed off historical match *results*, e.g. lead protection, favorite status,
 // loss surface -- RESULTS_SCHEDULE territory, not point chronology), 038
 // "Opponent-Adjusted Residual Performance" (needs cross-player population norms), 039

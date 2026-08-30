@@ -2,6 +2,15 @@
 
 Status: **DONE**. Code + 10 unit/leakage tests, all passing.
 
+**Wiring update (later pass):** this module was built and tested but never
+actually called from the live pipeline. Now wired in via
+`src/lib/deterministic-batch1-standalone-metrics.server.ts`, which supplies
+the required `generalWinProbabilityPct` input from the same lane's derived
+Elo (a logistic conversion of `task18c-rank-form-workload.ts`'s `replayElo`
+overall ratings) rather than from a TennisMatrixAi prediction, since the
+live tier has no TennisMatrixAi probability available at this point in the
+pipeline. No changes to this module's own math.
+
 Files: `src/lib/audit-metric-051-opponent-specific-probability.ts` (+
 `.test.ts`, `.leakage.test.ts`).
 

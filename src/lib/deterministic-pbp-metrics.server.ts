@@ -6,7 +6,11 @@ import { TASK18B_METRIC_CODES } from "./pbp-score-state-recovery";
 
 const db = supabaseAdmin as any;
 const LEGACY_SUPPORTED = new Set(["016","024","025","033","042","043","044","060"]);
-const SUPPORTED = new Set([...LEGACY_SUPPORTED, ...TASK18B_METRIC_CODES]);
+// "034" and "053" added: both are computed by reconstructPbpScoreState (add("034",...)/
+// add("053",...)) and, once the matching bsd-*-pbp.server.ts PBP_CODES allowlist gap is
+// fixed, do reach this function's packet argument -- but this SUPPORTED gate would still
+// have silently dropped them here even after that fix. See docs/audit-task-026-034-053.md.
+const SUPPORTED = new Set([...LEGACY_SUPPORTED, "034", "053", ...TASK18B_METRIC_CODES]);
 
 type Row={source_id:string|null;source_name:string|null;source_url:string|null;player_name:string|null;opponent_name:string|null;event_date:string|null;observation_type:string|null;observation_key:string|null;numeric_value:number|null;text_value:string|null;sample_label:string|null};
 type PacketObservation={family?:string|null;source?:string|null;url?:string|null;player?:string|null;opponent?:string|null;event_date?:string|null;key?:string|null;value?:any;sample?:string|null;provenance?:any};

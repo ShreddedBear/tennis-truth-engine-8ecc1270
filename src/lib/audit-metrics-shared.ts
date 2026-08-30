@@ -3,8 +3,15 @@
 // audit computations -- they evaluate TennisMatrixAi's historical
 // predictions after the fact using the same four-tour static history index
 // (repository-results-history.server.ts) the rest of this app already uses
-// for evidence reconstruction. They are NOT wired into the live audit
-// pipeline's Researcher/ensemble, and must never be.
+// for evidence reconstruction.
+//
+// UPDATE (docs/audit-task-new-batch1-standalone-modules-wiring.md): the five
+// modules that were reviewed and confirmed correct/leakage-safe (027/031/
+// 041/046/051) ARE now wired into the live pipeline's Researcher, via
+// deterministic-batch1-standalone-metrics.server.ts's new tier inside
+// warehouse-first-researcher.server.ts. This shared-helpers file, and any
+// module using it, is no longer categorically excluded from production --
+// each module's own file header states its actual wiring status.
 //
 // Standing pattern (Step 0 resolution): every metric reports its result PER
 // TOUR LANE, each independently GO or NOT_ENOUGH_DATA -- never a single

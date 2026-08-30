@@ -30,6 +30,15 @@ describe("deterministic PBP evidence (deterministicPbpMetricFromPacket)", () => 
     expect(deterministicPbpMetricFromPacket({ metricCode: legacyOnlyCode, p1: "Alpha", p2: "Beta", asOfDate: "2026-08-02", packet: wrongFamily })).toBeNull();
   });
 
+  it("supports metrics 034 and 053 (added when their bsd-*-pbp.server.ts PBP_CODES allowlist gap was fixed -- see docs/audit-task-026-034-053.md)", () => {
+    for (const code of ["034", "053"]) {
+      const p = { [code]: { observations: [{ family: "POINT_BY_POINT", player: "Alpha", opponent: "Beta", event_date: "2026-08-01", value: { derived: { [code]: { treatment: "PARTIAL", value: {}, raw_fields: [], transformation: "t" } } } }] } };
+      const finding = deterministicPbpMetricFromPacket({ metricCode: code, p1: "Alpha", p2: "Beta", asOfDate: "2026-08-02", packet: p });
+      expect(finding, code).not.toBeNull();
+      expect(finding!.p1_treatment).toBe("PARTIAL");
+    }
+  });
+
   it("fails closed by player side and never synthesizes the missing opponent", () => {
     const oneSided = { [legacyOnlyCode]: { observations: [{ family: "POINT_BY_POINT", player: "Alpha", opponent: "Beta", event_date: "2026-08-01", value: { total_points: 80, total_games: 20, task18b_raw_fields_available: false } }] } };
     const finding = deterministicPbpMetricFromPacket({ metricCode: legacyOnlyCode, p1: "Alpha", p2: "Beta", asOfDate: "2026-08-02", packet: oneSided });
