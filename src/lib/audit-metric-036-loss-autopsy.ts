@@ -68,10 +68,17 @@ export interface LossAutopsyResult {
   surface_breakdown: Record<string, number>;
 }
 
-function blowoutMargin([a, b]: [number, number]): boolean {
+// Exported (in addition to being used locally below) so metrics #043/#044
+// (audit-metric-043-favorite-failure-mode.ts / audit-metric-044-opponent-
+// upset-compatibility.ts) can reuse the exact same set-score condition
+// classifiers this module already defines and tests, rather than
+// re-deriving a second, potentially-diverging copy of "what counts as a
+// blowout / a tiebreak set" for the mirror-image win/underdog side of this
+// same analysis.
+export function blowoutMargin([a, b]: [number, number]): boolean {
   return Math.abs(a - b) >= 4;
 }
-function tiebreakSet([a, b]: [number, number]): boolean {
+export function tiebreakSet([a, b]: [number, number]): boolean {
   return (a === 7 && b === 6) || (a === 6 && b === 7);
 }
 
@@ -80,9 +87,10 @@ function tiebreakSet([a, b]: [number, number]): boolean {
  * from the raw lane object, mirroring audit-metric-046-match-state-elo.ts's
  * buildSetScoreIndex so this stays drawn from exactly the same source
  * laneMatchesBefore/replayElo already read (never a separately-diverging
- * global lookup).
+ * global lookup). Exported for the same reuse reason as blowoutMargin/
+ * tiebreakSet above.
  */
-function buildSetScoreIndex(lane: HistoryLane, players: Set<string>): Map<string, Map<string, Array<[number, number]>>> {
+export function buildSetScoreIndex(lane: HistoryLane, players: Set<string>): Map<string, Map<string, Array<[number, number]>>> {
   const index = new Map<string, Map<string, Array<[number, number]>>>();
   for (const player of players) {
     const key = normalizeEvidenceIdentity(player);
