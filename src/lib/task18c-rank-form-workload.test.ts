@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeHistoryMetric, laneMatchesBefore, type HistoryEntry, type HistoryLane } from "./task18c-rank-form-workload";
 import { metricAllowsObservation, policyForMetric } from "./metric-source-family-policy";
 
-const row = (date:string,tournament:string,surface:string,opponent:string,won:0|1,round="R32",source="fixture"):HistoryEntry => [date,tournament,surface,opponent,won,round,source];
+const row = (date:string,tournament:string,surface:string,opponent:string,won:0|1,round="R32",source="fixture") => [date,tournament,surface,opponent,won,round,source] as [string,string,string,string,0|1,string,string];
 function lane():HistoryLane{return{
   "alice alpha":[row("2026-08-20","A","Hard","Carol Gamma",1),row("2026-08-10","B","Clay","Dana Delta",0),row("2026-07-25","C","Hard","Eva Epsilon",1),row("2026-08-26","Current","Hard","Bob Beta",1),row("2026-08-27","Future","Hard","Future Player",1)],
   "carol gamma":[row("2026-08-20","A","Hard","Alice Alpha",0)],"dana delta":[row("2026-08-10","B","Clay","Alice Alpha",1)],"eva epsilon":[row("2026-07-25","C","Hard","Alice Alpha",0)],

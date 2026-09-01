@@ -84,7 +84,7 @@ function contextFromObservationRows(args: { p1: string; p2: string; asOfDate: st
     evidencePairMatches(row.player_name, row.opponent_name, args.p1, args.p2) ||
     evidencePairMatches(row.player_name, row.opponent_name, args.p2, args.p1)
   ));
-  const classified = exact.map((row) => ({ row, tour: classifyEvidenceTourFamily(row.sample_label, row.tournament, row.source_id, row.source_name) })).filter((entry) => entry.tour);
+  const classified = exact.map((row) => ({ row, tour: classifyEvidenceTourFamily(row.sample_label, row.tournament, row.source_id, row.source_name) })).filter((entry) => entry.tour !== null) as Array<{ row: ObservationRow; tour: NonNullable<ReturnType<typeof classifyEvidenceTourFamily>> }>;
   const tours = unique(classified.map((entry) => entry.tour));
   if (tours.length !== 1) return null;
   const row = classified[0].row;
@@ -103,8 +103,8 @@ async function inferCanonicalMatchContext(args: { p1: string; p2: string; asOfDa
   const matches = (data ?? []).filter((row: any) =>
     evidencePairMatches(row.player1_name, row.player2_name, args.p1, args.p2) ||
     evidencePairMatches(row.player1_name, row.player2_name, args.p2, args.p1));
-  const classified = matches.map((row: any) => ({ row, tour: classifyEvidenceTourFamily(row.event_level, row.tournament_name) })).filter((entry: any) => entry.tour);
-  const tours = unique(classified.map((entry: any) => entry.tour)) as EvidenceTourFamily[];
+  const classified = matches.map((row: any) => ({ row, tour: classifyEvidenceTourFamily(row.event_level, row.tournament_name) })).filter((entry: { row: { tournament_name: string | null; event_level: string | null; surface: string | null; round: string | null }; tour: ReturnType<typeof classifyEvidenceTourFamily> }) => entry.tour !== null) as Array<{ row: { tournament_name: string | null; event_level: string | null; surface: string | null; round: string | null }; tour: NonNullable<ReturnType<typeof classifyEvidenceTourFamily>> }>;
+  const tours = unique(classified.map((entry) => entry.tour));
   if (classified.length !== 1 || tours.length !== 1) return null;
   const row = classified[0].row;
   const tour = tours[0]!;
