@@ -6,6 +6,7 @@
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
 import { metricPairPatch, metricRowsForSideExecution, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow } from "./audit-pipeline";
+import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 
 // Code 070 ("Support Team / Prep") is a genuine LEGITIMATE_PLAYER_METRIC in the real
@@ -548,6 +549,69 @@ describe("Run Audit pipeline", () => {
       expect(ALLOWED.has(String(row["p1_treatment"])), `metric ${row["metric_code"]} p1_treatment "${row["p1_treatment"]}" not allow-listed`).toBe(true);
       expect(ALLOWED.has(String(row["p2_treatment"])), `metric ${row["metric_code"]} p2_treatment "${row["p2_treatment"]}" not allow-listed`).toBe(true);
     }
+  }, 60_000);
+
+  it("dispatches every prepared match when concurrency is 4", async () => {
+    const matchIds = Array.from({ length: 12 }, (_, i) => `match-${i + 1}`);
+    const seen: string[] = [];
+    const running = new Set<string>();
+    const maxRunning = { value: 0 };
+
+    await dispatchAuditBatch({
+      matches: matchIds.map((matchId) => ({ matchId })),
+      concurrency: 4,
+      budgetMs: 5_000,
+    }, async (match) => {
+      const matchId = match.matchId;
+      running.add(matchId);
+      maxRunning.value = Math.max(maxRunning.value, running.size);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      seen.push(matchId);
+      running.delete(matchId);
+      return { matchId };
+    });
+
+    expect(seen).toHaveLength(12);
+    expect(seen).toEqual(matchIds);
+    expect(maxRunning.value).toBeLessThanOrEqual(4);
+  }, 30_000);
+
+  it("reclaims an expired RUNNING audit by refreshing the lease before resuming", async () => {
+    const staleLockBefore = new Date("2026-04-10T00:00:00Z");
+    const now = new Date("2026-04-11T12:00:00Z");
+    let currentRun: RunRow = {
+      id: "run-expired",
+      match_id: MATCH_ID,
+      run_number: 9,
+      status: "RUNNING",
+      research_lock_at: staleLockBefore.toISOString(),
+      independent_decision_committed_at: null,
+      matrix_revealed_at: null,
+      independent_winner: null,
+      independent_low: null,
+      independent_high: null,
+      calibrated_low: null,
+      calibrated_high: null,
+      calibration_version_id: null,
+      effective_evidence_count: 0,
+      metrics_version_id: null,
+      verification_version_id: null,
+      disagreement_version_id: null,
+    };
+
+    const { deps } = makeMemoryDeps();
+    deps.now = () => now;
+    deps.getLatestRun = async () => currentRun;
+    deps.updateRun = async (_id, patch) => {
+      currentRun = { ...currentRun, ...(patch as object) } as RunRow;
+    };
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(result.runId).toBe("run-expired");
+    expect(currentRun.research_lock_at).toBe(now.toISOString());
+    expect(["RUNNING", "COMPLETE"]).toContain(currentRun.status);
+    expect(result.complete).toBe(true);
   }, 60_000);
 
   it("is idempotent: a second run adds no duplicate records", async () => {

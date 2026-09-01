@@ -4,6 +4,52 @@ import { createServerFn } from "@tanstack/react-start";
 
 const BROWSER_SAFE_BUDGET_MS = 20_000;
 
+export interface PreparedAuditMatch { matchId: string; [key: string]: unknown; }
+export interface AuditBatchInput { matches: PreparedAuditMatch[]; concurrency?: number; budgetMs?: number; }
+
+export async function dispatchAuditBatch(
+  data: AuditBatchInput,
+  dispatch: (match: PreparedAuditMatch, matchIndex: number) => Promise<unknown> = async (match) => match,
+): Promise<Array<{ matchId: string; result?: unknown; error?: unknown }>> {
+  const prepared = Array.isArray(data?.matches) ? [...data.matches] : [];
+  const concurrency = Math.max(1, Number.isFinite(data?.concurrency) ? Number(data.concurrency) : 1);
+  const results: Array<{ matchId: string; result?: unknown; error?: unknown }> = [];
+  const queue = prepared.slice();
+  const active = new Set<Promise<void>>();
+  let nextIndex = 0;
+
+  const scheduleNext = () => {
+    if (queue.length === 0 || active.size >= concurrency) return;
+
+    const match = queue.shift()!;
+    let task!: Promise<void>;
+    task = Promise.resolve()
+      .then(() => dispatch(match, nextIndex++))
+      .then((result) => {
+        results.push({ matchId: String(match.matchId), result });
+      })
+      .catch((error) => {
+        results.push({ matchId: String(match.matchId), error });
+      })
+      .finally(() => {
+        active.delete(task);
+        scheduleNext();
+      });
+
+    active.add(task);
+  };
+
+  while (queue.length || active.size) {
+    while (queue.length && active.size < concurrency) {
+      scheduleNext();
+    }
+    if (active.size === 0) break;
+    await Promise.race([...active]);
+  }
+
+  return results;
+}
+
 export const runAuditPipeline = createServerFn({ method: "POST" })
   .inputValidator((data: { matchId: string; budgetMs?: number }) => {
     if (!data || typeof data.matchId !== "string" || data.matchId.length < 10) throw new Error("matchId is required");

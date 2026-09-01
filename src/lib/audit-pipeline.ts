@@ -67,8 +67,9 @@ export type ChildTable="metric_results"|"reconstruction_results"|"verification_r
 export interface PipelineDeps{now():Date;research:Researcher;getMatch(matchId:string):Promise<MatchRow|null>;updateMatch(matchId:string,patch:Record<string,unknown>):Promise<void>;getParsedFields(matchId:string):Promise<Record<string,string>>;getActiveVersionId(docType:string):Promise<string|null>;getRules(versionId:string):Promise<RuleDef[]>;getLatestRun(matchId:string):Promise<RunRow|null>;createRun(row:Partial<RunRow>&{match_id:string;run_number:number}):Promise<RunRow>;updateRun(runId:string,patch:Record<string,unknown>):Promise<void>;acquireRunLease?(runId:string,owner:string,leaseMs:number):Promise<boolean>;renewRunLease?(runId:string,owner:string,leaseMs:number):Promise<boolean>;releaseRunLease?(runId:string,owner:string):Promise<void>;list(table:ChildTable,runId:string):Promise<Array<Record<string,unknown>>>;insert(table:ChildTable,rows:Array<Record<string,unknown>>):Promise<void>;update(table:ChildTable,id:string,patch:Record<string,unknown>):Promise<void>;getStages(runId:string):Promise<StageRow[]>;setStage(runId:string,matchId:string,stage:Stage,patch:Record<string,unknown>):Promise<void>;saveIdentityRecords(matchId:string,rows:Array<Record<string,unknown>>):Promise<void>;saveSnapshots(runId:string,rows:Array<Record<string,unknown>>):Promise<void>;saveConflicts(runId:string,rows:Array<Record<string,unknown>>):Promise<void>;getCalibration(versionId?:string|null):Promise<{version:{id:string;label:string;version_number:number}|null;buckets:Array<{bucket_code:string;wp_min:number;wp_max:number;wins:number;graded:number}>}>;getDecisionId(runId:string):Promise<string|null>;saveDecision(runId:string,existingId:string|null,payload:Record<string,unknown>):Promise<void>;getConflicts(runId:string):Promise<Array<{critical:boolean;resolution_status:string}>>;getReconstructions(runId:string):Promise<Array<{status:string;player_side?:string;metric_code?:string}>>;saveCoverage(runId:string,rows:Array<Record<string,unknown>>):Promise<void>;saveCoverageRates(runId:string,rows:Array<Record<string,unknown>>):Promise<void>;verifyFinalPersistence?(runId:string,expectedMetricSides:number,expectedAuditComplete:boolean):Promise<void>;log(entry:Record<string,unknown>):Promise<void>;}
 export interface PipelineResult{runId:string;complete:boolean;nextStage:Stage|null;stages:Array<{stage:Stage;status:string;detail:string}>;report:GateReport|null;failures:Array<{stage:Stage;message:string}>;leaseHeld?:boolean;}
 
-const METRIC_BATCH=15,RULE_BATCH=20,DEFAULT_BUDGET_MS=45_000;
+const METRIC_BATCH=15,RULE_BATCH=20,DEFAULT_BUDGET_MS=45_000,RESEARCH_LOCK_TTL_MS=30*60_000;
 const s=(v:unknown)=>(v===null||v===undefined?null:String(v));
+function lockExpired(lockAt:string|null,now:Date):boolean{if(!lockAt)return false;const lockMs=new Date(lockAt).getTime();if(Number.isNaN(lockMs))return false;return now.getTime()-lockMs>RESEARCH_LOCK_TTL_MS;}
 function providerReason(error:unknown):string{const m=error instanceof Error?error.message.toLowerCase():String(error??"").toLowerCase();if(m.includes("timeout")||m.includes("timed out"))return"PROVIDER_TIMEOUT";if(m.includes("401")||m.includes("403")||m.includes("auth")||m.includes("api key"))return"PROVIDER_AUTH_FAILED";if(m.includes("429")||m.includes("rate limit"))return"API_RATE_LIMIT";if(m.includes("402")||m.includes("credit")||m.includes("quota"))return"PROVIDER_CREDITS";if(m.includes("player")&&m.includes("not found"))return"PLAYER_NOT_FOUND";if(m.includes("match")&&m.includes("not found"))return"MATCH_NOT_FOUND";if(m.includes("surface"))return"SURFACE_DATA_NOT_FOUND";if(m.includes("parse")||m.includes("json"))return"PARSING_FAILED";return"NO_SOURCE_FOUND";}
 function errorDetail(error:unknown){return error instanceof Error?error.message.slice(0,800):error?String(error).slice(0,800):null;}
 function digestFrom(match:MatchRow,metrics:Array<Record<string,unknown>>):EvidenceDigest{return{p1:match.player1_name,p2:match.player2_name,context:[match.tournament_name&&`tournament ${match.tournament_name}`,match.event_level&&`level ${match.event_level}`,match.round&&`round ${match.round}`,match.scheduled_date&&`date ${match.scheduled_date}`,match.surface&&`surface ${match.surface}`,match.indoor===null||match.indoor===undefined?null:match.indoor?"indoor":"outdoor",match.best_of&&`best of ${match.best_of}`].filter(Boolean).join(" · "),metrics:metrics.filter(m=>m["p1_value"]||m["p2_value"]).map(m=>({code:String(m["metric_code"]),name:String(m["metric_name"]),p1:s(m["p1_value"]),p2:s(m["p2_value"]),family:s(m["evidence_family"])}))};}
@@ -206,9 +207,52 @@ export function metricRowsForSideExecution(rows:Array<Record<string,unknown>>,si
   const completedOrientationCount=Math.max(0,Math.min(eligible.length,priorDone-protectedCount));
   return{pending:eligible.slice(completedOrientationCount),completedBefore:protectedCount+completedOrientationCount};
 }
-async function ensureRun(deps:PipelineDeps,match:MatchRow,forceNewRun=false):Promise<RunRow>{const existing=await deps.getLatestRun(match.id);if(!forceNewRun&&existing&&existing.status!=="INVALIDATED — RERUN REQUIRED"){if(existing.status==="COMPLETE")return existing;const patch:Record<string,unknown>={status:"RUNNING",stale_reason:null,heartbeat_at:deps.now().toISOString()};if(!existing.research_lock_at)patch["research_lock_at"]=deps.now().toISOString();await deps.updateRun(existing.id,patch);return{...existing,...patch} as RunRow;}const[metrics_version_id,verification_version_id,disagreement_version_id]=await Promise.all([deps.getActiveVersionId("METRICS"),deps.getActiveVersionId("VERIFICATION"),deps.getActiveVersionId("DISAGREEMENT")]);return deps.createRun({match_id:match.id,run_number:(existing?.run_number??0)+1,status:"RUNNING",research_lock_at:deps.now().toISOString(),heartbeat_at:deps.now().toISOString(),metrics_version_id,verification_version_id,disagreement_version_id});}
 
-export async function preparePipelineRun(deps:PipelineDeps,matchId:string):Promise<RunRow>{const match=await deps.getMatch(matchId);if(!match)throw new Error(`Match ${matchId} not found`);try{return await ensureRun(deps,match);}catch(error){const concurrentlyCreated=await deps.getLatestRun(matchId);if(concurrentlyCreated)return concurrentlyCreated;throw error;}}
+async function ensureRun(deps:PipelineDeps,match:MatchRow,forceNewRun=false):Promise<RunRow>{
+  const existing=await deps.getLatestRun(match.id);
+  const now=deps.now();
+  if(!forceNewRun&&existing&&existing.status!=="INVALIDATED — RERUN REQUIRED"){
+    if(existing.status==="COMPLETE")return existing;
+    const expired=existing.status==="RUNNING"&&lockExpired(existing.research_lock_at,now);
+    if(!existing.research_lock_at||expired){
+      const refreshed=now.toISOString();
+      const patch:Record<string,unknown>={status:"RUNNING",research_lock_at:refreshed,heartbeat_at:refreshed,stale_reason:null};
+      await deps.updateRun(existing.id,patch);
+      return{...existing,...patch} as RunRow;
+    }
+    if(existing.status!=="RUNNING"){
+      await deps.updateRun(existing.id,{status:"RUNNING",heartbeat_at:now.toISOString()});
+    }
+    return{...existing,status:"RUNNING"} as RunRow;
+  }
+
+  const[metrics_version_id,verification_version_id,disagreement_version_id]=await Promise.all([
+    deps.getActiveVersionId("METRICS"),
+    deps.getActiveVersionId("VERIFICATION"),
+    deps.getActiveVersionId("DISAGREEMENT"),
+  ]);
+
+  return deps.createRun({
+    match_id:match.id,
+    run_number:(existing?.run_number??0)+1,
+    status:"RUNNING",
+    research_lock_at:now.toISOString(),
+    heartbeat_at:now.toISOString(),
+    metrics_version_id,
+    verification_version_id,
+    disagreement_version_id,
+  });
+}
+
+export async function preparePipelineRun(deps:PipelineDeps,matchId:string):Promise<RunRow>{
+  const match=await deps.getMatch(matchId);
+  if(!match)throw new Error(`Match ${matchId} not found`);
+  try{return await ensureRun(deps,match);}catch(error){
+    const concurrentlyCreated=await deps.getLatestRun(matchId);
+    if(concurrentlyCreated)return concurrentlyCreated;
+    throw error;
+  }
+}
 interface StageOutcome{status:"COMPLETE"|"BLOCKED"|"FAILED"|"PARTIAL";done:number;total:number;message?:string;errorCode?:string;detail?:Record<string,unknown>;}
 interface StageCtx{deadline:number;progress:(done:number,total:number)=>Promise<void>;}
 
