@@ -5,7 +5,7 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { metricPairPatch, metricRowsForSideExecution, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
 import { unmetDependencies, canonicalizeStageRows, resolveActiveRun, isActiveRunStatus, INVALIDATED_RUN_STATUS } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { computeExecutionPercent } from "./audit-progress";
@@ -428,6 +428,194 @@ function makeMultiRunMemoryDeps(): {
 }
 
 describe("Run Audit pipeline", () => {
+  it("keeps mixed-availability diagnostics on the unavailable side only", () => {
+    const patch = metricPairPatch({
+      metric_code: "001", p1_value: "72", p2_value: null,
+      p1_treatment: "DIRECT", p2_treatment: "UNAVAILABLE",
+      differential: null, evidence_family: "RANKING", reliability: .9, sample: "current",
+      unavailable_reason: null, p2_unavailable_reason: "Player 2 ranking was not found.",
+      sources: [{ source_name: "official rankings" }],
+    }, null, "2026-04-11T10:00:00Z");
+    expect(patch.p1_unavailable_reason).toBeNull();
+    expect(patch.p2_unavailable_reason).toBe("PLAYER_NOT_FOUND");
+    expect(patch.unavailable_detail).toBe("P1: usable | P2: Player 2 ranking was not found.");
+  });
+
+  it("does not overwrite a settled opposite side when resuming a legacy one-sided run", () => {
+    const patch = preserveSettledOppositeSide(metricPairPatch(undefined, "provider timeout", "2026-04-11T10:00:00Z"), {
+      p1_status: "COMPLETE", p1_value: "72", p1_treatment: "DIRECT",
+      p2_status: "NOT STARTED",
+    }, "p2");
+    expect(patch).not.toHaveProperty("p1_value");
+    expect(patch).not.toHaveProperty("p1_treatment");
+    expect(patch).not.toHaveProperty("p1_unavailable_reason");
+    expect(patch.p2_status).toBe("UNAVAILABLE");
+    expect(patch.status).toBe("COMPLETE");
+  });
+
+  it("persists both independently oriented metric sides from one paired research pass", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    const metrics = vi.fn(researcher.metrics);
+    deps.research = { ...researcher, metrics };
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    expect(result.complete).toBe(true);
+    const executed = tables.metric_results.filter(row => !["EXCLUDED", "NO_SOURCE"].includes(String(row["p1_status"]))).length;
+    expect(metrics).toHaveBeenCalledTimes(Math.ceil(executed / 15) * 2);
+    expect(metrics).toHaveBeenCalledWith(expect.objectContaining({ researchSide: "p1", researchPlayer: P1, researchOpponent: P2 }));
+    expect(metrics).toHaveBeenCalledWith(expect.objectContaining({ researchSide: "p2", researchPlayer: P2, researchOpponent: P1 }));
+    for (const row of tables.metric_results) {
+      if (row["p1_status"] === "EXCLUDED" || row["p1_status"] === "NO_SOURCE") continue;
+      expect(row["p1_value"]).not.toBeNull();
+      expect(row["p2_value"]).not.toBeNull();
+      expect(row["p1_status"]).toBe("COMPLETE");
+      expect(row["p2_status"]).toBe("COMPLETE");
+    }
+  });
+
+  it("still runs each player's reconstruction pass after paired research settles both statuses", async () => {
+    const { deps } = makeMemoryDeps();
+    const extractStats = vi.fn(async ({ player }: { player: string }) => [{
+      key: "surface_strength", value: player === P1 ? 71 : 69, player,
+      origin: "RECONSTRUCTED" as const, surface: null, window: null,
+      sources: [{ source_name: "paired history" }],
+    }]);
+    deps.research = { ...researcher, extractStats };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    expect(extractStats).toHaveBeenCalledWith(expect.objectContaining({ player: P1 }));
+    expect(extractStats).toHaveBeenCalledWith(expect.objectContaining({ player: P2 }));
+  });
+
+  it("independently executes P2 source selection for metrics 002 and 003 after P1 settles P2", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    const calls: Array<{ side: string | undefined; player: string | undefined; opponent: string | undefined; codes: string[] }> = [];
+    deps.research = {
+      ...researcher,
+      async metrics(input) {
+        calls.push({
+          side: input.researchSide,
+          player: input.researchPlayer,
+          opponent: input.researchOpponent,
+          codes: input.metrics.map(metric => metric.code),
+        });
+        return input.metrics.map(metric => {
+          const targeted = ["M02", "M03"].includes(metric.code);
+          if (input.researchSide === "p1") {
+            return {
+              metric_code: metric.code,
+              p1_value: targeted ? `${metric.code}-p1` : null,
+              p2_value: null,
+              p1_treatment: targeted ? "DIRECT" as const : "UNAVAILABLE" as const,
+              p2_treatment: "UNAVAILABLE" as const,
+              differential: null,
+              evidence_family: targeted ? "PBP_SCORE_STATE" : null,
+              reliability: targeted ? .9 : null,
+              sample: targeted ? "P1-oriented history" : null,
+              unavailable_reason: "P2 not found by P1-oriented selection",
+              sources: targeted ? [{ source_name: "p1-oriented-pbp" }] : [],
+            };
+          }
+          return {
+            metric_code: metric.code,
+            p1_value: null,
+            p2_value: targeted ? `${metric.code}-p2` : null,
+            p1_treatment: "UNAVAILABLE" as const,
+            p2_treatment: targeted ? "DIRECT" as const : "UNAVAILABLE" as const,
+            differential: null,
+            evidence_family: targeted ? "PBP_SCORE_STATE" : null,
+            reliability: targeted ? .88 : null,
+            sample: targeted ? "P2-oriented history" : null,
+            unavailable_reason: targeted ? null : "No source found",
+            sources: targeted ? [{ source_name: "p2-oriented-pbp" }] : [],
+          };
+        });
+      },
+    };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    for (const code of ["M02", "M03"]) {
+      expect(calls.some(call => call.side === "p1" && call.player === P1 && call.opponent === P2 && call.codes.includes(code))).toBe(true);
+      expect(calls.some(call => call.side === "p2" && call.player === P2 && call.opponent === P1 && call.codes.includes(code))).toBe(true);
+      const row = tables.metric_results.find(metric => metric.metric_code === code)!;
+      expect(row.p1_value).toBe(`${code}-p1`);
+      expect(row.p2_value).toBe(`${code}-p2`);
+      expect(row.p1_treatment).toBe("DIRECT");
+      expect(row.p2_treatment).toBe("DIRECT");
+      expect(row.p1_unavailable_reason).toBeNull();
+      expect(row.p2_unavailable_reason).toBeNull();
+      expect(row.sources).toEqual(expect.arrayContaining([
+        expect.objectContaining({ source_name: "p1-oriented-pbp" }),
+        expect.objectContaining({ source_name: "p2-oriented-pbp" }),
+      ]));
+    }
+  });
+
+  it("resumes P2 orientation after already processed batches instead of restarting them", () => {
+    const rows = Array.from({ length: 34 }, (_, index) => ({
+      id: `row-${index}`,
+      metric_code: `M${String(index).padStart(2, "0")}`,
+      p2_status: index < 2 ? "EXCLUDED" : "COMPLETE",
+    })).reverse();
+    const resumed = metricRowsForSideExecution(rows, "p2", 17);
+    expect(resumed.completedBefore).toBe(17);
+    expect(resumed.pending.map(row => row.id)).toEqual(Array.from({ length: 17 }, (_, index) => `row-${index + 17}`));
+  });
+
+  it("keeps prior usable P2 evidence when its independent retry genuinely finds no source", () => {
+    const row = { p2_value: "68%", p2_treatment: "DIRECT", p2_status: "COMPLETE" };
+    const failed = metricPairPatch({
+      metric_code: "M02",
+      p1_value: null,
+      p2_value: null,
+      p1_treatment: "UNAVAILABLE",
+      p2_treatment: "UNAVAILABLE",
+      differential: null,
+      evidence_family: null,
+      reliability: null,
+      sample: null,
+      unavailable_reason: "No P2 source found",
+      sources: [],
+    }, null, "2026-08-30T00:00:00.000Z");
+    const preserved = preserveUsableCurrentSide(failed, row, "p2");
+    expect(preserved.p2_value).toBeUndefined();
+    expect(preserved.p2_treatment).toBeUndefined();
+    expect(preserved.p2_unavailable_reason).toBeUndefined();
+    expect(preserved.status).toBe("COMPLETE");
+  });
+
+  it("leaves P2 unavailable when both independent orientations find no P2 evidence", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    deps.research = {
+      ...researcher,
+      async metrics(input) {
+        return input.metrics.map(metric => ({
+          metric_code: metric.code,
+          p1_value: input.researchSide === "p1" && metric.code === "M02" ? "74%" : null,
+          p2_value: null,
+          p1_treatment: input.researchSide === "p1" && metric.code === "M02" ? "DIRECT" as const : "UNAVAILABLE" as const,
+          p2_treatment: "UNAVAILABLE" as const,
+          differential: null,
+          evidence_family: metric.code === "M02" ? "PBP_SCORE_STATE" : null,
+          reliability: metric.code === "M02" ? .9 : null,
+          sample: metric.code === "M02" ? "P1-only history" : null,
+          unavailable_reason: "No P2 source found",
+          sources: metric.code === "M02" ? [{ source_name: "p1-only-pbp" }] : [],
+        }));
+      },
+    };
+    await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+    const row = tables.metric_results.find(metric => metric.metric_code === "M02")!;
+    expect(row.p1_value).toBe("74%");
+    expect(row.p1_treatment).toBe("DIRECT");
+    expect(row.p2_value).toBeNull();
+    expect(row.p2_treatment).toBe("UNAVAILABLE");
+    expect(row.p2_unavailable_reason).toBe("NO_SOURCE_FOUND");
+  });
+
   it("keeps every required denominator when all research providers fail", async () => {
     const { deps, tables, stages } = makeMemoryDeps();
     const failure = async () => {
@@ -1101,6 +1289,12 @@ describe("Clear Slate: true clean slate for the next audit", () => {
     // execution must read exactly 0%, not carry over the old run's progress.
     const preparedRun = await preparePipelineRun(deps, MATCH_ID);
     expect(preparedRun.id).not.toBe(oldRunId);
+    // run_number must strictly increase, never reset to 1: Clear Slate
+    // invalidates the old run but never deletes it, and audit_runs carries a
+    // live UNIQUE(match_id, run_number) constraint in production -- resetting
+    // to 1 here would collide with that still-present old row's run_number=1
+    // on insert. A UI presenting "RUN 1" for a freshly cleared slate must
+    // compute that from the count of active runs, not from this id.
     expect(preparedRun.run_number).toBe(2);
     expect(computeExecutionPercent(Array.from((stagesByRun.get(preparedRun.id) ?? new Map()).values()) as never)).toBe(0);
 
@@ -1144,5 +1338,52 @@ describe("Clear Slate: true clean slate for the next audit", () => {
     expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
     expect(stagesByRun.size).toBe(2);
     expect(tablesByRun.size).toBe(2);
+  }, 60_000);
+
+  // ensureRun's new-run branch computes run_number as
+  // `(existing?.run_number ?? 0) + 1` from the raw latest audit_runs row --
+  // active or invalidated -- so it is always strictly greater than any
+  // run_number this match has ever had, and NEVER resets to 1 once a prior
+  // run exists. That monotonicity is not cosmetic: audit_runs carries a live
+  // UNIQUE(match_id, run_number) index in production, Clear Slate invalidates
+  // a run but never deletes its row, and a reset-to-1 scheme was found to
+  // collide with that still-present old row on the very next post-Clear-Slate
+  // audit for every match that had ever been cleared before. A genuinely
+  // fresh match (no prior runs at all) still starts at RUN 1.
+  it("fresh slate (no prior audit runs at all) -> new audit -> RUN 1", async () => {
+    const { deps, runsById } = makeMultiRunMemoryDeps();
+    const prepared = await preparePipelineRun(deps, MATCH_ID);
+    expect(prepared.run_number).toBe(1);
+    expect(runsById.get(prepared.id)!.run_number).toBe(1);
+  });
+
+  it("Clear Slate -> new audit -> run_number keeps climbing past every prior invalidated run, never colliding with one", async () => {
+    const { deps, runsById } = makeMultiRunMemoryDeps();
+
+    // Simulate several real Clear Slate cycles: run to completion, invalidate,
+    // repeat. Six prior (invalidated, but never deleted) runs must yield RUN
+    // 7 for the next genuinely new audit -- a reset to RUN 1 here would try
+    // to insert a duplicate (match_id, run_number) row against the still-live
+    // unique constraint, since Clear Slate never deletes the old rows.
+    let lastRunId: string | null = null;
+    for (let cycle = 0; cycle < 6; cycle++) {
+      const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+      expect(result.complete).toBe(true);
+      lastRunId = result.runId;
+      expect(runsById.get(lastRunId)!.run_number).toBe(cycle + 1);
+      await deps.updateRun(lastRunId, { status: INVALIDATED_RUN_STATUS, lease_owner: null, lease_expires_at: null });
+    }
+
+    const prepared = await preparePipelineRun(deps, MATCH_ID);
+    expect(prepared.id).not.toBe(lastRunId);
+    expect(prepared.run_number).toBe(7);
+    expect(runsById.get(prepared.id)!.run_number).toBe(7);
+
+    // Every one of the six prior run_numbers is still occupied by an
+    // invalidated (not deleted) row -- the new run's number must be disjoint
+    // from all of them, reproducing the exact constraint the production
+    // UNIQUE(match_id, run_number) index enforces.
+    const allRunNumbers = [...runsById.values()].filter((r: any) => r.match_id === MATCH_ID).map((r: any) => r.run_number);
+    expect(new Set(allRunNumbers).size).toBe(allRunNumbers.length);
   }, 60_000);
 });

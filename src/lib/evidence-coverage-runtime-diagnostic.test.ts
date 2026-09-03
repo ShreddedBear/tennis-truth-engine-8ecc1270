@@ -72,7 +72,8 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(canonical).toContain("MAX_PAGES_PER_LANE");
     expect(canonical).toContain('status: "QUERY_FAILED"');
     expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
-    expect(researcher).toContain("resolveCanonicalEvidencePair(input.p1,input.p2)");
+    expect(researcher).toContain("resolveCanonicalEvidencePair(requestedP1,requestedP2)");
+    expect(researcher).toContain('constreversedOrientation=input.researchSide==="p2"');
     expect(researcher).toContain("lookup(codes,p1,p2,date,input.context,tournament,surface)");
     expect(researcher).toContain("lookup(codes,p2,p1,date,input.context,tournament,surface)");
     expect(researcher).toContain("storedContextCompatible");

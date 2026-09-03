@@ -54,6 +54,11 @@ export async function clearOperationalSlate(db: any) {
   };
 }
 
+export function removableOperationalMatchIds(matchIds: string[], completedMatchIds: Iterable<string>) {
+  const protectedIds = new Set(completedMatchIds);
+  return matchIds.filter(id => !protectedIds.has(id));
+}
+
 /**
  * Clears only operational slate/upload/audit data.
  * Calibration versions/buckets, rule documents/definitions, metric registry,
@@ -71,6 +76,6 @@ export const resetOperationalSlate = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       deleted,
-      preserved: ["calibration", "rules", "metric registry", "historical evidence"],
+      preserved: ["permanent uploads", "completed audit snapshots", "calibration", "rules", "metric registry", "metric wiring", "source observations", "historical evidence"],
     };
   });

@@ -1,3 +1,5 @@
+import { canonicalizeStageRows, type RunStatusRow, type StageStatusRow } from "./audit-stages";
+
 // Shared pipeline-execution progress math, used by both the Upload page
 // (while actively driving new runs) and the Active Slate page (while
 // displaying/resuming existing runs). "Execution" here means how much of the
@@ -12,6 +14,10 @@
 // multi-run rows is exactly what produces a stuck-looking "0%" next to
 // diagnostics that show completed stages: this module has no way to tell a
 // stale prior run's rows apart from the current run's once they're merged.
+// activeRunExecutionPercent below does that scoping itself, using the same
+// resolveActiveRun/canonicalizeStageRows audit-stages.ts already defines as
+// the canonical current-run resolution, so callers don't have to get it
+// right by hand each time.
 export interface StageProgressRow { stage?: string; status: string; done_count: number | null; total_count: number | null; }
 
 // Keep in sync with STAGES.length in audit-stages.ts (guarded by
@@ -77,4 +83,51 @@ export function computeBatchExecutionPercent(rowsByRunId: Map<string, StageProgr
   for (const rows of rowsByRunId.values()) for (const row of dedupeByStage(rows)) sum += stageFraction(row);
   const totalStages = rowsByRunId.size * TOTAL_PIPELINE_STAGES;
   return Math.round((Math.min(sum, totalStages) / totalStages) * 100);
+}
+
+export interface ActiveRunRow extends RunStatusRow {
+  id: string;
+  match_id: string;
+}
+
+export interface ScopedStageRow extends StageStatusRow {
+  audit_run_id: string;
+  done_count: number | null;
+  total_count: number | null;
+}
+
+// THE single canonical "Active Slate Execution %" calculation. Every UI
+// surface that shows an execution percentage for a match (today: only
+// slate.tsx -- match.$matchId.tsx shows the 16-stage diagnostic list itself
+// via canonicalizeStageRows but no percentage, and upload.tsx's batch
+// progress is already scoped to run ids it just created) must call this
+// function rather than hand-rolling its own resolve-run + scope + canonicalize
+// + score sequence, so there is exactly one definition of "current run" and
+// exactly one way its progress is computed.
+//
+// `run` must already be resolved via resolveActiveRun (never re-derived
+// here, per audit-stages.ts's single canonical definition of "the active
+// run"). Passing null (no active run -- a fresh match, or the latest run was
+// just invalidated by Clear Slate or a rule-version change) returns 0: there
+// is nothing to report progress on. `stageRows` may span this match's entire
+// run history, including invalidated/completed prior runs and even other
+// matches' rows -- this function filters to exactly `run.id` itself via
+// canonicalizeStageRows' contract, so a caller can never accidentally
+// aggregate across runs by forgetting to pre-filter, and duplicate rows for
+// the same canonical stage (retry/attempt history, or an accidental
+// cross-run merge) can never inflate the score past what canonicalizeStageRows
+// already collapses them to.
+export function activeRunExecutionPercent(run: ActiveRunRow | null, stageRows: readonly ScopedStageRow[]): number {
+  if (!run) return 0;
+  const scoped = stageRows.filter((row) => row.audit_run_id === run.id);
+  const canonical = canonicalizeStageRows(scoped);
+  return computeExecutionPercent(
+    canonical.map(({ stage, row }) => ({
+      stage,
+      status: row?.status ?? "PENDING",
+      done_count: row?.done_count ?? 0,
+      total_count: row?.total_count ?? 0,
+    })),
+    run.status,
+  );
 }
