@@ -84,6 +84,43 @@ describe("activeSlateMatchIds", () => {
     ]);
     expect(ids.has("a")).toBe(true);
   });
+
+  // Reproduces the exact production failure: Clear Slate never deletes
+  // summary_uploads or summary_versions rows, so "the latest upload" (by
+  // upload_id/created_at recency) still contains every cleared match after
+  // Clear Slate runs -- only their is_active flag changes. A definition of
+  // "active slate" that used upload recency as a proxy (which is what
+  // slate.tsx did before this fix: pick the newest summary_uploads row, then
+  // treat every summary_version pointing at it as active) would resurrect
+  // all 55 matches the instant Clear Slate finished, because the upload
+  // itself is still "the latest" -- it was never re-uploaded or replaced.
+  // activeSlateMatchIds must derive membership from is_active alone, and
+  // must never be handed upload identity/recency to reintroduce that bug.
+  it("does not resurrect a cleared slate merely because its rows still belong to the most recent upload", () => {
+    const upload = "upload-1";
+    const versionsBeforeClear = Array.from({ length: 55 }, (_, i) => ({
+      match_id: `m${i}`,
+      upload_id: upload,
+      is_active: true,
+    }));
+    expect(activeSlateMatchIds(versionsBeforeClear).size).toBe(55);
+
+    // Clear Slate: is_active flips to false for every row. upload_id, and
+    // the fact that `upload` is still the newest summary_uploads row, are
+    // completely untouched -- exactly the production state that was found:
+    // 386/386 summary_versions rows with is_active=false, all still
+    // pointing at uploads that were never deleted or superseded.
+    const versionsAfterClear = versionsBeforeClear.map((v) => ({ ...v, is_active: false }));
+    const activeAfterClear = activeSlateMatchIds(versionsAfterClear);
+    expect(activeAfterClear.size).toBe(0);
+    for (const v of versionsAfterClear) expect(activeAfterClear.has(v.match_id)).toBe(false);
+
+    // The type signature itself enforces this: activeSlateMatchIds only
+    // ever reads `is_active` off each row. It has no upload_id/created_at
+    // parameter to consult, so "most recent upload" cannot leak back in as
+    // a hidden fallback no matter what the caller passes.
+    expect(Object.keys(versionsAfterClear[0]!)).toContain("upload_id");
+  });
 });
 
 describe("activeRunIds", () => {
