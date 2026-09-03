@@ -5,7 +5,7 @@ import { AuditColorBadge, BucketBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { buildBoardPdf } from "@/lib/report-pdf";
 import { toast } from "sonner";
-import { currentAuditRows } from "@/lib/current-audit-state";
+import { currentAuditRows, activeSlateMatchIds } from "@/lib/current-audit-state";
 
 export const Route = createFileRoute("/app/board")({
   head: () => ({
@@ -70,7 +70,13 @@ export function useBoardRows() {
         return fields?.find((f) => f.summary_version_id === sv.id && f.field_key === key)?.normalized_value ?? null;
       };
 
-      return currentAuditRows(matches, runs, decisions).filter((row) => row.decision).map(({ match, run, decision: d }) => {
+      // A cleared match must never rank on the board: only matches still on
+      // the active slate (an active summary_version) are eligible, using the
+      // same definition every other operational page reuses.
+      const slateMatchIds = activeSlateMatchIds(versions);
+      const activeMatches = matches.filter((match) => slateMatchIds.has(match.id));
+
+      return currentAuditRows(activeMatches, runs, decisions).filter((row) => row.decision).map(({ match, run, decision: d }) => {
         const snapshot = (d!.gate_report as Record<string, any> | null)?.calibration_snapshot;
         const frozenRange = snapshot?.calibratedLow != null && snapshot?.calibratedHigh != null
           ? `${snapshot.calibratedLow}–${snapshot.calibratedHigh}%`

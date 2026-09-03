@@ -8,6 +8,7 @@ import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { normalizeName } from "@/lib/summary-parser";
 import { computeExecutionPercent } from "@/lib/audit-progress";
 import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
+import { activeSlateMatchIds, isRowOnActiveSlate } from "@/lib/current-audit-state";
 import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
@@ -28,7 +29,7 @@ function mergeGroup(group:any[],runRows:any[]){const ranked=[...group].sort((a,b
 
 function Slate(){
   const qc=useQueryClient();
-  const[scope,setScope]=useState<"latest"|"all">("latest");
+  const[scope,setScope]=useState<"active"|"all">("active");
   const executeBatch=useServerFn(runAuditBatch);
   const{data}=useQuery({
     queryKey:["slate"],
@@ -40,14 +41,20 @@ function Slate(){
         supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete"),
         supabase.from("audit_stage_runs").select("audit_run_id, stage, stage_order, status, done_count, total_count, started_at, finished_at, heartbeat_at"),
         supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count"),
-        supabase.from("summary_versions").select("match_id, upload_id, created_at"),
+        supabase.from("summary_versions").select("match_id, upload_id, created_at, is_active"),
         supabase.from("summary_uploads").select("id, created_at").order("created_at",{ascending:false}),
       ]);
       const raw=matches??[],runRows=runs??[],groups:any[][]=[];
       for(const match of raw){const index=groups.findIndex(group=>samePair(group[0],match));if(index<0)groups.push([match]);else groups[index].push(match);}
-      const newestUpload=(uploads??[])[0]?.id??null;
-      const latestMatchIds=new Set((versions??[]).filter(version=>newestUpload&&version.upload_id===newestUpload).map(version=>version.match_id));
-      return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions:decisions??[],stages:stages??[],coverage:coverage??[],latestMatchIds:[...latestMatchIds]};
+      // The active slate = matches with an active summary_version -- the
+      // same definition Dashboard and the Master Ranked Board use (reused
+      // via activeSlateMatchIds), not "whichever upload happened to be
+      // uploaded most recently". Clear Slate deactivates every active
+      // summary_version without touching summary_uploads or matches rows,
+      // so a recency-of-upload proxy keeps showing cleared matches; only
+      // is_active correctly tracks whether a match is still on the slate.
+      const activeMatchIds=activeSlateMatchIds(versions??[]);
+      return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions:decisions??[],stages:stages??[],coverage:coverage??[],activeMatchIds:[...activeMatchIds],uploadCount:(uploads??[]).length};
     },
   });
   const drive=useMutation({
@@ -82,16 +89,19 @@ function Slate(){
   const executionFor=(run:any)=>run?.id?computeExecutionPercent(stagesFor(run).map(({stage,row})=>({stage,status:row?.status??"PENDING",done_count:row?.done_count??0,total_count:row?.total_count??0})),run.status):0;
   const activeStageFor=(run:any)=>{const running=stagesFor(run).filter(({row})=>row?.status==="RUNNING");return running.length?running[running.length-1].row:null;};
   const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
-  const latest=new Set(data?.latestMatchIds??[]);
-  const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||(match._all_ids??[match.id]).some((id:string)=>latest.has(id)));
+  const activeMatchIds=new Set(data?.activeMatchIds??[]);
+  // "active" is the true current slate (an active summary_version) --
+  // cleared matches are gone the instant Clear Slate runs. "all" is an
+  // explicit historical view: every match ever ingested, cleared or not.
+  const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||isRowOnActiveSlate(match,activeMatchIds));
 
   return <div className="space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-xl font-semibold">Active slate</h1>
-        <p className="text-sm text-muted-foreground">{scope==="latest"?"Showing only matches from the single most recent upload.":"Showing every match ever ingested."} Active runs are claimed in bounded batches and refreshed from persisted stages every few seconds. Evidence is shown only after canonical coverage rows are persisted.</p>
+        <p className="text-sm text-muted-foreground">{scope==="active"?"Showing the current active slate -- matches cleared by Clear Slate disappear immediately.":"Showing every match ever ingested, including cleared/historical matches."} Active runs are claimed in bounded batches and refreshed from persisted stages every few seconds. Evidence is shown only after canonical coverage rows are persisted.</p>
       </div>
-      <Button size="sm" variant="secondary" onClick={()=>setScope(scope==="latest"?"all":"latest")}>{scope==="latest"?`Show all matches (${data?.matches?.length??0})`:"Show latest upload only"}</Button>
+      <Button size="sm" variant="secondary" onClick={()=>setScope(scope==="active"?"all":"active")}>{scope==="active"?`Show all matches (${data?.matches?.length??0})`:"Show active slate only"}</Button>
     </div>
     <div className="panel overflow-x-auto">
       <table className="w-full text-sm">
@@ -116,7 +126,7 @@ function Slate(){
               </div></td>
             </tr>;
           })}
-          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="latest"?"No matches from your latest upload yet.":"No matches ingested yet."}</td></tr>}
+          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
         </tbody>
       </table>
     </div>

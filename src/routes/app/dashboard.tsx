@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { winRate } from "@/lib/audit-engine";
 import { resetOperationalSlate } from "@/lib/reset-slate.functions";
 import { APP_BUILD_INFO } from "@/generated/app-build-info";
-import { currentAuditRows } from "@/lib/current-audit-state";
+import { currentAuditRows, activeSlateMatchIds } from "@/lib/current-audit-state";
 
 export const Route = createFileRoute("/app/dashboard")({
   head: () => ({
@@ -34,13 +34,13 @@ function Dashboard() {
         supabase.from("final_decisions").select("audit_run_id, final_audit_color, audit_complete"),
         supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle(),
         supabase.from("summary_uploads").select("id"),
-        supabase.from("summary_versions").select("match_id, upload_id").eq("is_active", true),
+        supabase.from("summary_versions").select("match_id, upload_id, is_active"),
       ]);
       const buckets = version.data
         ? (await supabase.from("calibration_buckets").select("*").eq("calibration_version_id", version.data.id).order("wp_min")).data ?? []
         : [];
-      const slateMatchIds = new Set((slateVersions.data ?? []).map((row) => row.match_id));
-      const slateUploadIds = new Set((slateVersions.data ?? []).map((row) => row.upload_id));
+      const slateMatchIds = activeSlateMatchIds(slateVersions.data ?? []);
+      const slateUploadIds = new Set((slateVersions.data ?? []).filter((row) => row.is_active === true).map((row) => row.upload_id));
       const currentRows = currentAuditRows(
         (matches.data ?? []).filter((match) => slateMatchIds.has(match.id)),
         runs.data ?? [],

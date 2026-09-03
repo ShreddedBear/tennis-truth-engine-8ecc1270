@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StateText } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { activeSlateMatchIds, activeRunIds } from "@/lib/current-audit-state";
 
 export const Route = createFileRoute("/app/logs")({
   head: () => ({
@@ -16,25 +19,42 @@ export const Route = createFileRoute("/app/logs")({
 });
 
 function Logs() {
+  const [scope, setScope] = useState<"active" | "all">("active");
   const { data } = useQuery({
     queryKey: ["logs"],
     queryFn: async () => {
-      const { data: logs } = await supabase
-        .from("execution_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(300);
-      return logs ?? [];
+      const [{ data: logs }, { data: runs }, { data: versions }] = await Promise.all([
+        supabase.from("execution_logs").select("*").order("created_at", { ascending: false }).limit(300),
+        supabase.from("audit_runs").select("id, match_id, run_number, status"),
+        supabase.from("summary_versions").select("match_id, is_active"),
+      ]);
+      // Operational execution data must be scoped to active/current runs --
+      // the same activeSlateMatchIds + resolveActiveRun-backed definition
+      // every other operational page reuses. A cleared match's (or an
+      // invalidated run's) log rows are real history, never deleted, but
+      // they must not read as current operational output by default.
+      const activeIds = activeRunIds(runs ?? [], activeSlateMatchIds(versions ?? []));
+      return { logs: logs ?? [], activeRunIds: [...activeIds] };
     },
   });
 
+  const activeSet = new Set(data?.activeRunIds ?? []);
+  const visible = (data?.logs ?? []).filter((l) => scope === "all" || (l.audit_run_id !== null && activeSet.has(l.audit_run_id)));
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Execution logs</h1>
-        <p className="text-sm text-muted-foreground">
-          Each row proves a stage ran. The Matrix-visible flag makes any firewall violation detectable after the fact.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Execution logs</h1>
+          <p className="text-sm text-muted-foreground">
+            {scope === "active"
+              ? "Scoped to active/current runs -- cleared matches and invalidated runs disappear immediately. Each row proves a stage ran; the Matrix-visible flag makes any firewall violation detectable after the fact."
+              : "Historical view: every execution ever logged, including cleared matches and invalidated runs."}
+          </p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => setScope(scope === "active" ? "all" : "active")}>
+          {scope === "active" ? "Show full history" : "Show active runs only"}
+        </Button>
       </div>
       <div className="panel overflow-x-auto">
         <table className="w-full text-sm">
@@ -46,7 +66,7 @@ function Logs() {
             </tr>
           </thead>
           <tbody>
-            {data?.map((l) => (
+            {visible.map((l) => (
               <tr key={l.id} className="border-t border-border align-top">
                 <td className="mono-num px-2 py-1 text-xs whitespace-nowrap">{new Date(l.created_at).toLocaleString()}</td>
                 <td className="px-2 py-1">{l.stage}</td>
@@ -59,9 +79,11 @@ function Logs() {
                 </td>
               </tr>
             ))}
-            {!data?.length && (
+            {!visible.length && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">No executions logged yet.</td>
+                <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  {scope === "active" ? "No active executions logged. Try \"Show full history\" for past runs." : "No executions logged yet."}
+                </td>
               </tr>
             )}
           </tbody>
