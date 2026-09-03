@@ -11,6 +11,7 @@ import { deterministicBatch2NewMetric } from "./deterministic-batch2-new-metrics
 import { deterministicBatch3EarlyWarningMetric } from "./deterministic-batch3-early-warning.server";
 import { deterministicBatch4FavoriteUnderdogPatterns } from "./deterministic-batch4-favorite-underdog-patterns.server";
 import { deterministicBatch5NewMetrics } from "./deterministic-batch5-new-metrics.server";
+import { deterministicBatch6ResidualStakes, deterministicBatch6HiddenDecline } from "./deterministic-batch6-residual-decline-stakes.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
@@ -290,7 +291,11 @@ export const warehouseFirstResearcher: Researcher = {
       const batch1 = await deterministicBatch1StandaloneMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily }); if (batch1) return batch1;
       // Batch2 newly-built modules (020/036/045/052) --
       // docs/audit-task-020-026-034-036-045-052-053.md.
-      return deterministicBatch2NewMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily });
+      const batch2 = await deterministicBatch2NewMetric({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily }); if (batch2) return batch2;
+      // Batch6 synchronous modules (038/062) -- docs/audit-task-038-040-062.md. 040 is NOT
+      // handled here -- it needs a live PBP fetch, see the live-fetch phase below (same
+      // shape as 026's own live-fetch tier).
+      return deterministicBatch6ResidualStakes({ metricCode: metric.code, p1, p2, asOfDate: date, tourFamily });
     })), () => []);
     const deterministicRows = deterministicResult.filter((row): row is MetricFinding => Boolean(row));
     console.log(`[research-timing] deterministic tier ${Date.now()-callStartedAt}ms`);
@@ -337,6 +342,14 @@ export const warehouseFirstResearcher: Researcher = {
         if (code === "026") {
           const earlyWarning = await deterministicBatch3EarlyWarningMetric({ metricCode: code, p1, p2, asOfDate: date, tourFamily });
           if (fullyUsableFinding(earlyWarning ?? undefined)) deterministicByCode.set(code, earlyWarning!);
+          continue;
+        }
+        // Metric 040's cross-match ace/serve/return/hold/break trend is the same live-fetch
+        // shape as 026's -- see deterministic-batch6-residual-decline-stakes.server.ts's
+        // header comment.
+        if (code === "040") {
+          const hiddenDecline = await deterministicBatch6HiddenDecline({ metricCode: code, p1, p2, asOfDate: date, tourFamily });
+          if (fullyUsableFinding(hiddenDecline ?? undefined)) deterministicByCode.set(code, hiddenDecline!);
           continue;
         }
         const recovered=deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket});

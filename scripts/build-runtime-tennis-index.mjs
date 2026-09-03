@@ -42,9 +42,21 @@ function compactDetails(row,orientation='PLAYER'){
   const opponentRank=num(first(row,orientation==='WINNER'?['loser_rank','opponent_rank','opp_rank']:orientation==='HOME'?['away_rank','opponent_rank','opp_rank']:['opponent_rank','opp_rank','loser_rank']));
   const selfElo=num(first(row,['player_elo','elo_pre','elo']));
   const opponentElo=num(first(row,['_task18a_opponent_elo','opponent_elo','opp_elo','loser_elo']));
-  return {sets_for:sf,sets_against:sa,set_scores:setScores,best_of:bestOf,self_rank:selfRank,opponent_rank:opponentRank,self_elo:selfElo,opponent_elo:opponentElo,status:status?String(status):null,raw_score:rawScore?String(rawScore):null};
+  // Metric 062 (Motivation/Stakes) support: winner_seed/loser_seed, draw_size, and
+  // winner_rank_points/loser_rank_points exist as real columns in the TennisMyLife ATP
+  // Challenger normalized CSVs (data/public/tennismylife-challenger/normalized/*.csv,
+  // orientation='WINNER' below) but were never captured into the runtime index before this
+  // task -- a real, verified column, not a schema gap (see docs/audit-task-038-040-062.md).
+  // Only orientation==='WINNER' rows have these columns; PLAYER/HOME rows leave them null
+  // rather than guessing at a column name that source doesn't actually have.
+  const selfSeed=orientation==='WINNER'?num(first(row,['winner_seed'])):null;
+  const opponentSeed=orientation==='WINNER'?num(first(row,['loser_seed'])):null;
+  const drawSize=orientation==='WINNER'?num(first(row,['draw_size'])):null;
+  const selfRankPoints=orientation==='WINNER'?num(first(row,['winner_rank_points'])):null;
+  const opponentRankPoints=orientation==='WINNER'?num(first(row,['loser_rank_points'])):null;
+  return {sets_for:sf,sets_against:sa,set_scores:setScores,best_of:bestOf,self_rank:selfRank,opponent_rank:opponentRank,self_elo:selfElo,opponent_elo:opponentElo,status:status?String(status):null,raw_score:rawScore?String(rawScore):null,self_seed:selfSeed,opponent_seed:opponentSeed,draw_size:drawSize,self_rank_points:selfRankPoints,opponent_rank_points:opponentRankPoints};
 }
-function reverseDetails(d){return{...d,sets_for:d.sets_against,sets_against:d.sets_for,set_scores:Array.isArray(d.set_scores)?d.set_scores.map(([a,b])=>[b,a]):[],self_rank:d.opponent_rank,opponent_rank:d.self_rank,self_elo:d.opponent_elo,opponent_elo:d.self_elo};}
+function reverseDetails(d){return{...d,sets_for:d.sets_against,sets_against:d.sets_for,set_scores:Array.isArray(d.set_scores)?d.set_scores.map(([a,b])=>[b,a]):[],self_rank:d.opponent_rank,opponent_rank:d.self_rank,self_elo:d.opponent_elo,opponent_elo:d.self_elo,self_seed:d.opponent_seed??null,opponent_seed:d.self_seed??null,self_rank_points:d.opponent_rank_points??null,opponent_rank_points:d.self_rank_points??null};}
 function exactMatchKey(row,player){const d=normDate(row.date||row.tourney_date||'');const t=norm(row.tournament??row.tourney_name??'');const p=norm(player);return d&&t&&p?`${d}|${t}|${p}`:null;}
 function attachExactOpponentElo(rows){
   const byPlayerMatch=new Map();
