@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { evaluate, type EngineInput } from "./audit-engine";
+import { STAGES } from "./audit-stages";
 
 // To test the NO_SOURCE mechanism itself (distinct bucket, excluded from the
 // denominator, immune to the same silent-re-entry pattern as META_OR_NON_PLAYER)
@@ -28,6 +29,11 @@ const baseMatch: EngineInput["match"] = {
   player2_name: "Beta",
 };
 
+// All 13 pipeline stages persisted COMPLETE -- the default fixture for tests
+// that are exercising coverage/treatment math, not the stage-dependency gate
+// itself (that gate has its own dedicated describe block below).
+const ALL_STAGES_COMPLETE: EngineInput["stages"] = STAGES.map((stage) => ({ stage, status: "COMPLETE" }));
+
 function input(metrics: EngineInput["metrics"]): EngineInput {
   return {
     match: baseMatch,
@@ -40,6 +46,7 @@ function input(metrics: EngineInput["metrics"]): EngineInput {
     reconstructions: [],
     conflicts: [],
     matrixWp: null,
+    stages: ALL_STAGES_COMPLETE,
   };
 }
 
@@ -175,6 +182,7 @@ describe("audit-engine terminal identity outcomes", () => {
       reconstructions: [],
       conflicts: [],
       matrixWp: null,
+      stages: ALL_STAGES_COMPLETE,
     });
 
     expect(report.auditComplete).toBe(true);
@@ -184,5 +192,68 @@ describe("audit-engine terminal identity outcomes", () => {
       pass: true,
       detail: "UNVERIFIED",
     });
+  });
+});
+
+describe("audit-engine: Final Combination Gate stage-dependency gate", () => {
+  // Regression coverage for the audit pipeline's dependency-ordered state
+  // machine: auditComplete (and therefore the Final Combination Gate) must
+  // require the REAL, persisted audit_stage_runs statuses to show every
+  // upstream stage COMPLETE -- not just that the child-row counts happen to
+  // look done. This is what closes the double-bookkeeping gap that let the
+  // gate appear complete while audit_stage_runs still showed an upstream
+  // stage unexecuted.
+  const fullRows = (): EngineInput["metrics"] => [
+    { status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE", p1_treatment: "DIRECT", p2_treatment: "DIRECT", matrix_derived: false, evidence_family: "FAM", metric_name: "m", metric_code: "008" },
+  ];
+  const fullCommitted = (metrics: EngineInput["metrics"], stages: EngineInput["stages"]): EngineInput => ({
+    match: baseMatch,
+    run: { ...baseRun, research_lock_at: "2026-08-30T03:30:00.000Z", independent_decision_committed_at: "2026-08-30T03:31:00.000Z", matrix_revealed_at: "2026-08-30T03:32:00.000Z", calibration_version_id: "cal-1" },
+    metrics,
+    verification: [{ status: "COMPLETE", outcome: "PASS", severity: "STANDARD" }],
+    disagreement: [{ status: "COMPLETE", contradiction_severity: "NONE" }],
+    underdog: [{ status: "COMPLETE", classification: "WEAK", player_side: "Beta" }],
+    stress: [{ status: "COMPLETE", test_code: "ST01", outcome: "STABLE" }],
+    reconstructions: [],
+    conflicts: [],
+    matrixWp: null,
+    stages,
+  });
+
+  it("keeps auditComplete false when every child-row check passes but a required stage is not persisted COMPLETE", () => {
+    // All row-level data looks fully done, but P1/P2 METRIC EXECUTION never
+    // actually persisted COMPLETE in audit_stage_runs (e.g. the row-level
+    // writes landed but the process died before the stage's own terminal
+    // write) -- this must not let the gate read as complete.
+    const staleStages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "P1 METRIC EXECUTION" && s.stage !== "P2 METRIC EXECUTION").concat([
+      { stage: "P1 METRIC EXECUTION", status: "RUNNING" },
+      { stage: "P2 METRIC EXECUTION", status: "RUNNING" },
+    ]);
+    const report = evaluate(fullCommitted(fullRows(), staleStages));
+    expect(report.auditComplete).toBe(false);
+    expect(report.stageGaps).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION"]));
+    const stageCheck = report.checks.find((c) => c.key === "stage_execution");
+    expect(stageCheck?.pass).toBe(false);
+  });
+
+  it("reports auditComplete true only once every stage is persisted COMPLETE", () => {
+    const report = evaluate(fullCommitted(fullRows(), ALL_STAGES_COMPLETE));
+    expect(report.auditComplete).toBe(true);
+    expect(report.stageGaps).toEqual([]);
+    expect(report.checks.find((c) => c.key === "stage_execution")).toMatchObject({ pass: true, detail: "COMPLETE" });
+  });
+
+  it("blocks completion when a single early stage (identity) never persisted COMPLETE, even though everything else is COMPLETE", () => {
+    const stages = ALL_STAGES_COMPLETE.map((s) => (s.stage === "MATCH IDENTITY VERIFICATION" ? { ...s, status: "NOT STARTED" } : s));
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.auditComplete).toBe(false);
+    expect(report.stageGaps).toContain("MATCH IDENTITY VERIFICATION");
+  });
+
+  it("treats a missing stage row the same as an incomplete one", () => {
+    const stages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "STRESS / REMOVAL TESTS");
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.auditComplete).toBe(false);
+    expect(report.stageGaps).toContain("STRESS / REMOVAL TESTS");
   });
 });

@@ -178,14 +178,23 @@ function Workspace() {
     qc.invalidateQueries({ queryKey: ["stages", matchId] });
   };
 
+  // Scoped by the CURRENT run's id, not just match_id: audit_stage_runs keeps
+  // one full set of 13 stage rows per run_number (a match can accumulate rows
+  // from several past runs -- a reset, a forced re-audit). Filtering by
+  // match_id alone would mix a prior run's stale COMPLETE rows in with the
+  // current run's in-progress ones, which is exactly how this panel could
+  // show a downstream stage (or even the Final Combination Gate) as COMPLETE
+  // next to upstream stages still executing.
+  const currentRunId = data?.run?.id;
   const { data: stages } = useQuery({
-    queryKey: ["stages", matchId],
+    queryKey: ["stages", matchId, currentRunId],
     refetchInterval: 3000,
+    enabled: !!currentRunId,
     queryFn: async () => {
       const { data: rows } = await supabase
         .from("audit_stage_runs")
         .select("*")
-        .eq("match_id", matchId)
+        .eq("audit_run_id", currentRunId as string)
         .order("stage_order");
       return rows ?? [];
     },
@@ -270,6 +279,7 @@ function Workspace() {
     reconstructions: data.reconstructions ?? [],
     conflicts: data.conflicts ?? [],
     matrixWp,
+    stages: (stages ?? []).map((st) => ({ stage: String(st.stage), status: String(st.status) })),
   };
   const report = evaluate(engineInput);
   const committed = !!run.independent_decision_committed_at;

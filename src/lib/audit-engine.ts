@@ -2,6 +2,7 @@
 // Application logic — never AI text — decides completion, gate outcome and color.
 
 import { classifyMetric } from "./metric-classification";
+import { FINAL_STAGE, unmetDependencies, type StageStatusRow } from "./audit-stages";
 
 export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"];
 
@@ -77,6 +78,14 @@ export interface EngineInput {
   reconstructions: Array<{ status: string }>;
   conflicts: Array<{ critical: boolean; resolution_status: string }>;
   matrixWp: number | null;
+  // The actual audit_stage_runs rows for this run (stage + status only).
+  // Required, not optional: without this, "auditComplete" could only ever be
+  // derived from child-row states (metrics/verification/etc.), which is
+  // exactly the double-bookkeeping gap that let the Final Combination Gate
+  // (and any check downstream of it) appear complete while audit_stage_runs
+  // itself still showed an upstream stage unexecuted. Every caller must
+  // supply the real, currently-persisted stage statuses.
+  stages: StageStatusRow[];
 }
 
 export interface CountPair {
@@ -99,6 +108,11 @@ export interface GateReport {
   checks: Array<{ key: string; label: string; pass: boolean; detail: string }>;
   completionPercent: number;
   auditComplete: boolean;
+  // Every stage STAGE_DEPENDENCIES requires ahead of the Final Combination
+  // Gate that is not currently persisted COMPLETE in audit_stage_runs. Empty
+  // means the gate's real upstream execution state, not just row-derived
+  // counts, backs auditComplete.
+  stageGaps: string[];
   matrixFirewallValid: boolean;
   effectiveEvidenceCount: number;
   coverage: {
@@ -236,6 +250,15 @@ export function evaluate(input: EngineInput): GateReport {
     input.verification.some((v) => v.outcome === "FAIL" && v.severity === "CRITICAL") ||
     input.disagreement.some((d) => d.contradiction_severity === "CRITICAL");
 
+  // The actual dependency-ordered state machine check: every stage
+  // STAGE_DEPENDENCIES requires ahead of the Final Combination Gate (i.e.
+  // every other stage in the pipeline) must be persisted COMPLETE in
+  // audit_stage_runs, independent of whatever the child-row counts below
+  // say. This is what stops the gate (and completionPercent/auditComplete,
+  // which every other check also feeds) from reading "complete" off of
+  // row-level proxies while the real, persisted execution state disagrees.
+  const stageGaps = unmetDependencies(FINAL_STAGE, input.stages);
+
   const checks = [
     { key: "identity", label: "Match identity resolved to a terminal state", pass: ["VERIFIED", "UNVERIFIED", "UNAVAILABLE"].includes(match.identity_status), detail: match.identity_status },
     { key: "surface", label: "Surface verified or unavailable", pass: ["VERIFIED", "UNAVAILABLE"].includes(match.surface_status), detail: match.surface_status },
@@ -252,6 +275,7 @@ export function evaluate(input: EngineInput): GateReport {
     { key: "firewall", label: "Matrix firewall respected", pass: firewallValid, detail: firewallValid ? "VALID" : "VIOLATED" },
     { key: "reveal", label: "Matrix comparison complete", pass: !!run.matrix_revealed_at, detail: run.matrix_revealed_at ?? "not revealed" },
     { key: "calibration", label: "Current calibration applied", pass: !!run.calibration_version_id, detail: run.calibration_version_id ? "COMPLETE" : "INCOMPLETE" },
+    { key: "stage_execution", label: "All pipeline stages persisted COMPLETE in dependency order", pass: stageGaps.length === 0, detail: stageGaps.length === 0 ? "COMPLETE" : `Waiting on: ${stageGaps.join(", ")}` },
   ];
 
   const auditComplete = checks.every((c) => c.pass);
@@ -305,6 +329,7 @@ export function evaluate(input: EngineInput): GateReport {
     checks,
     completionPercent,
     auditComplete,
+    stageGaps,
     matrixFirewallValid: firewallValid,
     effectiveEvidenceCount,
     coverage: { p1: p1Coverage, p2: p2Coverage, usablePercent: usableCoveragePercent, thresholdPercent: COVERAGE_THRESHOLD },

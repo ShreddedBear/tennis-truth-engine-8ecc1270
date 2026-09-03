@@ -5,7 +5,8 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { runPipeline, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow } from "./audit-pipeline";
+import { runPipeline, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { unmetDependencies } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 
@@ -605,4 +606,192 @@ describe("Run Audit pipeline", () => {
     expect(renewals).toBeGreaterThan(0);
     expect(releases).toBe(1);
   },60_000);
+});
+
+// ----------------------------------------------------------------------------
+// Regression suite for the dependency-ordered state machine: a downstream
+// stage must not report COMPLETE merely because its own function ran -- it
+// must prove every required upstream stage already persisted COMPLETE.
+// enforceStageDependencies/unmetDependencies are pure functions, so these
+// tests exercise the actual write-gating logic directly rather than trying
+// to contrive a scenario through the full pipeline (which, by the loop's own
+// strictly sequential design, can never itself reach an out-of-order state --
+// these guards are what make that an enforced invariant rather than an
+// incidental property of today's loop shape).
+// ----------------------------------------------------------------------------
+describe("Stage dependency gate: enforceStageDependencies / unmetDependencies", () => {
+  const complete = (...names: Stage[]) => names.map((stage) => ({ stage, status: "COMPLETE" }));
+
+  it("allows a stage to complete once every required upstream stage is COMPLETE", () => {
+    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
+    const guard = enforceStageDependencies("P1 METRIC EXECUTION", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(false);
+    expect(guard.patch["status"]).toBe("COMPLETE");
+    expect(guard.missing).toEqual([]);
+  });
+
+  it("P1 cannot report COMPLETE before identity/context/definition instantiation are COMPLETE", () => {
+    const guard = enforceStageDependencies("P1 METRIC EXECUTION", { status: "COMPLETE" }, complete("MATCH IDENTITY VERIFICATION"));
+    expect(guard.blocked).toBe(true);
+    expect(guard.patch["status"]).toBe("BLOCKED");
+    expect(guard.patch["error_code"]).toBe("UPSTREAM_DEPENDENCY_INCOMPLETE");
+    expect(guard.missing).toEqual(["MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION"]);
+  });
+
+  it("P2 cannot report COMPLETE while P1 (or anything before it) is not COMPLETE", () => {
+    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
+    const guard = enforceStageDependencies("P2 METRIC EXECUTION", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["P1 METRIC EXECUTION"]);
+  });
+
+  it("Verification Audit cannot complete before P1/P2 metric execution", () => {
+    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
+    const guard = enforceStageDependencies("VERIFICATION AUDIT", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION"]));
+  });
+
+  it("Disagreement, Dangerous Underdog and Stress/Removal cannot complete before Verification Audit", () => {
+    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION", "P2 METRIC EXECUTION");
+    for (const stage of ["DISAGREEMENT / TRAP AUDIT", "DANGEROUS UNDERDOG AUDIT", "STRESS / REMOVAL TESTS"] as const) {
+      const guard = enforceStageDependencies(stage, { status: "COMPLETE" }, rows);
+      expect(guard.blocked, `${stage} must be blocked without VERIFICATION AUDIT`).toBe(true);
+      expect(guard.missing).toContain("VERIFICATION AUDIT");
+    }
+  });
+
+  it("Independent Conclusion cannot complete before verification, disagreement, underdog and stress are all COMPLETE", () => {
+    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION", "P2 METRIC EXECUTION", "VERIFICATION AUDIT", "DISAGREEMENT / TRAP AUDIT", "DANGEROUS UNDERDOG AUDIT");
+    const guard = enforceStageDependencies("INDEPENDENT CONCLUSION", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["STRESS / REMOVAL TESTS"]);
+  });
+
+  it("Current Calibration cannot complete before the independent conclusion is committed and the matrix is revealed", () => {
+    const rows = complete(...STAGES.slice(0, STAGES.indexOf("MATRIX REVEAL AND COMPARISON")));
+    const guard = enforceStageDependencies("CURRENT CALIBRATION APPLICATION", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["MATRIX REVEAL AND COMPARISON"]);
+  });
+
+  it("Final Combination Gate cannot complete before Current Calibration (its immediate prerequisite)", () => {
+    const rows = complete(...STAGES.slice(0, STAGES.length - 2));
+    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["CURRENT CALIBRATION APPLICATION"]);
+  });
+
+  it("Final Combination Gate cannot complete while P1/P2/verification/disagreement/underdog/stress/conclusion/calibration are missing, not just the immediate predecessor", () => {
+    // Only the very first stage is done -- everything else, including P1/P2
+    // required metrics, is missing.
+    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, complete("MATCH IDENTITY VERIFICATION"));
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(STAGES.slice(1, STAGES.length - 1));
+    expect(guard.missing).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION", "VERIFICATION AUDIT", "DANGEROUS UNDERDOG AUDIT", "STRESS / REMOVAL TESTS", "INDEPENDENT CONCLUSION", "CURRENT CALIBRATION APPLICATION"]));
+  });
+
+  it("a FAILED or BLOCKED prerequisite blocks every stage that transitively depends on it, not just the immediate next one", () => {
+    const rows = [...complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION"), { stage: "P1 METRIC EXECUTION", status: "FAILED" }];
+    const dependents = STAGES.slice(STAGES.indexOf("P2 METRIC EXECUTION"));
+    for (const stage of dependents) {
+      const guard = enforceStageDependencies(stage, { status: "COMPLETE" }, rows);
+      expect(guard.blocked, `${stage} must stay blocked while P1 METRIC EXECUTION is FAILED`).toBe(true);
+      expect(guard.missing).toContain("P1 METRIC EXECUTION");
+    }
+  });
+
+  it("never rewrites a non-COMPLETE status write (RUNNING/BLOCKED/FAILED pass through untouched, regardless of dependency state)", () => {
+    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "RUNNING", done_count: 3 }, []);
+    expect(guard.blocked).toBe(false);
+    expect(guard.patch).toEqual({ status: "RUNNING", done_count: 3 });
+  });
+
+  it("re-running a stage that is already validly COMPLETE does not create a false duplicate completion record: repeated calls are idempotent", () => {
+    const rows = complete(...STAGES);
+    const first = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, rows);
+    const second = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, rows);
+    expect(first).toEqual(second);
+    expect(first.blocked).toBe(false);
+  });
+});
+
+describe("Stage dependency gate: enforced through the real pipeline (runPipeline)", () => {
+  it("a failed/incomplete prerequisite (missing rule definitions at Definition Instantiation) blocks every dependent stage -- none of them are even attempted", async () => {
+    const { deps, stages } = makeMemoryDeps();
+    const realGetActiveVersionId = deps.getActiveVersionId.bind(deps);
+    deps.getActiveVersionId = async (docType) => (docType === "METRICS" ? null : realGetActiveVersionId(docType));
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(result.complete).toBe(false);
+    expect(stages.get("DEFINITION INSTANTIATION")?.["status"]).toBe("FAILED");
+    // P1 through Final Combination Gate must never even be attempted -- no
+    // audit_stage_runs row at all, not a row left dangling in some other status.
+    for (const stage of STAGES.slice(STAGES.indexOf("P1 METRIC EXECUTION"))) {
+      expect(stages.has(stage), `stage ${stage} should never have been touched`).toBe(false);
+    }
+  }, 60_000);
+
+  it("on a fully successful run, every stage's persisted status satisfies the dependency graph end to end -- no downstream COMPLETE while an upstream required stage is not", async () => {
+    const { deps, stages } = makeMemoryDeps();
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(result.complete).toBe(true);
+    const rows = Array.from(stages.values()).map((row) => ({ stage: String(row["stage"]), status: String(row["status"]) }));
+    for (const stage of STAGES) {
+      const gaps = unmetDependencies(stage, rows);
+      expect(gaps, `stage ${stage} has unmet upstream dependencies: ${gaps.join(", ")}`).toEqual([]);
+    }
+    // In particular, the Final Combination Gate specifically must not be
+    // COMPLETE while any required upstream stage is not.
+    expect(unmetDependencies("FINAL COMBINATION GATE", rows)).toEqual([]);
+    expect(stages.get("FINAL COMBINATION GATE")?.["status"]).toBe("COMPLETE");
+  }, 60_000);
+
+  it("re-running a completed pipeline does not re-invoke the research provider or write duplicate stage rows (no false duplicate completion records)", async () => {
+    const { deps, stages, tables } = makeMemoryDeps();
+    let calls = 0;
+    const countedResearcher: Researcher = {
+      ...researcher,
+      async identity(input) { calls++; return researcher.identity(input); },
+      async metrics(input) { calls++; return researcher.metrics(input); },
+      async rules(input) { calls++; return researcher.rules(input); },
+      async underdog(input) { calls++; return researcher.underdog(input); },
+      async conclusion() { calls++; return researcher.conclusion(); },
+      async stress(input) { calls++; return researcher.stress(input); },
+    };
+    deps.research = countedResearcher;
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(calls).toBeGreaterThan(0);
+    const afterFirstRun = calls;
+    const stageRowCount = stages.size;
+    const tableCounts = Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length]));
+
+    const second = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(second.complete).toBe(true);
+    expect(calls, "a fully complete run must not re-invoke the research provider").toBe(afterFirstRun);
+    expect(stages.size, "no duplicate audit_stage_runs rows for any stage").toBe(stageRowCount);
+    expect(stages.size).toBe(STAGES.length);
+    for (const [table, count] of Object.entries(tableCounts)) {
+      expect(tables[table]!.length, `${table} must not have grown on a no-op re-run`).toBe(count);
+    }
+  }, 60_000);
+
+  it("obeys the dependency order independently for many matches (stand-in for the 50-match audit; the live end-to-end run is verified separately)", async () => {
+    const MATCH_COUNT = 8;
+    for (let i = 0; i < MATCH_COUNT; i++) {
+      const { deps, stages } = makeMemoryDeps();
+      const result = await runPipeline(deps, `match-${i}`, { budgetMs: 120_000 });
+      expect(result.complete, `match ${i} did not complete`).toBe(true);
+      const rows = Array.from(stages.values()).map((row) => ({ stage: String(row["stage"]), status: String(row["status"]) }));
+      for (const stage of STAGES) {
+        expect(unmetDependencies(stage, rows), `match ${i} stage ${stage} has unmet dependencies`).toEqual([]);
+      }
+      expect(stages.get("FINAL COMBINATION GATE")?.["status"]).toBe("COMPLETE");
+    }
+  }, 120_000);
 });
