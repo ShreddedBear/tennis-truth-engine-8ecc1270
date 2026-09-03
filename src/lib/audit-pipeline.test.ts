@@ -759,7 +759,7 @@ describe("Stage dependency gate: enforced through the real pipeline (runPipeline
       async metrics(input) { calls++; return researcher.metrics(input); },
       async rules(input) { calls++; return researcher.rules(input); },
       async underdog(input) { calls++; return researcher.underdog(input); },
-      async conclusion() { calls++; return researcher.conclusion(); },
+      async conclusion(input) { calls++; return researcher.conclusion(input); },
       async stress(input) { calls++; return researcher.stress(input); },
     };
     deps.research = countedResearcher;
