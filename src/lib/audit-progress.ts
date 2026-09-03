@@ -1,17 +1,27 @@
 // Shared pipeline-execution progress math, used by both the Upload page
 // (while actively driving new runs) and the Active Slate page (while
 // displaying/resuming existing runs). "Execution" here means how much of the
-// 13-stage pipeline has run — distinct from "Evidence %", which measures how
-// much of the evidence is usable (DIRECT/RECONSTRUCTED/PARTIAL).
-export interface StageProgressRow { status: string; done_count: number | null; total_count: number | null; }
+// 16-stage canonical pipeline has run for ONE audit_run_id — distinct from
+// "Evidence %", which measures how much of the evidence is usable
+// (DIRECT/RECONSTRUCTED/PARTIAL).
+//
+// Callers MUST pass only audit_stage_runs rows for a single, current
+// audit_run_id (never rows merged across matches or across a match's prior
+// runs) -- see audit-stages.ts's STAGES/STAGE_DEPENDENCIES, the single
+// canonical source every stage name here is drawn from. Passing unscoped or
+// multi-run rows is exactly what produces a stuck-looking "0%" next to
+// diagnostics that show completed stages: this module has no way to tell a
+// stale prior run's rows apart from the current run's once they're merged.
+export interface StageProgressRow { stage?: string; status: string; done_count: number | null; total_count: number | null; }
 
-// Keep in sync with STAGES.length in audit-pipeline.ts (guarded by
+// Keep in sync with STAGES.length in audit-stages.ts (guarded by
 // audit-progress.test.ts). Duplicated as a plain constant, rather than
-// importing STAGES from audit-pipeline.ts, so this small client-bundled
-// module doesn't pull in that file's much larger dependency graph.
-const TOTAL_PIPELINE_STAGES = 13;
+// importing STAGES from audit-stages.ts, so this small client-bundled
+// module doesn't pull in that file's much larger dependency graph -- but the
+// guard test fails immediately if the two ever drift.
+const TOTAL_PIPELINE_STAGES = 16;
 
-// Each of the 13 pipeline stages is worth an equal 1/13 share of "Execution",
+// Each of the 16 pipeline stages is worth an equal 1/16 share of "Execution",
 // regardless of how many items that stage internally processes (2 identity
 // checks vs. 80 metrics). A stage not yet reached (no row, or a row still at
 // total_count=0 before its own item count is known -- e.g. "DEFINITION
@@ -31,18 +41,40 @@ function stageFraction(row: StageProgressRow): number {
   return 0;
 }
 
+// Collapses to at most one row per stage name before scoring, so a caller
+// that (against the contract above) hands in rows with a duplicate stage --
+// e.g. a retry/attempt history row, or an accidental cross-run merge -- can
+// never count that stage's progress more than once. When a stage name
+// repeats, the further-along row wins (COMPLETE beats RUNNING beats
+// anything else; among ties, the higher done_count wins), never a naive
+// last-one-wins or first-one-wins pick.
+function dedupeByStage(rows: StageProgressRow[]): StageProgressRow[] {
+  const rank = (row: StageProgressRow) => (row.status === "COMPLETE" ? 2 : row.status === "RUNNING" ? 1 : 0);
+  const byStage = new Map<string, StageProgressRow>();
+  let anonymousIndex = 0;
+  for (const row of rows) {
+    const key = row.stage ?? `__row_${anonymousIndex++}`;
+    const existing = byStage.get(key);
+    if (!existing || rank(row) > rank(existing) || (rank(row) === rank(existing) && (Number(row.done_count) || 0) > (Number(existing.done_count) || 0))) {
+      byStage.set(key, row);
+    }
+  }
+  return [...byStage.values()];
+}
+
 export function computeExecutionPercent(rows: StageProgressRow[], blockedStatus?: string): number {
-  const sum = rows.reduce((acc, row) => acc + stageFraction(row), 0);
+  const sum = dedupeByStage(rows).reduce((acc, row) => acc + stageFraction(row), 0);
   const pct = Math.round((Math.min(sum, TOTAL_PIPELINE_STAGES) / TOTAL_PIPELINE_STAGES) * 100);
   return blockedStatus === "BLOCKED" ? Math.min(pct, 99) : pct;
 }
 
 // Aggregates execution percent across many runs at once (one number for the
 // whole batch), used by Upload while several matches are being driven together.
+// Each Map entry MUST already be scoped to one audit_run_id.
 export function computeBatchExecutionPercent(rowsByRunId: Map<string, StageProgressRow[]>): number {
   if (!rowsByRunId.size) return 0;
   let sum = 0;
-  for (const rows of rowsByRunId.values()) for (const row of rows) sum += stageFraction(row);
+  for (const rows of rowsByRunId.values()) for (const row of dedupeByStage(rows)) sum += stageFraction(row);
   const totalStages = rowsByRunId.size * TOTAL_PIPELINE_STAGES;
   return Math.round((Math.min(sum, totalStages) / totalStages) * 100);
 }

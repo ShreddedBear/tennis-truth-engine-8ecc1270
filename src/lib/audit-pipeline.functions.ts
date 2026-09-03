@@ -97,8 +97,21 @@ export const runAuditBatch = createServerFn({ method: "POST" })
         advancedChanged=await applyFinalAdvancedMetric(deps,runId,matchId);
       }
       const changed=metricChanged||pathwayChanged||stressChanged||advancedChanged;
-      if(changed&&stages.find(s=>s.stage==="FINAL COMBINATION GATE")?.status==="COMPLETE"){
-        await deps.setStage(runId,matchId,"FINAL COMBINATION GATE",{status:"PENDING",done_count:0,total_count:1,error_code:null,error_message:null,finished_at:null});
+      // Coverage Persistence / Final Decision / Final Combination Gate are
+      // three separate canonical stages now (not one bundled stage): if a
+      // meta-derived write changed underlying metric data after any of them
+      // already ran, all three would otherwise keep stale, pre-change
+      // coverage numbers and a stale final decision sitting behind a
+      // COMPLETE status. Reopen every one of them that has already run so
+      // the next resume genuinely recomputes each in dependency order,
+      // rather than just re-checking the gate against data it never
+      // actually re-persisted.
+      const closingStages=["COVERAGE PERSISTENCE / EVIDENCE VALIDATION","FINAL DECISION","FINAL COMBINATION GATE"] as const;
+      const anyClosingStageComplete=closingStages.some(stage=>stages.find(s=>s.stage===stage)?.status==="COMPLETE");
+      if(changed&&anyClosingStageComplete){
+        for(const stage of closingStages){
+          if(stages.find(s=>s.stage===stage))await deps.setStage(runId,matchId,stage,{status:"PENDING",done_count:0,total_count:1,error_code:null,error_message:null,finished_at:null});
+        }
         await deps.updateRun(runId,{status:"RUNNING"});
         return true;
       }
@@ -121,7 +134,7 @@ export const runAuditBatch = createServerFn({ method: "POST" })
               finally{await deps.releaseRunLease(result.runId,metaOwner);}
             }
           }
-          return{matchId,ok:true as const,runId:result.runId,complete:reopened?false:result.complete,nextStage:reopened?"FINAL COMBINATION GATE":result.nextStage,leaseHeld:result.leaseHeld??false,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:reopened?false:(result.report?.auditComplete??false),durationMs:Date.now()-itemStarted};
+          return{matchId,ok:true as const,runId:result.runId,complete:reopened?false:result.complete,nextStage:reopened?"COVERAGE PERSISTENCE / EVIDENCE VALIDATION":result.nextStage,leaseHeld:result.leaseHeld??false,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:reopened?false:(result.report?.auditComplete??false),durationMs:Date.now()-itemStarted};
         }catch(error){
           const latest=await deps.getLatestRun(matchId).catch(()=>null);
           return{matchId,ok:false as const,runId:latest?.id??null,complete:false,nextStage:null,leaseHeld:false,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false,durationMs:Date.now()-itemStarted};
@@ -132,7 +145,7 @@ export const runAuditBatch = createServerFn({ method: "POST" })
       const completed=drivenByMatch.get(item.matchId);
       if(completed)return completed;
       if(item.error||!item.run)return{matchId:item.matchId,ok:false as const,runId:null,complete:false,nextStage:null,leaseHeld:false,failures:[{stage:"PIPELINE",message:item.error??"Could not persist queued audit run"}],color:null,completionPercent:null,auditComplete:false,durationMs:0};
-      return{matchId:item.matchId,ok:true as const,runId:item.run.id,complete:item.run.status==="COMPLETE",nextStage:item.run.status==="COMPLETE"?null:"MATCH IDENTITY VERIFICATION",leaseHeld:false,failures:[],color:null,completionPercent:null,auditComplete:item.run.status==="COMPLETE",durationMs:0};
+      return{matchId:item.matchId,ok:true as const,runId:item.run.id,complete:item.run.status==="COMPLETE",nextStage:item.run.status==="COMPLETE"?null:"MATCH INGESTION / PDF EXTRACTION",leaseHeld:false,failures:[],color:null,completionPercent:null,auditComplete:item.run.status==="COMPLETE",durationMs:0};
     });
     const complete=results.filter(item=>item.complete).length,blocked=results.filter(item=>!item.ok||item.failures?.length).length,leased=results.filter(item=>item.leaseHeld).length;
     console.info("[audit-batch]",{batchId,total:data.matchIds.length,complete,blocked,leased,durationMs:Date.now()-startedAt});

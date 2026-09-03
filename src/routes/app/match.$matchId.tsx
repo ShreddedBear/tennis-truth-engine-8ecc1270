@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
+import { canonicalizeStageRows } from "@/lib/audit-stages";
 import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
 import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
@@ -384,17 +385,25 @@ function Workspace() {
             No stage has executed yet. Press Run Audit to execute the pipeline end to end.
           </p>
         )}
+        {/*
+          Exactly one canonical row per stage, always in the fixed 1-16
+          dependency order (audit-stages.ts's STAGES) -- never database
+          insertion order, updated_at, attempt number, or whichever row
+          happened to load first. A stage with no audit_stage_runs row yet
+          (row === null) still renders, as PENDING, so the panel always shows
+          all 16 canonical stages for the current run, never fewer.
+        */}
         <div className="mt-2 grid gap-1 text-xs md:grid-cols-2">
-          {stages?.map((st) => (
-            <div key={st.stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
-              <span className="truncate">{st.stage}</span>
+          {canonicalizeStageRows(stages ?? []).map(({ stage, row }) => (
+            <div key={stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
+              <span className="truncate">{stage}</span>
               <span className="mono-num flex shrink-0 items-center gap-2">
                 <span>
-                  {st.done_count}/{st.total_count} · attempt {st.attempts}
+                  {row ? `${row.done_count}/${row.total_count} · attempt ${row.attempts}` : "not started"}
                 </span>
-                <StateText state={st.status} />
+                <StateText state={row?.status ?? "PENDING"} />
               </span>
-              {st.error_message && <span className="text-blocked">{st.error_message}</span>}
+              {row?.error_message && <span className="text-blocked">{row.error_message}</span>}
             </div>
           ))}
         </div>
@@ -438,8 +447,12 @@ function Workspace() {
             <p>{report.effectiveEvidenceCount}</p>
           </div>
         </div>
-        <p className={`mt-3 text-sm font-semibold ${report.auditComplete ? "text-ok" : "text-warn"}`}>
-          {report.auditComplete ? "AUDIT COMPLETE — NO REQUIRED STEPS MISSING · NO SHORTCUTS" : "AUDIT INCOMPLETE"}
+        <p className={`mt-3 text-sm font-semibold ${report.auditComplete && report.stagesComplete ? "text-ok" : "text-warn"}`}>
+          {report.auditComplete && report.stagesComplete
+            ? "AUDIT COMPLETE — NO REQUIRED STEPS MISSING · NO SHORTCUTS"
+            : !report.stagesComplete
+              ? `AUDIT INCOMPLETE — pipeline still executing: ${report.stageGaps.join(", ")}`
+              : "AUDIT INCOMPLETE"}
         </p>
         <div className="mt-3 rounded-md border border-border p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

@@ -73,7 +73,7 @@ function UploadPage(){
   try{
     const batch=await executeBatch({data:{matchIds,concurrency:AUDIT_CONCURRENCY}});
     const runIds=batch.results.map(result=>result.runId).filter((id):id is string=>Boolean(id));
-    if(runIds.length){const{data:rows}=await supabase.from("audit_stage_runs").select("audit_run_id, status, done_count, total_count").in("audit_run_id",runIds);const byRun=new Map<string,StageProgressRow[]>();for(const row of rows??[]){const list=byRun.get(row.audit_run_id)??[];list.push(row);byRun.set(row.audit_run_id,list);}setAuditProgress(computeBatchExecutionPercent(byRun));}
+    if(runIds.length){const{data:rows}=await supabase.from("audit_stage_runs").select("audit_run_id, stage, status, done_count, total_count").in("audit_run_id",runIds);const byRun=new Map<string,StageProgressRow[]>();for(const row of rows??[]){const list=byRun.get(row.audit_run_id)??[];list.push(row);byRun.set(row.audit_run_id,list);}setAuditProgress(computeBatchExecutionPercent(byRun));}
     for(const result of batch.results)if(!result.ok&&result.failures?.[0])recordError("AUDIT PIPELINE",result.failures[0].message,{match:result.matchId});
     toast.success(`${created} new matches, ${reused} existing matches reused, ${versions} summary versions, ${matchIds.length} audit runs queued`);
   }catch(error){

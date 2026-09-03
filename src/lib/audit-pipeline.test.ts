@@ -623,15 +623,35 @@ describe("Stage dependency gate: enforceStageDependencies / unmetDependencies", 
   const complete = (...names: Stage[]) => names.map((stage) => ({ stage, status: "COMPLETE" }));
 
   it("allows a stage to complete once every required upstream stage is COMPLETE", () => {
-    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
+    const rows = complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
     const guard = enforceStageDependencies("P1 METRIC EXECUTION", { status: "COMPLETE" }, rows);
     expect(guard.blocked).toBe(false);
     expect(guard.patch["status"]).toBe("COMPLETE");
     expect(guard.missing).toEqual([]);
   });
 
-  it("P1 cannot report COMPLETE before identity/context/definition instantiation are COMPLETE", () => {
-    const guard = enforceStageDependencies("P1 METRIC EXECUTION", { status: "COMPLETE" }, complete("MATCH IDENTITY VERIFICATION"));
+  it("a fresh audit starts with Match Ingestion / PDF Extraction and cannot skip ahead", () => {
+    const guard = enforceStageDependencies("MATCH IDENTITY VERIFICATION", { status: "COMPLETE" }, []);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["MATCH INGESTION / PDF EXTRACTION"]);
+  });
+
+  it("Match Identity Verification cannot report COMPLETE before Match Ingestion / PDF Extraction", () => {
+    const guard = enforceStageDependencies("MATCH IDENTITY VERIFICATION", { status: "COMPLETE" }, []);
+    expect(guard.blocked).toBe(true);
+    expect(guard.patch["status"]).toBe("BLOCKED");
+    expect(guard.missing).toEqual(["MATCH INGESTION / PDF EXTRACTION"]);
+  });
+
+  it("Match Context Resolution cannot report COMPLETE before Match Identity Verification", () => {
+    const rows = complete("MATCH INGESTION / PDF EXTRACTION");
+    const guard = enforceStageDependencies("MATCH CONTEXT RESOLUTION", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["MATCH IDENTITY VERIFICATION"]);
+  });
+
+  it("P1 cannot report COMPLETE before ingestion/identity/context/definition instantiation are COMPLETE", () => {
+    const guard = enforceStageDependencies("P1 METRIC EXECUTION", { status: "COMPLETE" }, complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION"));
     expect(guard.blocked).toBe(true);
     expect(guard.patch["status"]).toBe("BLOCKED");
     expect(guard.patch["error_code"]).toBe("UPSTREAM_DEPENDENCY_INCOMPLETE");
@@ -639,21 +659,21 @@ describe("Stage dependency gate: enforceStageDependencies / unmetDependencies", 
   });
 
   it("P2 cannot report COMPLETE while P1 (or anything before it) is not COMPLETE", () => {
-    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
+    const rows = complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
     const guard = enforceStageDependencies("P2 METRIC EXECUTION", { status: "COMPLETE" }, rows);
     expect(guard.blocked).toBe(true);
     expect(guard.missing).toEqual(["P1 METRIC EXECUTION"]);
   });
 
   it("Verification Audit cannot complete before P1/P2 metric execution", () => {
-    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION");
+    const rows = complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION");
     const guard = enforceStageDependencies("VERIFICATION AUDIT", { status: "COMPLETE" }, rows);
     expect(guard.blocked).toBe(true);
-    expect(guard.missing).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION"]));
+    expect(guard.missing).toEqual(["P2 METRIC EXECUTION"]);
   });
 
   it("Disagreement, Dangerous Underdog and Stress/Removal cannot complete before Verification Audit", () => {
-    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION", "P2 METRIC EXECUTION");
+    const rows = complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION", "P2 METRIC EXECUTION");
     for (const stage of ["DISAGREEMENT / TRAP AUDIT", "DANGEROUS UNDERDOG AUDIT", "STRESS / REMOVAL TESTS"] as const) {
       const guard = enforceStageDependencies(stage, { status: "COMPLETE" }, rows);
       expect(guard.blocked, `${stage} must be blocked without VERIFICATION AUDIT`).toBe(true);
@@ -662,7 +682,7 @@ describe("Stage dependency gate: enforceStageDependencies / unmetDependencies", 
   });
 
   it("Independent Conclusion cannot complete before verification, disagreement, underdog and stress are all COMPLETE", () => {
-    const rows = complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION", "P2 METRIC EXECUTION", "VERIFICATION AUDIT", "DISAGREEMENT / TRAP AUDIT", "DANGEROUS UNDERDOG AUDIT");
+    const rows = complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION", "P1 METRIC EXECUTION", "P2 METRIC EXECUTION", "VERIFICATION AUDIT", "DISAGREEMENT / TRAP AUDIT", "DANGEROUS UNDERDOG AUDIT");
     const guard = enforceStageDependencies("INDEPENDENT CONCLUSION", { status: "COMPLETE" }, rows);
     expect(guard.blocked).toBe(true);
     expect(guard.missing).toEqual(["STRESS / REMOVAL TESTS"]);
@@ -675,24 +695,38 @@ describe("Stage dependency gate: enforceStageDependencies / unmetDependencies", 
     expect(guard.missing).toEqual(["MATRIX REVEAL AND COMPARISON"]);
   });
 
-  it("Final Combination Gate cannot complete before Current Calibration (its immediate prerequisite)", () => {
-    const rows = complete(...STAGES.slice(0, STAGES.length - 2));
-    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, rows);
+  it("Coverage Persistence / Evidence Validation cannot complete before Current Calibration", () => {
+    const rows = complete(...STAGES.slice(0, STAGES.indexOf("CURRENT CALIBRATION APPLICATION")));
+    const guard = enforceStageDependencies("COVERAGE PERSISTENCE / EVIDENCE VALIDATION", { status: "COMPLETE" }, rows);
     expect(guard.blocked).toBe(true);
     expect(guard.missing).toEqual(["CURRENT CALIBRATION APPLICATION"]);
   });
 
-  it("Final Combination Gate cannot complete while P1/P2/verification/disagreement/underdog/stress/conclusion/calibration are missing, not just the immediate predecessor", () => {
+  it("Final Decision cannot complete before Coverage Persistence / Evidence Validation", () => {
+    const rows = complete(...STAGES.slice(0, STAGES.indexOf("COVERAGE PERSISTENCE / EVIDENCE VALIDATION")));
+    const guard = enforceStageDependencies("FINAL DECISION", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["COVERAGE PERSISTENCE / EVIDENCE VALIDATION"]);
+  });
+
+  it("Final Combination Gate cannot complete before Final Decision (its immediate prerequisite)", () => {
+    const rows = complete(...STAGES.slice(0, STAGES.length - 2));
+    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, rows);
+    expect(guard.blocked).toBe(true);
+    expect(guard.missing).toEqual(["FINAL DECISION"]);
+  });
+
+  it("Final Combination Gate cannot complete while P1/P2/verification/disagreement/underdog/stress/conclusion/calibration/coverage/final-decision are missing, not just the immediate predecessor", () => {
     // Only the very first stage is done -- everything else, including P1/P2
     // required metrics, is missing.
-    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, complete("MATCH IDENTITY VERIFICATION"));
+    const guard = enforceStageDependencies("FINAL COMBINATION GATE", { status: "COMPLETE" }, complete("MATCH INGESTION / PDF EXTRACTION"));
     expect(guard.blocked).toBe(true);
     expect(guard.missing).toEqual(STAGES.slice(1, STAGES.length - 1));
-    expect(guard.missing).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION", "VERIFICATION AUDIT", "DANGEROUS UNDERDOG AUDIT", "STRESS / REMOVAL TESTS", "INDEPENDENT CONCLUSION", "CURRENT CALIBRATION APPLICATION"]));
+    expect(guard.missing).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION", "VERIFICATION AUDIT", "DANGEROUS UNDERDOG AUDIT", "STRESS / REMOVAL TESTS", "INDEPENDENT CONCLUSION", "CURRENT CALIBRATION APPLICATION", "COVERAGE PERSISTENCE / EVIDENCE VALIDATION", "FINAL DECISION"]));
   });
 
   it("a FAILED or BLOCKED prerequisite blocks every stage that transitively depends on it, not just the immediate next one", () => {
-    const rows = [...complete("MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION"), { stage: "P1 METRIC EXECUTION", status: "FAILED" }];
+    const rows = [...complete("MATCH INGESTION / PDF EXTRACTION", "MATCH IDENTITY VERIFICATION", "MATCH CONTEXT RESOLUTION", "DEFINITION INSTANTIATION"), { stage: "P1 METRIC EXECUTION", status: "FAILED" }];
     const dependents = STAGES.slice(STAGES.indexOf("P2 METRIC EXECUTION"));
     for (const stage of dependents) {
       const guard = enforceStageDependencies(stage, { status: "COMPLETE" }, rows);
