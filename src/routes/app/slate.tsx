@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { normalizeName } from "@/lib/summary-parser";
 import { computeExecutionPercent } from "@/lib/audit-progress";
+import { canonicalizeStageRows } from "@/lib/audit-stages";
 import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
@@ -68,8 +69,14 @@ function Slate(){
   },[data,drive.isPending]);
 
   const runFor=(match:any)=>{const ids=match?._all_ids??[match.id];return data?.runs.filter((run:any)=>ids.includes(run.match_id)).sort((a:any,b:any)=>b.run_number-a.run_number)[0];};
-  const executionFor=(run:any)=>run?.id?computeExecutionPercent((data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id),run.status):0;
-  const activeStageFor=(run:any)=>run?.id?(data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id&&stage.status==="RUNNING").sort((a:any,b:any)=>b.stage_order-a.stage_order)[0]:null;
+  // Every lookup below is scoped to this ONE run's rows first (audit_run_id
+  // === run.id), then normalized through canonicalizeStageRows -- exactly
+  // one entry per canonical stage, in fixed 1-16 order -- so neither a prior
+  // run's rows nor a duplicate/retry record can ever be read as this run's
+  // progress.
+  const stagesFor=(run:any)=>run?.id?canonicalizeStageRows((data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id)):[];
+  const executionFor=(run:any)=>run?.id?computeExecutionPercent(stagesFor(run).map(({stage,row})=>({stage,status:row?.status??"PENDING",done_count:row?.done_count??0,total_count:row?.total_count??0})),run.status):0;
+  const activeStageFor=(run:any)=>{const running=stagesFor(run).filter(({row})=>row?.status==="RUNNING");return running.length?running[running.length-1].row:null;};
   const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
   const latest=new Set(data?.latestMatchIds??[]);
   const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||(match._all_ids??[match.id]).some((id:string)=>latest.has(id)));

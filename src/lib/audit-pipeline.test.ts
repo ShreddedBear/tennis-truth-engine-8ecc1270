@@ -6,7 +6,7 @@
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
 import { runPipeline, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
-import { unmetDependencies } from "./audit-stages";
+import { unmetDependencies, canonicalizeStageRows } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 
@@ -767,6 +767,53 @@ describe("Stage dependency gate: enforced through the real pipeline (runPipeline
     }
   }, 60_000);
 
+  it("a failed attempt does not create a second visible canonical diagnostic: a retry updates/reuses the same audit_run_id+stage record", async () => {
+    const { deps, stages } = makeMemoryDeps();
+    let calibrationCalls = 0;
+    const realGetCalibration = deps.getCalibration.bind(deps);
+    deps.getCalibration = async (versionId) => {
+      calibrationCalls++;
+      // First attempt: no active calibration version -> CURRENT CALIBRATION
+      // APPLICATION returns FAILED. Every subsequent attempt (the retry):
+      // the real, working calibration.
+      if (calibrationCalls === 1) return { version: null, buckets: [] };
+      return realGetCalibration(versionId);
+    };
+
+    const first = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(first.complete).toBe(false);
+    expect(stages.get("CURRENT CALIBRATION APPLICATION")?.["status"]).toBe("FAILED");
+    expect(stages.get("CURRENT CALIBRATION APPLICATION")?.["attempts"]).toBe(1);
+    // Exactly one audit_stage_runs record exists per (audit_run_id, stage) --
+    // this in-memory map is keyed by stage name, mirroring the real table's
+    // UNIQUE (audit_run_id, stage) constraint -- so a second row for the
+    // same stage is structurally impossible, not merely absent by luck. The
+    // loop stopped at CURRENT CALIBRATION APPLICATION (the failure), so only
+    // stages up to and including it have a record yet.
+    const stageCountAfterFailure = stages.size;
+    expect(stageCountAfterFailure).toBe(STAGES.indexOf("CURRENT CALIBRATION APPLICATION") + 1);
+
+    const second = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    expect(second.complete).toBe(true);
+    // The calibration stage's SAME record was updated in place -- still one
+    // entry for it, now COMPLETE, with attempts incremented, never a second
+    // row -- while the run also legitimately reaches every remaining stage
+    // for the first time, growing to the full canonical 16.
+    expect(stages.size).toBe(STAGES.length);
+    expect(stages.get("CURRENT CALIBRATION APPLICATION")?.["status"]).toBe("COMPLETE");
+    expect(stages.get("CURRENT CALIBRATION APPLICATION")?.["attempts"]).toBe(2);
+    expect(stages.get("CURRENT CALIBRATION APPLICATION")?.["error_message"]).toBeNull();
+
+    // Rendering this run's canonical diagnostics still yields exactly one
+    // entry per stage, all 16, none omitted, none duplicated -- the failed
+    // attempt is invisible in the canonical view once the retry succeeds.
+    const canonical = canonicalizeStageRows(Array.from(stages.values()).map((row) => ({ stage: String(row["stage"]), status: String(row["status"]) })));
+    expect(canonical).toHaveLength(STAGES.length);
+    expect(new Set(canonical.map((c) => c.stage)).size).toBe(STAGES.length);
+    expect(canonical.every((c) => c.row?.status === "COMPLETE")).toBe(true);
+  }, 60_000);
+
   it("on a fully successful run, every stage's persisted status satisfies the dependency graph end to end -- no downstream COMPLETE while an upstream required stage is not", async () => {
     const { deps, stages } = makeMemoryDeps();
 
@@ -815,7 +862,7 @@ describe("Stage dependency gate: enforced through the real pipeline (runPipeline
     }
   }, 60_000);
 
-  it("obeys the dependency order independently for many matches (stand-in for the 50-match audit; the live end-to-end run is verified separately)", async () => {
+  it("obeys the dependency order independently for many matches, each producing exactly one canonical 16-stage diagnostic chain (stand-in for a fresh cleared-slate 50-match audit; the live end-to-end run is verified separately)", async () => {
     const MATCH_COUNT = 8;
     for (let i = 0; i < MATCH_COUNT; i++) {
       const { deps, stages } = makeMemoryDeps();
@@ -826,6 +873,12 @@ describe("Stage dependency gate: enforced through the real pipeline (runPipeline
         expect(unmetDependencies(stage, rows), `match ${i} stage ${stage} has unmet dependencies`).toEqual([]);
       }
       expect(stages.get("FINAL COMBINATION GATE")?.["status"]).toBe("COMPLETE");
+      // Exactly one canonical diagnostic chain per match/run: 16 stages, no
+      // duplicates, no gaps, every one persisted COMPLETE.
+      expect(stages.size, `match ${i} has ${stages.size} stage records, expected exactly ${STAGES.length}`).toBe(STAGES.length);
+      const canonical = canonicalizeStageRows(rows);
+      expect(canonical, `match ${i} canonical diagnostics`).toHaveLength(STAGES.length);
+      expect(canonical.every((c) => c.row?.status === "COMPLETE"), `match ${i} every canonical stage COMPLETE`).toBe(true);
     }
   }, 120_000);
 });
