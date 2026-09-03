@@ -33,17 +33,39 @@ describe("canonical metric classification registry", () => {
     for (const code of UNKNOWN_REQUIRES_REVIEW_CODES) expect(denominator.has(code)).toBe(true);
   });
 
-  it("denominator equals 81 minus meta minus protected", () => {
+  it("ACTIVE denominator equals 81 minus meta minus protected minus Matrix-Summary-quarantined", () => {
     const accounting = metricUniverseAccounting();
     expect(playerEvidenceDenominatorCodes()).toHaveLength(accounting.legitimate_player_metric_count);
-    expect(accounting.legitimate_player_metric_count).toBe(81 - accounting.meta_or_non_player_count - accounting.protected_unavailable_count);
+    expect(accounting.legitimate_player_metric_count).toBe(
+      81 - accounting.meta_or_non_player_count - accounting.protected_unavailable_count - accounting.matrix_summary_required_count,
+    );
+    // The quarantine withholds codes from the ACTIVE denominator without shrinking the
+    // player-metric universe: reactivating all of them restores the prior 60.
+    expect(accounting.legitimate_player_metric_count_including_quarantined).toBe(
+      81 - accounting.meta_or_non_player_count - accounting.protected_unavailable_count,
+    );
+    expect(accounting.legitimate_player_metric_count_including_quarantined).toBe(60);
   });
 
   it("does not classify known-recoverable metrics as excluded (guards against over-exclusion)", () => {
-    // Ace Rate / Double-Fault Rate / Hold%-adjacent codes are directly PBP-reconstructable
-    // and must never be quietly moved out of the player denominator.
-    for (const code of ["002", "005", "006", "009", "014", "021", "026", "027", "031", "032"]) {
+    // Directly PBP-reconstructable codes that must never be quietly moved out of the
+    // player metric universe. "026" was removed from this list when it was quarantined
+    // pending Tennis Matrix AI Summary evidence (docs/audit-task-matrix-summary-quarantine.md)
+    // -- that is a deliberate, reversible withholding from the ACTIVE denominator, asserted
+    // in matrix-summary-quarantine.test.ts, not the silent over-exclusion this guards against.
+    for (const code of ["002", "005", "006", "009", "014", "021", "027", "031", "032"]) {
       expect(classifyMetric(code)).toBe("LEGITIMATE_PLAYER_METRIC");
+    }
+  });
+
+  it("no Matrix-Summary quarantine leaks into the META or PROTECTED buckets", () => {
+    // The quarantine must stay its own auditable bucket: a reversible "not in the Truth
+    // Engine yet" state must never be recorded as a permanent no-pathway determination.
+    const accounting = metricUniverseAccounting();
+    for (const code of accounting.matrix_summary_required_codes) {
+      expect(accounting.meta_or_non_player_codes).not.toContain(code);
+      expect(accounting.protected_unavailable_codes).not.toContain(code);
+      expect(classifyMetric(code)).toBe("MATRIX_SUMMARY_REQUIRED");
     }
   });
 

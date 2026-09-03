@@ -167,8 +167,16 @@ export function enrichEvidenceCoverageAccounting<T extends Record<string, any>>(
   const matches = (report.matches ?? []).map((match: any) => {
     const metrics = (match.metrics ?? []).map((metric: any) => {
       const metric_classification = classifyMetric(String(metric.metric_code));
+      // MATRIX_SUMMARY_REQUIRED joins the same short-circuit: a code quarantined
+      // pending real Tennis Matrix AI Summary evidence must never be scored through
+      // the "genuinely unavailable vs software loss" buckets, because neither claim is
+      // true of it -- the evidence simply is not in the Truth Engine yet. It reports
+      // its own classification instead, so the reason stays visible and is never
+      // silently recoded as a data-loss or no-pathway finding.
       const availability_class =
-        metric_classification === "META_OR_NON_PLAYER" || metric_classification === "PROTECTED_UNAVAILABLE"
+        metric_classification === "META_OR_NON_PLAYER" ||
+        metric_classification === "PROTECTED_UNAVAILABLE" ||
+        metric_classification === "MATRIX_SUMMARY_REQUIRED"
           ? metric_classification
           : classFromRuntimeMetric(match, metric);
       return { ...metric, metric_classification, availability_class };

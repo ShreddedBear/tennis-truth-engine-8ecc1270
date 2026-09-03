@@ -29,11 +29,22 @@ function isProcessMetaCode(code: string | null | undefined): boolean {
 // way and for the same silent-re-entry-proof reason as META_OR_NON_PLAYER above -- but
 // tracked as its own distinct bucket, never merged into "excluded", so the two remain
 // separately auditable. UNKNOWN_REQUIRES_REVIEW codes are deliberately NOT covered here.
+// MATRIX_SUMMARY_REQUIRED codes are treated identically HERE, and for the same
+// silent-re-entry-proof reason: a code quarantined pending real Tennis Matrix AI
+// Summary evidence must contribute no active audit weight, so it is subtracted from
+// the coverage denominator by code identity rather than by whatever treatment a row
+// happens to carry. It is counted in the same `noSource` bucket for denominator
+// purposes only -- the two remain separately auditable through
+// metric-classification.ts (MATRIX_SUMMARY_REQUIRED_CODES vs
+// PROTECTED_UNAVAILABLE_CODES) and through each row's own distinct
+// unavailable_reason, and a quarantine is reversible where a protected determination
+// is not.
 function isNoSourceMetricCode(code: string | null | undefined): boolean {
   if (!code) return false;
   const match = String(code).match(/(\d{1,3})$/);
   const normalized = match ? match[1].padStart(3, "0") : String(code).padStart(3, "0");
-  return classifyMetric(normalized) === "PROTECTED_UNAVAILABLE";
+  const classification = classifyMetric(normalized);
+  return classification === "PROTECTED_UNAVAILABLE" || classification === "MATRIX_SUMMARY_REQUIRED";
 }
 
 export interface Countable {

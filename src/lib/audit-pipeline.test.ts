@@ -10,6 +10,7 @@ import { unmetDependencies, canonicalizeStageRows, resolveActiveRun, isActiveRun
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { computeExecutionPercent } from "./audit-progress";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
+import { MATRIX_SUMMARY_REQUIRED_CODES } from "./metric-classification";
 
 // Code 070 ("Support Team / Prep") is a genuine LEGITIMATE_PLAYER_METRIC in the real
 // canonical registry (metric-classification.ts) -- distinct from and never overlapping
@@ -555,9 +556,13 @@ describe("Run Audit pipeline", () => {
   });
 
   it("resumes P2 orientation after already processed batches instead of restarting them", () => {
+    // Synthetic codes are deliberately in the 9xx range, outside the real 001-081 catalog:
+    // this test is about resume-offset arithmetic only, and a fixture code like "M15"/"M22"
+    // would normalize onto a real MATRIX_SUMMARY_REQUIRED code and be filtered out by the
+    // quarantine guard, changing the offsets under test for reasons unrelated to resumption.
     const rows = Array.from({ length: 34 }, (_, index) => ({
       id: `row-${index}`,
-      metric_code: `M${String(index).padStart(2, "0")}`,
+      metric_code: `M9${String(index).padStart(2, "0")}`,
       p2_status: index < 2 ? "EXCLUDED" : "COMPLETE",
     })).reverse();
     const resumed = metricRowsForSideExecution(rows, "p2", 17);
@@ -836,8 +841,13 @@ describe("Run Audit pipeline", () => {
     // file's module-level mock (see the top of this file) additionally treats real code
     // 070 as PROTECTED_UNAVAILABLE for the dedicated test below, and that mock is
     // file-scoped, so it also applies here.
+    // On top of those, the MATRIX_SUMMARY_REQUIRED codes (quarantined pending real Tennis
+    // Matrix AI Summary evidence -- docs/audit-task-matrix-summary-quarantine.md) also
+    // settle as NO_SOURCE before research, by exactly the same mechanism. Derived from the
+    // live registry rather than hardcoded so reactivating a code updates this test with it.
     const realProtectedUnavailableCodes = ["017", "054", "063", "065", "066", "067", "069", "072", "073", "074", "076", "078", "079", "081"].map((suffix) => `M${suffix.replace(/^0/, "")}`);
-    const noSourceCodes = new Set([...realProtectedUnavailableCodes, "M70"]);
+    const quarantinedCodes = [...MATRIX_SUMMARY_REQUIRED_CODES].map((code) => `M${code.replace(/^0/, "")}`);
+    const noSourceCodes = new Set([...realProtectedUnavailableCodes, ...quarantinedCodes, "M70"]);
     const playerCodes = metricRows.map((r) => String(r["metric_code"])).filter((c) => !metaCodes.includes(c) && !noSourceCodes.has(c));
     expect(playerCodes).toHaveLength(DEF_COUNTS.METRICS - 7 - noSourceCodes.size);
     for (const code of playerCodes) expect(seenByResearch.has(code), `player metric ${code} was never sent to research`).toBe(true);

@@ -152,7 +152,12 @@ async function activeMetrics():Promise<Metric[]>{const {data:doc,error:docError}
   // obtainable/reconstructable pathway exists) are excluded the same way, and for the
   // same reason: sampling them here would only ever measure their absence, never their
   // evidence. UNKNOWN_REQUIRES_REVIEW codes stay in (burden of proof not met).
-  return(data??[]).filter((r:any)=>Number(r.rule_code)>=1&&Number(r.rule_code)<=81&&classifyMetric(r.rule_code)!=="META_OR_NON_PLAYER"&&classifyMetric(r.rule_code)!=="PROTECTED_UNAVAILABLE").map((r:any)=>({code:String(r.rule_code),name:String(r.rule_name),body:r.body??null}));}
+  // MATRIX_SUMMARY_REQUIRED codes are excluded here for the same reason: they are
+  // quarantined out of the ACTIVE pipeline pending real Tennis Matrix AI Summary
+  // evidence, so sampling them would only ever measure that absence. They must also
+  // be excluded to keep this function's count equal to playerEvidenceDenominatorCodes()
+  // below, which now subtracts them too.
+  return(data??[]).filter((r:any)=>Number(r.rule_code)>=1&&Number(r.rule_code)<=81&&classifyMetric(r.rule_code)!=="META_OR_NON_PLAYER"&&classifyMetric(r.rule_code)!=="PROTECTED_UNAVAILABLE"&&classifyMetric(r.rule_code)!=="MATRIX_SUMMARY_REQUIRED").map((r:any)=>({code:String(r.rule_code),name:String(r.rule_name),body:r.body??null}));}
 async function deterministic(metric:Metric,match:RepresentativeMatch){const runners=[()=>deterministicRankingMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicRulesContextMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,context:match.context}),()=>deterministicEnvironmentMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament}),()=>deterministicMarketMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicPbpMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date}),()=>deterministicResultsScheduleMetric({metricCode:metric.code,p1:match.p1,p2:match.p2,asOfDate:match.date,tournament:match.tournament})];const errors:string[]=[];for(const runner of runners){try{const row=await runner();if(row)return{row,errors};}catch(error){errors.push(error instanceof Error?error.message:String(error));}}return{row:null,errors};}
 async function deterministicBatch(metrics:Metric[],match:RepresentativeMatch){const out=new Map<string,LocalResult>();for(let i=0;i<metrics.length;i+=DIAGNOSTIC_QUERY_CONCURRENCY){const chunk=metrics.slice(i,i+DIAGNOSTIC_QUERY_CONCURRENCY);const rows=await Promise.all(chunk.map(async metric=>[codeOf(metric.code),await deterministic(metric,match)] as const));for(const [code,result] of rows)out.set(code,result);}return out;}
 

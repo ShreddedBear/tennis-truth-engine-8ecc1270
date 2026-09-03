@@ -57,7 +57,11 @@ describe("evidence availability accounting", () => {
         id: "WTA_CHALLENGER",
         sampling_source: "source_observations",
         metrics: [
-          { metric_code:"024", pair_credited:false, p1_credited:false, p2_credited:false, source_expected:["POINT_BY_POINT"], observed_families:["POINT_BY_POINT"], failure_bucket:"RECONSTRUCTION_FAILURE" },
+          // "032" (Point-to-Game Conversion Efficiency) is used as the PBP-expected sample
+          // code. It was previously "024", which is now MATRIX_SUMMARY_REQUIRED and would
+          // short-circuit to that classification instead of being scored through the
+          // software-loss buckets -- see the dedicated quarantine assertion below.
+          { metric_code:"032", pair_credited:false, p1_credited:false, p2_credited:false, source_expected:["POINT_BY_POINT"], observed_families:["POINT_BY_POINT"], failure_bucket:"RECONSTRUCTION_FAILURE" },
           { metric_code:"062", pair_credited:true, p1_credited:true, p2_credited:true, p1_treatment:"RECONSTRUCTED", p2_treatment:"RECONSTRUCTED", source_expected:["RANKING"], observed_families:["RANKING"], failure_bucket:null },
         ],
       }],
@@ -66,6 +70,23 @@ describe("evidence availability accounting", () => {
     expect(enriched.matches[0].metrics[0].availability_class).toBe("PBP_EXISTS_NOT_WIRED");
     expect(enriched.matches[0].metrics[1].availability_class).toBe("EVIDENCE_RETRIEVES_CORRECTLY");
     expect(enriched.matches[0].availability_accounting.maximum_recoverable_ceiling_percent).toBe(100);
+  });
+
+  it("reports a Matrix-Summary-quarantined code as its own class, never as software loss or genuine unavailability", () => {
+    // A quarantined code's evidence is absent because the Truth Engine does not hold the
+    // Matrix Summary yet -- neither a wiring defect nor a permanent source gap. It must
+    // report that reason rather than being recoded into either failure bucket.
+    const enriched = enrichEvidenceCoverageAccounting({
+      matches: [{
+        id: "WTA_CHALLENGER",
+        sampling_source: "source_observations",
+        metrics: [
+          { metric_code:"024", pair_credited:false, p1_credited:false, p2_credited:false, source_expected:["POINT_BY_POINT"], observed_families:["POINT_BY_POINT"], failure_bucket:"RECONSTRUCTION_FAILURE" },
+        ],
+      }],
+    });
+    expect(enriched.matches[0].metrics[0].metric_classification).toBe("MATRIX_SUMMARY_REQUIRED");
+    expect(enriched.matches[0].metrics[0].availability_class).toBe("MATRIX_SUMMARY_REQUIRED");
   });
 
   it("does not infer PBP existence from source_expected alone, but still counts the actually-observed family as software loss", () => {

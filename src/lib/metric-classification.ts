@@ -20,6 +20,7 @@ export type MetricClassification =
   | "LEGITIMATE_PLAYER_METRIC"
   | "META_OR_NON_PLAYER"
   | "PROTECTED_UNAVAILABLE"
+  | "MATRIX_SUMMARY_REQUIRED"
   | "UNKNOWN_REQUIRES_REVIEW";
 
 export type ClassificationRecord = {
@@ -37,6 +38,10 @@ export type ClassificationRecord = {
 };
 
 const DATE = "2026-08-27";
+// Separate stamp for the Matrix-Summary quarantine below: it is a later, distinct
+// decision from the Task 20/21 classification sweep DATE marks, and dating them the
+// same would misrepresent when each determination was actually made.
+const QUARANTINE_DATE = "2026-09-03";
 
 // META_OR_NON_PLAYER: the metric's own definition (public/seed/metrics.txt)
 // describes a property of the prediction/model/evidence process itself, not
@@ -389,6 +394,90 @@ const PROTECTED: ClassificationRecord[] = [
   },
 ];
 
+// MATRIX_SUMMARY_REQUIRED: a QUARANTINE, not a deletion and not a permanent
+// determination.
+//
+// The Truth Engine independently audits Tennis Matrix AI's predictions. It is NOT
+// Tennis Matrix AI, and it may only use evidence the Truth Engine itself actually
+// possesses. The codes below require actual Tennis Matrix AI Summary evidence that
+// has not yet been uploaded into the Truth Engine. Until it is, these codes are
+// deliberately held out of the ACTIVE audit pipeline so they cannot hold down,
+// fail, block, or invalidate an audit merely because that evidence is absent.
+//
+// This is emphatically NOT the same statement as PROTECTED_UNAVAILABLE above.
+// PROTECTED_UNAVAILABLE means "no legitimate obtainable or reconstructable evidence
+// pathway exists anywhere in the approved evidence universe" -- a structural,
+// indefinite fact about the data. MATRIX_SUMMARY_REQUIRED means "the required
+// Tennis Matrix AI Summary evidence is not in the Truth Engine YET" -- a current
+// possession state that a future upload is expected to change. The two are kept as
+// separate buckets precisely so this distinction stays auditable and reversible;
+// they are never merged, and a MATRIX_SUMMARY_REQUIRED code is never described as
+// failed, zero, incorrect, retired, deleted, or permanently disabled.
+//
+// Mechanically these codes reuse the EXISTING unavailability architecture rather
+// than introducing a second competing status system: exactly like
+// PROTECTED_UNAVAILABLE, they instantiate with row status NO_SOURCE and
+// p1_treatment/p2_treatment "UNAVAILABLE" (audit-pipeline.ts's isNoSourceRuleCode),
+// are subtracted from the coverage denominator by metric-code identity
+// (audit-engine.ts's isNoSourceMetricCode), and are never asked for player evidence.
+// They carry their own distinct unavailable_reason (MATRIX_SUMMARY_EVIDENCE_REQUIRED)
+// so they are never conflated with NO_SOURCE_NO_LEGITIMATE_PATHWAY in any report.
+//
+// Definitions, formulas, schemas, metric IDs/names, historical metric_results rows,
+// and historical evidence rows are all deliberately left untouched by this
+// quarantine -- nothing here deletes, rewrites, or backfills anything.
+//
+// REACTIVATION IS NOT AUTOMATIC. Uploading a Matrix Summary does not by itself
+// return a code to the active pipeline. The intended path is:
+//   Matrix Summary uploaded -> evidence extraction -> field validation -> metric
+//   eligibility check -> required-input check -> calculate -> evidence/provenance
+//   -> persist -> audit-performance evaluation -> earned reactivation
+// i.e. UNAVAILABLE -> ELIGIBLE -> TESTING -> PROVEN/ACTIVE. Removing a record from
+// this array is the deliberate, reviewed final step of that path, never a side
+// effect of a Summary merely existing.
+//
+// Note on code 017 ("Shot & Rally Metrics"): it is part of the same 16-code
+// quarantine request but already carries a PROTECTED_UNAVAILABLE record above, which
+// already produces the exact required end state (NO_SOURCE row status, UNAVAILABLE
+// treatment, out of the denominator, non-blocking, reversible). It is deliberately
+// NOT duplicated here -- a code may hold only one classification record, and moving
+// it would overwrite its existing documented shot-tracking determination for no
+// behavioural gain.
+const MATRIX_SUMMARY: ClassificationRecord[] = (
+  [
+    ["015", "Market Layer"],
+    ["019", "Market Calibration"],
+    ["022", "Serve/Return Shot-Level Efficiency"],
+    ["024", "Hidden Performance Quality"],
+    ["025", "Match Deterioration Metrics"],
+    ["026", "Early-Warning / Slow-Start Metrics"],
+    ["033", "Break Quality Differential"],
+    ["035", "False-Form Detector"],
+    ["037", "Win Autopsy Metrics"],
+    ["039", "Performance Surprise Rating"],
+    ["040", "Hidden Decline Detector"],
+    ["042", "Opponent Win Pathways"],
+    ["060", "Interaction / Matchup Residuals"],
+    ["070", "Support Team / Prep"],
+    ["075", "Match Format / Rules Context"],
+  ] as const
+).map(([metric_code, metric_name]) => ({
+  metric_code,
+  metric_name,
+  classification: "MATRIX_SUMMARY_REQUIRED" as const,
+  required_raw_fields:
+    "Actual Tennis Matrix AI Summary evidence uploaded into the Truth Engine, extracted and field-validated, sufficient to satisfy this code's own definition.",
+  sources_checked: ["Truth Engine uploaded Tennis Matrix AI Summary evidence (none present for this code at quarantine time)"],
+  reconstruction_attempted: false,
+  reconstruction_result:
+    "NOT_ATTEMPTED — deliberately not reconstructed from substitute inputs. General tennis data, external tennis sites, historical match data, estimates, defaults, placeholders, synthetic values and inferred opponent information are all inadmissible stand-ins for the missing Matrix Summary and must never be used to make this code calculable.",
+  reason:
+    "Quarantined from the ACTIVE audit pipeline pending real Tennis Matrix AI Summary evidence in the Truth Engine. Definition, formulas, schema, metric ID/name and all historical results/evidence are preserved; only current active-audit eligibility is withdrawn, so the code contributes no active weight and cannot block an audit.",
+  whether_future_ingestion_could_change_status: true,
+  date_classified: QUARANTINE_DATE,
+  review_status: "REVIEWED" as const,
+}));
+
 // UNKNOWN_REQUIRES_REVIEW: mixed metrics whose definition contains both a
 // legitimately-reconstructable player/matchup component and a component that
 // is meta (about the model/prediction, not a player). Kept IN the player
@@ -420,14 +509,26 @@ const UNKNOWN: ClassificationRecord[] = [];
 
 export const META_OR_NON_PLAYER_RECORDS = META;
 export const PROTECTED_UNAVAILABLE_RECORDS = PROTECTED;
+export const MATRIX_SUMMARY_REQUIRED_RECORDS = MATRIX_SUMMARY;
 export const UNKNOWN_REQUIRES_REVIEW_RECORDS = UNKNOWN;
 
 export const META_OR_NON_PLAYER_CODES = new Set(META.map((r) => r.metric_code));
 export const PROTECTED_UNAVAILABLE_CODES = new Set(PROTECTED.map((r) => r.metric_code));
+export const MATRIX_SUMMARY_REQUIRED_CODES = new Set(MATRIX_SUMMARY.map((r) => r.metric_code));
 export const UNKNOWN_REQUIRES_REVIEW_CODES = new Set(UNKNOWN.map((r) => r.metric_code));
 
-const ALL_RECORDS = [...META, ...PROTECTED, ...UNKNOWN];
+const ALL_RECORDS = [...META, ...PROTECTED, ...MATRIX_SUMMARY, ...UNKNOWN];
 const BY_CODE = new Map(ALL_RECORDS.map((r) => [r.metric_code, r]));
+
+// A code may hold exactly one classification record. Two records for the same code
+// would make classifyMetric() depend on array order, which is precisely the kind of
+// silent drift this registry exists to prevent -- so it is asserted at module load
+// rather than left to be discovered by a confusing downstream mis-classification.
+if (BY_CODE.size !== ALL_RECORDS.length) {
+  const seen = new Set<string>();
+  const duplicates = ALL_RECORDS.map((r) => r.metric_code).filter((code) => (seen.has(code) ? true : (seen.add(code), false)));
+  throw new Error(`metric-classification: a metric code carries more than one classification record: ${[...new Set(duplicates)].join(", ")}`);
+}
 
 export function classificationRecordFor(metricCode: string): ClassificationRecord | null {
   return BY_CODE.get(metricCode.padStart(3, "0")) ?? null;
@@ -437,10 +538,34 @@ export function classifyMetric(metricCode: string): MetricClassification {
   return classificationRecordFor(metricCode)?.classification ?? "LEGITIMATE_PLAYER_METRIC";
 }
 
-// PLAYER Evidence Coverage denominator: every code 001-081 minus
-// META_OR_NON_PLAYER and PROTECTED_UNAVAILABLE. UNKNOWN_REQUIRES_REVIEW stays
-// IN the denominator — it has not (yet) met the exclusion burden of proof.
+// ACTIVE PLAYER Evidence Coverage denominator: every code 001-081 minus
+// META_OR_NON_PLAYER, PROTECTED_UNAVAILABLE and MATRIX_SUMMARY_REQUIRED.
+// UNKNOWN_REQUIRES_REVIEW stays IN the denominator — it has not (yet) met the
+// exclusion burden of proof.
+//
+// MATRIX_SUMMARY_REQUIRED is subtracted here so a quarantined code contributes no
+// active audit weight and can never drag the coverage percentage down while its
+// Matrix Summary evidence is absent. It is a CURRENT-eligibility subtraction, not a
+// statement that the code is retired: restoring a code is exactly the act of removing
+// its record from MATRIX_SUMMARY, whereupon it re-enters this denominator unchanged.
 export function playerEvidenceDenominatorCodes(): string[] {
+  const codes: string[] = [];
+  for (let i = 1; i <= 81; i++) {
+    const code = String(i).padStart(3, "0");
+    if (META_OR_NON_PLAYER_CODES.has(code) || PROTECTED_UNAVAILABLE_CODES.has(code) || MATRIX_SUMMARY_REQUIRED_CODES.has(code)) continue;
+    codes.push(code);
+  }
+  return codes;
+}
+
+/**
+ * Every code 001-081 that is a legitimate player metric on its own terms, INCLUDING
+ * the ones currently quarantined pending Matrix Summary evidence. This is the
+ * "what would be in scope if the Truth Engine had every Summary" view, kept
+ * separate from playerEvidenceDenominatorCodes() (the ACTIVE view) so a quarantine
+ * is never mistaken for a permanent reduction of the metric universe.
+ */
+export function playerMetricCodesIncludingQuarantined(): string[] {
   const codes: string[] = [];
   for (let i = 1; i <= 81; i++) {
     const code = String(i).padStart(3, "0");
@@ -451,14 +576,20 @@ export function playerEvidenceDenominatorCodes(): string[] {
 }
 
 export function metricUniverseAccounting() {
+  const activeDenominator = 81 - META_OR_NON_PLAYER_CODES.size - PROTECTED_UNAVAILABLE_CODES.size - MATRIX_SUMMARY_REQUIRED_CODES.size;
   return {
     total_original_metric_universe: 81,
     meta_or_non_player_count: META_OR_NON_PLAYER_CODES.size,
     protected_unavailable_count: PROTECTED_UNAVAILABLE_CODES.size,
+    matrix_summary_required_count: MATRIX_SUMMARY_REQUIRED_CODES.size,
     unknown_requires_review_count: UNKNOWN_REQUIRES_REVIEW_CODES.size,
-    legitimate_player_metric_count: 81 - META_OR_NON_PLAYER_CODES.size - PROTECTED_UNAVAILABLE_CODES.size,
+    // ACTIVE player-evidence denominator (quarantined codes withheld).
+    legitimate_player_metric_count: activeDenominator,
+    // What the denominator returns to if every quarantined code is reactivated.
+    legitimate_player_metric_count_including_quarantined: activeDenominator + MATRIX_SUMMARY_REQUIRED_CODES.size,
     meta_or_non_player_codes: [...META_OR_NON_PLAYER_CODES],
     protected_unavailable_codes: [...PROTECTED_UNAVAILABLE_CODES],
+    matrix_summary_required_codes: [...MATRIX_SUMMARY_REQUIRED_CODES],
     unknown_requires_review_codes: [...UNKNOWN_REQUIRES_REVIEW_CODES],
   };
 }
