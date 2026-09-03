@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
+import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
 import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
@@ -128,8 +129,16 @@ function Workspace() {
         .eq("match_id", matchId)
         .order("run_number", { ascending: false });
       if (runsError) throw new Error(`Could not load audit runs: ${runsError.message}`);
-      const run = runs?.[0] ?? null;
-      if (!run) return { match, run: null };
+      // resolveActiveRun resolves straight through an INVALIDATED (Clear
+      // Slate, or a rule-version change) run to null -- exactly as if no run
+      // existed yet -- rather than falling through to the "No audit run yet"
+      // branch below with a dead run's stale diagnostics/report/progress
+      // still attached. That branch's own zero-state is what makes this a
+      // true clean slate: no report, no stage rows, no counts, until a
+      // genuinely new audit_run_id exists.
+      const run = resolveActiveRun(runs ?? []);
+      const wasInvalidated = !run && !!runs?.length;
+      if (!run) return { match, run: null, wasInvalidated };
       const calibrationVersionQuery = run.calibration_version_id
         ? supabase.from("calibration_versions").select("*").eq("id", run.calibration_version_id).maybeSingle()
         : supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
@@ -156,6 +165,7 @@ function Workspace() {
       return {
         match,
         run,
+        wasInvalidated: false,
         metrics: metrics.data ?? [],
         verification: verification.data ?? [],
         disagreement: disagreement.data ?? [],
@@ -178,14 +188,23 @@ function Workspace() {
     qc.invalidateQueries({ queryKey: ["stages", matchId] });
   };
 
+  // Scoped by the CURRENT run's id, not just match_id: audit_stage_runs keeps
+  // one full set of 13 stage rows per run_number (a match can accumulate rows
+  // from several past runs -- a reset, a forced re-audit). Filtering by
+  // match_id alone would mix a prior run's stale COMPLETE rows in with the
+  // current run's in-progress ones, which is exactly how this panel could
+  // show a downstream stage (or even the Final Combination Gate) as COMPLETE
+  // next to upstream stages still executing.
+  const currentRunId = data?.run?.id;
   const { data: stages } = useQuery({
-    queryKey: ["stages", matchId],
+    queryKey: ["stages", matchId, currentRunId],
     refetchInterval: 3000,
+    enabled: !!currentRunId,
     queryFn: async () => {
       const { data: rows } = await supabase
         .from("audit_stage_runs")
         .select("*")
-        .eq("match_id", matchId)
+        .eq("audit_run_id", currentRunId as string)
         .order("stage_order");
       return rows ?? [];
     },
@@ -234,7 +253,11 @@ function Workspace() {
   if (!run)
     return (
       <div className="panel space-y-3 p-6 text-sm">
-        <p>No audit run yet for {match.player1_name} vs {match.player2_name}.</p>
+        <p>
+          {data.wasInvalidated
+            ? `The slate was cleared for ${match.player1_name} vs ${match.player2_name} — no active audit run yet.`
+            : `No audit run yet for ${match.player1_name} vs ${match.player2_name}.`}
+        </p>
         <Button onClick={runAudit} disabled={running}>
           {running ? "Running audit…" : "Run Audit"}
         </Button>
@@ -270,6 +293,7 @@ function Workspace() {
     reconstructions: data.reconstructions ?? [],
     conflicts: data.conflicts ?? [],
     matrixWp,
+    stages: (stages ?? []).map((st) => ({ stage: String(st.stage), status: String(st.status) })),
   };
   const report = evaluate(engineInput);
   const committed = !!run.independent_decision_committed_at;
@@ -374,17 +398,25 @@ function Workspace() {
             No stage has executed yet. Press Run Audit to execute the pipeline end to end.
           </p>
         )}
+        {/*
+          Exactly one canonical row per stage, always in the fixed 1-16
+          dependency order (audit-stages.ts's STAGES) -- never database
+          insertion order, updated_at, attempt number, or whichever row
+          happened to load first. A stage with no audit_stage_runs row yet
+          (row === null) still renders, as PENDING, so the panel always shows
+          all 16 canonical stages for the current run, never fewer.
+        */}
         <div className="mt-2 grid gap-1 text-xs md:grid-cols-2">
-          {stages?.map((st) => (
-            <div key={st.stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
-              <span className="truncate">{st.stage}</span>
+          {canonicalizeStageRows(stages ?? []).map(({ stage, row }) => (
+            <div key={stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
+              <span className="truncate">{stage}</span>
               <span className="mono-num flex shrink-0 items-center gap-2">
                 <span>
-                  {st.done_count}/{st.total_count} · attempt {st.attempts}
+                  {row ? `${row.done_count}/${row.total_count} · attempt ${row.attempts}` : "not started"}
                 </span>
-                <StateText state={st.status} />
+                <StateText state={row?.status ?? "PENDING"} />
               </span>
-              {st.error_message && <span className="text-blocked">{st.error_message}</span>}
+              {row?.error_message && <span className="text-blocked">{row.error_message}</span>}
             </div>
           ))}
         </div>
@@ -428,8 +460,12 @@ function Workspace() {
             <p>{report.effectiveEvidenceCount}</p>
           </div>
         </div>
-        <p className={`mt-3 text-sm font-semibold ${report.auditComplete ? "text-ok" : "text-warn"}`}>
-          {report.auditComplete ? "AUDIT COMPLETE — NO REQUIRED STEPS MISSING · NO SHORTCUTS" : "AUDIT INCOMPLETE"}
+        <p className={`mt-3 text-sm font-semibold ${report.auditComplete && report.stagesComplete ? "text-ok" : "text-warn"}`}>
+          {report.auditComplete && report.stagesComplete
+            ? "AUDIT COMPLETE — NO REQUIRED STEPS MISSING · NO SHORTCUTS"
+            : !report.stagesComplete
+              ? `AUDIT INCOMPLETE — pipeline still executing: ${report.stageGaps.join(", ")}`
+              : "AUDIT INCOMPLETE"}
         </p>
         <div className="mt-3 rounded-md border border-border p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

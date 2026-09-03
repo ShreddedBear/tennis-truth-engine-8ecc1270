@@ -19,6 +19,8 @@ import { reconstruct, type SourcedStat } from "./reconstruction/engine";
 import { familyOf } from "./reconstruction/stat-catalog";
 import { classifyMetric } from "./metric-classification";
 import { buildCalibrationSnapshot } from "./calibration-snapshot";
+import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
+export { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, resolveActiveRun, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 
 // Task 20/21 canonical classification reconciliation: codes classified
 // META_OR_NON_PLAYER in the canonical registry (public/seed/metrics.txt, see
@@ -43,10 +45,6 @@ function isNoSourceRuleCode(ruleCode: string): boolean {
   return classifyMetric(ruleCode) === "PROTECTED_UNAVAILABLE";
 }
 
-export const STAGES = [
-  "MATCH IDENTITY VERIFICATION","MATCH CONTEXT RESOLUTION","DEFINITION INSTANTIATION","P1 METRIC EXECUTION","P2 METRIC EXECUTION","VERIFICATION AUDIT","DISAGREEMENT / TRAP AUDIT","DANGEROUS UNDERDOG AUDIT","STRESS / REMOVAL TESTS","INDEPENDENT CONCLUSION","MATRIX REVEAL AND COMPARISON","CURRENT CALIBRATION APPLICATION","FINAL COMBINATION GATE",
-] as const;
-export type Stage=(typeof STAGES)[number];
 export const TREATMENTS=["DIRECT","RECONSTRUCTED","PARTIAL","UNAVAILABLE","EXCLUDED","NO_SOURCE"] as const;
 export type Treatment=(typeof TREATMENTS)[number];
 
@@ -75,6 +73,28 @@ function errorDetail(error:unknown){return error instanceof Error?error.message.
 function digestFrom(match:MatchRow,metrics:Array<Record<string,unknown>>):EvidenceDigest{return{p1:match.player1_name,p2:match.player2_name,context:[match.tournament_name&&`tournament ${match.tournament_name}`,match.event_level&&`level ${match.event_level}`,match.round&&`round ${match.round}`,match.scheduled_date&&`date ${match.scheduled_date}`,match.surface&&`surface ${match.surface}`,match.indoor===null||match.indoor===undefined?null:match.indoor?"indoor":"outdoor",match.best_of&&`best of ${match.best_of}`].filter(Boolean).join(" · "),metrics:metrics.filter(m=>m["p1_value"]||m["p2_value"]).map(m=>({code:String(m["metric_code"]),name:String(m["metric_name"]),p1:s(m["p1_value"]),p2:s(m["p2_value"]),family:s(m["evidence_family"])}))};}
 const treatmentToStatus=(t:Treatment)=>t==="UNAVAILABLE"?"UNAVAILABLE":t==="EXCLUDED"?"EXCLUDED":"COMPLETE";
 
+// ----------------------------------------------------------------------------
+// DEPENDENCY GATE: the single choke point every audit_stage_runs write with
+// status "COMPLETE" must pass through, in every code path (the execution
+// loop below, and any future writer). A downstream stage must not become
+// COMPLETE merely because its own stage function ran -- it must prove every
+// required upstream stage (per STAGE_DEPENDENCIES, audit-stages.ts) is
+// ALREADY persisted COMPLETE in the same run. If not, the attempted
+// completion is downgraded to BLOCKED with an UPSTREAM_DEPENDENCY_INCOMPLETE
+// error instead of being written as COMPLETE.
+// ----------------------------------------------------------------------------
+export interface StageDependencyGuard{patch:Record<string,unknown>;blocked:boolean;missing:Stage[]}
+export function enforceStageDependencies(stage:Stage,patch:Record<string,unknown>,rows:readonly{stage:string;status:string}[]):StageDependencyGuard{
+  if(patch["status"]!=="COMPLETE")return{patch,blocked:false,missing:[]};
+  const missing=unmetDependencies(stage,rows);
+  if(!missing.length)return{patch,blocked:false,missing:[]};
+  return{
+    patch:{...patch,status:"BLOCKED",finished_at:null,error_code:"UPSTREAM_DEPENDENCY_INCOMPLETE",error_message:`Cannot complete ${stage}: upstream stage(s) not complete: ${missing.join(", ")}.`},
+    blocked:true,
+    missing,
+  };
+}
+
 export async function runPipeline(deps:PipelineDeps,matchId:string,opts:{budgetMs?:number;forceNewRun?:boolean}={}):Promise<PipelineResult>{
   const budget=Math.max(1,opts.budgetMs??DEFAULT_BUDGET_MS),startedAt=Date.now(),deadline=startedAt+budget,outOfTime=()=>Date.now()>deadline;
   const match=await deps.getMatch(matchId);if(!match)throw new Error(`Match ${matchId} not found`);
@@ -94,12 +114,34 @@ export async function runPipeline(deps:PipelineDeps,matchId:string,opts:{budgetM
   const stageState=new Map(initial.map(r=>[r.stage,r]));
   try{
     for(const stage of STAGES){
-      if(stageState.get(stage)?.status==="COMPLETE")continue;
+      const current=stageState.get(stage);
+      if(current?.status==="COMPLETE"){
+        // Never trust a persisted COMPLETE at face value: prove every stage
+        // STAGE_DEPENDENCIES requires ahead of it is ALSO COMPLETE. A stale or
+        // out-of-order COMPLETE (leftover data, a bug elsewhere, a hand edit)
+        // is downgraded and re-queued instead of silently propagating downstream.
+        const staleGaps=unmetDependencies(stage,Array.from(stageState.values()));
+        if(!staleGaps.length)continue;
+        const message=`Stage ${stage} was marked COMPLETE but upstream stage(s) are not: ${staleGaps.join(", ")}. Downgraded for re-execution in dependency order.`;
+        try{await deps.setStage(run.id,matchId,stage,{status:"BLOCKED",error_code:"UPSTREAM_DEPENDENCY_INCOMPLETE",error_message:message,finished_at:null,heartbeat_at:deps.now().toISOString()});}
+        catch{/* best effort downgrade; a resumed call will retry this stage */}
+        stageState.set(stage,{...(current as StageRow),status:"BLOCKED",error_message:message});
+        failures.push({stage,message});nextStage=stage;break;
+      }
       if(outOfTime()){nextStage=stage;break;}
+      const preGaps=unmetDependencies(stage,Array.from(stageState.values()));
+      if(preGaps.length){
+        const message=`Cannot start ${stage}: upstream stage(s) not complete: ${preGaps.join(", ")}.`;
+        try{await deps.setStage(run.id,matchId,stage,{status:"BLOCKED",error_code:"UPSTREAM_DEPENDENCY_INCOMPLETE",error_message:message,heartbeat_at:deps.now().toISOString()});}
+        catch{/* best effort */}
+        stageState.set(stage,{...(current??{stage,status:"BLOCKED",attempts:0,error_message:null,done_count:0,total_count:0}),status:"BLOCKED",error_message:message} as StageRow);
+        failures.push({stage,message});nextStage=stage;break;
+      }
       const attempts=(stageState.get(stage)?.attempts??0)+1;
       try{
         if(deps.renewRunLease&&!(await deps.renewRunLease(run.id,owner,Math.max(600_000,budget*3))))throw new Error("Audit execution lease was lost before starting this stage; it will be resumed safely.");
         await deps.setStage(run.id,matchId,stage,{status:"RUNNING",attempts,started_at:deps.now().toISOString(),heartbeat_at:deps.now().toISOString(),error_code:null,error_message:null});
+        stageState.set(stage,{...(current??{}) as StageRow,stage,status:"RUNNING",attempts});
       }catch(e){
         const message=(e as Error).message||String(e);
         failures.push({stage,message:`Could not start or persist ${stage}: ${message}`});nextStage=stage;break;
@@ -112,8 +154,12 @@ export async function runPipeline(deps:PipelineDeps,matchId:string,opts:{budgetM
         const outcome=await executeStage(deps,stage,matchId,run.id,{deadline,progress});
         if(deps.renewRunLease&&!(await deps.renewRunLease(run.id,owner,Math.max(600_000,budget*3))))throw new Error("Audit execution lease was lost before this stage could persist its result; the newer driver owns completion.");
         const partial=outcome.status==="PARTIAL";
-        await deps.setStage(run.id,matchId,stage,{status:partial?"RUNNING":outcome.status,finished_at:partial?null:deps.now().toISOString(),heartbeat_at:deps.now().toISOString(),done_count:Math.max(0,outcome.done),total_count:Math.max(0,outcome.total),detail:outcome.detail??{},error_code:outcome.status==="FAILED"||outcome.status==="BLOCKED"?outcome.errorCode??null:null,error_message:outcome.status==="FAILED"||outcome.status==="BLOCKED"?outcome.message??null:null});
-        await deps.log({audit_run_id:run.id,match_id:matchId,stage,status:partial?"RUNNING":outcome.status,output:{done:outcome.done,total:outcome.total,...(outcome.detail??{})},matrix_visible:["MATRIX REVEAL AND COMPARISON","CURRENT CALIBRATION APPLICATION","FINAL COMBINATION GATE"].includes(stage)});
+        const basePatch={status:partial?"RUNNING":outcome.status,finished_at:partial?null:deps.now().toISOString(),heartbeat_at:deps.now().toISOString(),done_count:Math.max(0,outcome.done),total_count:Math.max(0,outcome.total),detail:outcome.detail??{},error_code:outcome.status==="FAILED"||outcome.status==="BLOCKED"?outcome.errorCode??null:null,error_message:outcome.status==="FAILED"||outcome.status==="BLOCKED"?outcome.message??null:null};
+        const guard=enforceStageDependencies(stage,basePatch,Array.from(stageState.values()));
+        await deps.setStage(run.id,matchId,stage,guard.patch);
+        stageState.set(stage,{...(current??{}) as StageRow,stage,status:String(guard.patch["status"]),error_message:(guard.patch["error_message"]as string|null)??null});
+        await deps.log({audit_run_id:run.id,match_id:matchId,stage,status:guard.patch["status"]as string,output:{done:outcome.done,total:outcome.total,...(outcome.detail??{}),...(guard.blocked?{upstream_gap:guard.missing}:{})},matrix_visible:["MATRIX REVEAL AND COMPARISON","CURRENT CALIBRATION APPLICATION","COVERAGE PERSISTENCE / EVIDENCE VALIDATION","FINAL DECISION","FINAL COMBINATION GATE"].includes(stage)});
+        if(guard.blocked){failures.push({stage,message:guard.patch["error_message"]as string});nextStage=stage;break;}
         if(partial){nextStage=stage;break;}
         if(outcome.status!=="COMPLETE"){failures.push({stage,message:outcome.message??"stage did not complete"});nextStage=stage;break;}
       }catch(e){
@@ -211,7 +257,7 @@ export function metricRowsForSideExecution(rows:Array<Record<string,unknown>>,si
 async function ensureRun(deps:PipelineDeps,match:MatchRow,forceNewRun=false):Promise<RunRow>{
   const existing=await deps.getLatestRun(match.id);
   const now=deps.now();
-  if(!forceNewRun&&existing&&existing.status!=="INVALIDATED — RERUN REQUIRED"){
+  if(!forceNewRun&&existing&&isActiveRunStatus(existing.status)){
     if(existing.status==="COMPLETE")return existing;
     const expired=existing.status==="RUNNING"&&lockExpired(existing.research_lock_at,now);
     if(!existing.research_lock_at||expired){
@@ -256,7 +302,19 @@ export async function preparePipelineRun(deps:PipelineDeps,matchId:string):Promi
 interface StageOutcome{status:"COMPLETE"|"BLOCKED"|"FAILED"|"PARTIAL";done:number;total:number;message?:string;errorCode?:string;detail?:Record<string,unknown>;}
 interface StageCtx{deadline:number;progress:(done:number,total:number)=>Promise<void>;}
 
-async function executeStage(deps:PipelineDeps,stage:Stage,matchId:string,runId:string,ctx:StageCtx):Promise<StageOutcome>{switch(stage){case"MATCH IDENTITY VERIFICATION":case"MATCH CONTEXT RESOLUTION":return identityAndContext(deps,matchId,runId,stage);case"DEFINITION INSTANTIATION":return instantiate(deps,matchId,runId);case"P1 METRIC EXECUTION":case"P2 METRIC EXECUTION":return executeMetrics(deps,matchId,runId,stage==="P1 METRIC EXECUTION"?"p1":"p2",ctx);case"VERIFICATION AUDIT":return executeRules(deps,matchId,runId,"VERIFICATION",ctx);case"DISAGREEMENT / TRAP AUDIT":return executeRules(deps,matchId,runId,"DISAGREEMENT",ctx);case"DANGEROUS UNDERDOG AUDIT":return executeUnderdog(deps,matchId,runId);case"STRESS / REMOVAL TESTS":return executeStress(deps,matchId,runId);case"INDEPENDENT CONCLUSION":return commitConclusion(deps,matchId,runId);case"MATRIX REVEAL AND COMPARISON":return revealMatrix(deps,matchId,runId);case"CURRENT CALIBRATION APPLICATION":return applyCalibration(deps,matchId,runId);case"FINAL COMBINATION GATE":return finalGate(deps,matchId,runId);}}
+async function executeStage(deps:PipelineDeps,stage:Stage,matchId:string,runId:string,ctx:StageCtx):Promise<StageOutcome>{switch(stage){case"MATCH INGESTION / PDF EXTRACTION":return confirmIngestion(deps,matchId);case"MATCH IDENTITY VERIFICATION":case"MATCH CONTEXT RESOLUTION":return identityAndContext(deps,matchId,runId,stage);case"DEFINITION INSTANTIATION":return instantiate(deps,matchId,runId);case"P1 METRIC EXECUTION":case"P2 METRIC EXECUTION":return executeMetrics(deps,matchId,runId,stage==="P1 METRIC EXECUTION"?"p1":"p2",ctx);case"VERIFICATION AUDIT":return executeRules(deps,matchId,runId,"VERIFICATION",ctx);case"DISAGREEMENT / TRAP AUDIT":return executeRules(deps,matchId,runId,"DISAGREEMENT",ctx);case"DANGEROUS UNDERDOG AUDIT":return executeUnderdog(deps,matchId,runId);case"STRESS / REMOVAL TESTS":return executeStress(deps,matchId,runId);case"INDEPENDENT CONCLUSION":return commitConclusion(deps,matchId,runId);case"MATRIX REVEAL AND COMPARISON":return revealMatrix(deps,matchId,runId);case"CURRENT CALIBRATION APPLICATION":return applyCalibration(deps,matchId,runId);case"COVERAGE PERSISTENCE / EVIDENCE VALIDATION":return persistCoverage(deps,matchId,runId);case"FINAL DECISION":return commitFinalDecision(deps,matchId,runId);case"FINAL COMBINATION GATE":return finalGate(deps,matchId,runId);}}
+
+// MATCH INGESTION / PDF EXTRACTION is the first canonical stage, but the work
+// it names (parsing the uploaded PDF into `matches`/`summary_versions`/
+// `parsed_summary_fields`) necessarily already happened before any audit_run
+// -- and therefore this stage's own row -- can exist: runPipeline is only
+// ever invoked for a matchId that resolves to a real, already-ingested match
+// (see the `if(!match)throw` guard at the top of runPipeline). So this stage
+// records that precondition as a real, persisted canonical fact for the
+// current run rather than re-deriving it from upload-time state, closing the
+// only stage in the dependency chain that would otherwise never get an
+// audit_stage_runs row of its own.
+async function confirmIngestion(deps:PipelineDeps,matchId:string):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");return{status:"COMPLETE",done:1,total:1,detail:{player1_name:match.player1_name,player2_name:match.player2_name}};}
 
 async function identityAndContext(deps:PipelineDeps,matchId:string,runId:string,stage:Stage):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const isIdentity=stage==="MATCH IDENTITY VERIFICATION";if(isIdentity&&match.identity_status==="VERIFIED")return{status:"COMPLETE",done:2,total:2};if(!isIdentity&&match.surface_status==="VERIFIED"&&match.scheduled_date&&match.round)return{status:"COMPLETE",done:6,total:6};const parsed=await deps.getParsedFields(matchId);let finding:IdentityFinding;try{finding=await deps.research.identity({p1:match.player1_name,p2:match.player2_name,hints:{tournament:match.tournament_name??parsed["tournament"]??null,round:match.round??parsed["round"]??null,scheduled_date:match.scheduled_date??parsed["scheduled_date"]??null,surface:match.surface??parsed["surface"]??null,event_level:match.event_level??parsed["event_level"]??null}});}catch{if(isIdentity){await deps.updateMatch(matchId,{identity_status:"UNAVAILABLE"});await deps.saveIdentityRecords(matchId,[{field:"player_1",claimed_value:match.player1_name,verified_value:null,status:"UNAVAILABLE",note:"Identity search unavailable; names retained from PDF."},{field:"player_2",claimed_value:match.player2_name,verified_value:null,status:"UNAVAILABLE",note:"Identity search unavailable; names retained from PDF."}]);return{status:"COMPLETE",done:0,total:2,detail:{unavailable:"identity search"}};}await deps.updateMatch(matchId,{surface_status:"UNAVAILABLE"});return{status:"COMPLETE",done:0,total:6,detail:{unavailable:"context search"}};}const retrieved=deps.now().toISOString();await deps.saveSnapshots(runId,finding.sources.map(src=>({source_name:src.source_name,data_key:isIdentity?"match_identity":"match_context",raw_value:src.url,normalized_value:src.url,retrieved_at:src.retrieved_at??retrieved,reliability:.9})));if(finding.conflicts.length)await deps.saveConflicts(runId,finding.conflicts.map(c=>({data_key:c.field,critical:["player_1","player_2","surface"].includes(c.field),values:c.values,resolution_status:"UNRESOLVED",resolution_reason:c.note})));if(isIdentity){const rows=[{field:"player_1",claimed_value:match.player1_name,verified_value:finding.player1_canonical,status:finding.player1_status,note:finding.unresolved_reason},{field:"player_2",claimed_value:match.player2_name,verified_value:finding.player2_canonical,status:finding.player2_status,note:finding.unresolved_reason}];await deps.saveIdentityRecords(matchId,rows);const verified=finding.player1_status==="VERIFIED"&&finding.player2_status==="VERIFIED";await deps.updateMatch(matchId,{identity_status:verified?"VERIFIED":finding.player1_status==="CONFLICT"||finding.player2_status==="CONFLICT"?"CONFLICT":"UNVERIFIED"});const done=[finding.player1_status,finding.player2_status].filter(x=>x==="VERIFIED").length;return{status:"COMPLETE",done,total:2,detail:verified?{}:{identity_unverified:finding.unresolved_reason??"Player identity could not be confirmed against an external tennis source."}};}const patch:Record<string,unknown>={};if(finding.tournament)patch["tournament_name"]=finding.tournament;if(finding.event_level)patch["event_level"]=finding.event_level;if(finding.round)patch["round"]=finding.round;if(finding.scheduled_date)patch["scheduled_date"]=finding.scheduled_date;if(finding.surface)patch["surface"]=finding.surface;if(finding.indoor!==null&&finding.indoor!==undefined)patch["indoor"]=finding.indoor;if(finding.best_of)patch["best_of"]=finding.best_of;patch["surface_status"]=finding.surface?finding.surface_status:"UNVERIFIED";await deps.updateMatch(matchId,patch);await deps.saveIdentityRecords(matchId,(["tournament","event_level","round","scheduled_date","surface","best_of"] as const).map(field=>{const value=s(patch[field==="tournament"?"tournament_name":field]);return{field,claimed_value:parsed[field]??null,verified_value:value,status:value?"VERIFIED":"UNAVAILABLE",note:value?null:finding.unresolved_reason??"Retrieval attempted; no authoritative source carried this field."};}));const fields=["tournament_name","event_level","round","scheduled_date","surface","best_of"],done=fields.filter(f=>patch[f]!==undefined&&patch[f]!==null).length;return{status:"COMPLETE",done,total:fields.length,detail:finding.surface?{unresolved:fields.filter(f=>patch[f]===undefined)}:{unresolved:fields.filter(f=>patch[f]===undefined),surface_unverified:finding.unresolved_reason??"Surface could not be established from any approved source."}};}
 
@@ -292,8 +350,70 @@ async function commitConclusion(deps:PipelineDeps,matchId:string,runId:string):P
 async function revealMatrix(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(!run?.independent_decision_committed_at)return{status:"BLOCKED",done:0,total:1,errorCode:"FIREWALL",message:"Matrix stays sealed until the independent conclusion is committed."};const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;await deps.updateRun(runId,{matrix_revealed_at:deps.now().toISOString()});return{status:"COMPLETE",done:1,total:1,detail:{matrix_predicted_winner:fields["matrix_predicted_winner"]??null,matrix_wp:wp,agrees_with_independent:fields["matrix_predicted_winner"]&&run.independent_winner?fields["matrix_predicted_winner"].toLowerCase().includes(run.independent_winner.split(" ").slice(-1)[0]!.toLowerCase()):null}};}
 async function applyCalibration(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const{version,buckets}=await deps.getCalibration();if(!version||!buckets.length)return{status:"FAILED",done:0,total:1,errorCode:"NO_ACTIVE_CALIBRATION",message:"No active calibration version with buckets is stored."};const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,snapshot=buildCalibrationSnapshot({versionId:version.id,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null});await deps.updateRun(runId,{calibration_version_id:version.id,calibrated_low:snapshot.calibratedLow,calibrated_high:snapshot.calibratedHigh});return{status:"COMPLETE",done:1,total:1,detail:{calibration_version:version.label,version_number:version.version_number,bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,bucket_wins:snapshot.bucketWins,bucket_graded:snapshot.bucketGraded}};}
 
-async function finalGate(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const report=await buildReport(deps,matchId,runId);await deps.saveCoverage(runId,[{player_side:"P1",...report.coverage.p1},{player_side:"P2",...report.coverage.p2}]);await deps.saveCoverageRates(runId,[{player_side:"P1",metric_family:"ALL",direct_count:report.coverage.p1.direct,reconstructed_count:report.coverage.p1.reconstructed,partial_count:report.coverage.p1.partial,unavailable_count:report.coverage.p1.unavailable,excluded_count:report.coverage.p1.excluded,total_count:report.coverage.p1.total,usable_percent:report.coverage.p1.usablePercent},{player_side:"P2",metric_family:"ALL",direct_count:report.coverage.p2.direct,reconstructed_count:report.coverage.p2.reconstructed,partial_count:report.coverage.p2.partial,unavailable_count:report.coverage.p2.unavailable,excluded_count:report.coverage.p2.excluded,total_count:report.coverage.p2.total,usable_percent:report.coverage.p2.usablePercent}]);const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,{version,buckets}=await deps.getCalibration(run?.calibration_version_id??null),snapshot=buildCalibrationSnapshot({versionId:version?.id??run?.calibration_version_id??null,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null}),existing=await deps.getDecisionId(runId);await deps.saveDecision(runId,existing,{final_audit_color:report.color,final_recommendation:report.action,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});if(!(await deps.getDecisionId(runId)))throw new Error("Final decision persistence invariant failed: no decision row exists after save.");if(deps.verifyFinalPersistence)await deps.verifyFinalPersistence(runId,report.coverage.p1.total+report.coverage.p2.total,report.auditComplete);const detail={color:report.color,action:report.action,completion_percent:report.completionPercent,evidence_coverage:report.coverage.usablePercent,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate};if(!report.auditComplete)return{status:"BLOCKED",done:0,total:1,errorCode:"COMPLETION_INVARIANT_FAILED",message:`Final decision persisted but the audit is incomplete (${report.completionPercent}% checks; ${report.coverage.usablePercent}% supported evidence coverage).`,detail};return{status:"COMPLETE",done:1,total:1,detail};}
-async function buildReport(deps:PipelineDeps,matchId:string,runId:string):Promise<GateReport>{const match=await deps.getMatch(matchId),run=await deps.getLatestRun(matchId);if(!match||!run)throw new Error("match/run missing while building report");const[metrics,verification,disagreement,underdog,stress,conflicts,reconstructions]=await Promise.all([deps.list("metric_results",runId),deps.list("verification_results",runId),deps.list("disagreement_results",runId),deps.list("underdog_results",runId),deps.list("stress_results",runId),deps.getConflicts(runId),deps.getReconstructions(runId)]);const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],matrixWp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;return evaluate({match,run,metrics:metrics as never,verification:verification as never,disagreement:disagreement as never,underdog:underdog as never,stress:stress as never,reconstructions,conflicts,matrixWp});}
+// Fresh upstream re-check shared by the three closing stages: reads
+// audit_stage_runs directly (not whatever this call's local loop state
+// believes) so a stale in-memory view can never let one of them persist
+// COMPLETE -- or, for Coverage/Final Decision, even write its records at
+// all -- while a required upstream stage is not actually COMPLETE for this
+// audit_run_id.
+async function requireUpstreamComplete(deps:PipelineDeps,runId:string,stage:Stage):Promise<Stage[]>{
+  const stages=await deps.getStages(runId);
+  return unmetDependencies(stage,stages);
+}
+
+// COVERAGE PERSISTENCE / EVIDENCE VALIDATION: computes and persists
+// audit_coverage + metric_coverage_rates from the current run's real,
+// already-COMPLETE upstream data. This is evidence, not execution state --
+// it never decides Final Combination Gate completion by itself (see
+// finalGate below), only whether coverage/evidence was actually recorded.
+async function persistCoverage(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{
+  const missingUpstream=await requireUpstreamComplete(deps,runId,"COVERAGE PERSISTENCE / EVIDENCE VALIDATION");
+  if(missingUpstream.length)return{status:"BLOCKED",done:0,total:1,errorCode:"UPSTREAM_DEPENDENCY_INCOMPLETE",message:`Coverage Persistence / Evidence Validation blocked: upstream stage(s) not complete: ${missingUpstream.join(", ")}.`};
+  const report=await buildReport(deps,matchId,runId);
+  await deps.saveCoverage(runId,[{player_side:"P1",...report.coverage.p1},{player_side:"P2",...report.coverage.p2}]);
+  await deps.saveCoverageRates(runId,[{player_side:"P1",metric_family:"ALL",direct_count:report.coverage.p1.direct,reconstructed_count:report.coverage.p1.reconstructed,partial_count:report.coverage.p1.partial,unavailable_count:report.coverage.p1.unavailable,excluded_count:report.coverage.p1.excluded,total_count:report.coverage.p1.total,usable_percent:report.coverage.p1.usablePercent},{player_side:"P2",metric_family:"ALL",direct_count:report.coverage.p2.direct,reconstructed_count:report.coverage.p2.reconstructed,partial_count:report.coverage.p2.partial,unavailable_count:report.coverage.p2.unavailable,excluded_count:report.coverage.p2.excluded,total_count:report.coverage.p2.total,usable_percent:report.coverage.p2.usablePercent}]);
+  return{status:"COMPLETE",done:1,total:1,detail:{evidence_coverage:report.coverage.usablePercent,p1_total:report.coverage.p1.total,p2_total:report.coverage.p2.total}};
+}
+
+// FINAL DECISION: persists the one final_decisions row for this run from the
+// current, fully-swept report. Blocked (row still written, so the reason is
+// visible, but never marked COMPLETE) unless the audit is ALSO substantively
+// complete (report.auditComplete -- the original row/run-derived checks:
+// identity, conflicts resolved, every metric/rule/pathway/test swept,
+// independent conclusion committed, firewall respected, calibration
+// applied). This is the exact completion invariant the pre-16-stage
+// FINAL COMBINATION GATE used to enforce, moved here since Final Decision is
+// now the stage that actually writes the decision row.
+async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{
+  const missingUpstream=await requireUpstreamComplete(deps,runId,"FINAL DECISION");
+  if(missingUpstream.length)return{status:"BLOCKED",done:0,total:1,errorCode:"UPSTREAM_DEPENDENCY_INCOMPLETE",message:`Final Decision blocked: upstream stage(s) not complete: ${missingUpstream.join(", ")}.`};
+  const report=await buildReport(deps,matchId,runId);
+  const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,{version,buckets}=await deps.getCalibration(run?.calibration_version_id??null),snapshot=buildCalibrationSnapshot({versionId:version?.id??run?.calibration_version_id??null,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null}),existing=await deps.getDecisionId(runId);
+  await deps.saveDecision(runId,existing,{final_audit_color:report.color,final_recommendation:report.action,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
+  if(!(await deps.getDecisionId(runId)))throw new Error("Final decision persistence invariant failed: no decision row exists after save.");
+  if(deps.verifyFinalPersistence)await deps.verifyFinalPersistence(runId,report.coverage.p1.total+report.coverage.p2.total,report.auditComplete);
+  const detail={color:report.color,action:report.action,completion_percent:report.completionPercent,evidence_coverage:report.coverage.usablePercent,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate};
+  if(!report.auditComplete)return{status:"BLOCKED",done:0,total:1,errorCode:"COMPLETION_INVARIANT_FAILED",message:`Final decision persisted but the audit is incomplete (${report.completionPercent}% checks; ${report.coverage.usablePercent}% supported evidence coverage).`,detail};
+  return{status:"COMPLETE",done:1,total:1,detail};
+}
+
+// FINAL COMBINATION GATE: the last stage, and the ONLY stage that requires
+// BOTH signals -- the row/run-derived `auditComplete` AND `stagesComplete`
+// (every audit_stage_runs row for this run, including Coverage Persistence
+// and Final Decision, actually persisted COMPLETE). It writes nothing of its
+// own: it never infers completion merely because metric_results/
+// verification_results/coverage/final_decisions rows happen to exist --
+// those are evidence, not execution state, and audit_stage_runs is what
+// proves the execution state.
+async function finalGate(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{
+  const missingUpstream=await requireUpstreamComplete(deps,runId,"FINAL COMBINATION GATE");
+  if(missingUpstream.length)return{status:"BLOCKED",done:0,total:1,errorCode:"UPSTREAM_DEPENDENCY_INCOMPLETE",message:`Final Combination Gate blocked: upstream stage(s) not complete: ${missingUpstream.join(", ")}.`};
+  const report=await buildReport(deps,matchId,runId);
+  const detail={color:report.color,action:report.action,completion_percent:report.completionPercent,evidence_coverage:report.coverage.usablePercent,stage_gaps:report.stageGaps};
+  if(!report.auditComplete||!report.stagesComplete)return{status:"BLOCKED",done:0,total:1,errorCode:"COMPLETION_INVARIANT_FAILED",message:`Final Combination Gate blocked: audit ${report.auditComplete?"substantively complete":"not substantively complete"}, stages ${report.stagesComplete?"all persisted COMPLETE":`still pending: ${report.stageGaps.join(", ")}`}.`,detail};
+  return{status:"COMPLETE",done:1,total:1,detail};
+}
+async function buildReport(deps:PipelineDeps,matchId:string,runId:string):Promise<GateReport>{const match=await deps.getMatch(matchId),run=await deps.getLatestRun(matchId);if(!match||!run)throw new Error("match/run missing while building report");const[metrics,verification,disagreement,underdog,stress,conflicts,reconstructions,stages]=await Promise.all([deps.list("metric_results",runId),deps.list("verification_results",runId),deps.list("disagreement_results",runId),deps.list("underdog_results",runId),deps.list("stress_results",runId),deps.getConflicts(runId),deps.getReconstructions(runId),deps.getStages(runId)]);const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],matrixWp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;return evaluate({match,run,metrics:metrics as never,verification:verification as never,disagreement:disagreement as never,underdog:underdog as never,stress:stress as never,reconstructions,conflicts,matrixWp,stages:stages.map(row=>({stage:row.stage,status:row.status}))});}
 
 async function pipelineResult(deps:PipelineDeps,matchId:string,runId:string,rows:StageRow[],failures:PipelineResult["failures"],nextStage:Stage|null,leaseHeld=false):Promise<PipelineResult>{
   const complete=STAGES.every(stage=>rows.find(row=>row.stage===stage)?.status==="COMPLETE");

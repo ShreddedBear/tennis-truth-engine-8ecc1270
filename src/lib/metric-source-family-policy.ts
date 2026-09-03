@@ -17,11 +17,16 @@ export type MetricSourcePolicy = { metric_code:string; allowed_families:Observat
 // never given a family here -- there is nothing for RESULTS_SCHEDULE/RANKING/MARKET/
 // ENVIRONMENT/POINT_BY_POINT/RULES_CONTEXT evidence to "satisfy" for them, since they
 // either aren't player facts at all or have no admissible evidence source anywhere in
-// this system. "047" and "061" (UNKNOWN_REQUIRES_REVIEW) are deliberately left with
-// whatever family eligibility their genuinely-reconstructable sub-component already had
-// before classification review -- narrowing that further is a separate decision, not
-// made here on inference alone.
-const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","029","030","031","034","035","036","037","038","041","043","044","045","046","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
+// this system.
+// "047" and "061" RESOLVED (docs/audit-task-047-061-classification-decisions.md):
+// both were previously UNKNOWN_REQUIRES_REVIEW and left with whatever family eligibility
+// their genuinely-reconstructable sub-component already had before classification review.
+// Both now have real, wired engines (audit-metric-047-uncertainty-adjusted-advantage.ts,
+// audit-metric-061-historical-twin-match-search.ts), both built entirely from the same
+// four-tour static history index every RESULTS_SCHEDULE-family module in this set already
+// reads -- 047 added here (see MARKET_METRICS/RANKING_METRICS below for the pre-decision
+// memberships this replaces); 061 was already a member and needs no change.
+const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008","009","010","011","012","013","018","020","021","022","023","024","025","026","027","028","029","030","031","034","035","036","037","038","041","043","044","045","046","047","049","050","051","052","053","054","055","056","058","061","064","068","071","076","077","080","081"]);
 // "029" added: audit-metric-029-psychological-response-proxy.ts computes its close-set-
 // loss-then-next-set/match win-rate response entirely from repository-results-
 // history.server.ts's set_scores-bearing rows (the same RESULTS_SCHEDULE-level static
@@ -58,14 +63,20 @@ const RESULTS_SCHEDULE_METRICS=new Set(["001","002","003","005","006","007","008
 // requires and validates for it (NON_RECONSTRUCTABLE_CONTEXT_CODES), and which
 // metric-classification.ts now classifies PROTECTED_UNAVAILABLE. Removed per the
 // Task 20 reconciliation; see metric-source-family-policy.test.ts.
-const RANKING_METRICS=new Set(["013","014","020","023","038","047","055","058","062","068","080"]);
+// "047" removed: pre-decision placeholder membership (see the RESULTS_SCHEDULE_METRICS
+// note above) -- 047's real engine (audit-metric-047-uncertainty-adjusted-advantage.ts)
+// reads only the four-tour static history index (via metric #027's finishing-ability
+// engine), never a ranking snapshot.
+const RANKING_METRICS=new Set(["013","014","020","023","038","055","058","062","068","080"]);
 // "039" and "057" removed from MARKET: verified against public/seed/metrics.txt --
 // 039 ("Performance Surprise Rating") compares actual performance to a pre-match
 // *expected* performance baseline (Elo/form-derived), never a market price; 057
 // ("Evidence Freshness & Confirmation") is META_OR_NON_PLAYER and must never receive
 // ANY family eligibility, market or otherwise. Neither bullet in either code's real
 // definition names odds, implied probability, or any market-derived quantity.
-const MARKET_METRICS=new Set(["015","019","043","044","047","073"]);
+// "047" removed for the same reason as the RANKING_METRICS note above: its real engine
+// never reads a market/odds observation.
+const MARKET_METRICS=new Set(["015","019","043","044","073"]);
 // "021" ("Surface & Environmental Context") was previously excluded here under a
 // pre-Task-17 assumption that code 021 was "Elo Delta" (a chronological-results metric
 // that weather would only contaminate). The real definition explicitly names weather
@@ -76,7 +87,7 @@ const MARKET_METRICS=new Set(["015","019","043","044","047","073"]);
 // finding to DIRECT/RECONSTRUCTED. See metric-classification.ts and
 // metric-source-family-policy.test.ts.
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
-// "026"/"027"/"036"/"038"/"039"/"040"/"059"/"079" were previously listed here, inherited
+// "026"/"027"/"036"/"038"/"039"/"040"(UPDATE below)/"059"/"079" were previously listed here, inherited
 // from the same pre-Task-17 catalog drift as code 069 above. Their real definitions are,
 // respectively: 026 "Early-Warning / Slow-Start Metrics" -- UPDATE (docs/audit-task-026-034-053.md):
 // 026 now HAS a real, dedicated engine (deriveOpeningWindowProfile's first-N-games-scoped
@@ -96,16 +107,28 @@ const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 // loss surface -- RESULTS_SCHEDULE territory, not point chronology), 038
 // "Opponent-Adjusted Residual Performance" (needs cross-player population norms), 039
 // "Performance Surprise Rating" (needs a pre-match expectation/model output, not point
-// data), 040 "Hidden Decline Detector" (serve-velocity/rate *trend* across recent
-// matches -- velocity is not in PBP data at all, and single-match PBP cannot supply a
-// cross-match trend), 059 "Loss Path Probability" (META_OR_NON_PLAYER -- gets no family
+// data), 059 "Loss Path Probability" (META_OR_NON_PLAYER -- gets no family
 // at all), and 079 "Additional Differentiating Metrics" (coaching-visit and shot-clock
 // events -- not point-by-point score state). pbp-score-state-recovery.ts already does
 // not target any of these (see its TASK18B_METRIC_CODES comment); leaving them here
 // would let the generic warehouse-level PBP path (deterministicPbpMetric) award false
 // PARTIAL credit toward metrics PBP evidence cannot actually inform. See
 // metric-classification.ts and metric-source-family-policy.test.ts.
-const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
+//
+// UPDATE (docs/audit-task-038-040-062.md): "040" IS now added below, unlike the codes
+// above it in this comment. The reasoning that kept it out ("single-match PBP cannot
+// supply a cross-match trend") is still true of the generic warehouse-level PBP path this
+// set gates -- that reasoning never changes here, same as 026's own correction above -- but
+// audit-metric-040-hidden-decline-detector.ts now supplies exactly that missing cross-match
+// trend through its OWN dedicated tier (deterministic-batch6-residual-decline-stakes.
+// server.ts), never through this generic path. "040" is added to PBP_METRICS purely so
+// `policyForMetric("040").allowed_families` correctly reports POINT_BY_POINT as a real
+// eligible family for this metric (it IS one, now) -- metricAllowsObservation/family-policy
+// checks elsewhere in the pipeline would otherwise incorrectly treat 040 as having no
+// eligible family at all, even though its dedicated tier does not itself consult this
+// function. Serve velocity remains entirely absent from every source in this repository and
+// stays excluded from the metric's own output regardless of this family-eligibility change.
+const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","040","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
 const RULES_METRICS=new Set(["020","064","075","076"]);
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}

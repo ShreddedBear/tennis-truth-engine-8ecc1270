@@ -50,12 +50,15 @@ describe("metric source family policy", () => {
     expect(metricAllowsObservation("062", weatherRow)).toBe(false);
   });
 
-  // 061 ("Final Advanced Tests") is UNKNOWN_REQUIRES_REVIEW, not excluded (see
-  // metric-classification.ts): two of its three bullets are meta (rerun-the-model
-  // tests), but "Historical Twin Match Search" is a genuine matchup-similarity search
-  // over past results, which needs RESULTS_SCHEDULE data -- support-only, since it is
-  // one component of a mixed definition, never sufficient on its own.
-  it("admits historical-results evidence as support-only for the mixed/UNKNOWN 061 (never sufficient on its own)", () => {
+  // 061 ("Final Advanced Tests" -> "Historical Twin Match Search") is now a resolved
+  // LEGITIMATE_PLAYER_METRIC (see metric-classification.ts and
+  // docs/audit-task-047-061-classification-decisions.md): the counterfactual/opponent-
+  // upgrade-rerun component of its original mixed definition was split off and permanently
+  // excluded (given no metric code at all), and code 061 now means only the real Historical
+  // Twin Match Search over past results -- audit-metric-061-historical-twin-match-search.ts
+  // -- which needs RESULTS_SCHEDULE data. Still support-only here, same treatment as its
+  // sibling static-history-index engines (e.g. #046), never sufficient on its own.
+  it("admits historical-results evidence as support-only for 061's Historical Twin Match Search (never sufficient on its own)", () => {
     expect(metricAllowsObservation("061", matchRow)).toBe(true);
     expect(policyForMetric("061").sufficient_families).toEqual([]);
     expect(policyForMetric("061").support_only_families).toContain("RESULTS_SCHEDULE");

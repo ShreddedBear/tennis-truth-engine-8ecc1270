@@ -394,34 +394,29 @@ const PROTECTED: ClassificationRecord[] = [
 // is meta (about the model/prediction, not a player). Kept IN the player
 // denominator (burden of proof for exclusion is not met) pending a human
 // decision on whether to split it into separate rule codes.
-const UNKNOWN: ClassificationRecord[] = [
-  {
-    metric_code: "061",
-    metric_name: "Final Advanced Tests",
-    classification: "UNKNOWN_REQUIRES_REVIEW",
-    required_raw_fields: "Mixed: counterfactual/opponent-upgrade re-runs of the model's own prediction (meta), plus a Historical Twin Match Search over prior matchups with similar Elo/form/market gaps (legitimately player/matchup evidence)",
-    sources_checked: ["public/seed/metrics.txt definition text"],
-    reconstruction_attempted: false,
-    reconstruction_result: "NOT_YET_DETERMINED — two of three defined sub-items are meta (test the model's pick), one (Historical Twin Match Search) is reconstructable from existing four-tour results",
-    reason: "Definition mixes model-robustness testing with a genuine matchup-similarity search. Not excluded automatically per the 'burden of proof' rule — needs a human decision on whether to split this rule code rather than a one-line classification.",
-    whether_future_ingestion_could_change_status: true,
-    date_classified: DATE,
-    review_status: "NEEDS_HUMAN_REVIEW",
-  },
-  {
-    metric_code: "047",
-    metric_name: "Uncertainty-Adjusted Advantage",
-    classification: "UNKNOWN_REQUIRES_REVIEW",
-    required_raw_fields: "Confidence-Interval-Adjusted Metric Comparison: comparing two players' own statistics with confidence intervals applied, so a small uncertain edge isn't weighted the same as a large well-supported one",
-    sources_checked: ["public/seed/metrics.txt definition text"],
-    reconstruction_attempted: false,
-    reconstruction_result: "NOT_YET_DETERMINED — genuinely ambiguous whether this is a player-comparison metric with a statistical-rigor treatment applied (legitimate, reconstructable from the same underlying stats every other metric uses) or a meta-method for weighing other metrics' outputs (not itself a player fact)",
-    reason: "Added during the Task 20/21 classification reconciliation. The body text is anchored on 'comparing two players' statistics' (unlike 048/049/050/056/057/058/059, which are unambiguously about the model's own prediction or evidence base) -- but the entire point of the metric is a confidence-interval treatment applied to *other* metrics' values, which reads as meta by the same test this registry applies elsewhere. Deliberately not excluded unilaterally: kept IN the player evidence denominator (burden of proof for exclusion not met) pending a human decision, per the same principle already applied to code 061.",
-    whether_future_ingestion_could_change_status: true,
-    date_classified: DATE,
-    review_status: "NEEDS_HUMAN_REVIEW",
-  },
-];
+//
+// RESOLVED (docs/audit-task-047-061-classification-decisions.md, 2026-08-30): both codes
+// that previously lived in this array have received their human decision and are no longer
+// unresolved. Neither has a record here any more -- classifyMetric's default (any code with
+// no META/PROTECTED/UNKNOWN record classifies as LEGITIMATE_PLAYER_METRIC) is sufficient,
+// so removing the record IS the resolution, not a separate code path.
+//   - "061" (Final Advanced Tests) -- decision: SPLIT. The real Historical Twin Match Search
+//     component is now code 061's entire meaning, with a real engine
+//     (audit-metric-061-historical-twin-match-search.ts, wired via
+//     deterministic-batch5-new-metrics.server.ts). The counterfactual/opponent-upgrade
+//     rerun component is permanently EXCLUDED and deliberately given NO metric code at all
+//     -- it was never a distinct catalog entry on its own, only a component of 061's
+//     original mixed definition, and it duplicates in spirit code 050 ("Robustness Tests"),
+//     already META_OR_NON_PLAYER above. See final-advanced-meta.server.ts's header for the
+//     full before/after of this split.
+//   - "047" (Uncertainty-Adjusted Advantage) -- decision: this IS a legitimate
+//     player-comparison metric, not a meta-method. Applying statistical rigor (a
+//     two-proportion confidence interval) to a comparison of two players' own numbers is a
+//     fact about the two players' apparent edge, not a judgment about this system's own
+//     prediction or evidence base. Given a real engine
+//     (audit-metric-047-uncertainty-adjusted-advantage.ts, wired via the same
+//     deterministic-batch5-new-metrics.server.ts tier).
+const UNKNOWN: ClassificationRecord[] = [];
 
 export const META_OR_NON_PLAYER_RECORDS = META;
 export const PROTECTED_UNAVAILABLE_RECORDS = PROTECTED;

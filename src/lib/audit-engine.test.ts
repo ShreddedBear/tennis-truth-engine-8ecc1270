@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { evaluate, type EngineInput } from "./audit-engine";
+import { STAGES } from "./audit-stages";
 
 // To test the NO_SOURCE mechanism itself (distinct bucket, excluded from the
 // denominator, immune to the same silent-re-entry pattern as META_OR_NON_PLAYER)
@@ -28,6 +29,11 @@ const baseMatch: EngineInput["match"] = {
   player2_name: "Beta",
 };
 
+// All 13 pipeline stages persisted COMPLETE -- the default fixture for tests
+// that are exercising coverage/treatment math, not the stage-dependency gate
+// itself (that gate has its own dedicated describe block below).
+const ALL_STAGES_COMPLETE: EngineInput["stages"] = STAGES.map((stage) => ({ stage, status: "COMPLETE" }));
+
 function input(metrics: EngineInput["metrics"]): EngineInput {
   return {
     match: baseMatch,
@@ -40,6 +46,7 @@ function input(metrics: EngineInput["metrics"]): EngineInput {
     reconstructions: [],
     conflicts: [],
     matrixWp: null,
+    stages: ALL_STAGES_COMPLETE,
   };
 }
 
@@ -175,6 +182,7 @@ describe("audit-engine terminal identity outcomes", () => {
       reconstructions: [],
       conflicts: [],
       matrixWp: null,
+      stages: ALL_STAGES_COMPLETE,
     });
 
     expect(report.auditComplete).toBe(true);
@@ -184,5 +192,90 @@ describe("audit-engine terminal identity outcomes", () => {
       pass: true,
       detail: "UNVERIFIED",
     });
+  });
+});
+
+describe("audit-engine: Final Combination Gate stage-dependency gate", () => {
+  // Regression coverage for the audit pipeline's dependency-ordered state
+  // machine. Two separate signals now compose gate completion:
+  //   - `auditComplete`: the original row/run-derived "is the audit
+  //     substantively complete" signal (identity resolved, metrics swept,
+  //     conclusion committed, calibration applied, etc.) -- unaffected by
+  //     `stages`, since Coverage Persistence and Final Decision are
+  //     themselves part of the Final Combination Gate's own dependency
+  //     prefix and can never be complete while THEY are being evaluated.
+  //   - `stagesComplete`/`stageGaps`: whether every audit_stage_runs row this
+  //     run needs is ACTUALLY persisted COMPLETE, independent of what the
+  //     child-row counts say. This is what closes the double-bookkeeping gap
+  //     that let the gate appear complete while audit_stage_runs still
+  //     showed an upstream stage unexecuted.
+  // The Final Combination Gate stage in audit-pipeline.ts requires BOTH.
+  const fullRows = (): EngineInput["metrics"] => [
+    { status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE", p1_treatment: "DIRECT", p2_treatment: "DIRECT", matrix_derived: false, evidence_family: "FAM", metric_name: "m", metric_code: "008" },
+  ];
+  const fullCommitted = (metrics: EngineInput["metrics"], stages: EngineInput["stages"]): EngineInput => ({
+    match: baseMatch,
+    run: { ...baseRun, research_lock_at: "2026-08-30T03:30:00.000Z", independent_decision_committed_at: "2026-08-30T03:31:00.000Z", matrix_revealed_at: "2026-08-30T03:32:00.000Z", calibration_version_id: "cal-1" },
+    metrics,
+    verification: [{ status: "COMPLETE", outcome: "PASS", severity: "STANDARD" }],
+    disagreement: [{ status: "COMPLETE", contradiction_severity: "NONE" }],
+    underdog: [{ status: "COMPLETE", classification: "WEAK", player_side: "Beta" }],
+    stress: [{ status: "COMPLETE", test_code: "ST01", outcome: "STABLE" }],
+    reconstructions: [],
+    conflicts: [],
+    matrixWp: null,
+    stages,
+  });
+
+  it("keeps stagesComplete false when every child-row check passes but a required stage is not persisted COMPLETE", () => {
+    // All row-level data looks fully done (auditComplete stays true, its own
+    // row/run-derived signal), but P1/P2 METRIC EXECUTION never actually
+    // persisted COMPLETE in audit_stage_runs (e.g. the row-level writes
+    // landed but the process died before the stage's own terminal write) --
+    // this must not let the gate read stagesComplete as true.
+    const staleStages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "P1 METRIC EXECUTION" && s.stage !== "P2 METRIC EXECUTION").concat([
+      { stage: "P1 METRIC EXECUTION", status: "RUNNING" },
+      { stage: "P2 METRIC EXECUTION", status: "RUNNING" },
+    ]);
+    const report = evaluate(fullCommitted(fullRows(), staleStages));
+    expect(report.auditComplete).toBe(true);
+    expect(report.stagesComplete).toBe(false);
+    expect(report.stageGaps).toEqual(expect.arrayContaining(["P1 METRIC EXECUTION", "P2 METRIC EXECUTION"]));
+  });
+
+  it("reports stagesComplete true only once every stage (excluding the gate itself) is persisted COMPLETE", () => {
+    const stages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "FINAL COMBINATION GATE");
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.auditComplete).toBe(true);
+    expect(report.stagesComplete).toBe(true);
+    expect(report.stageGaps).toEqual([]);
+  });
+
+  it("blocks stagesComplete when a single early stage (identity) never persisted COMPLETE, even though everything else is COMPLETE", () => {
+    const stages = ALL_STAGES_COMPLETE.map((s) => (s.stage === "MATCH IDENTITY VERIFICATION" ? { ...s, status: "NOT STARTED" } : s));
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.stagesComplete).toBe(false);
+    expect(report.stageGaps).toContain("MATCH IDENTITY VERIFICATION");
+  });
+
+  it("treats a missing stage row the same as an incomplete one", () => {
+    const stages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "STRESS / REMOVAL TESTS");
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.stagesComplete).toBe(false);
+    expect(report.stageGaps).toContain("STRESS / REMOVAL TESTS");
+  });
+
+  it("Final Combination Gate cannot complete if Coverage Persistence / Evidence Validation is incomplete", () => {
+    const stages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "COVERAGE PERSISTENCE / EVIDENCE VALIDATION");
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.stagesComplete).toBe(false);
+    expect(report.stageGaps).toContain("COVERAGE PERSISTENCE / EVIDENCE VALIDATION");
+  });
+
+  it("Final Combination Gate cannot complete if Final Decision is incomplete", () => {
+    const stages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "FINAL DECISION");
+    const report = evaluate(fullCommitted(fullRows(), stages));
+    expect(report.stagesComplete).toBe(false);
+    expect(report.stageGaps).toContain("FINAL DECISION");
   });
 });

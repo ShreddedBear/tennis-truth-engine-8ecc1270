@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { INVALIDATED_RUN_STATUS } from "./audit-stages";
 
 async function readIds(db: any, table: string, column: string, ids?: string[]): Promise<any[]> {
   if (ids && !ids.length) return [];
@@ -40,7 +41,7 @@ export async function clearOperationalSlate(db: any) {
   await updateIn(db, "summary_versions", "id", versionIds, { is_active: false });
   await updateIn(db, "matches", "id", matchIds, { active_summary_version_id: null });
   await updateIn(db, "audit_runs", "id", latestRunIds, {
-    status: "INVALIDATED — RERUN REQUIRED",
+    status: INVALIDATED_RUN_STATUS,
     lease_owner: null,
     lease_expires_at: null,
   });
