@@ -1289,7 +1289,12 @@ describe("Clear Slate: true clean slate for the next audit", () => {
     // execution must read exactly 0%, not carry over the old run's progress.
     const preparedRun = await preparePipelineRun(deps, MATCH_ID);
     expect(preparedRun.id).not.toBe(oldRunId);
-    expect(preparedRun.run_number).toBe(2);
+    // A clean slate means run numbering restarts at 1, not "old run_number +
+    // 1": Clear Slate invalidates the old run but never deletes it, so if run
+    // numbering used the old row's run_number as its base, it would climb
+    // forever across repeated Clear Slate cycles (RUN 7 after six prior
+    // invalidated/completed runs) instead of presenting a true RUN 1.
+    expect(preparedRun.run_number).toBe(1);
     expect(computeExecutionPercent(Array.from((stagesByRun.get(preparedRun.id) ?? new Map()).values()) as never)).toBe(0);
 
     const second = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
@@ -1299,7 +1304,7 @@ describe("Clear Slate: true clean slate for the next audit", () => {
     // 5. Verify a new audit_run_id.
     expect(newRunId).toBe(preparedRun.id);
     expect(newRunId).not.toBe(oldRunId);
-    expect(runsById.get(newRunId)!.run_number).toBe(2);
+    expect(runsById.get(newRunId)!.run_number).toBe(1);
     expect(runsById.get(newRunId)!.status).toBe("COMPLETE");
     // The old run's status is exactly as Clear Slate left it -- the new run
     // never touched it.
@@ -1332,5 +1337,42 @@ describe("Clear Slate: true clean slate for the next audit", () => {
     expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
     expect(stagesByRun.size).toBe(2);
     expect(tablesByRun.size).toBe(2);
+  }, 60_000);
+
+  // Reproduces the reported "RUN 7" bug directly at its source: ensureRun's
+  // new-run branch used to compute run_number as `(existing?.run_number ?? 0)
+  // + 1` using the raw latest audit_runs row regardless of whether it was
+  // active or invalidated. Since Clear Slate invalidates a run but never
+  // deletes it, that base number survived and climbed forever across repeat
+  // Clear Slate cycles instead of resetting. A genuinely fresh match (no
+  // prior runs at all) must start at RUN 1, and a match whose only prior run
+  // was invalidated by Clear Slate must ALSO start over at RUN 1, not
+  // "previous run_number + 1".
+  it("fresh slate (no prior audit runs at all) -> new audit -> RUN 1", async () => {
+    const { deps, runsById } = makeMultiRunMemoryDeps();
+    const prepared = await preparePipelineRun(deps, MATCH_ID);
+    expect(prepared.run_number).toBe(1);
+    expect(runsById.get(prepared.id)!.run_number).toBe(1);
+  });
+
+  it("Clear Slate -> new audit -> RUN 1, even after several prior invalidated runs", async () => {
+    const { deps, runsById } = makeMultiRunMemoryDeps();
+
+    // Simulate several real Clear Slate cycles: run to completion, invalidate,
+    // repeat. Six prior runs (like the reported RUN 7 case) must still yield
+    // RUN 1 for the next genuinely new audit -- run numbering never leaks
+    // across a clean slate, no matter how much invalidated history exists.
+    let lastRunId: string | null = null;
+    for (let cycle = 0; cycle < 6; cycle++) {
+      const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+      expect(result.complete).toBe(true);
+      lastRunId = result.runId;
+      await deps.updateRun(lastRunId, { status: INVALIDATED_RUN_STATUS, lease_owner: null, lease_expires_at: null });
+    }
+
+    const prepared = await preparePipelineRun(deps, MATCH_ID);
+    expect(prepared.id).not.toBe(lastRunId);
+    expect(prepared.run_number).toBe(1);
+    expect(runsById.get(prepared.id)!.run_number).toBe(1);
   }, 60_000);
 });

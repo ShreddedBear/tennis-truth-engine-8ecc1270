@@ -278,9 +278,26 @@ async function ensureRun(deps:PipelineDeps,match:MatchRow,forceNewRun=false):Pro
     deps.getActiveVersionId("DISAGREEMENT"),
   ]);
 
+  // Reaching here means there is no active run to resume: either this match
+  // has never had one (existing === null), its latest run was invalidated
+  // (Clear Slate, or a rule-document version change -- audit-stages.ts's
+  // INVALIDATED_RUN_STATUS), or the caller explicitly forced a fresh run
+  // despite an active one existing (forceNewRun -- not wired to any caller
+  // today, reserved for an explicit future "re-run" feature). Only that last
+  // case is a genuine continuation of the match's run history and should
+  // increment its run_number; a brand-new match or a post-invalidation
+  // restart is a clean slate by definition and must start over at RUN 1.
+  // Using `existing.run_number + 1` unconditionally here (the previous
+  // behavior) meant run numbers only ever grew, even across Clear Slate --
+  // Clear Slate invalidates the row but never deletes it, so its run_number
+  // survived as the base for every future "new" run, e.g. RUN 7 after six
+  // prior invalidated/completed runs instead of the RUN 1 a clean slate
+  // requires.
+  const continuesActiveRunHistory=forceNewRun&&!!existing&&isActiveRunStatus(existing.status);
+
   return deps.createRun({
     match_id:match.id,
-    run_number:(existing?.run_number??0)+1,
+    run_number:continuesActiveRunHistory?existing!.run_number+1:1,
     status:"RUNNING",
     research_lock_at:now.toISOString(),
     heartbeat_at:now.toISOString(),

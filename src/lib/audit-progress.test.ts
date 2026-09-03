@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeBatchExecutionPercent, computeExecutionPercent } from "./audit-progress";
+import { activeRunExecutionPercent, computeBatchExecutionPercent, computeExecutionPercent, type ActiveRunRow, type ScopedStageRow } from "./audit-progress";
 import { STAGES } from "./audit-pipeline";
+import { INVALIDATED_RUN_STATUS, resolveActiveRun } from "./audit-stages";
 
 describe("computeExecutionPercent", () => {
   it("stays in sync with the real pipeline's stage count", () => {
@@ -109,5 +110,106 @@ describe("computeBatchExecutionPercent", () => {
       ],
     ]);
     expect(computeBatchExecutionPercent(byRun)).toBe(Math.round((1 / 16) * 100));
+  });
+});
+
+// activeRunExecutionPercent is THE canonical Active Slate execution
+// calculation: it takes an already-resolved (via resolveActiveRun) run plus
+// this match's full stage-row history, scopes to that one run's rows itself,
+// and canonicalizes through the exact same audit-stages.ts logic Execution
+// Diagnostics on the match workspace renders from. These tests reproduce the
+// reported bug end to end (RUN 7 with 5 stages complete + P2 running showing
+// 0% on Active Slate) and the scenarios that must never regress again.
+describe("activeRunExecutionPercent (the Active Slate execution calculation)", () => {
+  const RUN_ID = "run-current";
+  const MATCH_ID = "match-1";
+  const activeRun: ActiveRunRow = { id: RUN_ID, match_id: MATCH_ID, status: "RUNNING", run_number: 7 };
+
+  function stageRow(stage: string, status: string, done: number, total: number, runId = RUN_ID): ScopedStageRow {
+    return { audit_run_id: runId, stage, status, done_count: done, total_count: total };
+  }
+
+  it("1. a fresh active run with no stage rows yet reports 0%", () => {
+    expect(activeRunExecutionPercent(activeRun, [])).toBe(0);
+  });
+
+  it("2. one or more completed stages report a non-zero percentage", () => {
+    const rows = [stageRow(STAGES[0], "COMPLETE", 1, 1)];
+    expect(activeRunExecutionPercent(activeRun, rows)).toBeGreaterThan(0);
+  });
+
+  it("3. exactly reproduces the reported RUN 7 scenario: 5 stages complete + P2 actively running MUST be non-zero", () => {
+    // The exact example from the bug report: stages 1-5 COMPLETE (including
+    // P1 metric execution at 81/81), P2 metric execution RUNNING at 51/81,
+    // stages 7-16 PENDING.
+    const rows = [
+      stageRow(STAGES[0], "COMPLETE", 1, 1),
+      stageRow(STAGES[1], "COMPLETE", 2, 2),
+      stageRow(STAGES[2], "COMPLETE", 6, 6),
+      stageRow(STAGES[3], "COMPLETE", 1, 1),
+      stageRow(STAGES[4], "COMPLETE", 81, 81),
+      stageRow(STAGES[5], "RUNNING", 51, 81),
+    ];
+    const pct = activeRunExecutionPercent(activeRun, rows);
+    expect(pct).toBeGreaterThan(0);
+    expect(pct).toBe(Math.round(((5 + 51 / 81) / 16) * 100));
+  });
+
+  it("4. a partially completed current stage increases progress as done_count grows", () => {
+    const early = [stageRow(STAGES[5], "RUNNING", 10, 81)];
+    const later = [stageRow(STAGES[5], "RUNNING", 51, 81)];
+    expect(activeRunExecutionPercent(activeRun, later)).toBeGreaterThan(activeRunExecutionPercent(activeRun, early));
+  });
+
+  it("5. when all 16 canonical stages are COMPLETE, execution is 100%", () => {
+    const rows = STAGES.map((stage) => stageRow(stage, "COMPLETE", 1, 1));
+    expect(activeRunExecutionPercent(activeRun, rows)).toBe(100);
+  });
+
+  it("6. an invalidated/cleared run resolves to null and reports 0%, even with fully-complete stage history", () => {
+    const invalidatedRun = { id: RUN_ID, match_id: MATCH_ID, status: INVALIDATED_RUN_STATUS, run_number: 6 };
+    const resolved = resolveActiveRun([invalidatedRun]);
+    expect(resolved).toBeNull();
+    const rows = STAGES.map((stage) => stageRow(stage, "COMPLETE", 1, 1));
+    expect(activeRunExecutionPercent(resolved, rows)).toBe(0);
+  });
+
+  it("7. multiple historical runs' rows cannot affect the current run's execution percentage", () => {
+    // An old, fully-COMPLETE run for the same match sits alongside the
+    // current run's rows in the same stage-row history (exactly what a
+    // global, unscoped fetch would hand this function). The current run has
+    // only just started (1 of 16 stages complete) and must score
+    // accordingly -- not 100% from the old run's rows leaking in.
+    const oldRunRows = STAGES.map((stage) => stageRow(stage, "COMPLETE", 1, 1, "run-old-invalidated"));
+    const currentRunRows = [stageRow(STAGES[0], "COMPLETE", 1, 1)];
+    const pct = activeRunExecutionPercent(activeRun, [...oldRunRows, ...currentRunRows]);
+    expect(pct).toBe(Math.round((1 / 16) * 100));
+    expect(pct).toBeLessThan(100);
+  });
+
+  it("8. duplicate rows for the same canonical stage on the current run cannot inflate progress", () => {
+    // Retry/attempt history for the same stage -- must still count as ONE
+    // COMPLETE stage among 16, not multiples.
+    const rows = [
+      stageRow(STAGES[4], "RUNNING", 20, 81),
+      stageRow(STAGES[4], "COMPLETE", 81, 81),
+      stageRow(STAGES[4], "COMPLETE", 81, 81),
+    ];
+    expect(activeRunExecutionPercent(activeRun, rows)).toBe(Math.round((1 / 16) * 100));
+  });
+
+  it("returns 0% when there is no active run at all (null)", () => {
+    expect(activeRunExecutionPercent(null, [])).toBe(0);
+  });
+
+  it("moves continuously from 0% toward 100% as more of the 16 stages complete", () => {
+    let previous = -1;
+    for (let count = 0; count <= STAGES.length; count++) {
+      const rows = STAGES.slice(0, count).map((stage) => stageRow(stage, "COMPLETE", 1, 1));
+      const pct = activeRunExecutionPercent(activeRun, rows);
+      expect(pct).toBeGreaterThanOrEqual(previous);
+      previous = pct;
+    }
+    expect(previous).toBe(100);
   });
 });
