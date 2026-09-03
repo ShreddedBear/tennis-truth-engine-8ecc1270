@@ -87,7 +87,7 @@ const MARKET_METRICS=new Set(["015","019","043","044","073"]);
 // finding to DIRECT/RECONSTRUCTED. See metric-classification.ts and
 // metric-source-family-policy.test.ts.
 const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
-// "026"/"027"/"036"/"038"/"039"/"040"/"059"/"079" were previously listed here, inherited
+// "026"/"027"/"036"/"038"/"039"/"040"(UPDATE below)/"059"/"079" were previously listed here, inherited
 // from the same pre-Task-17 catalog drift as code 069 above. Their real definitions are,
 // respectively: 026 "Early-Warning / Slow-Start Metrics" -- UPDATE (docs/audit-task-026-034-053.md):
 // 026 now HAS a real, dedicated engine (deriveOpeningWindowProfile's first-N-games-scoped
@@ -107,16 +107,28 @@ const ENVIRONMENT_METRICS=new Set(["001","021","030","060","071","075"]);
 // loss surface -- RESULTS_SCHEDULE territory, not point chronology), 038
 // "Opponent-Adjusted Residual Performance" (needs cross-player population norms), 039
 // "Performance Surprise Rating" (needs a pre-match expectation/model output, not point
-// data), 040 "Hidden Decline Detector" (serve-velocity/rate *trend* across recent
-// matches -- velocity is not in PBP data at all, and single-match PBP cannot supply a
-// cross-match trend), 059 "Loss Path Probability" (META_OR_NON_PLAYER -- gets no family
+// data), 059 "Loss Path Probability" (META_OR_NON_PLAYER -- gets no family
 // at all), and 079 "Additional Differentiating Metrics" (coaching-visit and shot-clock
 // events -- not point-by-point score state). pbp-score-state-recovery.ts already does
 // not target any of these (see its TASK18B_METRIC_CODES comment); leaving them here
 // would let the generic warehouse-level PBP path (deterministicPbpMetric) award false
 // PARTIAL credit toward metrics PBP evidence cannot actually inform. See
 // metric-classification.ts and metric-source-family-policy.test.ts.
-const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
+//
+// UPDATE (docs/audit-task-038-040-062.md): "040" IS now added below, unlike the codes
+// above it in this comment. The reasoning that kept it out ("single-match PBP cannot
+// supply a cross-match trend") is still true of the generic warehouse-level PBP path this
+// set gates -- that reasoning never changes here, same as 026's own correction above -- but
+// audit-metric-040-hidden-decline-detector.ts now supplies exactly that missing cross-match
+// trend through its OWN dedicated tier (deterministic-batch6-residual-decline-stakes.
+// server.ts), never through this generic path. "040" is added to PBP_METRICS purely so
+// `policyForMetric("040").allowed_families` correctly reports POINT_BY_POINT as a real
+// eligible family for this metric (it IS one, now) -- metricAllowsObservation/family-policy
+// checks elsewhere in the pipeline would otherwise incorrectly treat 040 as having no
+// eligible family at all, even though its dedicated tier does not itself consult this
+// function. Serve velocity remains entirely absent from every source in this repository and
+// stays excluded from the metric's own output regardless of this family-eligibility change.
+const PBP_METRICS=new Set(["002","003","004","008","009","010","011","016","018","022","024","025","031","032","033","034","037","040","041","042","043","044","045","046","051","052","053","054","060","070","071"]);
 const RULES_METRICS=new Set(["020","064","075","076"]);
 
 function codeOf(value:unknown){const m=String(value??"").match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
