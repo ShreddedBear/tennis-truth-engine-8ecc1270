@@ -5,9 +5,10 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { runPipeline, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
-import { unmetDependencies, canonicalizeStageRows } from "./audit-stages";
+import { runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { unmetDependencies, canonicalizeStageRows, resolveActiveRun, isActiveRunStatus, INVALIDATED_RUN_STATUS } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
+import { computeExecutionPercent } from "./audit-progress";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 
 // Code 070 ("Support Team / Prep") is a genuine LEGITIMATE_PLAYER_METRIC in the real
@@ -262,6 +263,168 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
   };
 
   return { deps, tables, stages };
+}
+
+// makeMemoryDeps above is single-run only (createRun hardcodes id "run-1",
+// list()/getStages() ignore the runId argument entirely) -- fine for every
+// existing test, since none of them ever create a second run in the same
+// deps instance, but it can't prove cross-run isolation because it has no
+// notion of more than one run. makeMultiRunMemoryDeps is a separate,
+// properly run-scoped mock -- every table row and stage record is keyed by
+// the SAME audit_run_id the real Supabase-backed repo scopes by -- built
+// specifically for the Clear Slate regression test below, without touching
+// (or risking) the ~15 existing tests that rely on makeMemoryDeps's shape.
+function makeMultiRunMemoryDeps(): {
+  deps: PipelineDeps;
+  runsById: Map<string, RunRow>;
+  stagesByRun: Map<string, Map<string, Record<string, unknown>>>;
+  tablesByRun: Map<string, Record<ChildTable, Array<Record<string, unknown>>>>;
+} {
+  const match: Record<string, unknown> = {
+    id: MATCH_ID,
+    player1_name: P1,
+    player2_name: P2,
+    tournament_name: null,
+    event_level: null,
+    round: null,
+    scheduled_date: null,
+    surface: null,
+    indoor: null,
+    best_of: null,
+    identity_status: "UNVERIFIED",
+    surface_status: "UNVERIFIED",
+    match_status: "PENDING",
+  };
+  let runSeq = 0, rowSeq = 0;
+  const runsById = new Map<string, RunRow>();
+  const stagesByRun = new Map<string, Map<string, Record<string, unknown>>>();
+  const tablesByRun = new Map<string, Record<ChildTable, Array<Record<string, unknown>>>>();
+  const decisionsByRun = new Map<string, Record<string, unknown>>();
+
+  const emptyTables = (): Record<ChildTable, Array<Record<string, unknown>>> => ({
+    metric_results: [],
+    reconstruction_results: [],
+    verification_results: [],
+    disagreement_results: [],
+    underdog_results: [],
+    stress_results: [],
+  });
+  const tablesFor = (runId: string) => {
+    let t = tablesByRun.get(runId);
+    if (!t) { t = emptyTables(); tablesByRun.set(runId, t); }
+    return t;
+  };
+  const stagesFor = (runId: string) => {
+    let m = stagesByRun.get(runId);
+    if (!m) { m = new Map(); stagesByRun.set(runId, m); }
+    return m;
+  };
+
+  const deps: PipelineDeps = {
+    now: () => new Date("2026-04-11T10:00:00Z"),
+    research: researcher,
+    async getMatch() { return match as never; },
+    async updateMatch(_id, patch) { Object.assign(match, patch); },
+    async getParsedFields() { return { matrix_predicted_winner: P1, matrix_wp: "62" }; },
+    async getActiveVersionId(docType) { return `v-${docType}`; },
+    async getRules(versionId) {
+      const kind = versionId.replace("v-", "") as keyof typeof DEF_COUNTS;
+      return DEF_COUNTS[kind] ? (defsFor(kind) as never) : [];
+    },
+    async getLatestRun() {
+      const all = [...runsById.values()];
+      if (!all.length) return null;
+      return all.reduce((a, b) => (a.run_number > b.run_number ? a : b));
+    },
+    async createRun(row) {
+      runSeq += 1;
+      const newRun: RunRow = {
+        id: `run-${runSeq}`,
+        run_number: 1,
+        status: "RUNNING",
+        research_lock_at: null,
+        independent_decision_committed_at: null,
+        matrix_revealed_at: null,
+        independent_winner: null,
+        independent_low: null,
+        independent_high: null,
+        calibrated_low: null,
+        calibrated_high: null,
+        calibration_version_id: null,
+        effective_evidence_count: 0,
+        metrics_version_id: null,
+        verification_version_id: null,
+        disagreement_version_id: null,
+        ...(row as object),
+      } as RunRow;
+      runsById.set(newRun.id, newRun);
+      return newRun;
+    },
+    async updateRun(id, patch) {
+      const existing = runsById.get(id);
+      if (existing) runsById.set(id, { ...existing, ...(patch as object) } as RunRow);
+    },
+    async list(table, runId) { return tablesFor(runId)[table].map((r) => ({ ...r })); },
+    async insert(table, rows) {
+      for (const r of rows) {
+        rowSeq += 1;
+        const runId = String(r["audit_run_id"]);
+        tablesFor(runId)[table].push({ id: `${table}-${rowSeq}`, ...r });
+      }
+    },
+    async update(table, id, patch) {
+      for (const t of tablesByRun.values()) {
+        const row = t[table].find((r) => r["id"] === id);
+        if (row) { Object.assign(row, patch); return; }
+      }
+      throw new Error(`row ${id} missing in ${table}`);
+    },
+    async getStages(runId) { return Array.from(stagesFor(runId).values()) as never; },
+    async setStage(runId, _matchId, stage, patch) {
+      const m = stagesFor(runId);
+      m.set(stage, {
+        stage,
+        status: "PENDING",
+        attempts: 0,
+        error_message: null,
+        done_count: 0,
+        total_count: 0,
+        ...(m.get(stage) ?? {}),
+        ...patch,
+      });
+    },
+    async saveIdentityRecords() {},
+    async saveSnapshots() {},
+    async saveConflicts() {},
+    async getCalibration() {
+      return {
+        version: { id: "cal-1", label: "CAL v1", version_number: 1 },
+        buckets: [
+          { bucket_code: "50-59", wp_min: 50, wp_max: 59.99, wins: 20, graded: 34 },
+          { bucket_code: "60-69", wp_min: 60, wp_max: 69.99, wins: 41, graded: 60 },
+          { bucket_code: "70-79", wp_min: 70, wp_max: 79.99, wins: 33, graded: 42 },
+        ],
+      };
+    },
+    async getDecisionId(runId) { return (decisionsByRun.get(runId)?.["id"] as string) ?? null; },
+    async saveDecision(runId, existingId, payload) {
+      if (existingId) {
+        const row = decisionsByRun.get(runId);
+        if (row) Object.assign(row, payload);
+      } else {
+        decisionsByRun.set(runId, { id: `decision-${runId}`, audit_run_id: runId, ...payload });
+      }
+    },
+    async getConflicts() { return []; },
+    async getReconstructions(runId) {
+      return tablesFor(runId).metric_results.filter((m) => m["treatment"] === "RECONSTRUCTED").map(() => ({ status: "COMPLETE" }));
+    },
+    async saveCoverage() {},
+    async saveCoverageRates() {},
+    async log() {},
+  };
+
+  return { deps, runsById, stagesByRun, tablesByRun };
 }
 
 describe("Run Audit pipeline", () => {
@@ -881,4 +1044,105 @@ describe("Stage dependency gate: enforced through the real pipeline (runPipeline
       expect(canonical.every((c) => c.row?.status === "COMPLETE"), `match ${i} every canonical stage COMPLETE`).toBe(true);
     }
   }, 120_000);
+});
+
+// ----------------------------------------------------------------------------
+// Clear Slate regression test: Audit -> Clear Slate -> verify old active
+// state cannot be seen/used -> start new audit -> verify new audit_run_id ->
+// verify exactly one canonical 16-stage diagnostic chain with no
+// contamination from the previous run.
+//
+// clearOperationalSlate (reset-slate.functions.ts) only ever does one thing
+// to audit_runs: set the latest run's status to INVALIDATED_RUN_STATUS and
+// clear its lease. It never touches audit_stage_runs, metric_results, or any
+// other child table -- those are deliberately preserved as history. This
+// test reproduces exactly that write against a properly run-scoped mock (so
+// it can actually prove isolation, unlike makeMemoryDeps) and drives a real
+// second audit through resolveActiveRun/ensureRun/runPipeline -- the actual
+// production code paths, not a simulation of them.
+// ----------------------------------------------------------------------------
+describe("Clear Slate: true clean slate for the next audit", () => {
+  it("produces a brand-new audit_run_id with exactly one canonical 16-stage chain, with the previous run's active state unreachable and its history untouched", async () => {
+    const { deps, runsById, stagesByRun, tablesByRun } = makeMultiRunMemoryDeps();
+
+    // 1. Run a full audit to completion.
+    const first = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(first.complete).toBe(true);
+    const oldRunId = first.runId;
+    const oldRun = runsById.get(oldRunId)!;
+    expect(oldRun.run_number).toBe(1);
+    expect(stagesByRun.get(oldRunId)!.size).toBe(STAGES.length);
+    expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
+
+    // 2. Clear Slate: reproduce exactly what clearOperationalSlate does to
+    // audit_runs for this match's latest run -- nothing else.
+    await deps.updateRun(oldRunId, { status: INVALIDATED_RUN_STATUS, lease_owner: null, lease_expires_at: null });
+
+    // 3. Verify old active state cannot be seen/used: the active-run
+    // resolver (the same one match.$matchId.tsx and slate.tsx use) must
+    // resolve straight through the invalidated run to null -- not fall back
+    // to displaying its stale, fully-populated diagnostics.
+    const latestAfterClear = await deps.getLatestRun(MATCH_ID);
+    expect(latestAfterClear?.status).toBe(INVALIDATED_RUN_STATUS);
+    expect(isActiveRunStatus(latestAfterClear?.status)).toBe(false);
+    expect(resolveActiveRun(latestAfterClear ? [latestAfterClear] : [])).toBeNull();
+    // Execution % for "the active slate" must read 0, not the old run's
+    // last-known progress, once there is no active run to report on.
+    expect(computeExecutionPercent([])).toBe(0);
+
+    // History is preserved, not deleted: the old run and all of its
+    // canonical diagnostics and evidence still exist, untouched.
+    expect(stagesByRun.get(oldRunId)!.size).toBe(STAGES.length);
+    expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
+
+    // 4. Start a new audit. preparePipelineRun/ensureRun must see the
+    // invalidated run and create a genuinely new one rather than resuming
+    // it -- and immediately after creation, before any stage has run,
+    // execution must read exactly 0%, not carry over the old run's progress.
+    const preparedRun = await preparePipelineRun(deps, MATCH_ID);
+    expect(preparedRun.id).not.toBe(oldRunId);
+    expect(preparedRun.run_number).toBe(2);
+    expect(computeExecutionPercent(Array.from((stagesByRun.get(preparedRun.id) ?? new Map()).values()) as never)).toBe(0);
+
+    const second = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(second.complete).toBe(true);
+    const newRunId = second.runId;
+
+    // 5. Verify a new audit_run_id.
+    expect(newRunId).toBe(preparedRun.id);
+    expect(newRunId).not.toBe(oldRunId);
+    expect(runsById.get(newRunId)!.run_number).toBe(2);
+    expect(runsById.get(newRunId)!.status).toBe("COMPLETE");
+    // The old run's status is exactly as Clear Slate left it -- the new run
+    // never touched it.
+    expect(runsById.get(oldRunId)!.status).toBe(INVALIDATED_RUN_STATUS);
+
+    // 6. Verify exactly one canonical 16-stage diagnostic chain for the new
+    // run, in dependency order, with zero contamination from the previous
+    // run's rows.
+    const newStages = Array.from(stagesByRun.get(newRunId)!.values());
+    expect(newStages).toHaveLength(STAGES.length);
+    const canonical = canonicalizeStageRows(newStages.map((r) => ({ stage: String(r["stage"]), status: String(r["status"]) })));
+    expect(canonical).toHaveLength(STAGES.length);
+    expect(canonical.map((c) => c.stage)).toEqual(STAGES);
+    expect(canonical.every((c) => c.row?.status === "COMPLETE")).toBe(true);
+    for (const stage of STAGES) {
+      expect(unmetDependencies(stage, newStages.map((r) => ({ stage: String(r["stage"]), status: String(r["status"]) })))).toEqual([]);
+    }
+
+    // No previous metric/evidence state leaked into the new run: same real
+    // denominator, entirely disjoint row ids from the old run's rows.
+    const newMetrics = tablesByRun.get(newRunId)!.metric_results;
+    expect(newMetrics).toHaveLength(DEF_COUNTS.METRICS);
+    const oldMetricIds = new Set(tablesByRun.get(oldRunId)!.metric_results.map((r) => r["id"]));
+    const newMetricIds = new Set(newMetrics.map((r) => r["id"]));
+    expect([...newMetricIds].some((id) => oldMetricIds.has(id))).toBe(false);
+
+    // The old run's own diagnostic chain and evidence are still there,
+    // completely isolated -- history preserved, not deleted, not merged.
+    expect(stagesByRun.get(oldRunId)!.size).toBe(STAGES.length);
+    expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
+    expect(stagesByRun.size).toBe(2);
+    expect(tablesByRun.size).toBe(2);
+  }, 60_000);
 });

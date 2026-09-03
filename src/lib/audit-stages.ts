@@ -53,6 +53,49 @@ export type Stage = (typeof STAGES)[number];
 
 export const FINAL_STAGE: Stage = STAGES[STAGES.length - 1];
 
+// ----------------------------------------------------------------------------
+// ACTIVE-RUN RESOLUTION: the single source of truth for "does this match
+// currently have an active audit run", used by Clear Slate (reset-slate.
+// functions.ts), rule-version invalidation (bootstrap.ts), run creation
+// (audit-pipeline.ts's ensureRun), and every UI surface that shows a run's
+// diagnostics/report/progress (match.$matchId.tsx, slate.tsx).
+//
+// An audit_runs row is marked INVALIDATED_RUN_STATUS when it has been
+// superseded -- by Clear Slate or by a rule-document version change -- and
+// must never again be treated as "the current run" for a match: not for
+// display (its diagnostics, report, coverage, execution % must not render as
+// if they were live), and not for driving (the pipeline must never resume
+// or complete an invalidated run). Its historical child rows are preserved
+// on purpose -- only its status changes -- but every read path that answers
+// "what is the active run for this match" must resolve straight through it
+// to null, exactly as if no run existed yet, until a genuinely new
+// audit_run_id is created. This is a state-resolution rule, not a per-page
+// UI filter: it lives here so the backend and every UI surface apply it
+// identically, from the same definition.
+// ----------------------------------------------------------------------------
+export const INVALIDATED_RUN_STATUS = "INVALIDATED — RERUN REQUIRED";
+
+export interface RunStatusRow {
+  status: string;
+  run_number: number;
+}
+
+export function isActiveRunStatus(status: string | null | undefined): boolean {
+  return !!status && status !== INVALIDATED_RUN_STATUS;
+}
+
+// Given every audit_runs row known for a match (any order), returns the one
+// that is genuinely the current active run, or null if the most recent run
+// was invalidated (Clear Slate, or a rule-version change) and no fresh run
+// has started yet. Never falls back to an older run when the latest one is
+// invalidated -- that would resurrect stale state instead of presenting a
+// clean slate.
+export function resolveActiveRun<T extends RunStatusRow>(runs: readonly T[]): T | null {
+  if (!runs.length) return null;
+  const latest = [...runs].sort((a, b) => b.run_number - a.run_number)[0]!;
+  return isActiveRunStatus(latest.status) ? latest : null;
+}
+
 // stage -> every stage that must already be COMPLETE before this stage may
 // start or be persisted as COMPLETE. Computed once from STAGES' own order so
 // there is exactly one place that encodes "what comes before what".

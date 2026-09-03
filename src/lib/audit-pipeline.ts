@@ -19,8 +19,8 @@ import { reconstruct, type SourcedStat } from "./reconstruction/engine";
 import { familyOf } from "./reconstruction/stat-catalog";
 import { classifyMetric } from "./metric-classification";
 import { buildCalibrationSnapshot } from "./calibration-snapshot";
-import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, type Stage } from "./audit-stages";
-export { STAGES, STAGE_DEPENDENCIES, unmetDependencies, type Stage } from "./audit-stages";
+import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
+export { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, resolveActiveRun, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 
 // Task 20/21 canonical classification reconciliation: codes classified
 // META_OR_NON_PLAYER in the canonical registry (public/seed/metrics.txt, see
@@ -190,7 +190,7 @@ function unavailableReason(message:string):UnavailableReason{const v=message.toL
 async function ensureRun(deps:PipelineDeps,match:MatchRow,forceNewRun=false):Promise<RunRow>{
   const existing=await deps.getLatestRun(match.id);
   const now=deps.now();
-  if(!forceNewRun&&existing&&existing.status!=="INVALIDATED — RERUN REQUIRED"){
+  if(!forceNewRun&&existing&&isActiveRunStatus(existing.status)){
     if(existing.status==="COMPLETE")return existing;
     const expired=existing.status==="RUNNING"&&lockExpired(existing.research_lock_at,now);
     if(!existing.research_lock_at||expired){

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { CALIBRATION_BUCKETS, DEFAULT_SOURCES, MASTER_RECORD_START, SMALL_SAMPLE_THRESHOLD } from "./constants";
 import { activationStatus, parseRuleDocument } from "./rule-parser";
+import { INVALIDATED_RUN_STATUS } from "./audit-stages";
 
 const SEED_DOCS: Array<{ doc_type: string; title: string; file: string }> = [
   { doc_type: "VERIFICATION", title: "Tennis Matrix — Full Verification Audit", file: "/seed/verification.txt" },
@@ -164,7 +165,7 @@ export async function activateVersion(documentId: string, versionId: string) {
   if (field) {
     await supabase
       .from("audit_runs")
-      .update({ status: "INVALIDATED — RERUN REQUIRED", stale_reason: `${column} rule version changed` })
+      .update({ status: INVALIDATED_RUN_STATUS, stale_reason: `${column} rule version changed` })
       .neq(field, versionId)
       .in("status", ["RUNNING", "COMPLETE"]);
   }

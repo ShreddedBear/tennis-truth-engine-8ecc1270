@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { normalizeName } from "@/lib/summary-parser";
 import { computeExecutionPercent } from "@/lib/audit-progress";
-import { canonicalizeStageRows } from "@/lib/audit-stages";
+import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
@@ -68,7 +68,11 @@ function Slate(){
     if(active.length)drive.mutate(active);
   },[data,drive.isPending]);
 
-  const runFor=(match:any)=>{const ids=match?._all_ids??[match.id];return data?.runs.filter((run:any)=>ids.includes(run.match_id)).sort((a:any,b:any)=>b.run_number-a.run_number)[0];};
+  // resolveActiveRun resolves straight through an INVALIDATED (Clear Slate,
+  // or a rule-version change) run to null -- a match whose latest run was
+  // just invalidated shows as "no active run" (Run Audit, 0%, no
+  // diagnostics), never that dead run's last-known progress.
+  const runFor=(match:any)=>{const ids=match?._all_ids??[match.id];return resolveActiveRun(data?.runs.filter((run:any)=>ids.includes(run.match_id))??[]);};
   // Every lookup below is scoped to this ONE run's rows first (audit_run_id
   // === run.id), then normalized through canonicalizeStageRows -- exactly
   // one entry per canonical stage, in fixed 1-16 order -- so neither a prior
@@ -107,7 +111,7 @@ function Slate(){
               <td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td>
               <td className="mono-num px-3 py-2 text-xs">{evidence===null?"—":`${evidence}%`}</td>
               <td className="px-3 py-2 text-right"><div className="flex justify-end gap-2">
-                {run&&<Button asChild size="sm" variant="secondary"><Link to="/app/match/$matchId" params={{matchId:run.match_id}}>Open workspace</Link></Button>}
+                <Button asChild size="sm" variant="secondary"><Link to="/app/match/$matchId" params={{matchId:run?.match_id??match.id}}>Open workspace</Link></Button>
                 {(!run||run.status!=="COMPLETE")&&<Button size="sm" onClick={()=>drive.mutate([run?.match_id??match.id])} disabled={drive.isPending}>{run?.status==="BLOCKED"?"Retry blocked stage":run?"Audit running":"Run Audit"}</Button>}
               </div></td>
             </tr>;

@@ -7,7 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
-import { canonicalizeStageRows } from "@/lib/audit-stages";
+import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
 import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
@@ -129,8 +129,16 @@ function Workspace() {
         .eq("match_id", matchId)
         .order("run_number", { ascending: false });
       if (runsError) throw new Error(`Could not load audit runs: ${runsError.message}`);
-      const run = runs?.[0] ?? null;
-      if (!run) return { match, run: null };
+      // resolveActiveRun resolves straight through an INVALIDATED (Clear
+      // Slate, or a rule-version change) run to null -- exactly as if no run
+      // existed yet -- rather than falling through to the "No audit run yet"
+      // branch below with a dead run's stale diagnostics/report/progress
+      // still attached. That branch's own zero-state is what makes this a
+      // true clean slate: no report, no stage rows, no counts, until a
+      // genuinely new audit_run_id exists.
+      const run = resolveActiveRun(runs ?? []);
+      const wasInvalidated = !run && !!runs?.length;
+      if (!run) return { match, run: null, wasInvalidated };
       const calibrationVersionQuery = run.calibration_version_id
         ? supabase.from("calibration_versions").select("*").eq("id", run.calibration_version_id).maybeSingle()
         : supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
@@ -157,6 +165,7 @@ function Workspace() {
       return {
         match,
         run,
+        wasInvalidated: false,
         metrics: metrics.data ?? [],
         verification: verification.data ?? [],
         disagreement: disagreement.data ?? [],
@@ -244,7 +253,11 @@ function Workspace() {
   if (!run)
     return (
       <div className="panel space-y-3 p-6 text-sm">
-        <p>No audit run yet for {match.player1_name} vs {match.player2_name}.</p>
+        <p>
+          {data.wasInvalidated
+            ? `The slate was cleared for ${match.player1_name} vs ${match.player2_name} — no active audit run yet.`
+            : `No audit run yet for ${match.player1_name} vs ${match.player2_name}.`}
+        </p>
         <Button onClick={runAudit} disabled={running}>
           {running ? "Running audit…" : "Run Audit"}
         </Button>
