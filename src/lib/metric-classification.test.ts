@@ -75,13 +75,22 @@ describe("canonical metric classification registry", () => {
     expect(record?.review_status).toBe("REVIEWED");
   });
 
-  it("keeps 047 (Uncertainty-Adjusted Advantage) IN the denominator as UNKNOWN_REQUIRES_REVIEW rather than unilaterally excluding it", () => {
-    // Genuinely ambiguous (a confidence-interval treatment applied to two players' own
-    // statistics) -- flagged for human review rather than excluded on inference alone,
-    // the same principle already applied to code 061.
-    expect(classifyMetric("047")).toBe("UNKNOWN_REQUIRES_REVIEW");
+  it("resolves 047 (Uncertainty-Adjusted Advantage) and 061 (Final Advanced Tests -> Historical Twin Match Search) to LEGITIMATE_PLAYER_METRIC -- both had a human classification decision made and now have real engines (see docs/audit-task-047-061-classification-decisions.md)", () => {
+    // 047: a confidence-interval treatment applied to two players' own statistics is a
+    // player-comparison fact, not a meta-method -- audit-metric-047-uncertainty-adjusted-
+    // advantage.ts builds it as a real two-proportion CI-adjusted comparison.
+    expect(classifyMetric("047")).toBe("LEGITIMATE_PLAYER_METRIC");
+    expect(classificationRecordFor("047")).toBeNull();
+    // 061: split into a real Historical Twin Match Search (audit-metric-061-historical-
+    // twin-match-search.ts, now what code 061 means) plus a permanently-excluded
+    // counterfactual/opponent-upgrade-rerun component that intentionally never gets its own
+    // metric code (see final-advanced-meta.server.ts's header).
+    expect(classifyMetric("061")).toBe("LEGITIMATE_PLAYER_METRIC");
+    expect(classificationRecordFor("061")).toBeNull();
     const denominator = new Set(playerEvidenceDenominatorCodes());
     expect(denominator.has("047")).toBe(true);
+    expect(denominator.has("061")).toBe(true);
+    expect(UNKNOWN_REQUIRES_REVIEW_CODES.size).toBe(0);
   });
 
   it("the 10 originally-flagged special metrics each resolve to an explicit classification, not a silent default", () => {

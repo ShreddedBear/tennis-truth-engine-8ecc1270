@@ -497,7 +497,8 @@ describe("Run Audit pipeline", () => {
   // classifyMetric is mocked above to treat "M70" (real code 070) as PROTECTED_UNAVAILABLE.
   // "M59" (real code 059, "Loss Path Probability") is used here as the real
   // META_OR_NON_PLAYER reference code -- it is genuinely excluded under the canonical
-  // registry, unlike "M61" (061 is UNKNOWN_REQUIRES_REVIEW, not excluded).
+  // registry, unlike "M61" (061 is a resolved LEGITIMATE_PLAYER_METRIC -- see
+  // docs/audit-task-047-061-classification-decisions.md -- not excluded).
   it("instantiates a NO_SOURCE code as NO_SOURCE (not EXCLUDED) and never asks research for it, while a real META_OR_NON_PLAYER code stays EXCLUDED", async () => {
     const seenByResearch = new Set<string>();
     const { deps, tables } = makeMemoryDeps();
