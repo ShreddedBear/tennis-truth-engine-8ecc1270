@@ -6,7 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { normalizeName } from "@/lib/summary-parser";
-import { computeExecutionPercent } from "@/lib/audit-progress";
+import { activeRunExecutionPercent } from "@/lib/audit-progress";
 import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,9 @@ function Slate(){
     queryKey:["slate"],
     refetchInterval:3000,
     queryFn:async()=>{
-      const[{data:matches},{data:runs},{data:decisions},{data:stages},{data:coverage},{data:versions},{data:uploads}]=await Promise.all([
+      const[{data:matches},{data:runs},{data:versions},{data:uploads}]=await Promise.all([
         supabase.from("matches").select("*").order("created_at",{ascending:false}),
         supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at"),
-        supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete"),
-        supabase.from("audit_stage_runs").select("audit_run_id, stage, stage_order, status, done_count, total_count, started_at, finished_at, heartbeat_at"),
-        supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count"),
         supabase.from("summary_versions").select("match_id, upload_id, created_at"),
         supabase.from("summary_uploads").select("id, created_at").order("created_at",{ascending:false}),
       ]);
@@ -47,6 +44,28 @@ function Slate(){
       for(const match of raw){const index=groups.findIndex(group=>samePair(group[0],match));if(index<0)groups.push([match]);else groups[index].push(match);}
       const newestUpload=(uploads??[])[0]?.id??null;
       const latestMatchIds=new Set((versions??[]).filter(version=>newestUpload&&version.upload_id===newestUpload).map(version=>version.match_id));
+      // Stage/decision/coverage rows are fetched ONLY for the resolved active
+      // (non-invalidated, latest-per-match) run ids, never every historical
+      // run ever created. Two reasons this matters, not just one: (1) it is
+      // the "never aggregate across runs" contract audit-progress.ts already
+      // requires of its caller, enforced here at the query itself rather
+      // than only by in-memory filtering; (2) an unfiltered, unlimited
+      // `audit_stage_runs` select grows 16 rows per run, active or
+      // long-invalidated -- once a project's history passes Supabase's
+      // default max-rows cap, that select silently truncates and can omit
+      // the current run's own rows entirely, which reproduces exactly the
+      // reported bug (Execution Diagnostics on the match workspace is
+      // correct because IT queries by this one run's id directly; Active
+      // Slate read 0% because its global fetch never even contained this
+      // run's rows once the table grew past the cap).
+      const byMatchId=new Map<string,any[]>();
+      for(const run of runRows){const list=byMatchId.get(run.match_id)??[];list.push(run);byMatchId.set(run.match_id,list);}
+      const activeRunIds=[...byMatchId.values()].map(resolveActiveRun).filter((run):run is NonNullable<typeof run>=>!!run).map(run=>run.id);
+      const[{data:decisions},{data:stages},{data:coverage}]=activeRunIds.length?await Promise.all([
+        supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete").in("audit_run_id",activeRunIds),
+        supabase.from("audit_stage_runs").select("audit_run_id, stage, stage_order, status, done_count, total_count, started_at, finished_at, heartbeat_at").in("audit_run_id",activeRunIds),
+        supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count").in("audit_run_id",activeRunIds),
+      ]):[{data:[]},{data:[]},{data:[]}] as const;
       return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions:decisions??[],stages:stages??[],coverage:coverage??[],latestMatchIds:[...latestMatchIds]};
     },
   });
@@ -79,7 +98,7 @@ function Slate(){
   // run's rows nor a duplicate/retry record can ever be read as this run's
   // progress.
   const stagesFor=(run:any)=>run?.id?canonicalizeStageRows((data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id)):[];
-  const executionFor=(run:any)=>run?.id?computeExecutionPercent(stagesFor(run).map(({stage,row})=>({stage,status:row?.status??"PENDING",done_count:row?.done_count??0,total_count:row?.total_count??0})),run.status):0;
+  const executionFor=(run:any)=>activeRunExecutionPercent(run,(data?.stages??[]) as never);
   const activeStageFor=(run:any)=>{const running=stagesFor(run).filter(({row})=>row?.status==="RUNNING");return running.length?running[running.length-1].row:null;};
   const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
   const latest=new Set(data?.latestMatchIds??[]);
