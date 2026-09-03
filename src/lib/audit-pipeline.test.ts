@@ -69,10 +69,24 @@ const researcher: Researcher = {
     };
   },
   async metrics({ metrics }) {
-    return metrics.map((m, i) => ({
+    // Realistic, comparable evidence for the metrics the deterministic decision core has a
+    // declared comparison spec for (truth-engine-metric-comparison.ts). Without this the
+    // fixture emitted bare unlabelled scalars ("50"/"48"), which the decision core correctly
+    // refuses to interpret -- so this end-to-end test would only ever have proved that the
+    // mock researcher echoed a winner, never that a winner is genuinely DERIVED from
+    // evidence. These values give P1 an honest lead across three independent families.
+    const COMPARABLE: Record<string, [string, string]> = {
+      "001": ["1900", "1500"], // SURFACE_STRENGTH -> P1
+      "005": ["last10_win_pct=80", "last10_win_pct=30"], // RECENT_FORM -> P1
+      "027": ["lead_protection_rate_pct=90", "lead_protection_rate_pct=40"], // CLOSING_ABILITY -> P1
+    };
+    return metrics.map((m, i) => {
+      const normalized = String(m.code).match(/(\d{1,3})$/)?.[1]?.padStart(3, "0") ?? "";
+      const comparable = COMPARABLE[normalized];
+      return {
       metric_code: m.code,
-      p1_value: `${50 + i}`,
-      p2_value: `${48 + i}`,
+      p1_value: comparable ? comparable[0] : `${50 + i}`,
+      p2_value: comparable ? comparable[1] : `${48 + i}`,
       p1_treatment: "DIRECT" as const,
       p2_treatment: i % 9 === 0 ? ("RECONSTRUCTED" as const) : ("DIRECT" as const),
       differential: "+2",
@@ -81,7 +95,8 @@ const researcher: Researcher = {
       sample: "last 12 matches",
       unavailable_reason: null,
       sources: [{ source_name: "tennisabstract.com", url: "https://example.test/stat", retrieved_at: null }],
-    }));
+      };
+    });
   },
   async rules({ rules }) {
     return rules.map((r, i) => ({

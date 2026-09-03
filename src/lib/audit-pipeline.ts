@@ -19,6 +19,8 @@ import { reconstruct, type SourcedStat } from "./reconstruction/engine";
 import { familyOf } from "./reconstruction/stat-catalog";
 import { classifyMetric } from "./metric-classification";
 import { buildCalibrationSnapshot } from "./calibration-snapshot";
+import { compareMetricRows } from "./truth-engine-metric-comparison";
+import { decideTruthEngineSelection } from "./truth-engine-decision";
 import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 export { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, resolveActiveRun, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 
@@ -385,8 +387,57 @@ async function executeUnderdog(deps:PipelineDeps,matchId:string,runId:string):Pr
 
 async function executeStress(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const rows=await deps.list("stress_results",runId);if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No stress tests instantiated."};const metrics=await deps.list("metric_results",runId),evidence=digestFrom(match,metrics),lean=await provisionalConclusion(deps,matchId,runId,evidence),pending=rows.filter(r=>!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))),matrixRemoval=pending.filter(r=>["ST01","ST02"].includes(String(r["test_code"]))),rest=pending.filter(r=>!["ST01","ST02"].includes(String(r["test_code"]))),matrixDerivedUsed=metrics.filter(m=>m["matrix_derived"]===true&&m["status"]==="COMPLETE").length;for(const row of matrixRemoval)await deps.update("stress_results",String(row["id"]),{winner_before:lean.winner,winner_after:matrixDerivedUsed===0?lean.winner:null,range_before:lean.low!==null&&lean.high!==null?`${lean.low}-${lean.high}`:null,range_after:lean.low!==null&&lean.high!==null?`${lean.low}-${lean.high}`:null,outcome:matrixDerivedUsed===0?"STABLE":"UNSTABLE",status:"COMPLETE"});if(rest.length){let findings:StressFinding[]=[],providerError:string|null=null;try{findings=await deps.research.stress({evidence,conclusion:lean,tests:rest.map(r=>({code:String(r["test_code"]),name:String(r["test_name"])}))});}catch(error){providerError=errorDetail(error);}const byCode=new Map(findings.map(f=>[f.test_code,f]));for(const row of rest){const f=byCode.get(String(row["test_code"]));await deps.update("stress_results",String(row["id"]),{winner_before:lean.winner,winner_after:f?.winner_after??null,range_before:lean.low!==null&&lean.high!==null?`${lean.low}-${lean.high}`:null,range_after:f?.range_after??null,outcome:f?.outcome??"UNSTABLE",status:f?"COMPLETE":"UNAVAILABLE",unavailable_reason:f?.unavailable_reason?unavailableReason(f.unavailable_reason):(f?null:providerReason(providerError)),unavailable_detail:f?.unavailable_reason??null,provider_error:providerError,missing_inputs:f?.missing_inputs??[],sources:f?.sources??[],source_attempts:[],reconstruction_attempted:false,retrieved_at:deps.now().toISOString()});}}const after=await deps.list("stress_results",runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;return done===after.length?{status:"COMPLETE",done,total:after.length}:{status:"BLOCKED",done,total:after.length,errorCode:"STRESS_INCOMPLETE",message:`${after.length-done} stress tests unexecuted.`};}
 
+/**
+ * DETERMINISTIC INDEPENDENT CONCLUSION (docs/audit-truth-engine-decision-core.md).
+ *
+ * Forensic finding this exists to fix: every decision stage delegated wholly to the LLM
+ * researcher, with no deterministic fallback. Across 405 persisted runs that produced 0
+ * verification findings, 0 disagreement risks, 0 underdog classifications and 0
+ * independent winners -- while the stages still reported COMPLETE, because a stage counts
+ * as complete once every row is *settled*, and an LLM failure settles them all as
+ * UNAVAILABLE. Metric execution, by contrast, works and persists real two-sided evidence.
+ *
+ * The Truth Engine must be an independent auditor, so the winner is now derived
+ * deterministically from that persisted metric evidence -- reproducible, inspectable, and
+ * identical on every re-run. Correlated metrics are collapsed into evidence families that
+ * vote once, and the lead must survive leave-one-family-out before a side is selected.
+ * When the evidence does not support a selection, this returns no winner WITH the reason,
+ * rather than asking a provider to manufacture certainty.
+ */
+export function deterministicIndependentConclusion(metrics:Array<Record<string,unknown>>,p1Name:string,p2Name:string):ConclusionFinding&{decision:ReturnType<typeof decideTruthEngineSelection>}{
+  const decision=decideTruthEngineSelection({
+    comparisons:compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),
+    p1Name,p2Name,
+  });
+  const winner=decision.outcome==="INSUFFICIENT_EVIDENCE"?null:decision.selected_player;
+  return{
+    winner,
+    low:null,high:null,
+    rationale:winner?`${decision.reason} Evidence chain: ${decision.evidence_chain.join(" | ")}`:null,
+    insufficient_reason:winner?null:decision.reason,
+    decision,
+  };
+}
+
 async function provisionalConclusion(deps:PipelineDeps,matchId:string,runId:string,evidence:EvidenceDigest):Promise<ConclusionFinding>{const[ver,dis,und]=await Promise.all([deps.list("verification_results",runId),deps.list("disagreement_results",runId),deps.list("underdog_results",runId)]);try{return await deps.research.conclusion({evidence,verificationSummary:ver.filter(r=>r["outcome"]==="FAIL"||r["outcome"]==="WARN").map(r=>`${r["rule_code"]} ${r["outcome"]}: ${r["p1_finding"]??""} | ${r["p2_finding"]??""}`).join("\n").slice(0,6000),disagreementSummary:dis.filter(r=>r["contradiction_severity"]&&r["contradiction_severity"]!=="NONE").map(r=>`${r["rule_code"]} ${r["contradiction_severity"]}: ${r["final_effect"]??""}`).join("\n").slice(0,6000),underdogSummary:und.filter(r=>r["classification"]==="STRONG"||r["classification"]==="REALISTIC").map(r=>`${r["player_side"]} ${r["pathway_name"]} ${r["classification"]}: ${r["evidence"]??""}`).join("\n").slice(0,6000)});}catch{return{winner:null,low:null,high:null,rationale:null,insufficient_reason:"Independent conclusion unavailable because the research provider did not return a result."};}}
-async function commitConclusion(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(run?.independent_decision_committed_at)return{status:"COMPLETE",done:1,total:1};const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const metrics=await deps.list("metric_results",runId),evidence=digestFrom(match,metrics),conclusion=await provisionalConclusion(deps,matchId,runId,evidence),families=new Set(metrics.filter(m=>m["matrix_derived"]!==true&&m["status"]==="COMPLETE"&&m["evidence_family"]).map(m=>String(m["evidence_family"])));if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
+async function commitConclusion(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(run?.independent_decision_committed_at)return{status:"COMPLETE",done:1,total:1};const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const metrics=await deps.list("metric_results",runId),evidence=digestFrom(match,metrics);
+  // The deterministic, evidence-derived conclusion is AUTHORITATIVE for the winner: it is
+  // reproducible and inspectable, where the provider path is neither and in practice
+  // returned nothing at all across every historical run. The provider is consulted only
+  // for supplementary rationale text, and can never override, supply, or overturn the
+  // selected side -- that is what keeps this an independent audit rather than a narrative.
+  const deterministic=deterministicIndependentConclusion(metrics,match.player1_name,match.player2_name);
+  let conclusion:ConclusionFinding=deterministic;
+  if(deterministic.winner){
+    try{
+      const narrated=await provisionalConclusion(deps,matchId,runId,evidence);
+      if(narrated?.rationale)conclusion={...deterministic,rationale:`${deterministic.rationale} Provider narrative: ${narrated.rationale}`};
+    }catch{/* provider narrative is optional; the deterministic selection stands regardless */}
+  }
+  // Independent evidence families come from the deterministic decision (correlated metrics
+  // collapsed and counted once), not from a raw distinct-string count of evidence_family,
+  // which double-counted correlated signals as independent corroboration.
+  const families=new Set(deterministic.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
 async function revealMatrix(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(!run?.independent_decision_committed_at)return{status:"BLOCKED",done:0,total:1,errorCode:"FIREWALL",message:"Matrix stays sealed until the independent conclusion is committed."};const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;await deps.updateRun(runId,{matrix_revealed_at:deps.now().toISOString()});return{status:"COMPLETE",done:1,total:1,detail:{matrix_predicted_winner:fields["matrix_predicted_winner"]??null,matrix_wp:wp,agrees_with_independent:fields["matrix_predicted_winner"]&&run.independent_winner?fields["matrix_predicted_winner"].toLowerCase().includes(run.independent_winner.split(" ").slice(-1)[0]!.toLowerCase()):null}};}
 async function applyCalibration(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const{version,buckets}=await deps.getCalibration();if(!version||!buckets.length)return{status:"FAILED",done:0,total:1,errorCode:"NO_ACTIVE_CALIBRATION",message:"No active calibration version with buckets is stored."};const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,snapshot=buildCalibrationSnapshot({versionId:version.id,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null});await deps.updateRun(runId,{calibration_version_id:version.id,calibrated_low:snapshot.calibratedLow,calibrated_high:snapshot.calibratedHigh});return{status:"COMPLETE",done:1,total:1,detail:{calibration_version:version.label,version_number:version.version_number,bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,bucket_wins:snapshot.bucketWins,bucket_graded:snapshot.bucketGraded}};}
 
