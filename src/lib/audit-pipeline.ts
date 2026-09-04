@@ -22,6 +22,7 @@ import { buildCalibrationSnapshot } from "./calibration-snapshot";
 import { compareMetricRows } from "./truth-engine-metric-comparison";
 import { decideTruthEngineSelection } from "./truth-engine-decision";
 import { runTruthEngineAudit } from "./truth-engine-audit";
+import { buildDecisionRecord } from "./truth-engine-decision-record";
 import { verificationRowPatch, disagreementRowPatch, underdogRowPatch, stressRowPatch, unmappedUnderdogPathways } from "./truth-engine-stage-mapping";
 import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 export { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, resolveActiveRun, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
@@ -560,7 +561,27 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
   if(missingUpstream.length)return{status:"BLOCKED",done:0,total:1,errorCode:"UPSTREAM_DEPENDENCY_INCOMPLETE",message:`Final Decision blocked: upstream stage(s) not complete: ${missingUpstream.join(", ")}.`};
   const report=await buildReport(deps,matchId,runId);
   const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,{version,buckets}=await deps.getCalibration(run?.calibration_version_id??null),snapshot=buildCalibrationSnapshot({versionId:version?.id??run?.calibration_version_id??null,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null}),existing=await deps.getDecisionId(runId);
-  await deps.saveDecision(runId,existing,{final_audit_color:report.color,final_recommendation:report.action,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
+  // DECISION RECORD. The deterministic audit is recomputed from the same persisted metric
+  // rows the conclusion stage used -- it is a pure function, so this reproduces that result
+  // exactly rather than approximating it -- and its structured features are persisted into
+  // the existing gate_report jsonb (no schema change).
+  //
+  // This exists because the forensic review found the decision's own features surviving
+  // only as prose inside a rationale string, which made a resolved
+  // decision -> actual-result observation impossible to reconstruct. It assigns NO weights
+  // and computes NO probability: evidence_support_percent is how the surviving evidence is
+  // distributed, evidence_coverage_* is diagnostic, and neither is a win probability. The
+  // calibration target (actual_winner) is left null here and filled in only when the real
+  // result is known.
+  const decisionMetrics=await deps.list("metric_results",runId);
+  const decisionMatch=await deps.getMatch(matchId);
+  const decisionRecord=decisionMatch?buildDecisionRecord({
+    audit:deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name).audit,
+    metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null})),
+    now:deps.now(),
+    actualWinner:(decisionMatch as unknown as{actual_winner?:string|null}).actual_winner??null,
+  }):null;
+  await deps.saveDecision(runId,existing,{gate_report:decisionRecord?{deterministic_decision:decisionRecord}:{},final_audit_color:report.color,final_recommendation:report.action,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
   if(!(await deps.getDecisionId(runId)))throw new Error("Final decision persistence invariant failed: no decision row exists after save.");
   if(deps.verifyFinalPersistence)await deps.verifyFinalPersistence(runId,report.coverage.p1.total+report.coverage.p2.total,report.auditComplete);
   const detail={color:report.color,action:report.action,completion_percent:report.completionPercent,evidence_coverage:report.coverage.usablePercent,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate};
