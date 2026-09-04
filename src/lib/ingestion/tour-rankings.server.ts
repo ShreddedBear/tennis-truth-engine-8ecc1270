@@ -76,6 +76,36 @@ function normalizeWtaOfficialRanking(target:Target,url:string,value:unknown):Row
   return row;
 }
 
+// Ranking points from a scraped table row, WITHOUT assuming a column index.
+//
+// The previous rule was positional -- `source==="atp_rankings" ? num(cells[2]) : num(last)`
+// -- and cells[2] on the ATP table is the AGE column, not points. It silently wrote ages
+// into every scraped ATP ranking row: Sinner rank 1 "points" 25, Zverev 2 -> 29, Alcaraz
+// 3 -> 23, Djokovic 5 -> 39, all exactly their 2026 ages. Because a second ingestion path
+// (the embedded-JSON one) writes the SAME players again with genuine points, metric 014's
+// stored evidence ended up self-contradictory: rank 3 with 23 points next to rank 29 with
+// 1652, depending on which duplicate the reader happened to sort first.
+//
+// Positional parsing is what broke, so the fix is not a better index: ranking points are
+// identifiable by VALUE in a ranking row. Rank is <= ~2000, age is 15-45, tournaments
+// played <= ~35, and week-on-week movement is small, while points for a ranked player run
+// from the high hundreds to ~13000 (ATP #1 is 12800 here; no tour has ever exceeded 20000).
+// So the largest cell in the row is the points column whenever it clears that band, and
+// when nothing in the row does, this returns null -- unproven, never a guessed number.
+// null is preserved end-to-end as "NA" rather than being coerced to 0.
+const MIN_PLAUSIBLE_RANKING_POINTS = 100;
+const MAX_PLAUSIBLE_RANKING_POINTS = 20_000;
+export function rankingPointsFromCells(cells: string[]): number | null {
+  let best: number | null = null;
+  for (const cell of cells.slice(1)) {
+    const value = num(cell);
+    if (value === null || !Number.isFinite(value)) continue;
+    if (value < MIN_PLAUSIBLE_RANKING_POINTS || value > MAX_PLAUSIBLE_RANKING_POINTS) continue;
+    if (best === null || value > best) best = value;
+  }
+  return best;
+}
+
 function parseRankingTable(html:string,source:RankingSource,target:Target,url:string,extraction?:string):Row[]{
   const rows:Row[]=[]; const seen=new Set<string>(); const rankingDate=target.pullback_end ?? new Date().toISOString().slice(0,10);
   for(const tr of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
@@ -83,7 +113,7 @@ function parseRankingTable(html:string,source:RankingSource,target:Target,url:st
     if(cells.length<2) continue;
     const rankMatch=cells[0].match(/\b(\d{1,4})\b/); if(!rankMatch) continue; const rank=Number(rankMatch[1]);
     const player=(cells[1]??"").replace(/\b[A-Z]{3}\b/g,"").replace(/^[-+\d\s]+/,"").trim(); if(!/[A-Za-zÀ-ž]/.test(player)) continue;
-    const points=source==="atp_rankings"?num(cells[2]):num(cells[cells.length-1]); const key=`${rank}:${player}`; if(seen.has(key)) continue; seen.add(key);
+    const points=rankingPointsFromCells(cells); const key=`${rank}:${player}`; if(seen.has(key)) continue; seen.add(key);
     const row=normalize(source,url,target,{playerName:player,rank,points,rankingDate},extraction); if(row) rows.push(row);
   }
   return rows;
