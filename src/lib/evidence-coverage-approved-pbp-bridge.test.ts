@@ -40,8 +40,23 @@ describe("approved repository PBP evidence bridge", () => {
     const entry = result.packet["024"] as any;
     expect(entry?.tour_guard).toBe("STRICT_WTA_CHALLENGER_WTA125_ONLY");
     expect(entry?.observed_families).toEqual(["POINT_BY_POINT"]);
-    expect(entry?.observations.some((row: any) => row.player === "Lin Zhu" && row.opponent === "Lulu Sun")).toBe(true);
-    expect(entry?.observations.some((row: any) => row.player === "Lulu Sun" && row.opponent === "Lin Zhu")).toBe(true);
+    // PHASE 14 — this assertion previously read the OPPOSITE way, and that is exactly the
+    // leak it now guards. `Lin Zhu vs Lulu Sun, WTA 125K Manila, 2026-01-27` is itself a
+    // row in the real approved index (data/metrics/pbp/wta_challenger/approved-index.jsonl),
+    // and it IS the match this call audits. The old boundary excluded only `d > asOfDate`,
+    // so the audited match's own point-by-point record was admitted as prior evidence for
+    // predicting that same match. This is production index data, not a synthetic fixture,
+    // so the leak was reachable for any match whose PBP the index carries.
+    //
+    // Correct post-fix state at asOfDate 2026-01-27: Lin Zhu's only index rows are the
+    // audited match itself plus 2026-01-28 and 2026-01-29 (both after it), so she has NO
+    // admissible prior evidence. Lulu Sun has a real 2025 history and does.
+    const pairRows = (entry?.observations ?? []).filter(
+      (row: any) => (row.player === "Lin Zhu" && row.opponent === "Lulu Sun") || (row.player === "Lulu Sun" && row.opponent === "Lin Zhu"),
+    );
+    expect(pairRows, "the audited match's own PBP must never be admitted as its own evidence").toHaveLength(0);
+    expect((entry?.observations ?? []).every((row: any) => String(row.event_date) < "2026-01-27")).toBe(true);
+    expect((entry?.observations ?? []).some((row: any) => row.player === "Lulu Sun")).toBe(true);
 
     const finding016 = deterministicPbpMetricFromPacket({ metricCode: "016", p1: "Lin Zhu", p2: "Lulu Sun", asOfDate: "2026-01-27", packet: result.packet });
     expect(finding016).toBeNull();
@@ -54,9 +69,10 @@ describe("approved repository PBP evidence bridge", () => {
       packet: result.packet,
     });
     expect(finding?.evidence_family).toBe("POINT_BY_POINT");
-    expect(finding?.p1_treatment).toBe("PARTIAL");
+    // One-sided by construction now, and honestly reported as such rather than credited to
+    // both players off the audited match's own row.
+    expect(finding?.p1_treatment).toBe("UNAVAILABLE");
     expect(finding?.p2_treatment).toBe("PARTIAL");
-    expect(finding?.p1_value).toContain("point_rows=");
     expect(finding?.p2_value).toContain("point_rows=");
   });
 

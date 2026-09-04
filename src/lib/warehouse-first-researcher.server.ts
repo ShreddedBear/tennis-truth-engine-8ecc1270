@@ -72,6 +72,18 @@ function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
 }
+/**
+ * The audited match's temporal boundary. Phase 14: prefer the TYPED `auditDate` the
+ * pipeline now passes (audit-pipeline.ts's executeMetrics, sourced directly from
+ * `matches.scheduled_date`) and fall back to parsing the rendered context only for callers
+ * that predate that field. A typed null and a parse miss are treated identically -- both
+ * mean "boundary not established", which returns "" and therefore admits nothing.
+ */
+export function auditBoundary(input: { auditDate?: string | null; context?: string | null }) {
+  const typed = String(input.auditDate ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(typed)) return typed;
+  return asOfDate(input.context);
+}
 export function asOfDate(context: string | null | undefined) {
   // Phase 13.5 finding: this previously fell back to TODAY'S WALL-CLOCK DATE when the
   // context carried no date token -- i.e. whenever the audited match has a null
@@ -260,7 +272,7 @@ export const warehouseFirstResearcher: Researcher = {
     console.log(`[research-timing] canonical identity ${Date.now()-callStartedAt}ms`);
     input = { ...input, p1: identities.p1.canonical, p2: identities.p2.canonical };
     const { p1, p2, metrics } = input;
-    const date = asOfDate(input.context);
+    const date = auditBoundary({ auditDate: input.auditDate, context: input.context });
     const tournament = tournamentFromContext(input.context);
     const surface = surfaceFromContext(input.context);
     const tourFamily = classifyEvidenceTourFamily(input.context, tournament);

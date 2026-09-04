@@ -67,8 +67,14 @@ export async function deterministicEnvironmentMetric(args: {
     .eq("source_id", "open_meteo")
     .eq("observation_type", "ENVIRONMENT")
     .eq("tournament", tournament)
+    // Upper bound is the match day itself, never after it (Phase 14 temporal sweep). The
+    // match-day environment row is legitimately pre-match information -- venue weather is
+    // forecast and published before play, and unlike a result it carries no outcome -- but
+    // the day AFTER the match is not available to a pre-match audit under any reading, and
+    // the previous `asOfDate + 1` bound admitted it. The -1 lower bound is retained: it
+    // absorbs the feed's timezone boundary for late local starts recorded in UTC.
     .gte("event_date", isoShift(args.asOfDate, -1))
-    .lte("event_date", isoShift(args.asOfDate, 1));
+    .lte("event_date", args.asOfDate);
 
   const { data, error } = await query;
   if (error) return null;

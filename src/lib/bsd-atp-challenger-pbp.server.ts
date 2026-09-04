@@ -31,7 +31,7 @@ async function computeObservations(args:{p1:string;p2:string;asOfDate:string;con
   if(!explicitContext(args.context)){status.reason="Fail-closed tour guard: context is not explicitly ATP Challenger.";return{status,observations:[]};}
   if(args.asOfDate<COVERAGE_START){status.reason="Outside confirmed BSD ATP Challenger PBP coverage.";return{status,observations:[]};}
   status.eligible=true;
-  const end=Math.min(new Date().getUTCFullYear(),Number(args.asOfDate.slice(0,4))||new Date().getUTCFullYear()),indexes=(await Promise.all(Array.from({length:Math.max(0,end-2025+1)},(_,i)=>loadIndex(2025+i)))).flat(),p1n=norm(args.p1),p2n=norm(args.p2);const eligible=indexes.filter(r=>strictRow(r)&&Boolean(r.date)&&String(r.date).slice(0,10)<=args.asOfDate&&(r.players??[]).map(norm).some(n=>n===p1n||n===p2n));
+  const end=Math.min(new Date().getUTCFullYear(),Number(args.asOfDate.slice(0,4))||new Date().getUTCFullYear()),indexes=(await Promise.all(Array.from({length:Math.max(0,end-2025+1)},(_,i)=>loadIndex(2025+i)))).flat(),p1n=norm(args.p1),p2n=norm(args.p2);const eligible=indexes.filter(r=>strictRow(r)&&Boolean(r.date)&&String(r.date).slice(0,10)<args.asOfDate&&(r.players??[]).map(norm).some(n=>n===p1n||n===p2n));
   const observations:any[]=[],seenMatchIds=new Set<string>(),seenCanonicalKeys=new Set<string>();
   const claimed:Array<{row:IndexRow;names:string[];identity:NonNullable<ReturnType<typeof canonicalApprovedPbpIdentity>>}>=[];
   for(const row of candidates(eligible,p1n,p2n)){
