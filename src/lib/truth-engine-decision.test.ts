@@ -548,6 +548,9 @@ describe("Phase 12 — P1/P2 symmetry under swap", () => {
     "053": ['output={"pressure_points":30,"pressure_index_pct":70}', 'output={"pressure_points":26,"pressure_index_pct":20}'],
     "055": ["elo_change_last10=60", "elo_change_last10=-60"],
     "080": ["favorable_divergent_outcomes=9; unfavorable_divergent_outcomes=1", "favorable_divergent_outcomes=1; unfavorable_divergent_outcomes=9"],
+    "016": ['output={"score_state_performance_json":"{\\"Break Point\\":{\\"n\\":12,\\"win_pct\\":80}}"}', 'output={"score_state_performance_json":"{\\"Break Point\\":{\\"n\\":10,\\"win_pct\\":20}}"}'],
+    "045": ["forced_deciding_set_n=15; forced_deciding_set_win_pct=80", "forced_deciding_set_n=12; forced_deciding_set_win_pct=30"],
+    "068": ["current_streak=W12; season_matches=20", "current_streak=L3; season_matches=18"],
   };
 
   it("covers every registered spec", () => {
@@ -631,6 +634,101 @@ describe("Phase 12 — correlated metrics cannot become independent support", ()
     for (const code of Object.keys(COMPARISON_SPECS)) {
       expect(MATRIX_SUMMARY_REQUIRED_CODES, `${code} is quarantined`).not.toContain(code);
     }
+  });
+});
+
+describe("Phase 13.5 — evidence expansion joins existing families, casts no new votes", () => {
+  it("016 (break-point score-state) joins POINT_BY_POINT", () => {
+    for (const code of ["002", "003", "009", "016", "018", "032", "034", "053"]) {
+      expect(COMPARISON_SPECS[code].family, code).toBe("POINT_BY_POINT");
+    }
+  });
+
+  it("045 (favourite-perspective deciding-set win %) joins SET_PROFILE alongside 008/010", () => {
+    for (const code of ["008", "010", "045"]) {
+      expect(COMPARISON_SPECS[code].family, code).toBe("SET_PROFILE");
+    }
+  });
+
+  it("068 (current streak) joins RECENT_FORM alongside 005/055", () => {
+    for (const code of ["005", "055", "068"]) {
+      expect(COMPARISON_SPECS[code].family, code).toBe("RECENT_FORM");
+    }
+  });
+
+  it("eight agreeing point-by-point metrics (including 016) still cast a single vote", () => {
+    const rows: MetricRowForComparison[] = ["002", "003", "009", "016", "018", "032", "034", "053"].map((code) => {
+      const spec = COMPARISON_SPECS[code];
+      const denom = `"${spec.sampleField![0]}":${(spec.minSample ?? 0) + 20}`;
+      const strongField = spec.field === "score_state_break_point_win_pct"
+        ? `"score_state_performance_json":"{\\"Break Point\\":{\\"n\\":${(spec.minSample ?? 0) + 20},\\"win_pct\\":90}}"`
+        : `"${spec.field}":90`;
+      const weakField = spec.field === "score_state_break_point_win_pct"
+        ? `"score_state_performance_json":"{\\"Break Point\\":{\\"n\\":${(spec.minSample ?? 0) + 20},\\"win_pct\\":10}}"`
+        : `"${spec.field}":10`;
+      return {
+        metric_code: code,
+        p1_value: `output={${denom},${strongField}}`,
+        p2_value: `output={${denom},${weakField}}`,
+        p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+      };
+    });
+    const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    expect(decision.independent_support_families).toEqual(["POINT_BY_POINT"]);
+    expect(decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
+  });
+
+  it("adding 045 does not create a second SET_PROFILE-adjacent vote when it agrees with 008", () => {
+    const rows: MetricRowForComparison[] = [
+      { metric_code: "008", p1_value: "deciding_set_win_pct=80", p2_value: "deciding_set_win_pct=20", p1_treatment: "DIRECT", p2_treatment: "DIRECT" },
+      { metric_code: "045", p1_value: "forced_deciding_set_n=15; forced_deciding_set_win_pct=80", p2_value: "forced_deciding_set_n=12; forced_deciding_set_win_pct=20", p1_treatment: "DIRECT", p2_treatment: "DIRECT" },
+    ];
+    const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    expect(decision.independent_support_families).toEqual(["SET_PROFILE"]);
+    expect(decision.families.find((f) => f.family === "SET_PROFILE")?.supporting_metrics.sort()).toEqual(["008", "045"]);
+  });
+
+  it("045 disagreeing with 008 makes SET_PROFILE conflicted, not two opposite votes", () => {
+    const rows: MetricRowForComparison[] = [
+      { metric_code: "008", p1_value: "deciding_set_win_pct=80", p2_value: "deciding_set_win_pct=20", p1_treatment: "DIRECT", p2_treatment: "DIRECT" },
+      { metric_code: "045", p1_value: "forced_deciding_set_n=15; forced_deciding_set_win_pct=20", p2_value: "forced_deciding_set_n=12; forced_deciding_set_win_pct=80", p1_treatment: "DIRECT", p2_treatment: "DIRECT" },
+    ];
+    const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    expect(decision.independent_support_families).toEqual([]);
+    expect(decision.independent_contradiction_families).toEqual([]);
+    expect(decision.conflicted_families).toContain("SET_PROFILE");
+  });
+
+  it("068 disagreeing with 005 makes RECENT_FORM conflicted (live-shaped case)", () => {
+    // Mirrors the real bd5ff483 finding from Phase 12: two RECENT_FORM metrics can measure
+    // the same recency window and still point opposite ways.
+    const rows: MetricRowForComparison[] = [
+      { metric_code: "005", p1_value: "last10_win_pct=70", p2_value: "last10_win_pct=40", p1_treatment: "DIRECT", p2_treatment: "DIRECT" },
+      { metric_code: "068", p1_value: "current_streak=L4; season_matches=20", p2_value: "current_streak=W3; season_matches=18", p1_treatment: "DIRECT", p2_treatment: "DIRECT" },
+    ];
+    const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    expect(decision.conflicted_families).toContain("RECENT_FORM");
+    expect(decision.independent_support_families).toEqual([]);
+  });
+
+  it("046 (Match-State Elo) is deliberately NOT activated: no persisted denominator, no single canonical field", () => {
+    // Investigated and excluded -- see docs/audit-truth-engine-phase13.5-evidence-expansion.md.
+    // Both elo_after_winning_set1 and elo_after_losing_set1 are equally-weighted, distinctly-
+    // scoped bullets in the metric's own definition with no basis for picking one, and 0 of
+    // 60 live usable rows persist ANY sample/n field for either quantity.
+    expect(COMPARISON_SPECS["046"]).toBeUndefined();
+  });
+
+  it("004, 023, 038 remain unactivated: directionally clean but too thin for production use", () => {
+    // Investigated and left out -- calculable in principle (12, 10 and 9 live usable rows
+    // respectively) but too sparse to be a reliable production voter. See the same doc.
+    for (const code of ["004", "023", "038"]) {
+      expect(COMPARISON_SPECS[code], code).toBeUndefined();
+    }
+  });
+
+  it("registry size is exactly 25 after this phase", () => {
+    expect(Object.keys(COMPARISON_SPECS).length).toBe(25);
   });
 });
 

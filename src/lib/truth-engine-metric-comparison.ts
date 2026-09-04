@@ -165,6 +165,44 @@ export const COMPARISON_SPECS: Record<string, ComparisonSpec> = {
   // both are computed over the same ten-match window and cannot be independent of each other.
   "055": { field: "elo_change_last10", direction: "HIGHER_IS_BETTER", family: "RECENT_FORM", materiality: 20, label: "Elo change over last 10" },
 
+  // ---- Phase 13.5 additions -----------------------------------------------------------
+  // Only the four candidates the user's own forensic inventory named as calculable-now-
+  // strongest are added here (016, 045, 046, 068). 046 (Match-State Elo) was investigated
+  // and deliberately NOT activated -- see docs/audit-truth-engine-phase13.5-evidence-expansion.md.
+  // It has two co-equal, differently-scoped bullets (Elo after winning Set 1 vs. Elo after
+  // losing Set 1) with no definitional or usage-site basis for picking one over the other,
+  // and -- unlike every other spec in this registry -- it persists NO denominator at all
+  // (0 of the 60 live usable rows carry any sample/n field for either quantity), so a
+  // thin-evidence guard cannot be built for it. Forcing a single-field choice or shipping
+  // it unguarded would be exactly the kind of guess this registry exists to refuse.
+
+  // Score-state performance specifically at a break point, from the player's own
+  // perspective across whichever role (server saving / returner converting) they held.
+  // Shares POINT_BY_POINT with 002/003/009/018/032/034/053 -- the identical replay of the
+  // identical matches -- so it can only corroborate or conflict with that family, never
+  // cast a second vote. n median 9.5 (58/58 live rows) -> SE(diff) ~23pp.
+  "016": { field: "score_state_break_point_win_pct", sampleField: ["score_state_break_point_n"], minSample: 8, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 24, label: "Break-point score-state win %" },
+
+  // Deciding-set win rate specifically in matches where the player was the pre-match Elo
+  // favourite (audit-metric-045-favorite-fragility.ts: computeFavoriteFragility restricts
+  // to favourite-perspective matches only, symmetric per player). This is the metric's own
+  // final and highest-stakes named bullet ("Performance When Opponent Forces Set 3"), and
+  // it is a conditional refinement of the same "how do you perform in a decider" question
+  // 008/010 already ask unconditionally -- sharing SET_PROFILE prevents it reading as a
+  // second independent confirmation. n median 8 (51 live rows, min 0) -> SE(diff) ~25pp.
+  "045": { field: "forced_deciding_set_win_pct", sampleField: ["forced_deciding_set_n"], minSample: 8, direction: "HIGHER_IS_BETTER", family: "SET_PROFILE", materiality: 25, label: "Deciding-set win % as pre-match favourite" },
+
+  // Current active win/loss streak (signed match count), the metric's own first-listed
+  // bullet ("Current Win/Loss Streak Length: the player's active streak entering the
+  // match"). Shares RECENT_FORM with 005/055 -- all three read the same recent-results
+  // window, so they corroborate or conflict rather than voting independently.
+  // The producer (historical-results-recovery.ts) computes the streak over ALL completed
+  // history, but that true denominator is never persisted; season_matches IS persisted and
+  // is always <= the true denominator (a strict subset), so gating on it can only be overly
+  // conservative, never under-conservative -- it cannot let a thin true sample through.
+  // Real P1-P2 differential stdev across 162 live paired rows: 4.51 matches.
+  "068": { field: "current_streak_signed", sampleField: ["season_matches"], minSample: 5, direction: "HIGHER_IS_BETTER", family: "RECENT_FORM", materiality: 5, label: "Current win/loss streak (signed match count)" },
+
   "080": { field: "favorable_divergent_outcomes", minusField: "unfavorable_divergent_outcomes", direction: "HIGHER_IS_BETTER", family: "COMMON_OPPONENT", materiality: 1, label: "Common-opponent net divergent outcomes" },
 };
 
@@ -206,11 +244,63 @@ export function parseMetricValue(raw: string | null | undefined): ParsedMetricVa
     }
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
     for (const [innerKey, innerValue] of Object.entries(payload as Record<string, unknown>)) {
-      if (typeof innerValue !== "number" || !Number.isFinite(innerValue)) continue;
       if (fields.has(innerKey)) continue;
-      fields.set(innerKey, String(innerValue));
+      if (typeof innerValue === "number" && Number.isFinite(innerValue)) {
+        fields.set(innerKey, String(innerValue));
+      } else if (innerKey === "score_state_performance_json" && typeof innerValue === "string") {
+        // The one nested JSON-string leaf this parser looks inside (see the dedicated
+        // decode step below); explicitly NOT a general "copy every string leaf" rule --
+        // that would let an unrelated payload string masquerade as a numeric field
+        // elsewhere in this map. Named narrowly, on purpose.
+        fields.set(innerKey, innerValue);
+      }
     }
     void key;
+  }
+
+  // Phase 13.5 finding: metric 016's score_state_performance_json is a JSON *string*
+  // nested one level inside the already-merged payload (the merge loop above only
+  // flattens numeric leaves, so a string-valued leaf -- this one -- is left untouched).
+  // Blindly flattening every score-state key would manufacture dozens of paper-thin
+  // per-state samples (many states have n=1 or n=2 in the live data); only "Break Point"
+  // is extracted here -- it is present in 58/58 live usable rows (median n=9.5), it is
+  // one of the states the metric's own definition names explicitly, and its own "n"
+  // travels with it into a real field so INSUFFICIENT_SAMPLE still applies per row.
+  const scoreStateRaw = fields.get("score_state_performance_json");
+  if (scoreStateRaw && scoreStateRaw.startsWith("{")) {
+    try {
+      const states = JSON.parse(scoreStateRaw) as unknown;
+      if (states && typeof states === "object" && !Array.isArray(states)) {
+        const breakPoint = (states as Record<string, unknown>)["Break Point"];
+        if (breakPoint && typeof breakPoint === "object") {
+          const { n, win_pct } = breakPoint as Record<string, unknown>;
+          if (typeof n === "number" && Number.isFinite(n) && !fields.has("score_state_break_point_n")) fields.set("score_state_break_point_n", String(n));
+          if (typeof win_pct === "number" && Number.isFinite(win_pct) && !fields.has("score_state_break_point_win_pct")) fields.set("score_state_break_point_win_pct", String(win_pct));
+        }
+      }
+    } catch {
+      // malformed nested payload is not evidence; never guessed at
+    }
+  }
+
+  // Phase 13.5 finding: metric 068's DOMINANT persisted shape (162/163 live usable rows;
+  // historical-results-recovery.ts) encodes the current streak as a letter+magnitude
+  // string ("current_streak=W12" / "L3"), not a number. A separate, much rarer producer
+  // path (predixsport-recent.server.ts / tennis-data-extended.server.ts; 1/163 live rows)
+  // already persists the identical real-world quantity -- signed streak length, positive
+  // for an active win streak, negative for an active loss streak -- as a plain number
+  // under the key "current_streak_signed". Decoding the letter form into that SAME key
+  // (only when not already present, so a genuine top-level value always wins) makes both
+  // producers' output comparable under one field name without a fabricated alias list:
+  // this is one quantity encoded two ways, not two different quantities that merely sound
+  // alike (the 008/010 trap Phase 12 documented).
+  const currentStreakRaw = fields.get("current_streak");
+  if (currentStreakRaw && !fields.has("current_streak_signed")) {
+    const m = /^([WL])(\d+)$/i.exec(currentStreakRaw.trim());
+    if (m) {
+      const sign = m[1].toUpperCase() === "W" ? 1 : -1;
+      fields.set("current_streak_signed", String(sign * Number(m[2])));
+    }
   }
 
   const bare = Number(text);

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { auditCutoff } from "./temporal-boundary";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
 import { deterministicMarketMetric } from "./deterministic-market-metrics.server";
@@ -71,9 +72,17 @@ function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
 }
-function asOfDate(context: string | null | undefined) {
-  const match = String(context ?? "").match(/\b(20\d{2}-\d{2}-\d{2})\b/);
-  return match?.[1] ?? new Date().toISOString().slice(0, 10);
+export function asOfDate(context: string | null | undefined) {
+  // Phase 13.5 finding: this previously fell back to TODAY'S WALL-CLOCK DATE when the
+  // context carried no date token -- i.e. whenever the audited match has a null
+  // scheduled_date (1 of 55 live matches at the time of this fix). That silently treated
+  // the audit as happening "now", admitting every record up to the moment the code runs --
+  // the same class of leak temporal-boundary.ts was written to close in the CSV producers
+  // (Phase 13), here inside this async tier chain instead. An unestablished boundary must
+  // admit nothing, never "today": every caller below filters with a strict `<`/`<=`
+  // comparison against this string, so an empty string fails every comparison and returns
+  // zero rows rather than guessing a cutoff.
+  return auditCutoff(String(context ?? "")) ?? "";
 }
 function tournamentFromContext(context: string | null | undefined) {
   const match = String(context ?? "").match(/\btournament\s*:?[ ]*([^;·|\n]+)/i);
