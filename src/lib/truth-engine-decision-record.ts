@@ -1,5 +1,6 @@
 import type { TruthEngineAuditResult } from "./truth-engine-audit";
 import { activeMetricReadiness, type MetricRowForReadiness } from "./truth-engine-active-metrics";
+import { playerNamesMatch } from "./match-result-resolution";
 
 // THE DECISION RECORD — structured features of one finished Truth Engine decision.
 //
@@ -136,19 +137,8 @@ export function buildDecisionRecord({ audit, metricRows, now, actualWinner }: De
     evidence_coverage_unavailable: coverage.unavailable,
 
     actual_winner: actualWinner ?? null,
-    decision_correct: resolved ? namesMatch(selected!, actualWinner!) : null,
+    decision_correct: resolved ? playerNamesMatch(selected!, actualWinner!) : null,
   };
-}
-
-/** Lenient enough for "Bueno" vs "Gonzalo Bueno", strict enough not to match two players. */
-function namesMatch(a: string, b: string) {
-  const norm = (v: string) => v.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  const [x, y] = [norm(a), norm(b)];
-  if (!x || !y) return false;
-  if (x === y) return true;
-  const [xt, yt] = [x.split(" "), y.split(" ")];
-  // Surnames must agree; a shared given name alone is never enough.
-  return xt[xt.length - 1] === yt[yt.length - 1];
 }
 
 /**
