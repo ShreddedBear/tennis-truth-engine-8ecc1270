@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { isBeforeCutoff } from "./temporal-boundary";
+
 import { join } from "node:path";
 import type { SourcedStat } from "./reconstruction/engine";
 import { getRuntimeHistoricalStats } from "./runtime-tennis-index.server";
@@ -21,8 +23,8 @@ function mean(a:number[]){return a.length?a.reduce((s,x)=>s+x,0)/a.length:null;}
 function sd(a:number[]){const m=mean(a);return m===null||a.length<2?null:Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1));}
 
 export function getDerivedHistoricalStats(player:string,context:string):SourcedStat[]{
- const all=load(),canonical=resolve(all,player);if(!canonical)return getRuntimeHistoricalStats(player,context);const cut=cutoff(context),surf=surface(context);
- const rows=all.filter(r=>r.player===canonical&&(!cut||!r.date||r.date<cut)).sort((a,b)=>(a.date||"").localeCompare(b.date||""));if(!rows.length)return getRuntimeHistoricalStats(player,context);
+ const all=load(),canonical=resolve(all,player);if(!canonical)return getRuntimeHistoricalStats(player,context);const cut=cutoff(context),surf=surface(context);if(!cut)return[];/*Phase 13: unestablished boundary => no admissible evidence.*/const _d=0;void _d;
+ const rows=all.filter(r=>r.player===canonical&&(isBeforeCutoff(r.date,cut))).sort((a,b)=>(a.date||"").localeCompare(b.date||""));if(!rows.length)return getRuntimeHistoricalStats(player,context);
  const use=surf?rows.filter(r=>(r.surface??"").toLowerCase()===surf):rows,recent=use.slice(-20),last10=use.slice(-10),out:SourcedStat[]=[];const add=(k:string,v:number|null,n:number)=>{if(v!==null&&Number.isFinite(v))out.push(stat(player,k,v,n,surf));};
  if(cut){const end=Date.parse(`${cut}T00:00:00Z`),start=end-365*86400000,yr=use.filter(r=>{const t=Date.parse(`${r.date}T00:00:00Z`);return Number.isFinite(t)&&t>=start&&t<end;});add("surface_win_pct_52w",yr.length?100*yr.filter(r=>r.won==="1").length/yr.length:null,yr.length);add("surface_matches_52w",yr.length,yr.length);}
  if(last10.length>=6){const p=last10.slice(0,Math.max(1,last10.length-5)),q=last10.slice(-5),wp=(x:Row[])=>100*x.filter(r=>r.won==="1").length/x.length;add("recent_performance_acceleration",wp(q)-wp(p),last10.length);}

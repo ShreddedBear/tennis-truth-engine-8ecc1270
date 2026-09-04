@@ -1,4 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { isBeforeCutoff } from "./temporal-boundary";
+
 import { join } from "node:path";
 import type { SourcedStat } from "./reconstruction/engine";
 
@@ -31,7 +33,7 @@ export function computeOffseasonRestLengthDays(matchDates:string[],cutoffDate:st
   return{days:Math.max(0,Math.round((seasonStart-lastPriorYearMatch)/86400000)),priorYearMatches:priorYearMs.length};
 }
 function stat(player:string,key:string,value:number,sample:number,s:string|null):SourcedStat{return{key,player,value,surface:s,window:"HISTORICAL_2005_PRE_MATCH",tour_level:null,sample,origin:"RECONSTRUCTED",sources:[{source_name:SOURCE_NAME,url:SOURCE_URL,retrieved_at:new Date().toISOString()}]};}
-export function getExtendedTennisDataStats(player:string,context:string):SourcedStat[]{const pn=norm(player),cut=cutoff(context),surf=surface(context);let rows=load().filter(m=>(!cut||m.date<cut)&&(norm(m.winner)===pn||norm(m.loser)===pn));if(!rows.length)return[];const surfaceRows=surf?rows.filter(m=>norm(m.surface)===surf):[];const chosen=surfaceRows.length?surfaceRows:rows;const out:SourcedStat[]=[];const isWin=(m:Match)=>norm(m.winner)===pn;
+export function getExtendedTennisDataStats(player:string,context:string):SourcedStat[]{const pn=norm(player),cut=cutoff(context),surf=surface(context);if(!cut)return[];/*Phase 13: unestablished boundary => no admissible evidence.*/const _e=0;void _e;let rows=load().filter(m=>isBeforeCutoff(m.date,cut)&&(norm(m.winner)===pn||norm(m.loser)===pn));if(!rows.length)return[];const surfaceRows=surf?rows.filter(m=>norm(m.surface)===surf):[];const chosen=surfaceRows.length?surfaceRows:rows;const out:SourcedStat[]=[];const isWin=(m:Match)=>norm(m.winner)===pn;
  const seq=rows.map(isWin);if(seq.length){const last=seq[seq.length-1],sign=last?1:-1;let streak=0;for(let i=seq.length-1;i>=0&&seq[i]===last;i--)streak++;out.push(stat(player,"current_streak_signed",sign*streak,seq.length,surf));let best=0,run=0;for(const w of seq){if(w){run++;best=Math.max(best,run);}else run=0;}out.push(stat(player,"longest_win_streak_observed",best,seq.length,surf));}
  let firstSetWins=0,converted=0,deciding=0,decidingWins=0;for(const m of chosen){const ss=scoreSets(m.score);if(!ss.length)continue;const w=isWin(m);const [a,b]=ss[0];const playerWonFirst=w?a>b:a<b;if(playerWonFirst){firstSetWins++;if(w)converted++;}if(ss.length>=3){deciding++;if(w)decidingWins++;}}
  if(firstSetWins){out.push(stat(player,"first_set_win_to_match_conversion_pct",100*converted/firstSetWins,firstSetWins,surf));out.push(stat(player,"one_set_up_collapse_rate_pct",100*(firstSetWins-converted)/firstSetWins,firstSetWins,surf));}

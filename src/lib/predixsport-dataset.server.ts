@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { isBeforeCutoff } from "./temporal-boundary";
+
 import { join } from "node:path";
 import type { SourcedStat } from "./reconstruction/engine";
 import { getTennisDataWtaHistoricalStats } from "./tennis-data-wta.server";
@@ -57,7 +59,10 @@ function load(tour: "ATP" | "WTA"): CsvRow[] {
 }
 function cutoffFromContext(context: string): string | null { const m = context.match(/(?:date\s+)?(20\d{2}-\d{2}-\d{2})/i); return m?.[1] ?? null; }
 function surfaceFromContext(context: string): string | null { const m = context.match(/surface\s+(hard|clay|grass|carpet)/i); return m?.[1]?.toLowerCase() ?? null; }
-function before(row: CsvRow, cutoff: string | null): boolean { return !cutoff || !row.date || row.date < cutoff; }
+function before(row: CsvRow, cutoff: string | null): boolean {
+  /*Phase 13: unestablished boundary => no admissible evidence.*/
+  return cutoff !== null && isBeforeCutoff(row.date, cutoff);
+}
 function number(v: string | undefined): number | null { const n = Number(v); return Number.isFinite(n) ? n : null; }
 function source(retrievedAt: string) { return [{ source_name: SOURCE_NAME, url: SOURCE_URL, retrieved_at: retrievedAt }]; }
 function stat(player: string, key: string, value: number, retrievedAt: string, surface: string | null = null, sample: number | null = null): SourcedStat { return { key, player, value, surface, window: "PRE_MATCH_HISTORY", tour_level: null, sample, origin: "DIRECT", sources: source(retrievedAt) }; }

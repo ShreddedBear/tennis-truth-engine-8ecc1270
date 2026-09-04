@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
+import { isBeforeCutoff } from "./temporal-boundary";
+
 import { join } from "node:path";
 import type { SourcedStat } from "./reconstruction/engine";
 
@@ -106,7 +108,9 @@ export function getTennisDataWtaHistoricalStats(player: string, context: string)
   const resolved = resolvePlayer(all, player);
   if (!resolved) return [];
   const cutoff = cutoffFromContext(context), surface = surfaceFromContext(context);
-  let rows = resolved.rows.filter((r) => !cutoff || !r.date || r.date < cutoff);
+  /*Phase 13: unestablished boundary => no admissible evidence.*/
+  if (!cutoff) return [];
+  let rows = resolved.rows.filter((r) => isBeforeCutoff(r.date, cutoff));
   if (!rows.length) return [];
   const surfaceRows = surface ? rows.filter((r) => norm(r.surface) === surface) : [];
   const use = surface && surfaceRows.length ? surfaceRows : rows;
