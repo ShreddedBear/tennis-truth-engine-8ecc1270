@@ -240,14 +240,18 @@ describe("P1/P2 inversion — the full audit swaps, nothing prefers a slot", () 
   });
 
   it("a refusal is also symmetric: an unselectable match is unselectable from either side", () => {
-    // One family only -> below MIN_INDEPENDENT_SUPPORT_FAMILIES, so no selection.
-    const thin: MetricRowForComparison[] = [auditRows()[0]];
-    const a = runTruthEngineAudit(compareMetricRows(thin), "Ana Rivera", "Bo Tanaka");
+    // A single supporting family is no longer unselectable (the 60% directional-evidence
+    // threshold replaced the two-family gate), so this uses a genuinely unselectable shape:
+    // one supporting family against one contradicting family is 50%, below the threshold,
+    // from whichever orientation it is read.
+    const split: MetricRowForComparison[] = [auditRows()[0], auditRows()[3]];
+    const a = runTruthEngineAudit(compareMetricRows(split), "Ana Rivera", "Bo Tanaka");
     const b = runTruthEngineAudit(
-      compareMetricRows(thin.map((r) => ({ ...r, p1_value: r.p2_value, p2_value: r.p1_value }))),
+      compareMetricRows(split.map((r) => ({ ...r, p1_value: r.p2_value, p2_value: r.p1_value }))),
       "Bo Tanaka",
       "Ana Rivera",
     );
+    expect(a.decision.evidence_percent).toBeLessThan(60);
     expect(a.decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
     expect(b.decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
     expect(b.decision.selected_player).toBeNull();

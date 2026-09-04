@@ -34,8 +34,34 @@ export type SelectionStability = "ROBUST" | "STABLE" | "FRAGILE" | "NOT_APPLICAB
 
 /** A family must contain at least this many usable comparisons to vote at all. */
 export const MIN_COMPARISONS_PER_FAMILY = 1;
-/** The leader needs at least this many independent supporting families to be selected. */
+/**
+ * Corroboration reference level, NOT a gate.
+ *
+ * This was previously a hard refusal: a leader supported by fewer than two independent
+ * families could never be selected. The product rule is now a threshold on the evidence
+ * share (EVIDENCE_SELECTION_THRESHOLD below), so a single-family lead is selectable when
+ * the directional evidence clears it. The constant is retained because "how many
+ * independent families corroborate this" is still worth reporting, and it now annotates
+ * the decision (`corroborated`) instead of blocking it.
+ */
 export const MIN_INDEPENDENT_SUPPORT_FAMILIES = 2;
+
+/**
+ * The product's minimum selection threshold: 60% of the DIRECTIONAL evidence must favour
+ * one player before that player is selected.
+ *
+ * "Directional" means families that actually expressed an opinion — those voting for a
+ * player, plus INTERNALLY_CONFLICTED families (which contain genuine opposing evidence and
+ * therefore count against the leader's share). NEUTRAL families are excluded from the
+ * ratio: a family that measured both players and found no material difference is evidence
+ * of parity, not evidence for or against either side, so it can neither raise nor lower
+ * one player's share of the directional evidence. They are still reported.
+ *
+ * UNAVAILABLE never enters this calculation at any point. A metric with no usable evidence
+ * forms no comparison, joins no family, and is absent from both numerator and denominator —
+ * it is never treated as evidence against the player who lacks it.
+ */
+export const EVIDENCE_SELECTION_THRESHOLD = 60;
 
 export interface FamilyEvidence {
   family: string;
@@ -52,6 +78,17 @@ export interface TruthEngineDecision {
   /** Resolved player name for the selected side, when a side was selected. */
   selected_player: string | null;
   stability: SelectionStability;
+  /**
+   * Share of the DIRECTIONAL evidence favouring the leader, 0-100. Denominator is
+   * supporting + contradicting + internally-conflicted families; NEUTRAL families and
+   * UNAVAILABLE metrics are excluded. This is the quantity the 60% product threshold is
+   * applied to, and it is reported for refusals too so a near-miss is visible.
+   */
+  evidence_percent: number;
+  /** Families that expressed a direction -- the denominator of evidence_percent. */
+  directional_families: number;
+  /** True when at least MIN_INDEPENDENT_SUPPORT_FAMILIES independent families agree. */
+  corroborated: boolean;
   /** Families voting for the winning side (each counted once). */
   independent_support_families: string[];
   /** Families voting for the losing side -- genuine independent contradictions. */
@@ -132,10 +169,25 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
   const neutralFamilies = families.filter((f) => f.vote === "NEUTRAL").map((f) => f.family);
   const conflictedFamilies = families.filter((f) => f.vote === "INTERNALLY_CONFLICTED").map((f) => f.family);
 
+  // Share of the directional evidence held by `support`. Conflicted families sit in the
+  // denominator because they contain real opposing evidence; NEUTRAL families sit outside
+  // it entirely because they favour nobody. With no directional family at all the share is
+  // 0, never an undefined division dressed up as a number.
+  const evidenceShare = (support: string[], contra: string[]) => {
+    const directional = support.length + contra.length + conflictedFamilies.length;
+    return {
+      directional,
+      percent: directional > 0 ? Number(((support.length / directional) * 100).toFixed(1)) : 0,
+    };
+  };
+
   const shell = (outcome: SelectionOutcome, reason: string, stability: SelectionStability, support: string[] = [], contra: string[] = [], flipping: string[] = [], tieInducing: string[] = []): TruthEngineDecision => ({
     outcome,
     selected_player: outcome === "P1" ? p1Name : outcome === "P2" ? p2Name : null,
     stability,
+    evidence_percent: evidenceShare(support, contra).percent,
+    directional_families: evidenceShare(support, contra).directional,
+    corroborated: support.length >= MIN_INDEPENDENT_SUPPORT_FAMILIES,
     independent_support_families: support,
     independent_contradiction_families: contra,
     neutral_families: neutralFamilies,
@@ -154,7 +206,18 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
     return shell("INSUFFICIENT_EVIDENCE", `No metric produced a usable two-sided comparison (${unavailable.length} metric(s) unavailable). The Truth Engine cannot select a side and does not guess.`, "NOT_APPLICABLE");
   }
   if (!base.leader) {
-    return shell("INSUFFICIENT_EVIDENCE", `Independent evidence families are tied (${base.p1} for ${p1Name} vs ${base.p2} for ${p2Name}). No side is selected.`, "NOT_APPLICABLE");
+    // A tie is genuinely 50/50 of the directional evidence, so report it as such rather
+    // than as 0% -- passing the two sides' families through gives the share its real value
+    // and makes a tied refusal legible next to a below-threshold one.
+    const p1Families = families.filter((f) => f.vote === "P1").map((f) => f.family);
+    const p2Families = families.filter((f) => f.vote === "P2").map((f) => f.family);
+    return shell(
+      "INSUFFICIENT_EVIDENCE",
+      `Independent evidence families are tied (${base.p1} for ${p1Name} vs ${base.p2} for ${p2Name}). Neither side reaches the ${EVIDENCE_SELECTION_THRESHOLD}% selection threshold. No side is selected.`,
+      "NOT_APPLICABLE",
+      p1Families,
+      p2Families,
+    );
   }
 
   const leader = base.leader;
@@ -166,10 +229,22 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
   for (const f of support) duplicatedSupport.push(...f.supporting_metrics.slice(1));
   for (const f of contra) duplicatedContradiction.push(...f.supporting_metrics.slice(1));
 
-  if (supportNames.length < MIN_INDEPENDENT_SUPPORT_FAMILIES) {
+  // THE PRODUCT THRESHOLD. A leader is selected when it holds at least
+  // EVIDENCE_SELECTION_THRESHOLD of the directional evidence. This replaces the previous
+  // hard "at least two independent families" refusal, which blocked selections the product
+  // wants made; corroboration is now reported (`corroborated`) rather than enforced.
+  //
+  // Every other protection is deliberately untouched and still runs AFTER this point:
+  // metrics only reach a family after clearing their own sample and materiality floors in
+  // COMPARISON_SPECS, correlated metrics are still collapsed to one vote per family, a
+  // family whose own members disagree still poisons itself to INTERNALLY_CONFLICTED and
+  // drags this percentage down, and leave-one-family-out below can still refuse a lead
+  // that a single family reverses.
+  const { percent: evidencePercent, directional } = evidenceShare(supportNames, contraNames);
+  if (evidencePercent < EVIDENCE_SELECTION_THRESHOLD) {
     return shell(
       "INSUFFICIENT_EVIDENCE",
-      `${leader === "P1" ? p1Name : p2Name} leads on only ${supportNames.length} independent evidence family (${supportNames.join(", ") || "none"}); at least ${MIN_INDEPENDENT_SUPPORT_FAMILIES} are required before a side is selected. A single family is not independent corroboration.`,
+      `${leader === "P1" ? p1Name : p2Name} holds ${evidencePercent}% of the directional evidence (${supportNames.length} supporting famil${supportNames.length === 1 ? "y" : "ies"} of ${directional} directional: ${supportNames.join(", ") || "none"}${contraNames.length ? ` against ${contraNames.join(", ")}` : ""}${conflictedFamilies.length ? `, with ${conflictedFamilies.join(", ")} internally conflicted` : ""}), below the ${EVIDENCE_SELECTION_THRESHOLD}% selection threshold. No side is selected.`,
       "NOT_APPLICABLE",
       supportNames,
       contraNames,
@@ -209,7 +284,7 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
 
   return shell(
     leader,
-    `${selectedName} is supported by ${supportNames.length} independent evidence famil${supportNames.length === 1 ? "y" : "ies"} (${supportNames.join(", ")})${contraNames.length ? ` against ${contraNames.length} independent contradiction${contraNames.length === 1 ? "" : "s"} (${contraNames.join(", ")})` : " with no independent contradiction"}; no single family's removal reverses the leader${tieInducing.length ? `, though removing ${tieInducing.join(" or ")} would leave it tied` : ""}.${duplicatedSupport.length ? ` ${duplicatedSupport.length} same-family agreeing metric(s) were deliberately not counted again.` : ""}`,
+    `${selectedName} holds ${evidencePercent}% of the directional evidence, at or above the ${EVIDENCE_SELECTION_THRESHOLD}% selection threshold: supported by ${supportNames.length} independent evidence famil${supportNames.length === 1 ? "y" : "ies"} (${supportNames.join(", ")})${contraNames.length ? ` against ${contraNames.length} independent contradiction${contraNames.length === 1 ? "" : "s"} (${contraNames.join(", ")})` : " with no independent contradiction"}${conflictedFamilies.length ? `, with ${conflictedFamilies.join(", ")} internally conflicted` : ""}; no single family's removal reverses the leader${tieInducing.length ? `, though removing ${tieInducing.join(" or ")} would leave it tied` : ""}.${supportNames.length < MIN_INDEPENDENT_SUPPORT_FAMILIES ? ` NOTE: this selection rests on a single evidence family, so it is uncorroborated by an independent second family.` : ""}${duplicatedSupport.length ? ` ${duplicatedSupport.length} same-family agreeing metric(s) were deliberately not counted again.` : ""}`,
     stability,
     supportNames,
     contraNames,

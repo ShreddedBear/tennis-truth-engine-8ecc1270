@@ -275,11 +275,64 @@ describe("leave-one-family-out stress test (scenarios 10 & 11)", () => {
 });
 
 describe("refusal is first-class", () => {
-  it("a lead on a single independent family is refused, not asserted", () => {
+  // PRODUCT CHANGE: this previously asserted that a single supporting family is refused
+  // outright. That hard gate has been replaced by the 60% directional-evidence threshold,
+  // so a single uncontradicted family now selects -- while a NEUTRAL family alongside it
+  // (005 here, both sides level) neither helps nor hurts, because parity favours nobody.
+  // The selection is explicitly marked uncorroborated so a one-family call is never
+  // mistaken for a broadly-supported one.
+  it("a lead on a single independent family is now selected, but flagged uncorroborated", () => {
     const d = decide([row("001", "1900", "1500"), row("005", "last10_win_pct=50", "last10_win_pct=50")]);
     expect(d.independent_support_families).toEqual(["SURFACE_STRENGTH"]);
+    expect(d.neutral_families).toContain("RECENT_FORM");
+    expect(d.directional_families).toBe(1);
+    expect(d.evidence_percent).toBe(100);
+    expect(d.outcome).toBe("P1");
+    expect(d.corroborated).toBe(false);
+    expect(d.reason).toMatch(/uncorroborated/i);
+  });
+
+  it("a single supporting family against one contradiction is 50% and still refused", () => {
+    // The threshold is a real gate, not a rubber stamp: an evenly-split match is refused
+    // exactly as before, and MIN_INDEPENDENT_SUPPORT_FAMILIES no longer decides it.
+    const d = decide([row("001", "1900", "1500"), row("005", "last10_win_pct=20", "last10_win_pct=90")]);
+    expect(d.evidence_percent).toBeLessThan(60);
     expect(d.outcome).toBe("INSUFFICIENT_EVIDENCE");
-    expect(d.reason).toMatch(new RegExp(`at least ${MIN_INDEPENDENT_SUPPORT_FAMILIES}`));
+  });
+
+  it("the threshold is applied to families, and UNAVAILABLE never counts against anyone", () => {
+    // Three supporting families vs one contradiction = 75% >= 60% -> selected. The
+    // unavailable rows are recorded but must not enter the denominator; if they did, the
+    // share would be diluted below the threshold and the player would be penalised for
+    // evidence that simply does not exist.
+    const d = decide([
+      row("001", "1900", "1500"),
+      row("005", "last10_win_pct=80; last10_matches=10", "last10_win_pct=30; last10_matches=10"),
+      row("007", "win_pct=75; ranked_common_opponent_matches=12", "win_pct=30; ranked_common_opponent_matches=12"),
+      row("006", "bad_loss_rate_pct=40; quality_observed_matches=20", "bad_loss_rate_pct=5; quality_observed_matches=20"),
+      row("011", null, null),
+      row("029", null, null),
+    ]);
+    expect(d.directional_families).toBe(4);
+    expect(d.evidence_percent).toBe(75);
+    expect(d.outcome).toBe("P1");
+    expect(d.corroborated).toBe(true);
+    expect(d.unavailable.length).toBeGreaterThan(0);
+  });
+
+  it("an internally conflicted family drags the share down instead of being ignored", () => {
+    // 002 and 003 are both POINT_BY_POINT and disagree, so that family is conflicted. It
+    // stays in the denominator (1 support of 2 directional = 50%), which is what stops a
+    // contradiction inside one family from being silently discarded.
+    const d = decide([
+      row("001", "1900", "1500"),
+      { metric_code: "002", p1_value: 'output={"service_points":60,"service_point_win_pct":90}', p2_value: 'output={"service_points":60,"service_point_win_pct":10}', p1_treatment: "PARTIAL", p2_treatment: "PARTIAL" },
+      { metric_code: "003", p1_value: 'output={"return_points":60,"return_point_win_pct":10}', p2_value: 'output={"return_points":60,"return_point_win_pct":90}', p1_treatment: "PARTIAL", p2_treatment: "PARTIAL" },
+    ]);
+    expect(d.conflicted_families).toContain("POINT_BY_POINT");
+    expect(d.directional_families).toBe(2);
+    expect(d.evidence_percent).toBe(50);
+    expect(d.outcome).toBe("INSUFFICIENT_EVIDENCE");
   });
 
   it("a tie on independent families is refused", () => {
@@ -624,9 +677,44 @@ describe("Phase 12 — correlated metrics cannot become independent support", ()
       };
     });
     const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    // Anti-double-counting, which the 60% threshold does NOT relax: seven correlated
+    // metrics collapse to ONE family casting ONE vote, and the other six are recorded as
+    // deliberately-not-recounted rather than quietly dropped.
     expect(decision.independent_support_families).toEqual(["POINT_BY_POINT"]);
-    // One family is below the independence minimum, so seven correlated rows cannot elect a winner.
-    expect(MIN_INDEPENDENT_SUPPORT_FAMILIES).toBeGreaterThan(1);
+    expect(decision.directional_families).toBe(1);
+    expect(decision.duplicated_support_metrics).toHaveLength(6);
+    // The share is computed over FAMILIES, never metrics. Seven agreeing metrics give the
+    // same 100% a single one would; they cannot manufacture extra weight.
+    expect(decision.evidence_percent).toBe(100);
+    // It is a single family, so the selection is explicitly flagged as uncorroborated.
+    expect(decision.corroborated).toBe(false);
+    expect(decision.reason).toMatch(/uncorroborated/i);
+  });
+
+  it("seven agreeing correlated metrics cannot outvote one genuinely independent contradiction", () => {
+    // The sharpest anti-double-counting proof under the threshold rule. If the percentage
+    // were computed from metric counts, P1 would hold 7/8 = 87.5% and be selected. Computed
+    // from families it is 1 support vs 1 contradiction = 50%, below the 60% threshold, so
+    // no side is selected. Correlated volume buys nothing.
+    const pbp: MetricRowForComparison[] = ["002", "003", "009", "018", "032", "034", "053"].map((code) => {
+      const [strong, weak] = [
+        { "002": 90, "003": 90, "009": 95, "018": 95, "032": 95, "034": 3, "053": 95 }[code]!,
+        { "002": 10, "003": 10, "009": 5, "018": 5, "032": 5, "034": 0.3, "053": 5 }[code]!,
+      ];
+      const spec = COMPARISON_SPECS[code];
+      const denom = `"${spec.sampleField![0]}":${(spec.minSample ?? 0) + 20}`;
+      return { metric_code: code, p1_value: `output={${denom},"${spec.field}":${strong}}`, p2_value: `output={${denom},"${spec.field}":${weak}}`, p1_treatment: "PARTIAL" as const, p2_treatment: "PARTIAL" as const };
+    });
+    // One independent family (RECENT_FORM via 005) pointing the other way.
+    const contra: MetricRowForComparison = {
+      metric_code: "005",
+      p1_value: "last10_win_pct=30; last10_matches=10",
+      p2_value: "last10_win_pct=80; last10_matches=10",
+      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+    };
+    const decision = decideTruthEngineSelection({ comparisons: compareMetricRows([...pbp, contra]), p1Name: "A", p2Name: "B" });
+    expect(decision.directional_families).toBe(2);
+    expect(decision.evidence_percent).toBe(50);
     expect(decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
   });
 
@@ -674,8 +762,13 @@ describe("Phase 13.5 — evidence expansion joins existing families, casts no ne
       };
     });
     const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    // 016 joins POINT_BY_POINT rather than opening a ninth vote: eight correlated metrics,
+    // one family, one vote, seven recorded as not-recounted. The 60% threshold changed the
+    // downstream gate, not this consolidation.
     expect(decision.independent_support_families).toEqual(["POINT_BY_POINT"]);
-    expect(decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
+    expect(decision.directional_families).toBe(1);
+    expect(decision.duplicated_support_metrics).toHaveLength(7);
+    expect(decision.evidence_percent).toBe(100);
   });
 
   it("adding 045 does not create a second SET_PROFILE-adjacent vote when it agrees with 008", () => {
