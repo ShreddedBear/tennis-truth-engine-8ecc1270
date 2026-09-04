@@ -23,9 +23,27 @@ function days(a: string, b: string) { return Math.floor((Date.parse(`${b}T00:00:
 function payload(row: Row) { try { return JSON.parse(row.text_value ?? "{}") as Record<string, unknown>; } catch { return {}; } }
 function rank(row: Row) { const p = payload(row); const n = Number(p.rank ?? row.numeric_value); return Number.isFinite(n) && n > 0 ? n : null; }
 function points(row: Row) { const p = payload(row); const n = Number(p.points); return Number.isFinite(n) && n >= 0 ? n : null; }
+// Ranking points are only asserted when the snapshots for one ranking slot AGREE.
+//
+// Every ATP player is ingested twice for the same (circuit, date, rank) by two paths under
+// different name formats ("Jannik Sinner" vs "J. Sinner"). One of them wrote the table's AGE
+// column as points until the ingestion fix in tour-rankings.server.ts, so ~200 already
+// persisted rows still carry ages. Sorting picks one arbitrarily, which is how metric 014's
+// stored evidence came to hold "rank=3; points=23" alongside "rank=29; points=1652".
+//
+// Refusing to assert is the correct response to two sources contradicting each other: a
+// disagreement means points are unproven for that slot, so this returns null and the value
+// renders "points=NA". It never averages them, never prefers the larger, and never drops
+// the row -- `rank` itself is unaffected (both duplicates agree on it) and remains the
+// metric's reliable quantity. Once the ingestion fix has repopulated these rows the
+// duplicates agree and points are asserted again automatically, with no further change.
+function agreedPoints(rowsForSlot: Row[]) {
+  const values = [...new Set(rowsForSlot.map(points).filter((v): v is number => v !== null))];
+  return values.length === 1 ? values[0] : null;
+}
 function sourceRefs(rows: Row[]): SourceRef[] { const out: SourceRef[] = [], seen = new Set<string>(); for (const row of rows) { if (!row.source_name) continue; const key = `${row.source_name}|${row.source_url ?? ""}`; if (seen.has(key)) continue; seen.add(key); out.push({ source_name: row.source_name, url: row.source_url, retrieved_at: null }); } return out; }
 function nearest(rows: Row[], asOf: string, targetDays: number) { return rows.filter(row => row.event_date && days(row.event_date, asOf) >= targetDays).sort((a, b) => Math.abs(days(a.event_date!, asOf) - targetDays) - Math.abs(days(b.event_date!, asOf) - targetDays))[0] ?? null; }
-function rankingSummary(player: string, opponent: string, rows: Row[], asOf: string) { const playerRows = rows.filter(row => evidenceNameMatches(row.player_name, player, opponent) && row.event_date && row.event_date <= asOf).sort((a, b) => String(b.event_date).localeCompare(String(a.event_date))); const current = playerRows[0] ?? null; if (!current) return null; const currentRank = rank(current); if (currentRank === null) return null; const r30 = nearest(playerRows, asOf, 30), r90 = nearest(playerRows, asOf, 90); const movement = (row: Row | null) => { const value = row ? rank(row) : null; return value === null ? null : value - currentRank; }; const ranks52 = playerRows.filter(row => row.event_date && days(row.event_date, asOf) >= 0 && days(row.event_date, asOf) <= 365).map(rank).filter((x): x is number => x !== null); return { rank: currentRank, points: points(current), observation_date: current.event_date!, rank_change_30d: movement(r30), rank_change_90d: movement(r90), best_rank_52w: ranks52.length ? Math.min(...ranks52) : currentRank, snapshots_52w: ranks52.length }; }
+function rankingSummary(player: string, opponent: string, rows: Row[], asOf: string) { const playerRows = rows.filter(row => evidenceNameMatches(row.player_name, player, opponent) && row.event_date && row.event_date <= asOf).sort((a, b) => String(b.event_date).localeCompare(String(a.event_date))); const current = playerRows[0] ?? null; if (!current) return null; const currentRank = rank(current); if (currentRank === null) return null; const r30 = nearest(playerRows, asOf, 30), r90 = nearest(playerRows, asOf, 90); const movement = (row: Row | null) => { const value = row ? rank(row) : null; return value === null ? null : value - currentRank; }; const ranks52 = playerRows.filter(row => row.event_date && days(row.event_date, asOf) >= 0 && days(row.event_date, asOf) <= 365).map(rank).filter((x): x is number => x !== null); const sameSlot = playerRows.filter(row => row.event_date === current.event_date && rank(row) === currentRank); return { rank: currentRank, points: agreedPoints(sameSlot), observation_date: current.event_date!, rank_change_30d: movement(r30), rank_change_90d: movement(r90), best_rank_52w: ranks52.length ? Math.min(...ranks52) : currentRank, snapshots_52w: ranks52.length }; }
 function rankingValue(summary: ReturnType<typeof rankingSummary>) { if (!summary) return null; return `rank=${summary.rank}; points=${summary.points ?? "NA"}; observation_date=${summary.observation_date}; rank_change_30d=${summary.rank_change_30d ?? "NA"}; rank_change_90d=${summary.rank_change_90d ?? "NA"}; best_rank_52w=${summary.best_rank_52w}; snapshots_52w=${summary.snapshots_52w}`; }
 function rowCircuit(row: Row): "ATP" | "WTA" | null { const family = classifyEvidenceTourFamily(row.source_id, row.source_name, row.sample_label, row.observation_type, row.observation_key, row.text_value); if (family === "ATP_MAIN" || family === "ATP_CHALLENGER") return "ATP"; if (family === "WTA_MAIN" || family === "WTA_CHALLENGER") return "WTA"; return null; }
 function familyFromContext(context: string | null | undefined): EvidenceTourFamily | null { return classifyEvidenceTourFamily(context); }
