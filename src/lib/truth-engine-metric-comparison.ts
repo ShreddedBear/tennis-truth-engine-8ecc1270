@@ -32,7 +32,8 @@ export type ComparisonStatus =
   | "NO_COMPARISON_SPEC"
   | "TREATMENT_NOT_USABLE"
   | "ONE_SIDED_EVIDENCE"
-  | "VALUE_NOT_PARSEABLE";
+  | "VALUE_NOT_PARSEABLE"
+  | "INSUFFICIENT_SAMPLE";
 
 const USABLE_TREATMENTS = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 
@@ -55,6 +56,19 @@ export interface ComparisonSpec {
    * bare counts of unknown definition, and those stay VALUE_NOT_PARSEABLE by design.
    */
   bareScalarFallback?: boolean;
+  /**
+   * Denominator field(s) this measurement is computed over, and the smallest denominator
+   * worth reading. Live proof this is needed: on run ce9706af metric 018 compared
+   * "0% breakbacks" against "100% breakbacks" -- a 100-point gap that cleared any fixed
+   * noise floor -- off THREE and TWO attempts respectively. A fixed materiality cannot
+   * catch that, because the noise floor is a property of the sample, not of the metric.
+   * Below the threshold, or when the denominator is not persisted at all, the comparison
+   * is INSUFFICIENT_SAMPLE: never a lean for either side, and never zero.
+   * Declared only where the producer actually persists a denominator; the nine specs that
+   * predate Phase 12 are deliberately left as they were rather than changed without proof.
+   */
+  sampleField?: string[];
+  minSample?: number;
   /** Optional second field subtracted from `field` (e.g. favourable - unfavourable outcomes). */
   minusField?: string;
   direction: ComparisonDirection;
@@ -90,6 +104,67 @@ export const COMPARISON_SPECS: Record<string, ComparisonSpec> = {
   // Common-opponent caliber: favourable minus unfavourable divergent outcomes.
   // Deliberately shares COMMON_OPPONENT with 031 -- they read the same shared-opponent
   // pool, so they must not count as two independent pieces of evidence.
+
+  // ---- Phase 12 additions -------------------------------------------------------------
+  // Every noise floor below is set from the metric's OWN observed sample size in the live
+  // database (median n, then ~1 standard error of the P1-P2 difference of a proportion),
+  // not from a round number that felt right. Small-sample metrics therefore carry LARGE
+  // floors and will read NEUTRAL unless the gap is genuinely big -- which is the honest
+  // outcome, not a weakness.
+
+  // POINT_BY_POINT: 002/003/009/018/032/034/053 are all reconstructed from the SAME
+  // point-by-point replay of the same handful of matches -- the database labels every one
+  // of them evidence_family=POINT_BY_POINT. They therefore share one family and vote ONCE.
+  // If serve and return disagree inside that one sample, the family is conflicted and
+  // contributes nothing, which is correct: it is one body of evidence disagreeing with
+  // itself, not two independent confirmations.
+  // n median 58 service points -> SE ~6.6pp, difference ~9.3pp.
+  "002": { field: "service_point_win_pct", sampleField: ["service_points"], minSample: 30, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 10, label: "Service point win %" },
+  // n median 54 return points -> SE ~6.8pp, difference ~9.6pp.
+  "003": { field: "return_point_win_pct", sampleField: ["return_points"], minSample: 30, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 10, label: "Return point win %" },
+  // n median 17 pressure points -> SE ~12pp, difference ~17pp.
+  "009": { field: "pressure_win_pct", sampleField: ["pressure_points"], minSample: 15, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 18, label: "Pressure point win %" },
+  // n median ~4 breakback opportunities -> SE ~25pp. Almost nothing clears this floor, by design.
+  "018": { field: "breakback_rate_pct", sampleField: ["breakback_opportunities"], minSample: 10, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 40, label: "Breakback rate %" },
+  // n median ~3 break chances -> SE ~29pp.
+  "032": { field: "bp_converted_pct", sampleField: ["break_chances"], minSample: 10, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 40, label: "Break-point conversion %" },
+  // Dominance ratio = own return points won % / opponent return points won %; ~1.0-1.3 in
+  // practice, so a 0.15 floor is roughly one sampling step rather than a fixed percentage.
+  "034": { field: "dominance_ratio", sampleField: ["total_points_played"], minSample: 60, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 0.15, label: "Dominance ratio" },
+  // Same pressure-point denominator as 009.
+  "053": { field: "pressure_index_pct", sampleField: ["pressure_points"], minSample: 15, direction: "HIGHER_IS_BETTER", family: "POINT_BY_POINT", materiality: 18, label: "Pressure index %" },
+
+  // Common-opponent win rate. Shares COMMON_OPPONENT with 031/080 -- same shared-opponent
+  // pool, so it must not read as a third independent confirmation.
+  // n median 11 ranked common-opponent matches -> SE ~15pp, difference ~21pp.
+  "007": { field: "win_pct", sampleField: ["ranked_common_opponent_matches"], minSample: 10, direction: "HIGHER_IS_BETTER", family: "COMMON_OPPONENT", materiality: 20, label: "Common-opponent win %" },
+
+  // Psychological response, measured AGAINST THE PLAYER'S OWN BASELINE. Subtracting the
+  // baseline is what makes this independent of raw strength: without it the metric would
+  // largely restate overall win rate and double-count RESULTS_HISTORY.
+  // n median 8 close-set losses -> SE ~18pp on the conditional rate alone.
+  "029": { field: "after_close_set_loss_match_win_pct", minusField: "baseline_match_win_rate_pct", sampleField: ["after_close_set_loss_n"], minSample: 8, direction: "HIGHER_IS_BETTER", family: "PSYCH_RESPONSE", materiality: 25, label: "Response after a close set loss, vs own baseline" },
+
+  // Loss quality. 036 = share of losses in which the player was the FAVOURITE
+  // (audit-metric-036-loss-autopsy.ts: 100 * favoriteLosses / losses); 006 = share of recent
+  // losses to opponents >=100 Elo below (predixsport-recent.server.ts). Losing when you were
+  // the stronger player is bad, so both are LOWER_IS_BETTER, and both read the same recent
+  // loss list, so they share one family.
+  // 036: n median 20 losses -> SE ~11pp, difference ~16pp.
+  "036": { field: "favorite_losses_rate_pct", sampleField: ["trailing_losses_used"], minSample: 10, direction: "LOWER_IS_BETTER", family: "LOSS_PROFILE", materiality: 15, label: "Losses as favourite %" },
+  // 006: eligible-loss denominator is very small; floor set accordingly.
+  "006": { field: "bad_loss_rate_pct", sampleField: ["quality_observed_matches", "eligible_losses_n"], minSample: 5, direction: "LOWER_IS_BETTER", family: "LOSS_PROFILE", materiality: 25, label: "Bad-loss rate %" },
+
+  // Hidden improvement: recent minus earlier mean Elo-adjusted surplus, i.e. actual outcome
+  // minus Elo-expected win probability. audit-metric-041 itself defines improvement as
+  // recent.mean_elo_adjusted_surplus > earlier.mean_elo_adjusted_surplus, so the direction
+  // is the producer's own, not an interpretation of the metric name.
+  "041": { field: "recent_elo_adjusted_surplus", minusField: "earlier_elo_adjusted_surplus", direction: "HIGHER_IS_BETTER", family: "IMPROVEMENT_TREND", materiality: 0.1, label: "Elo-adjusted surplus, recent vs earlier" },
+
+  // Elo movement across the last 10 matches. Shares RECENT_FORM with 005 (last-10 win %):
+  // both are computed over the same ten-match window and cannot be independent of each other.
+  "055": { field: "elo_change_last10", direction: "HIGHER_IS_BETTER", family: "RECENT_FORM", materiality: 20, label: "Elo change over last 10" },
+
   "080": { field: "favorable_divergent_outcomes", minusField: "unfavorable_divergent_outcomes", direction: "HIGHER_IS_BETTER", family: "COMMON_OPPONENT", materiality: 1, label: "Common-opponent net divergent outcomes" },
 };
 
@@ -115,6 +190,29 @@ export function parseMetricValue(raw: string | null | undefined): ParsedMetricVa
     const value = part.slice(eq + 1).trim();
     if (key) fields.set(key, value);
   }
+  // Reconstructed metrics persist their real numbers inside a JSON payload
+  // (`output={"service_point_win_pct":61.1,...}`). Splitting on ";" leaves that object
+  // intact because the payload contains no semicolons, so its numeric leaves are merged
+  // into the same flat field map. Only finite numbers are merged -- nulls, booleans and
+  // nested strings are skipped rather than coerced, so an absent measurement stays absent.
+  // A top-level key always wins over a payload key of the same name.
+  for (const [key, value] of [...fields.entries()]) {
+    if (!value.startsWith("{")) continue;
+    let payload: unknown;
+    try {
+      payload = JSON.parse(value);
+    } catch {
+      continue; // malformed payload is not evidence; never guessed at
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) continue;
+    for (const [innerKey, innerValue] of Object.entries(payload as Record<string, unknown>)) {
+      if (typeof innerValue !== "number" || !Number.isFinite(innerValue)) continue;
+      if (fields.has(innerKey)) continue;
+      fields.set(innerKey, String(innerValue));
+    }
+    void key;
+  }
+
   const bare = Number(text);
   return { scalar: Number.isFinite(bare) && text !== "" ? bare : null, fields };
 }
@@ -202,6 +300,18 @@ export function compareMetricRow(row: MetricRowForComparison): MetricComparison 
   }
   if (p1Number === null || p2Number === null) {
     return { ...base, p1_number: p1Number, p2_number: p2Number, status: "ONE_SIDED_EVIDENCE", favours: "UNAVAILABLE", reason: `Only ${p1Number === null ? "P2" : "P1"} carried a parseable "${spec.field ?? "scalar"}" value. One-sided evidence is never a lean for the side that happens to have it.` };
+  }
+
+  if (spec.sampleField && spec.minSample !== undefined) {
+    const p1Sample = lookup(parseMetricValue(row.p1_value), spec.sampleField[0], spec.sampleField.slice(1));
+    const p2Sample = lookup(parseMetricValue(row.p2_value), spec.sampleField[0], spec.sampleField.slice(1));
+    if (p1Sample === null || p2Sample === null || p1Sample < spec.minSample || p2Sample < spec.minSample) {
+      const describe = (n: number | null) => (n === null ? "not persisted" : String(n));
+      return {
+        ...base, p1_number: p1Number, p2_number: p2Number, status: "INSUFFICIENT_SAMPLE", favours: "UNAVAILABLE",
+        reason: `"${spec.label}" needs at least ${spec.minSample} ${spec.sampleField[0]} on both sides; P1 has ${describe(p1Sample)} and P2 has ${describe(p2Sample)}. A gap measured over too few attempts is noise, so neither side is credited.`,
+      };
+    }
   }
 
   const differential = Number((p1Number - p2Number).toFixed(6));

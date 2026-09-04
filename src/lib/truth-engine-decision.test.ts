@@ -466,3 +466,225 @@ describe("metric 001 persists two shapes for one quantity", () => {
     expect(COMPARISON_SPECS["010"].bareScalarFallback).toBeUndefined();
   });
 });
+
+describe("Phase 12 — JSON payload evidence", () => {
+  // Reconstructed metrics persist their real numbers inside output={...}. Before Phase 12
+  // the ";"-split parser could not see inside, so 002/003/009/018/032/034/053 were all
+  // NO_COMPARISON_SPEC or unparseable despite carrying complete evidence.
+  const pbp = (code: string, payload: Record<string, unknown>) =>
+    `reconstructed_matches=12; treatment=PARTIAL; output=${JSON.stringify(payload)}; raw_fields=server,point_winner`;
+
+  it("reads a numeric field out of the JSON payload", () => {
+    const c = compareMetricRow({
+      metric_code: "002",
+      p1_value: pbp("002", { service_points: 58, service_point_win_pct: 61.1111, hold_pct: 75, aces: null }),
+      p2_value: pbp("002", { service_points: 54, service_point_win_pct: 44.8276, hold_pct: 40, aces: null }),
+      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+    });
+    expect(c.status).toBe("COMPARED");
+    expect(c.p1_number).toBeCloseTo(61.1111, 3);
+    expect(c.p2_number).toBeCloseTo(44.8276, 3);
+    expect(c.favours).toBe("P1"); // 16.3pp clears the 10pp floor
+  });
+
+  it("never coerces a null payload entry into zero", () => {
+    const c = compareMetricRow({
+      metric_code: "032",
+      p1_value: pbp("032", { break_chances: 0, bp_converted_pct: null }),
+      p2_value: pbp("032", { break_chances: 5, bp_converted_pct: 60 }),
+      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+    });
+    expect(c.status).toBe("ONE_SIDED_EVIDENCE");
+    expect(c.favours).toBe("UNAVAILABLE");
+    expect(c.p1_number).toBeNull();
+  });
+
+  it("a malformed payload is not evidence and is never guessed at", () => {
+    const c = compareMetricRow({
+      metric_code: "003",
+      p1_value: "output={not valid json",
+      p2_value: pbp("003", { return_point_win_pct: 50 }),
+      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+    });
+    expect(c.status).toBe("ONE_SIDED_EVIDENCE");
+    expect(c.favours).toBe("UNAVAILABLE");
+  });
+
+  it("a top-level key wins over a payload key of the same name", () => {
+    const c = compareMetricRow({
+      metric_code: "034",
+      p1_value: `dominance_ratio=2.0; output=${JSON.stringify({ dominance_ratio: 0.5 })}`,
+      p2_value: `dominance_ratio=1.0; output=${JSON.stringify({ dominance_ratio: 9.9 })}`,
+      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+    });
+    expect(c.p1_number).toBe(2);
+    expect(c.p2_number).toBe(1);
+  });
+});
+
+describe("Phase 12 — P1/P2 symmetry under swap", () => {
+  // Every activated spec must reverse cleanly when the two players are exchanged. A metric
+  // that does not is a P1-first bias and must not be in the registry.
+  const sample: Record<string, [string, string]> = {
+    "001": ["surface_elo=1500", "surface_elo=1400"],
+    "002": ['output={"service_points":80,"service_point_win_pct":65}', 'output={"service_points":75,"service_point_win_pct":40}'],
+    "003": ['output={"return_points":80,"return_point_win_pct":55}', 'output={"return_points":75,"return_point_win_pct":30}'],
+    "005": ["last10_win_pct=70", "last10_win_pct=20"],
+    "006": ["quality_observed_matches=9; bad_loss_rate_pct=10", "quality_observed_matches=8; bad_loss_rate_pct=80"],
+    "007": ["ranked_common_opponent_matches=30; win_pct=75", "ranked_common_opponent_matches=26; win_pct=25"],
+    "008": ["deciding_set_win_pct=70", "deciding_set_win_pct=20"],
+    "009": ['output={"pressure_points":30,"pressure_win_pct":70}', 'output={"pressure_points":28,"pressure_win_pct":20}'],
+    "010": ["straight_set_win_pct=70", "straight_set_win_pct=20"],
+    "011": ["match_win_pct=70", "match_win_pct=20"],
+    "018": ['output={"breakback_opportunities":15,"breakback_rate_pct":90}', 'output={"breakback_opportunities":14,"breakback_rate_pct":10}'],
+    "027": ["lead_protection_rate_pct=90", "lead_protection_rate_pct=40"],
+    "029": ["after_close_set_loss_n=12; after_close_set_loss_match_win_pct=80; baseline_match_win_rate_pct=20", "after_close_set_loss_n=11; after_close_set_loss_match_win_pct=20; baseline_match_win_rate_pct=60"],
+    "031": ["opponent_adjusted_set_differential=1.5", "opponent_adjusted_set_differential=-1.5"],
+    "032": ['output={"break_chances":14,"bp_converted_pct":90}', 'output={"break_chances":12,"bp_converted_pct":10}'],
+    "034": ['output={"total_points_played":170,"dominance_ratio":1.8}', 'output={"total_points_played":160,"dominance_ratio":0.9}'],
+    "036": ["trailing_losses_used=20; favorite_losses_rate_pct=10", "trailing_losses_used=20; favorite_losses_rate_pct=80"],
+    "041": ["recent_elo_adjusted_surplus=0.4; earlier_elo_adjusted_surplus=0.0", "recent_elo_adjusted_surplus=-0.4; earlier_elo_adjusted_surplus=0.0"],
+    "051": ["shrunk_win_probability_pct=70", "shrunk_win_probability_pct=30"],
+    "053": ['output={"pressure_points":30,"pressure_index_pct":70}', 'output={"pressure_points":26,"pressure_index_pct":20}'],
+    "055": ["elo_change_last10=60", "elo_change_last10=-60"],
+    "080": ["favorable_divergent_outcomes=9; unfavorable_divergent_outcomes=1", "favorable_divergent_outcomes=1; unfavorable_divergent_outcomes=9"],
+  };
+
+  it("covers every registered spec", () => {
+    expect(Object.keys(sample).sort()).toEqual(Object.keys(COMPARISON_SPECS).sort());
+  });
+
+  for (const [code, [strong, weak]] of Object.entries(sample)) {
+    it(`${code} reverses when P1 and P2 are swapped`, () => {
+      const usable = { p1_treatment: "DIRECT", p2_treatment: "DIRECT" } as const;
+      const forward = compareMetricRow({ metric_code: code, p1_value: strong, p2_value: weak, ...usable });
+      const swapped = compareMetricRow({ metric_code: code, p1_value: weak, p2_value: strong, ...usable });
+
+      expect(forward.status, `${code} forward`).toBe("COMPARED");
+      expect(swapped.status, `${code} swapped`).toBe("COMPARED");
+      expect(forward.favours, `${code} should favour the stronger side`).toBe("P1");
+      expect(swapped.favours, `${code} should follow the player, not the slot`).toBe("P2");
+      // The measured quantities travel with the player.
+      expect(swapped.p1_number).toBe(forward.p2_number);
+      expect(swapped.p2_number).toBe(forward.p1_number);
+      // And the decision-facing advantage is exactly negated.
+      expect(swapped.advantage_p1).toBe(-forward.advantage_p1!);
+    });
+
+    it(`${code} gives no side an advantage from the other's missing evidence`, () => {
+      const p1Only = compareMetricRow({ metric_code: code, p1_value: strong, p2_value: null, p1_treatment: "DIRECT", p2_treatment: "DIRECT" });
+      const p2Only = compareMetricRow({ metric_code: code, p1_value: null, p2_value: strong, p1_treatment: "DIRECT", p2_treatment: "DIRECT" });
+      expect(p1Only.favours, `${code} P1-only`).toBe("UNAVAILABLE");
+      expect(p2Only.favours, `${code} P2-only`).toBe("UNAVAILABLE");
+      expect(p1Only.status).toBe("ONE_SIDED_EVIDENCE");
+      expect(p2Only.status).toBe("ONE_SIDED_EVIDENCE");
+    });
+  }
+});
+
+describe("Phase 12 — correlated metrics cannot become independent support", () => {
+  it("all point-by-point reconstructions share one family", () => {
+    for (const code of ["002", "003", "009", "018", "032", "034", "053"]) {
+      expect(COMPARISON_SPECS[code].family, `${code}`).toBe("POINT_BY_POINT");
+    }
+  });
+
+  it("the shared-opponent metrics share one family", () => {
+    for (const code of ["007", "031", "080"]) {
+      expect(COMPARISON_SPECS[code].family, `${code}`).toBe("COMMON_OPPONENT");
+    }
+  });
+
+  it("the two last-10-window metrics share one family", () => {
+    expect(COMPARISON_SPECS["005"].family).toBe("RECENT_FORM");
+    expect(COMPARISON_SPECS["055"].family).toBe("RECENT_FORM");
+  });
+
+  it("the two loss-quality metrics share one family", () => {
+    expect(COMPARISON_SPECS["006"].family).toBe("LOSS_PROFILE");
+    expect(COMPARISON_SPECS["036"].family).toBe("LOSS_PROFILE");
+  });
+
+  it("seven agreeing point-by-point metrics still cast a single vote", () => {
+    const rows: MetricRowForComparison[] = ["002", "003", "009", "018", "032", "034", "053"].map((code) => {
+      const [strong, weak] = [
+        { "002": 90, "003": 90, "009": 95, "018": 95, "032": 95, "034": 3, "053": 95 }[code]!,
+        { "002": 10, "003": 10, "009": 5, "018": 5, "032": 5, "034": 0.3, "053": 5 }[code]!,
+      ];
+      const spec = COMPARISON_SPECS[code];
+      const denom = `"${spec.sampleField![0]}":${(spec.minSample ?? 0) + 20}`;
+      return {
+        metric_code: code,
+        p1_value: `output={${denom},"${spec.field}":${strong}}`,
+        p2_value: `output={${denom},"${spec.field}":${weak}}`,
+        p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+      };
+    });
+    const decision = decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: "A", p2Name: "B" });
+    expect(decision.independent_support_families).toEqual(["POINT_BY_POINT"]);
+    // One family is below the independence minimum, so seven correlated rows cannot elect a winner.
+    expect(MIN_INDEPENDENT_SUPPORT_FAMILIES).toBeGreaterThan(1);
+    expect(decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
+  });
+
+  it("no newly activated code is one of the quarantined Matrix Summary metrics", () => {
+    for (const code of Object.keys(COMPARISON_SPECS)) {
+      expect(MATRIX_SUMMARY_REQUIRED_CODES, `${code} is quarantined`).not.toContain(code);
+    }
+  });
+});
+
+describe("Phase 12 — a thin denominator is never a lean", () => {
+  // Live proof this guard is needed: on run ce9706af metric 018 read 0% vs 100% breakbacks
+  // -- a 100-point gap -- off 3 and 2 attempts. Fixed materiality cannot catch that.
+  const row018 = (p1Opps: number, p1Rate: number, p2Opps: number, p2Rate: number): MetricRowForComparison => ({
+    metric_code: "018",
+    p1_value: `output={"breakback_opportunities":${p1Opps},"breakback_rate_pct":${p1Rate}}`,
+    p2_value: `output={"breakback_opportunities":${p2Opps},"breakback_rate_pct":${p2Rate}}`,
+    p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED",
+  });
+
+  it("refuses the real 0%-vs-100% comparison taken from 3 and 2 attempts", () => {
+    const c = compareMetricRow(row018(3, 0, 2, 100));
+    expect(c.status).toBe("INSUFFICIENT_SAMPLE");
+    expect(c.favours).toBe("UNAVAILABLE");
+    expect(c.reason).toContain("breakback_opportunities");
+  });
+
+  it("still compares once both denominators are adequate", () => {
+    const c = compareMetricRow(row018(12, 10, 14, 80));
+    expect(c.status).toBe("COMPARED");
+    expect(c.favours).toBe("P2");
+  });
+
+  it("one adequate side does not rescue a thin other side, in either slot", () => {
+    expect(compareMetricRow(row018(40, 90, 2, 0)).status).toBe("INSUFFICIENT_SAMPLE");
+    expect(compareMetricRow(row018(2, 90, 40, 0)).status).toBe("INSUFFICIENT_SAMPLE");
+  });
+
+  it("an unpersisted denominator is refused rather than assumed adequate", () => {
+    const c = compareMetricRow({
+      metric_code: "018",
+      p1_value: 'output={"breakback_rate_pct":0}',
+      p2_value: 'output={"breakback_rate_pct":100}',
+      p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED",
+    });
+    expect(c.status).toBe("INSUFFICIENT_SAMPLE");
+    expect(c.reason).toContain("not persisted");
+  });
+
+  it("an insufficient sample contributes nothing to the decision, and is not zero", () => {
+    const decision = decideTruthEngineSelection({ comparisons: [compareMetricRow(row018(3, 0, 2, 100))], p1Name: "A", p2Name: "B" });
+    expect(decision.independent_support_families).toEqual([]);
+    expect(decision.independent_contradiction_families).toEqual([]);
+    expect(decision.unavailable.map((u) => u.status)).toContain("INSUFFICIENT_SAMPLE");
+  });
+
+  it("every sample guard names a denominator and a positive threshold", () => {
+    for (const [code, spec] of Object.entries(COMPARISON_SPECS)) {
+      if (!spec.sampleField && spec.minSample === undefined) continue;
+      expect(spec.sampleField?.length, `${code} declares minSample without a denominator`).toBeGreaterThan(0);
+      expect(spec.minSample, `${code} declares a denominator without a threshold`).toBeGreaterThan(0);
+    }
+  });
+});
