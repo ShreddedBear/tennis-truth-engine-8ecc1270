@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 type Bucket = { n: number; w: number; l: number; sets: number; setsWon: number; straightWins: number; deciding: number; decidingWins: number; elo: number | null; peak: number | null; lastDate: string | null; recent: Array<[string, number, string, number | null, string, string]> };
 type Player = { name: string; overall: Bucket; surface: Record<string, Bucket> };
@@ -31,10 +32,32 @@ const ASSET_PATH = "/generated/tennis-runtime-index.json.gz";
 
 let cache: RuntimeTennisIndex | null = null;
 
+// The raw 61MB JSON is tracked by Git LFS (see .gitattributes). Any checkout WITHOUT
+// git-lfs installed -- a fresh clone, a CI runner, this repo's own remote container --
+// leaves a 133-byte pointer file at DISK_PATH instead of the index. JSON.parse then throws,
+// loadRuntimeIndex() silently returns empty(), and every static-index metric engine
+// truthfully reports "no data" for every player. That surfaced as 33 test failures which
+// were repeatedly misdiagnosed (in two prior phase reports) as "pre-existing date-sensitive
+// fixture failures". They were not date-sensitive: they were this file reading a pointer.
+//
+// The gzip copy under public/ is committed normally, NOT through LFS, and is byte-identical
+// once decompressed (verified: 61,433,013 bytes, exactly the size the LFS pointer declares).
+// It already has to exist for the Cloudflare Workers ASSETS path below, so falling back to
+// it here costs nothing and makes a no-LFS checkout behave identically to a full one.
+function looksLikeLfsPointer(text: string) {
+  return text.startsWith("version https://git-lfs.github.com/spec/v1");
+}
+
 function loadFromDisk(): RuntimeTennisIndex | null {
   try {
     const text = readFileSync(DISK_PATH, "utf8");
-    return JSON.parse(text) as RuntimeTennisIndex;
+    if (!looksLikeLfsPointer(text)) return JSON.parse(text) as RuntimeTennisIndex;
+  } catch {
+    // Fall through to the gzip copy: an unreadable/absent JSON is the same situation.
+  }
+  try {
+    const gz = readFileSync(join(process.cwd(), "public", "generated", "tennis-runtime-index.json.gz"));
+    return JSON.parse(gunzipSync(gz).toString("utf8")) as RuntimeTennisIndex;
   } catch {
     return null;
   }

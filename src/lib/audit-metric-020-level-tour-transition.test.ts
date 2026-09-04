@@ -77,7 +77,14 @@ describe("metric #020 — Level/Tour Transition (live wrapper against the real g
     expect(result.value.matches_used).toBeGreaterThan(0);
     const total = result.value.elo_differential_bands.reduce((s, b) => s + b.n, 0);
     expect(total).toBe(result.value.matches_used);
-  });
+    // PHASE 14 -- explicit 30s timeout, not the 5s default. This is the suite's heaviest
+    // test: a full Elo replay across all four lanes of the 61MB generated index. Measured
+    // ~6.1s under parallel load while passing in ~5.2s alone, which is exactly the profile
+    // of the single unexplained intermittent failure earlier phases reported and could not
+    // reproduce. It was never a nondeterministic engine -- it is a genuinely slow
+    // computation racing vitest's per-test timeout, so whether it failed depended on which
+    // other suites happened to share its worker.
+  }, 30_000);
 
   it("returns NOT_ENOUGH_DATA for a nonexistent player", () => {
     const result = computeLevelTourTransition({ player: "totally fictional player one", lane: LANE, asOfDate: AS_OF });
