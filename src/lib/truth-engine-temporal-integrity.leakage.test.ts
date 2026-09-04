@@ -6,6 +6,7 @@ import { getCommonOpponentEvidence } from "./predixsport-common.server";
 import { compareMetricRows, COMPARISON_SPECS } from "./truth-engine-metric-comparison";
 import { runTruthEngineAudit } from "./truth-engine-audit";
 import { MATRIX_SUMMARY_REQUIRED_CODES } from "./metric-classification";
+import { deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.server";
 
 // PHASE 13 — forensic anti-leakage regression suite.
 //
@@ -161,5 +162,77 @@ describe("the quarantine and the registry stay separated", () => {
     for (const code of MATRIX_SUMMARY_REQUIRED_CODES) {
       expect(COMPARISON_SPECS[code], `${code} is quarantined`).toBeUndefined();
     }
+  });
+});
+
+// PHASE 14 — the POINT_BY_POINT tier's same-day boundary.
+//
+// Phase 13.5 documented but did not fix this: every PBP source filter admitted rows dated
+// ON the audited day (`<=` / `.lte()`), and the packet reader additionally admitted rows
+// with NO date at all (`!r.event_date || ...`). Because the audited match is itself in the
+// same BSD point-by-point index the producers read, a same-day row can be the audited
+// match's OWN point record -- the engine reading the match it is predicting. This tier is
+// shared by all eight active POINT_BY_POINT codes (002/003/009/016/018/032/034/053), so a
+// leak here is a leak in all of them at once.
+describe("Phase 14 — the audited match's own point-by-point record is inadmissible", () => {
+  const AS_OF = "2026-03-10";
+  const obs = (eventDate: string | null, player: string) => ({
+    family: "POINT_BY_POINT",
+    source: "BSD fixture",
+    url: null,
+    player,
+    opponent: player === "Ana" ? "Bo" : "Ana",
+    event_date: eventDate,
+    key: "task18b_approved_pbp_score_state",
+    // A minimally-shaped derived payload for 009, enough for metricText() to render.
+    value: { derived: { "009": { treatment: "PARTIAL", value: { pressure_points: 20, pressure_points_won: 12, pressure_win_pct: 60 }, raw_fields: ["server"], transformation: "fixture" } } },
+  });
+  const packetOf = (rows: ReturnType<typeof obs>[]) => ({ "009": { observations: rows } });
+
+  it("rejects a row dated the audited day itself -- that row can be the audited match", () => {
+    const finding = deterministicPbpMetricFromPacket({
+      metricCode: "009", p1: "Ana", p2: "Bo", asOfDate: AS_OF,
+      packet: packetOf([obs(AS_OF, "Ana"), obs(AS_OF, "Bo")]),
+    });
+    expect(finding).toBeNull();
+  });
+
+  it("rejects a row dated after the audited day", () => {
+    const finding = deterministicPbpMetricFromPacket({
+      metricCode: "009", p1: "Ana", p2: "Bo", asOfDate: AS_OF,
+      packet: packetOf([obs("2026-03-11", "Ana"), obs("2026-03-12", "Bo")]),
+    });
+    expect(finding).toBeNull();
+  });
+
+  it("rejects an undated row rather than assuming it is prior", () => {
+    const finding = deterministicPbpMetricFromPacket({
+      metricCode: "009", p1: "Ana", p2: "Bo", asOfDate: AS_OF,
+      packet: packetOf([obs(null, "Ana"), obs(null, "Bo")]),
+    });
+    expect(finding).toBeNull();
+  });
+
+  it("still admits genuinely prior rows -- the fix excludes leakage, not evidence", () => {
+    const finding = deterministicPbpMetricFromPacket({
+      metricCode: "009", p1: "Ana", p2: "Bo", asOfDate: AS_OF,
+      packet: packetOf([obs("2026-03-09", "Ana"), obs("2026-03-09", "Bo")]),
+    });
+    expect(finding).not.toBeNull();
+    expect(finding!.p1_treatment).toBe("PARTIAL");
+    expect(finding!.p2_treatment).toBe("PARTIAL");
+    expect(finding!.evidence_family).toBe("POINT_BY_POINT");
+  });
+
+  it("drops only the same-day rows when prior and same-day rows are mixed together", () => {
+    // The realistic production shape: a player's history plus the audited match itself.
+    const finding = deterministicPbpMetricFromPacket({
+      metricCode: "009", p1: "Ana", p2: "Bo", asOfDate: AS_OF,
+      packet: packetOf([obs("2026-03-01", "Ana"), obs(AS_OF, "Ana"), obs("2026-03-01", "Bo"), obs(AS_OF, "Bo")]),
+    });
+    expect(finding).not.toBeNull();
+    // 2 of the 4 observations survive -- one prior match per side, not two.
+    expect(finding!.sample).toContain("p1_matches=1");
+    expect(finding!.sample).toContain("p2_matches=1");
   });
 });

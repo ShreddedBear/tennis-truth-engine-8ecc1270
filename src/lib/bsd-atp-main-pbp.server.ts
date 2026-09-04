@@ -45,7 +45,7 @@ async function computeObservations(args:{p1:string;p2:string;asOfDate:string;con
   const status:ObservationStatus={eligible:false,reason:"",matches_used:0,rejected_pbp:0,coverage_start:COVERAGE_START,source:"BSD/Bzzoiro ATP Main PBP"};
   if(!explicitContext(args.context)){status.reason="Fail-closed tour guard: context is not explicitly ATP Main.";return{status,observations:[]};}
   if(args.asOfDate<COVERAGE_START){status.reason="Outside confirmed BSD ATP Main PBP coverage boundary.";return{status,observations:[]};}
-  status.eligible=true;const end=Math.min(new Date().getUTCFullYear(),Number(args.asOfDate.slice(0,4))||new Date().getUTCFullYear());const indexes=(await Promise.all(Array.from({length:Math.max(0,end-2024+1)},(_,i)=>loadIndex(2024+i)))).flat();const p1n=norm(args.p1),p2n=norm(args.p2);const eligible=indexes.filter(r=>strictRow(r)&&Boolean(r.date)&&String(r.date).slice(0,10)<=args.asOfDate&&(r.players??[]).map(norm).some(n=>n===p1n||n===p2n));
+  status.eligible=true;const end=Math.min(new Date().getUTCFullYear(),Number(args.asOfDate.slice(0,4))||new Date().getUTCFullYear());const indexes=(await Promise.all(Array.from({length:Math.max(0,end-2024+1)},(_,i)=>loadIndex(2024+i)))).flat();const p1n=norm(args.p1),p2n=norm(args.p2);const eligible=indexes.filter(r=>strictRow(r)&&Boolean(r.date)&&String(r.date).slice(0,10)<args.asOfDate&&(r.players??[]).map(norm).some(n=>n===p1n||n===p2n));
   const observations:any[]=[],seenMatchIds=new Set<string>(),seenCanonicalKeys=new Set<string>();
   // Claiming (uniqueness/dedup) stays a synchronous pass over candidates in order,
   // identical to the prior sequential loop's ordering; only the network fetch and
