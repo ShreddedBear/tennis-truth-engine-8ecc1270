@@ -307,8 +307,8 @@ describe("pipeline wiring: the deterministic conclusion is authoritative and ind
       P2,
     );
     expect(c.winner).toBe(P1);
-    expect(c.decision.outcome).toBe("P1");
-    expect(c.decision.independent_support_families).toHaveLength(3);
+    expect(c.audit.decision.outcome).toBe("P1");
+    expect(c.audit.decision.independent_support_families).toHaveLength(3);
     expect(c.rationale).toMatch(/Evidence chain:/);
     expect(c.insufficient_reason).toBeNull();
   });
@@ -325,7 +325,7 @@ describe("pipeline wiring: the deterministic conclusion is authoritative and ind
     );
     expect(c.winner).toBeNull();
     expect(c.insufficient_reason).toBeTruthy();
-    expect(c.decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
+    expect(c.audit.decision.outcome).toBe("INSUFFICIENT_EVIDENCE");
   });
 
   it("is reproducible: the same persisted rows always yield the same selection", () => {
@@ -337,8 +337,8 @@ describe("pipeline wiring: the deterministic conclusion is authoritative and ind
     const a = deterministicIndependentConclusion(rows, P1, P2);
     const b = deterministicIndependentConclusion(rows, P1, P2);
     expect(a.winner).toBe(b.winner);
-    expect(a.decision.reason).toBe(b.decision.reason);
-    expect(a.decision.stability).toBe(b.decision.stability);
+    expect(a.audit.decision.reason).toBe(b.audit.decision.reason);
+    expect(a.audit.decision.stability).toBe(b.audit.decision.stability);
   });
 
   it("swapping which player is P1 swaps the selection -- the engine is not 'P1-first'", () => {
@@ -349,7 +349,7 @@ describe("pipeline wiring: the deterministic conclusion is authoritative and ind
     ];
     const c = deterministicIndependentConclusion(rows, P1, P2);
     expect(c.winner).toBe(P2); // the weaker side is P1 here, so P2 must be selected
-    expect(c.decision.outcome).toBe("P2");
+    expect(c.audit.decision.outcome).toBe("P2");
   });
 });
 
@@ -370,5 +370,99 @@ describe("scenario 14/15: quarantined and unavailable metrics cannot influence t
     expect(withLegacy.outcome).toBe(withoutLegacy.outcome);
     expect(withLegacy.independent_support_families).toEqual(withoutLegacy.independent_support_families);
     expect(withLegacy.unavailable.some((u) => u.metric_code === "035" && u.status === "NO_COMPARISON_SPEC")).toBe(true);
+  });
+});
+
+describe("persisted field aliases (registry vs. real producer output)", () => {
+  // Live finding: across 304 persisted rows, metric 008 emitted "deciding_set_win_pct" in
+  // 87 rows and the registry's "set3_deciding_set_win_pct" in 1; metric 010 emitted
+  // "straight_set_win_pct" in 89 and "straight_set_match_win_pct" in 1. Both pairs name the
+  // identical quantity, so the comparison must read either without a spec rewrite.
+  const row = (code: string, p1: string, p2: string): MetricRowForComparison => ({
+    metric_code: code, p1_value: p1, p2_value: p2, p1_treatment: "DIRECT", p2_treatment: "DIRECT",
+  });
+
+  it("reads the alias name emitted by the real producer", () => {
+    const c = compareMetricRow(row("008", "deciding_set_win_pct=62", "deciding_set_win_pct=41"));
+    expect(c.status).toBe("COMPARED");
+    expect(c.p1_number).toBe(62);
+    expect(c.p2_number).toBe(41);
+    expect(c.favours).toBe("P1");
+  });
+
+  it("prefers the canonical name when both are present", () => {
+    const c = compareMetricRow(row("010", "straight_set_match_win_pct=70; straight_set_win_pct=10", "straight_set_match_win_pct=40; straight_set_win_pct=90"));
+    expect(c.p1_number).toBe(70);
+    expect(c.p2_number).toBe(40);
+  });
+
+  it("still refuses a lean when only one side carries the alias", () => {
+    const c = compareMetricRow(row("008", "deciding_set_win_pct=62", "deciding_matches=9"));
+    expect(c.status).toBe("ONE_SIDED_EVIDENCE");
+    expect(c.favours).toBe("UNAVAILABLE");
+  });
+
+  it("does not treat a similar-sounding neighbouring field as an alias", () => {
+    // 010 also persists "same_surface_straight_set_win_pct" -- a DIFFERENT population.
+    // Reading it here would silently change what is being compared.
+    const c = compareMetricRow(row("010", "same_surface_straight_set_win_pct=90", "same_surface_straight_set_win_pct=10"));
+    expect(c.status).toBe("VALUE_NOT_PARSEABLE");
+    expect(c.favours).toBe("UNAVAILABLE");
+  });
+
+  it("every declared alias belongs to a spec that has a keyed field", () => {
+    for (const [code, spec] of Object.entries(COMPARISON_SPECS)) {
+      if (!spec.fieldAliases?.length) continue;
+      expect(spec.field, `${code} declares aliases but compares a bare scalar`).not.toBeNull();
+      expect(new Set(spec.fieldAliases).size, `${code} has duplicate aliases`).toBe(spec.fieldAliases.length);
+      expect(spec.fieldAliases, `${code} lists its own canonical field as an alias`).not.toContain(spec.field);
+    }
+  });
+});
+
+describe("metric 001 persists two shapes for one quantity", () => {
+  // Live finding: of 304 persisted 001 rows, 189 carry a bare scalar and 102 carry
+  // "surface_elo=". Both are the surface Elo. "overall_elo" is a DIFFERENT quantity and
+  // must never stand in for it.
+  const row = (p1: string, p2: string): MetricRowForComparison => ({
+    metric_code: "001", p1_value: p1, p2_value: p2, p1_treatment: "DIRECT", p2_treatment: "DIRECT",
+  });
+
+  it("compares the bare-scalar shape", () => {
+    const c = compareMetricRow(row("1521.13", "1465.29"));
+    expect(c.status).toBe("COMPARED");
+    expect(c.p1_number).toBeCloseTo(1521.13, 2);
+    expect(c.favours).toBe("P1");
+  });
+
+  it("compares the keyed shape", () => {
+    const c = compareMetricRow(row("overall_elo=1420; surface=clay; surface_elo=1429", "overall_elo=1432; surface=clay; surface_elo=1442"));
+    expect(c.status).toBe("COMPARED");
+    expect(c.p1_number).toBe(1429);
+    expect(c.p2_number).toBe(1442);
+    expect(c.favours).toBe("P2");
+  });
+
+  it("never substitutes overall_elo for surface_elo", () => {
+    const c = compareMetricRow(row("overall_elo=1900", "overall_elo=1200"));
+    expect(c.status).toBe("VALUE_NOT_PARSEABLE");
+    expect(c.favours).toBe("UNAVAILABLE");
+  });
+
+  it("compares across the two shapes without crediting the keyed side", () => {
+    const c = compareMetricRow(row("1521.13", "overall_elo=1432; surface_elo=1442"));
+    expect(c.status).toBe("COMPARED");
+    expect(c.p2_number).toBe(1442);
+  });
+
+  it("bareScalarFallback is only declared where the bare form is the same measurement", () => {
+    for (const [code, spec] of Object.entries(COMPARISON_SPECS)) {
+      if (!spec.bareScalarFallback) continue;
+      expect(spec.field, `${code} sets bareScalarFallback with no keyed field to fall back from`).not.toBeNull();
+    }
+    // 008/010 persist bare counts of unknown definition; guessing them is exactly the
+    // silent inversion this registry exists to prevent.
+    expect(COMPARISON_SPECS["008"].bareScalarFallback).toBeUndefined();
+    expect(COMPARISON_SPECS["010"].bareScalarFallback).toBeUndefined();
   });
 });

@@ -21,6 +21,8 @@ import { classifyMetric } from "./metric-classification";
 import { buildCalibrationSnapshot } from "./calibration-snapshot";
 import { compareMetricRows } from "./truth-engine-metric-comparison";
 import { decideTruthEngineSelection } from "./truth-engine-decision";
+import { runTruthEngineAudit } from "./truth-engine-audit";
+import { verificationRowPatch, disagreementRowPatch, underdogRowPatch, stressRowPatch, unmappedUnderdogPathways } from "./truth-engine-stage-mapping";
 import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 export { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, resolveActiveRun, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
 
@@ -381,41 +383,113 @@ console.log(`[research-timing] ${side.toUpperCase()} batch of ${batch.length} ${
 if(!timedOut&&deps.research.extractStats){const player=side==="p1"?match.player1_name:match.player2_name,run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined;let raw:SourcedStat[]=[],extractionError:string|null=null;try{raw=await deps.research.extractStats({player,dossier:cached?.[player]??dossier,context:digestContext});}catch(error){extractionError=errorDetail(error);}const outcome=reconstruct(raw),reconstructionRows=[...outcome.derived.map(stat=>({audit_run_id:runId,metric_code:stat.key,player_side:player,status:"COMPLETE",output:String(stat.value),formula:stat.formula??null,inputs:stat.inputs?.map(input=>({key:input.key,value:input.value,origin:input.origin,sources:input.sources}))??[],calculation:stat.calculation??null,source_refs:stat.sources,assumptions:null,reliability:.8,unavailable_reason:null,provider_error:null,missing_inputs:[],source_attempts:stat.sources,reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value),retrieved_at:deps.now().toISOString()})),...outcome.blocked.map(blocked=>({audit_run_id:runId,metric_code:blocked.output,player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:blocked.missing},calculation:blocked.reason,source_refs:[],assumptions:blocked.reason,reliability:null,unavailable_reason:"RECONSTRUCTION_FAILED",provider_error:null,missing_inputs:blocked.missing,source_attempts:[],reconstruction_attempted:true,reconstruction_reason:blocked.reason,reconstruction_result:null,retrieved_at:deps.now().toISOString()})),...(raw.length||outcome.blocked.length?[]:[{audit_run_id:runId,metric_code:"PASS2_EXTRACTION",player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:["dossier"]},calculation:extractionError??"No catalogued statistics were extracted from the player dossier.",source_refs:[],assumptions:null,reliability:null,unavailable_reason:extractionError?unavailableReason(extractionError):"NO_SOURCE_FOUND",provider_error:extractionError,missing_inputs:["dossier"],source_attempts:[],reconstruction_attempted:true,reconstruction_reason:extractionError??"No catalogued statistics were extracted from the player dossier.",retrieved_at:deps.now().toISOString()}])];if(reconstructionRows.length)await deps.insert("reconstruction_results",reconstructionRows as never);const statsByFamily=new Map<string,SourcedStat>();for(const stat of[...raw,...outcome.derived]){const family=familyOf(stat.key);if(family&&!statsByFamily.has(family))statsByFamily.set(family,stat);}for(const row of rows){const stat=statsByFamily.get(String(row["metric_code"]).replace(/^M/,"").padStart(3,"0"));if(!stat)continue;const sidePrefix=side==="p1"?"p1":"p2";await deps.update("metric_results",String(row["id"]),{[`${sidePrefix}_value`]:String(stat.value),[`${sidePrefix}_status`]:"COMPLETE",[`${sidePrefix}_treatment`]:stat.origin,[`${sidePrefix}_unavailable_reason`]:null,[`${sidePrefix}_provider_error`]:null,[`${sidePrefix}_retrieved_at`]:deps.now().toISOString(),sources:stat.sources??[],source_attempts:stat.sources??[],missing_inputs:[],reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value)});}}
 const done=completedBefore+treatedInPass;if(timedOut)return{status:"PARTIAL",done,total:rows.length,message:`${done}/${rows.length} metrics treated so far for ${side.toUpperCase()}.`};return{status:"COMPLETE",done:rows.length,total:rows.length};}
 
-async function executeRules(deps:PipelineDeps,matchId:string,runId:string,kind:"VERIFICATION"|"DISAGREEMENT",ctx:StageCtx):Promise<StageOutcome>{const table:ChildTable=kind==="VERIFICATION"?"verification_results":"disagreement_results",match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const rows=await deps.list(table,runId);if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:`No ${kind.toLowerCase()} rules instantiated.`};const metrics=await deps.list("metric_results",runId),evidence=digestFrom(match,metrics),versionId=await deps.getActiveVersionId(kind),defs=versionId?await deps.getRules(versionId):[],defByCode=new Map(defs.map(d=>[d.rule_code,d])),pending=rows.filter(r=>!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"])));let timedOut=false,processed=0;for(let i=0;i<pending.length;i+=RULE_BATCH){if(Date.now()>ctx.deadline){timedOut=true;break;}const batch=pending.slice(i,i+RULE_BATCH);let findings:RuleFinding[]=[],providerError:string|null=null;try{findings=await deps.research.rules({kind,evidence,rules:batch.map(r=>{const d=defByCode.get(String(r["rule_code"]));return{code:String(r["rule_code"]),name:String(r["rule_name"]),body:d?.body??null,severity:d?.severity??"STANDARD"};})});}catch(error){providerError=errorDetail(error);}const byCode=new Map(findings.map(f=>[f.rule_code,f]));for(const row of batch){const f=byCode.get(String(row["rule_code"])),patch:Record<string,unknown>=kind==="VERIFICATION"?{p1_finding:f?.p1_finding??null,p2_finding:f?.p2_finding??null,outcome:f?.outcome??"UNAVAILABLE",severity:f?.severity??row["severity"]??"STANDARD",decision_effect:f?.decision_effect??null,sources:f?.sources??[],unavailable_reason:f?.outcome==="UNAVAILABLE"||!f?(f?.unavailable_reason?unavailableReason(f.unavailable_reason):providerReason(providerError)):null,unavailable_detail:f?.unavailable_reason??null,provider_error:providerError,missing_inputs:f?.missing_inputs??[],source_attempts:f?.sources??[],reconstruction_attempted:false,retrieved_at:deps.now().toISOString(),status:f&&f.outcome!=="UNAVAILABLE"?"COMPLETE":"UNAVAILABLE"}:{p1_risk:f?.p1_finding??null,p2_risk:f?.p2_finding??null,supporting_evidence:f?.supporting_evidence??null,opposing_evidence:f?.opposing_evidence??null,contradiction_severity:f?.contradiction_severity??"NONE",final_effect:f?.final_effect??null,unavailable_reason:!f||f?.unavailable_reason?(f?.unavailable_reason?unavailableReason(f.unavailable_reason):providerReason(providerError)):null,unavailable_detail:f?.unavailable_reason??null,provider_error:providerError,missing_inputs:f?.missing_inputs??[],sources:f?.sources??[],source_attempts:[],reconstruction_attempted:false,retrieved_at:deps.now().toISOString(),status:f?"COMPLETE":"UNAVAILABLE"};await deps.update(table,String(row["id"]),patch);processed++;}await ctx.progress(rows.length-pending.length+processed,rows.length);}const after=await deps.list(table,runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;if(timedOut)return{status:"PARTIAL",done,total:after.length,message:`${done}/${after.length} ${kind.toLowerCase()} rules treated so far.`};return done===after.length?{status:"COMPLETE",done,total:after.length}:{status:"BLOCKED",done,total:after.length,errorCode:"RULE_EXECUTION_INCOMPLETE",message:`${after.length-done} ${kind.toLowerCase()} rules unexecuted.`};}
+async function executeRules(deps:PipelineDeps,matchId:string,runId:string,kind:"VERIFICATION"|"DISAGREEMENT",ctx:StageCtx):Promise<StageOutcome>{
+  const table:ChildTable=kind==="VERIFICATION"?"verification_results":"disagreement_results";
+  const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");
+  const rows=await deps.list(table,runId);
+  if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:`No ${kind.toLowerCase()} rules instantiated.`};
+  // DETERMINISTIC AUDIT (docs/audit-truth-engine-decision-core.md): both audits are now
+  // computed from the persisted metric evidence rather than requested from a provider. A
+  // rule the deterministic audit genuinely answers is populated; every other rule is written
+  // UNAVAILABLE carrying the exact missing evidence, so the stage can never report false
+  // completeness by filling every row with the audit's overall verdict.
+  const metrics=await deps.list("metric_results",runId);
+  const audit=runTruthEngineAudit(compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),match.player1_name,match.player2_name);
+  const now=deps.now().toISOString();
+  const pending=rows.filter(r=>!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"])));
+  let processed=0,evaluated=0;
+  for(const row of pending){
+    if(Date.now()>ctx.deadline)break;
+    const mapped=kind==="VERIFICATION"
+      ?verificationRowPatch(row["rule_code"],audit,match.player1_name,match.player2_name,now)
+      :disagreementRowPatch(row["rule_code"],audit,match.player1_name,match.player2_name,now);
+    await deps.update(table,String(row["id"]),mapped.patch);
+    if(mapped.evaluated)evaluated++;
+    processed++;
+    await ctx.progress(rows.length-pending.length+processed,rows.length);
+  }
+  const after=await deps.list(table,runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;
+  if(processed<pending.length)return{status:"PARTIAL",done,total:after.length,message:`${done}/${after.length} ${kind.toLowerCase()} rules treated so far.`};
+  return done===after.length
+    ?{status:"COMPLETE",done,total:after.length,detail:{deterministically_evaluated:evaluated,unavailable:after.length-evaluated}}
+    :{status:"BLOCKED",done,total:after.length,errorCode:"RULE_EXECUTION_INCOMPLETE",message:`${after.length-done} ${kind.toLowerCase()} rules unexecuted.`};
+}
 
-async function executeUnderdog(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const rows=await deps.list("underdog_results",runId);if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No underdog pathways instantiated."};const metrics=await deps.list("metric_results",runId),evidence=digestFrom(match,metrics);for(const side of[match.player1_name,match.player2_name]){const pending=rows.filter(r=>r["player_side"]===side&&!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"])));if(!pending.length)continue;let findings:UnderdogFinding[]=[],providerError:string|null=null;try{findings=await deps.research.underdog({evidence,player_side:side,opponent:side===match.player1_name?match.player2_name:match.player1_name,pathways:pending.map(r=>({code:String(r["pathway_code"]),name:String(r["pathway_name"])}))});}catch(error){providerError=errorDetail(error);}const byCode=new Map(findings.map(f=>[f.pathway_code,f]));for(const row of pending){const f=byCode.get(String(row["pathway_code"]));await deps.update("underdog_results",String(row["id"]),{classification:f?.classification??"UNRESOLVED",evidence:f?.evidence??f?.unavailable_reason??"Retrieval attempted; no admissible pre-match evidence located.",repeatable:f?.repeatable??false,status:f&&f.classification!=="UNRESOLVED"?"COMPLETE":"UNAVAILABLE",unavailable_reason:f?.unavailable_reason?unavailableReason(f.unavailable_reason):(!f?providerReason(providerError):"NO_SOURCE_FOUND"),unavailable_detail:f?.unavailable_reason??null,provider_error:providerError,missing_inputs:f?.missing_inputs??[],sources:f?.sources??[],source_attempts:[],reconstruction_attempted:false,retrieved_at:deps.now().toISOString()});}}const after=await deps.list("underdog_results",runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;return done===after.length?{status:"COMPLETE",done,total:after.length}:{status:"BLOCKED",done,total:after.length,errorCode:"UNDERDOG_INCOMPLETE",message:`${after.length-done} pathways unexecuted.`};}
+async function executeUnderdog(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{
+  const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");
+  const rows=await deps.list("underdog_results",runId);
+  if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No underdog pathways instantiated."};
+  // Pathways are now derived from measured evidence: a pathway is only classified when the
+  // non-selected player actually leads an independent evidence family by more than that
+  // metric's own noise floor. Pathways no active metric can establish are UNAVAILABLE with
+  // the reason, replacing the previous hardcoded "no admissible evidence located" string.
+  const metrics=await deps.list("metric_results",runId);
+  const audit=runTruthEngineAudit(compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),match.player1_name,match.player2_name);
+  const now=deps.now().toISOString();
+  let classified=0;
+  for(const row of rows.filter(r=>!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"])))){
+    const mapped=underdogRowPatch(row["pathway_code"],String(row["player_side"]??""),audit,match.player1_name,match.player2_name,now);
+    await deps.update("underdog_results",String(row["id"]),mapped.patch);
+    if(String(mapped.patch["status"])==="COMPLETE")classified++;
+  }
+  const after=await deps.list("underdog_results",runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;
+  return done===after.length
+    ?{status:"COMPLETE",done,total:after.length,detail:{evidence_backed_pathways:audit.underdog.pathways.length,overall_viability:audit.underdog.overall_viability,rows_classified:classified,pathways_without_persisted_row:unmappedUnderdogPathways(audit)}}
+    :{status:"BLOCKED",done,total:after.length,errorCode:"UNDERDOG_INCOMPLETE",message:`${after.length-done} pathways unexecuted.`};
+}
 
-async function executeStress(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const rows=await deps.list("stress_results",runId);if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No stress tests instantiated."};const metrics=await deps.list("metric_results",runId),evidence=digestFrom(match,metrics),lean=await provisionalConclusion(deps,matchId,runId,evidence),pending=rows.filter(r=>!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))),matrixRemoval=pending.filter(r=>["ST01","ST02"].includes(String(r["test_code"]))),rest=pending.filter(r=>!["ST01","ST02"].includes(String(r["test_code"]))),matrixDerivedUsed=metrics.filter(m=>m["matrix_derived"]===true&&m["status"]==="COMPLETE").length;for(const row of matrixRemoval)await deps.update("stress_results",String(row["id"]),{winner_before:lean.winner,winner_after:matrixDerivedUsed===0?lean.winner:null,range_before:lean.low!==null&&lean.high!==null?`${lean.low}-${lean.high}`:null,range_after:lean.low!==null&&lean.high!==null?`${lean.low}-${lean.high}`:null,outcome:matrixDerivedUsed===0?"STABLE":"UNSTABLE",status:"COMPLETE"});if(rest.length){let findings:StressFinding[]=[],providerError:string|null=null;try{findings=await deps.research.stress({evidence,conclusion:lean,tests:rest.map(r=>({code:String(r["test_code"]),name:String(r["test_name"])}))});}catch(error){providerError=errorDetail(error);}const byCode=new Map(findings.map(f=>[f.test_code,f]));for(const row of rest){const f=byCode.get(String(row["test_code"]));await deps.update("stress_results",String(row["id"]),{winner_before:lean.winner,winner_after:f?.winner_after??null,range_before:lean.low!==null&&lean.high!==null?`${lean.low}-${lean.high}`:null,range_after:f?.range_after??null,outcome:f?.outcome??"UNSTABLE",status:f?"COMPLETE":"UNAVAILABLE",unavailable_reason:f?.unavailable_reason?unavailableReason(f.unavailable_reason):(f?null:providerReason(providerError)),unavailable_detail:f?.unavailable_reason??null,provider_error:providerError,missing_inputs:f?.missing_inputs??[],sources:f?.sources??[],source_attempts:[],reconstruction_attempted:false,retrieved_at:deps.now().toISOString()});}}const after=await deps.list("stress_results",runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;return done===after.length?{status:"COMPLETE",done,total:after.length}:{status:"BLOCKED",done,total:after.length,errorCode:"STRESS_INCOMPLETE",message:`${after.length-done} stress tests unexecuted.`};}
+async function executeStress(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{
+  const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");
+  const rows=await deps.list("stress_results",runId);
+  if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No stress tests instantiated."};
+  const metrics=await deps.list("metric_results",runId);
+  // The stress stage now RECOMPUTES the selection under adverse assumptions derived from each
+  // metric's own declared noise floor, instead of asking a provider whether it looks stable.
+  // winner_after is therefore a real recomputation result.
+  const audit=runTruthEngineAudit(compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),match.player1_name,match.player2_name);
+  const now=deps.now().toISOString();
+  const matrixDerivedUsed=metrics.filter(m=>m["matrix_derived"]===true&&m["status"]==="COMPLETE").length;
+  const pending=rows.filter(r=>!["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"])));
+  let recomputed=0;
+  for(const row of pending){
+    const code=String(row["test_code"]??"");
+    if(code==="ST01"||code==="ST02"){
+      // Matrix-removal tests stay deterministic and independent of the provider: the audit
+      // consumes no Matrix-derived metric, so removing them cannot change the winner.
+      await deps.update("stress_results",String(row["id"]),{winner_before:audit.stress.winner_before==="INSUFFICIENT_EVIDENCE"?null:audit.stress.winner_before,winner_after:matrixDerivedUsed===0?(audit.stress.winner_before==="INSUFFICIENT_EVIDENCE"?null:audit.stress.winner_before):null,range_before:null,range_after:null,outcome:matrixDerivedUsed===0?"STABLE":"UNSTABLE",status:"COMPLETE",unavailable_detail:`Matrix-derived metrics consumed by the independent audit: ${matrixDerivedUsed}.`,retrieved_at:now});
+      recomputed++;continue;
+    }
+    const mapped=stressRowPatch(code,audit,now);
+    await deps.update("stress_results",String(row["id"]),mapped.patch);
+    if(mapped.evaluated)recomputed++;
+  }
+  const after=await deps.list("stress_results",runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;
+  return done===after.length
+    ?{status:"COMPLETE",done,total:after.length,detail:{winner_before:audit.stress.winner_before,winner_after:audit.stress.winner_after,changed:audit.stress.changed,stability:audit.stress.stability,recomputed_tests:recomputed}}
+    :{status:"BLOCKED",done,total:after.length,errorCode:"STRESS_INCOMPLETE",message:`${after.length-done} stress tests unexecuted.`};
+}
 
 /**
  * DETERMINISTIC INDEPENDENT CONCLUSION (docs/audit-truth-engine-decision-core.md).
  *
- * Forensic finding this exists to fix: every decision stage delegated wholly to the LLM
- * researcher, with no deterministic fallback. Across 405 persisted runs that produced 0
- * verification findings, 0 disagreement risks, 0 underdog classifications and 0
- * independent winners -- while the stages still reported COMPLETE, because a stage counts
- * as complete once every row is *settled*, and an LLM failure settles them all as
- * UNAVAILABLE. Metric execution, by contrast, works and persists real two-sided evidence.
- *
- * The Truth Engine must be an independent auditor, so the winner is now derived
- * deterministically from that persisted metric evidence -- reproducible, inspectable, and
- * identical on every re-run. Correlated metrics are collapsed into evidence families that
- * vote once, and the lead must survive leave-one-family-out before a side is selected.
- * When the evidence does not support a selection, this returns no winner WITH the reason,
- * rather than asking a provider to manufacture certainty.
+ * The Truth Engine's winner is derived from the persisted metric evidence -- reproducible,
+ * inspectable, identical on every re-run -- and then audited by the deterministic
+ * Verification, Disagreement, Underdog and Stress layers. A selection that does not survive
+ * its own adverse-case recomputation is refused rather than asserted. When the evidence does
+ * not support a side this returns no winner WITH the reason, rather than asking a provider
+ * to manufacture certainty.
  */
-export function deterministicIndependentConclusion(metrics:Array<Record<string,unknown>>,p1Name:string,p2Name:string):ConclusionFinding&{decision:ReturnType<typeof decideTruthEngineSelection>}{
-  const decision=decideTruthEngineSelection({
-    comparisons:compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),
+export function deterministicIndependentConclusion(metrics:Array<Record<string,unknown>>,p1Name:string,p2Name:string):ConclusionFinding&{audit:ReturnType<typeof runTruthEngineAudit>}{
+  const audit=runTruthEngineAudit(
+    compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),
     p1Name,p2Name,
-  });
-  const winner=decision.outcome==="INSUFFICIENT_EVIDENCE"?null:decision.selected_player;
+  );
   return{
-    winner,
+    winner:audit.audit_winner,
     low:null,high:null,
-    rationale:winner?`${decision.reason} Evidence chain: ${decision.evidence_chain.join(" | ")}`:null,
-    insufficient_reason:winner?null:decision.reason,
-    decision,
+    rationale:audit.audit_winner?`${audit.final_reason} Evidence chain: ${audit.evidence_chain.join(" | ")}`:null,
+    insufficient_reason:audit.audit_winner?null:audit.final_reason,
+    audit,
   };
 }
 
@@ -437,7 +511,7 @@ async function commitConclusion(deps:PipelineDeps,matchId:string,runId:string):P
   // Independent evidence families come from the deterministic decision (correlated metrics
   // collapsed and counted once), not from a raw distinct-string count of evidence_family,
   // which double-counted correlated signals as independent corroboration.
-  const families=new Set(deterministic.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
+  const families=new Set(deterministic.audit.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
 async function revealMatrix(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(!run?.independent_decision_committed_at)return{status:"BLOCKED",done:0,total:1,errorCode:"FIREWALL",message:"Matrix stays sealed until the independent conclusion is committed."};const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;await deps.updateRun(runId,{matrix_revealed_at:deps.now().toISOString()});return{status:"COMPLETE",done:1,total:1,detail:{matrix_predicted_winner:fields["matrix_predicted_winner"]??null,matrix_wp:wp,agrees_with_independent:fields["matrix_predicted_winner"]&&run.independent_winner?fields["matrix_predicted_winner"].toLowerCase().includes(run.independent_winner.split(" ").slice(-1)[0]!.toLowerCase()):null}};}
 async function applyCalibration(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const{version,buckets}=await deps.getCalibration();if(!version||!buckets.length)return{status:"FAILED",done:0,total:1,errorCode:"NO_ACTIVE_CALIBRATION",message:"No active calibration version with buckets is stored."};const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,snapshot=buildCalibrationSnapshot({versionId:version.id,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null});await deps.updateRun(runId,{calibration_version_id:version.id,calibrated_low:snapshot.calibratedLow,calibrated_high:snapshot.calibratedHigh});return{status:"COMPLETE",done:1,total:1,detail:{calibration_version:version.label,version_number:version.version_number,bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,bucket_wins:snapshot.bucketWins,bucket_graded:snapshot.bucketGraded}};}
 

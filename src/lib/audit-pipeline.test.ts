@@ -669,6 +669,88 @@ describe("Run Audit pipeline", () => {
     expect(Array.from(stages.values()).every((row) => row["status"] === "COMPLETE")).toBe(true);
   }, 60_000);
 
+  // ---------------------------------------------------------------------------
+  // ACCEPTANCE: the full deterministic audit chain must actually PERSIST, not just run.
+  // This is the end-to-end proof that a match produces an auditable winner derived from
+  // evidence -- with verification, disagreement, underdog and stress rows genuinely
+  // populated, and the LLM unable to supply or overturn the winner.
+  // ---------------------------------------------------------------------------
+  it("persists a complete deterministic audit chain ending in an evidence-derived winner", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+
+    // 1. VERIFICATION: rules the deterministic audit answers are genuinely populated.
+    const verification = tables["verification_results"]!;
+    const evaluatedVerification = verification.filter((r) => r["outcome"] !== "UNAVAILABLE" && r["p1_finding"] && r["p2_finding"]);
+    expect(evaluatedVerification.length).toBeGreaterThan(0);
+    for (const row of evaluatedVerification) {
+      expect(String(row["p1_finding"])).not.toEqual(String(row["p2_finding"])); // both sides computed, not copied
+      expect(row["decision_effect"]).toBeTruthy();
+    }
+    // Rules it cannot answer stay explicitly unavailable WITH the missing evidence named.
+    const unavailableVerification = verification.filter((r) => r["outcome"] === "UNAVAILABLE");
+    // Two legitimate unavailable shapes: no deterministic evaluator exists for the rule, or
+    // an evaluator ran and found the required evidence absent for THIS match. Both must say why.
+    for (const row of unavailableVerification) {
+      expect(String(row["unavailable_detail"] ?? "").length).toBeGreaterThan(20);
+      expect(String(row["unavailable_detail"] ?? "")).toMatch(/requires|not a per-match|no comparable|UNAVAILABLE:/);
+    }
+
+    // 2. DISAGREEMENT: risk is populated for BOTH sides and severity is evidence-derived.
+    const disagreement = tables["disagreement_results"]!.filter((r) => r["status"] === "COMPLETE");
+    expect(disagreement.length).toBeGreaterThan(0);
+    for (const row of disagreement) {
+      expect(row["p1_risk"]).toBeTruthy();
+      expect(row["p2_risk"]).toBeTruthy();
+      expect(["NONE", "MINOR", "MODERATE", "MAJOR", "CRITICAL"]).toContain(String(row["contradiction_severity"]));
+    }
+
+    // 3. UNDERDOG: pathways are classified, and the old hardcoded fallback string is gone.
+    const underdog = tables["underdog_results"]!;
+    expect(underdog.every((r) => String(r["evidence"] ?? "") !== "Retrieval attempted; no admissible pre-match evidence located.")).toBe(true);
+    expect(underdog.filter((r) => r["status"] === "COMPLETE").length).toBeGreaterThan(0);
+
+    // 4. STRESS: winner_after is genuinely recomputed and persisted (previously always null).
+    const stress = tables["stress_results"]!;
+    const st03 = stress.find((r) => r["test_code"] === "ST03")!;
+    expect(st03["status"]).toBe("COMPLETE");
+    expect(st03["winner_after"]).toBeTruthy();
+    expect(String(st03["unavailable_detail"] ?? "")).toMatch(/Removing each independent evidence family/);
+    const recomputed = stress.filter((r) => ["ST05", "ST06", "ST07"].includes(String(r["test_code"])));
+    for (const row of recomputed) {
+      expect(row["status"]).toBe("COMPLETE");
+      expect(row["winner_after"]).toBeTruthy();
+      expect(String(row["unavailable_detail"] ?? "")).toMatch(/Adverse recomputation/);
+    }
+    // Stress tests with no admissible evidence are honest, not manufactured.
+    const st04 = stress.find((r) => r["test_code"] === "ST04")!;
+    expect(st04["status"]).toBe("UNAVAILABLE");
+    expect(String(st04["unavailable_detail"])).toMatch(/quarantined/);
+
+    // 5. FINAL: the run carries an independently derived winner (0 across all 405 historical runs).
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P1); // P1 leads three independent families in this fixture
+    expect(run?.effective_evidence_count).toBeGreaterThanOrEqual(2);
+  }, 60_000);
+
+  it("the provider cannot supply or overturn the audit winner", async () => {
+    // Every provider fails EXCEPT metrics: the winner must still be produced, proving it is
+    // derived from metric evidence rather than obtained from the conclusion provider.
+    const { deps } = makeMemoryDeps();
+    const failure = async () => { throw new Error("provider down"); };
+    deps.research = { ...researcher, rules: failure, underdog: failure, conclusion: failure, stress: failure };
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P1);
+
+    // And a provider that insists on the OTHER player cannot change the outcome.
+    const { deps: deps2 } = makeMemoryDeps();
+    deps2.research = { ...researcher, async conclusion() { return { winner: P2, low: 90, high: 95, rationale: "provider insists on P2", insufficient_reason: null }; } };
+    await runPipeline(deps2, MATCH_ID, { budgetMs: 120_000 });
+    const run2 = await deps2.getLatestRun(MATCH_ID);
+    expect(run2?.independent_winner).toBe(P1);
+  }, 60_000);
+
   it("executes every stage and leaves no section at 0/0", async () => {
     const { deps, tables, stages } = makeMemoryDeps();
 

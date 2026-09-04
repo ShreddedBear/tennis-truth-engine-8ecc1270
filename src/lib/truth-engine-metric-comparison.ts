@@ -39,6 +39,22 @@ const USABLE_TREATMENTS = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 export interface ComparisonSpec {
   /** Keyed field to compare, e.g. "last10_win_pct". null means the whole value is a bare scalar (e.g. metric 001's Elo). */
   field: string | null;
+  /**
+   * Alternate persisted names for the SAME quantity. Producers have emitted more than one
+   * key name for one measurement (e.g. 008 persists "deciding_set_win_pct" in 87 rows and
+   * "set3_deciding_set_win_pct" in 1). An alias is only legitimate when it denotes the
+   * identical quantity in the identical units and direction -- never a similar-sounding
+   * substitute, which would silently change what is being compared.
+   */
+  fieldAliases?: string[];
+  /**
+   * Accept a bare scalar value when no keyed field is present. Only legitimate where the
+   * bare form is unambiguously the SAME measurement as `field`: metric 001 persists its
+   * surface Elo as a bare "1521.13" in 189 rows and as "surface_elo=1429" in 102. It is
+   * never set for a metric whose bare scalar has an unknown meaning -- 008/010 persist
+   * bare counts of unknown definition, and those stay VALUE_NOT_PARSEABLE by design.
+   */
+  bareScalarFallback?: boolean;
   /** Optional second field subtracted from `field` (e.g. favourable - unfavourable outcomes). */
   minusField?: string;
   direction: ComparisonDirection;
@@ -56,13 +72,13 @@ export interface ComparisonSpec {
 // intentionally absent and must never be added here while quarantined.
 export const COMPARISON_SPECS: Record<string, ComparisonSpec> = {
   // Surface-specific Elo rating; the single most decision-relevant strength signal.
-  "001": { field: null, direction: "HIGHER_IS_BETTER", family: "SURFACE_STRENGTH", materiality: 10, label: "Surface Elo" },
+  "001": { field: "surface_elo", bareScalarFallback: true, direction: "HIGHER_IS_BETTER", family: "SURFACE_STRENGTH", materiality: 10, label: "Surface Elo" },
   // Recent form: share of the last 10 matches won.
   "005": { field: "last10_win_pct", direction: "HIGHER_IS_BETTER", family: "RECENT_FORM", materiality: 5, label: "Last-10 win %" },
   // Set Profile: deciding-set win rate.
-  "008": { field: "set3_deciding_set_win_pct", direction: "HIGHER_IS_BETTER", family: "SET_PROFILE", materiality: 5, label: "Deciding-set win %" },
+  "008": { field: "set3_deciding_set_win_pct", fieldAliases: ["deciding_set_win_pct"], direction: "HIGHER_IS_BETTER", family: "SET_PROFILE", materiality: 5, label: "Deciding-set win %" },
   // Straight-set control.
-  "010": { field: "straight_set_match_win_pct", direction: "HIGHER_IS_BETTER", family: "SET_PROFILE", materiality: 5, label: "Straight-set win %" },
+  "010": { field: "straight_set_match_win_pct", fieldAliases: ["straight_set_win_pct"], direction: "HIGHER_IS_BETTER", family: "SET_PROFILE", materiality: 5, label: "Straight-set win %" },
   // Volatility/floor: overall match win rate component.
   "011": { field: "match_win_pct", direction: "HIGHER_IS_BETTER", family: "RESULTS_HISTORY", materiality: 5, label: "Match win %" },
   // Common-opponent adjusted set differential (opponent-quality adjusted).
@@ -112,12 +128,21 @@ function numeric(value: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** First declared name (canonical, then aliases) that carries a numeric value. */
+function lookup(parsed: ParsedMetricValue, field: string, aliases: string[] | undefined): number | null {
+  for (const name of [field, ...(aliases ?? [])]) {
+    const value = numeric(parsed.fields.get(name));
+    if (value !== null) return value;
+  }
+  return null;
+}
+
 function extract(spec: ComparisonSpec, parsed: ParsedMetricValue): number | null {
   if (spec.field === null) return parsed.scalar;
-  const primary = numeric(parsed.fields.get(spec.field));
+  const primary = lookup(parsed, spec.field, spec.fieldAliases) ?? (spec.bareScalarFallback ? parsed.scalar : null);
   if (primary === null) return null;
   if (!spec.minusField) return primary;
-  const secondary = numeric(parsed.fields.get(spec.minusField));
+  const secondary = lookup(parsed, spec.minusField, undefined);
   if (secondary === null) return null;
   return primary - secondary;
 }
