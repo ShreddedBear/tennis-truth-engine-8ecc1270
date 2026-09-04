@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
+import { activeMetricReadiness } from "@/lib/truth-engine-active-metrics";
 import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
@@ -104,6 +105,30 @@ function ResultCard({ title, subtitle, row }: { title: string; subtitle?: string
       </dl>
       <Provenance row={row} />
     </article>
+  );
+}
+
+/**
+ * Readiness of the graded set, next to raw processor throughput.
+ *
+ * The denominator comes from ACTIVE_METRIC_CODES (derived from COMPARISON_SPECS), so
+ * promoting a metric moves it automatically -- there is no literal count in this component.
+ */
+function ActiveEvidenceSummary({ rows, processingTotal }: { rows: ResultRow[]; processingTotal: number }) {
+  const readiness = activeMetricReadiness(rows as never);
+  const cell = (label: string, value: string, tone?: string) => (
+    <div className="rounded-md border border-border px-2 py-1">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`mono-num text-sm ${tone ?? ""}`}>{value}</div>
+    </div>
+  );
+  return (
+    <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2 lg:grid-cols-4">
+      {cell("Processing progress", `${rows.length}/${processingTotal} treated`)}
+      {cell("Active Truth Engine evidence", `${readiness.usable}/${readiness.expected} usable · ${readiness.percent}%`)}
+      {cell("One-sided (no lean)", String(readiness.oneSided))}
+      {cell("Unavailable / not executed", `${readiness.unavailable} / ${readiness.notExecuted}`)}
+    </div>
   );
 }
 
@@ -406,6 +431,22 @@ function Workspace() {
           (row === null) still renders, as PENDING, so the panel always shows
           all 16 canonical stages for the current run, never fewer.
         */}
+        {/*
+          Two different denominators, kept visibly apart.
+
+          PROCESSING PROGRESS (x/81) is what the stage rows below report: how many of the
+          run's metric_results rows the processor has TREATED for that side. Every one of
+          the 81 defined codes is still instantiated and still executed, and a row counts as
+          treated even when it honestly ends UNAVAILABLE. It is throughput, not readiness --
+          which is exactly why "P1 METRIC EXECUTION 51/81" read as though the engine were
+          two-thirds of the way to a graded answer when it was not.
+
+          ACTIVE TRUTH ENGINE EVIDENCE (x/25) is readiness: of the codes that actually grade
+          a match (the COMPARISON_SPECS registry), how many produced usable evidence for
+          BOTH players. One-sided and UNAVAILABLE are shown separately and never folded into
+          the usable count -- a metric present for one player cannot create a lean.
+        */}
+        <ActiveEvidenceSummary rows={metricRows} processingTotal={(data.metrics ?? []).length} />
         <div className="mt-2 grid gap-1 text-xs md:grid-cols-2">
           {canonicalizeStageRows(stages ?? []).map(({ stage, row }) => (
             <div key={stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
