@@ -41,7 +41,7 @@ const SUMMARY_KEYS:Record<string,string[]>={
 "005":["last5_win_pct","last10_win_pct","last5_set_win_pct","last10_set_win_pct","current_surface_recent_win_pct","win_pct_60d","win_pct_90d","recent_form_trend","recent_straight_set_control_pct","recent_performance_acceleration","avg_sets_conceded_in_recent_wins","set_margin_mean","overall_recent20_win_pct"],
 "006":["recent_opponent_avg_elo","best_recent_win_opponent_elo","bad_loss_rate_pct","comparable_strength_win_pct","performance_vs_comparable_strength_pct"],
 "007":["direct_common_opponents","common_opponent_matches","common_opponent_wins","common_opponent_losses","common_opponent_win_pct","surface_matched_common_opponents","tournament_level_matched_common_opponents","common_opponent_recency_weighted_win_pct","common_opponent_strength_weighted_win_pct","common_opponent_weighted_set_margin","common_opponent_second_degree_strength_pct"],
-"008":["set1_win_pct","set2_win_pct","set3_deciding_set_win_pct","historical_deciding_set_win_pct","win_after_losing_set1_pct","win_after_winning_set1_pct","second_set_after_losing_set1_win_pct","deciding_matches_played","set_win_pct","sets_played","sets_won"],
+"008":["set1_win_pct","set2_win_pct","set3_deciding_set_win_pct","deciding_set_win_pct","historical_deciding_set_win_pct","win_after_losing_set1_pct","win_after_winning_set1_pct","second_set_after_losing_set1_win_pct","deciding_matches_played","set_win_pct","sets_played","sets_won"],
 "009":["win_after_losing_set1_pct","tiebreak_win_pct","tiebreaks_played"],
 "010":["straight_set_match_win_pct","straight_set_match_win_pct_comparable"],
 "011":["performance_variance","performance_floor_ceiling_set_margin_range","close_match_dependency_pct","deciding_tiebreak_win_reliance_pct"],
@@ -58,7 +58,7 @@ function h2hSummary(map:Map<string,SourcedStat>){const keys=["h2h_matches","h2h_
 function selectedStats(p:string,o:string,c:string,requested:Array<{code:string;name:string;body:string|null}>){
  const codes=new Set(requested.map(m=>familyCode(m.code))),out:SourcedStat[]=[];
  const add=(rows:SourcedStat[])=>out.push(...rows);
- if(["001","005","055"].some(code=>codes.has(code))){const d=getPredixDatasetEvidence(p,c);add(d?.stats??[]);add(getStrengthTrajectoryStats(p,c));}
+ if(["001","005","055","008"].some(code=>codes.has(code))){const d=getPredixDatasetEvidence(p,c);add(d?.stats??[]);add(getStrengthTrajectoryStats(p,c));}
  if(["005","012"].some(code=>codes.has(code)))add(getRecentReconstruction(p,c));
  if(["005","035","068"].some(code=>codes.has(code)))add(getDerivedHistoricalStats(p,c));
  if(["006","080"].some(code=>codes.has(code)))add(getRankingPerformanceStats(p,c));

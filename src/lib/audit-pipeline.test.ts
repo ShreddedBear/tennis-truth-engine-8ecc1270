@@ -74,10 +74,40 @@ const researcher: Researcher = {
     // refuses to interpret -- so this end-to-end test would only ever have proved that the
     // mock researcher echoed a winner, never that a winner is genuinely DERIVED from
     // evidence. These values give P1 an honest lead across three independent families.
+    // Every one of the 25 active COMPARISON_SPECS codes gets a real, spec-matching
+    // field=value pair here -- not just the three this fixture originally covered.
+    // metricPairPatch now refuses a value that doesn't carry its metric's declared
+    // comparison field (see truth-engine-metric-comparison.ts's COMPARISON_SPECS), so a
+    // bare placeholder like "52" for one of these codes would be (correctly) downgraded
+    // to UNAVAILABLE, which would make this fixture model a broken producer rather than a
+    // working one. The 56 inactive codes keep the original bare-placeholder scheme below
+    // since they have no declared spec to satisfy.
     const COMPARABLE: Record<string, [string, string]> = {
       "001": ["1900", "1500"], // SURFACE_STRENGTH -> P1
+      "002": ["service_point_win_pct=65; service_points=80", "service_point_win_pct=55; service_points=75"],
+      "003": ["return_point_win_pct=45; return_points=80", "return_point_win_pct=38; return_points=70"],
       "005": ["last10_win_pct=80", "last10_win_pct=30"], // RECENT_FORM -> P1
+      "006": ["bad_loss_rate_pct=10; quality_observed_matches=20", "bad_loss_rate_pct=30; quality_observed_matches=20"],
+      "007": ["win_pct=60; ranked_common_opponent_matches=15", "win_pct=40; ranked_common_opponent_matches=15"],
+      "008": ["set3_deciding_set_win_pct=70", "set3_deciding_set_win_pct=30"],
+      "009": ["pressure_win_pct=65; pressure_points=20", "pressure_win_pct=45; pressure_points=20"],
+      "010": ["straight_set_match_win_pct=80", "straight_set_match_win_pct=40"],
+      "011": ["match_win_pct=60", "match_win_pct=40"],
+      "016": ["score_state_break_point_win_pct=55; score_state_break_point_n=12", "score_state_break_point_win_pct=45; score_state_break_point_n=12"],
+      "018": ["breakback_rate_pct=30; breakback_opportunities=12", "breakback_rate_pct=10; breakback_opportunities=12"],
       "027": ["lead_protection_rate_pct=90", "lead_protection_rate_pct=40"], // CLOSING_ABILITY -> P1
+      "029": ["after_close_set_loss_match_win_pct=50; baseline_match_win_rate_pct=55; after_close_set_loss_n=10", "after_close_set_loss_match_win_pct=20; baseline_match_win_rate_pct=55; after_close_set_loss_n=10"],
+      "031": ["opponent_adjusted_set_differential=0.5", "opponent_adjusted_set_differential=-0.2"],
+      "032": ["bp_converted_pct=45; break_chances=12", "bp_converted_pct=35; break_chances=12"],
+      "034": ["dominance_ratio=1.1; total_points_played=100", "dominance_ratio=0.9; total_points_played=100"],
+      "036": ["favorite_losses_rate_pct=10; trailing_losses_used=15", "favorite_losses_rate_pct=30; trailing_losses_used=15"],
+      "041": ["recent_elo_adjusted_surplus=0.3; earlier_elo_adjusted_surplus=0.1", "recent_elo_adjusted_surplus=0.1; earlier_elo_adjusted_surplus=0.2"],
+      "045": ["forced_deciding_set_win_pct=60; forced_deciding_set_n=10", "forced_deciding_set_win_pct=40; forced_deciding_set_n=10"],
+      "051": ["shrunk_win_probability_pct=60", "shrunk_win_probability_pct=40"],
+      "053": ["pressure_index_pct=55; pressure_points=20", "pressure_index_pct=45; pressure_points=20"],
+      "055": ["elo_change_last10=15", "elo_change_last10=5"],
+      "068": ["current_streak_signed=3; season_matches=10", "current_streak_signed=-2; season_matches=10"],
+      "080": ["favorable_divergent_outcomes=10; unfavorable_divergent_outcomes=4", "favorable_divergent_outcomes=4; unfavorable_divergent_outcomes=8"],
     };
     return metrics.map((m, i) => {
       const normalized = String(m.code).match(/(\d{1,3})$/)?.[1]?.padStart(3, "0") ?? "";
@@ -456,6 +486,69 @@ describe("Run Audit pipeline", () => {
     expect(patch.unavailable_detail).toBe("P1: usable | P2: Player 2 ranking was not found.");
   });
 
+  // Live-DB finding (Erhard/Shepp, run ffb59d1d-...): metric 008 ("Deciding-set win %")
+  // persisted a bare "11"/"2" under a self-claimed DIRECT treatment -- a raw count from
+  // the wrong field (deciding_sets_won or similar), never the labelled
+  // set3_deciding_set_win_pct/deciding_set_win_pct percentage COMPARISON_SPECS requires.
+  // metricPairPatch must refuse to let that masquerade as usable evidence.
+  it("downgrades a value that doesn't carry its metric's declared comparison field to UNAVAILABLE", () => {
+    const patch = metricPairPatch({
+      metric_code: "008", p1_value: "11", p2_value: "2",
+      p1_treatment: "DIRECT", p2_treatment: "DIRECT",
+      differential: null, evidence_family: "SET_PROFILE", reliability: .8, sample: "11 matches",
+      unavailable_reason: null,
+      sources: [{ source_name: "PredixSport public tennis ratings (CC BY 4.0)" }],
+    }, null, "2026-09-05T05:35:31.017Z");
+    expect(patch.p1_value).toBeNull();
+    expect(patch.p2_value).toBeNull();
+    expect(patch.p1_treatment).toBe("UNAVAILABLE");
+    expect(patch.p2_treatment).toBe("UNAVAILABLE");
+    expect(patch.p1_unavailable_reason).toBe("MISSING_REQUIRED_INPUT");
+  });
+
+  it("keeps a value that carries its metric's declared field (by alias) usable", () => {
+    const patch = metricPairPatch({
+      metric_code: "008", p1_value: "deciding_set_win_pct=66.67; deciding_matches_played=3", p2_value: "deciding_set_win_pct=0; deciding_matches_played=1",
+      p1_treatment: "PARTIAL", p2_treatment: "PARTIAL",
+      differential: null, evidence_family: "SET_PROFILE", reliability: .85, sample: "3 matches | 1 matches",
+      unavailable_reason: null,
+      sources: [{ source_name: "PredixSport public tennis ratings (CC BY 4.0)" }],
+    }, null, "2026-09-05T05:35:31.017Z");
+    expect(patch.p1_value).toBe("deciding_set_win_pct=66.67; deciding_matches_played=3");
+    expect(patch.p2_value).toBe("deciding_set_win_pct=0; deciding_matches_played=1");
+    expect(patch.p1_treatment).toBe("PARTIAL");
+    expect(patch.p2_treatment).toBe("PARTIAL");
+  });
+
+  it("still accepts metric 001's bare-scalar Elo (an approved bareScalarFallback)", () => {
+    const patch = metricPairPatch({
+      metric_code: "001", p1_value: "1521.75", p2_value: "1487.74",
+      p1_treatment: "DIRECT", p2_treatment: "DIRECT",
+      differential: null, evidence_family: "SURFACE_STRENGTH", reliability: .9, sample: null,
+      unavailable_reason: null,
+      sources: [{ source_name: "PredixSport public tennis ratings (CC BY 4.0)" }],
+    }, null, "2026-09-05T05:35:17.626Z");
+    expect(patch.p1_value).toBe("1521.75");
+    expect(patch.p2_value).toBe("1487.74");
+    expect(patch.p1_treatment).toBe("DIRECT");
+    expect(patch.p2_treatment).toBe("DIRECT");
+  });
+
+  it("does not validate against a comparison spec for a code outside the 25 active metrics", () => {
+    // Code 099 has no COMPARISON_SPECS entry -- the 56 inactive metrics' own producer
+    // output must be left exactly as before; this check only applies to the 25 active codes.
+    const patch = metricPairPatch({
+      metric_code: "099", p1_value: "some_unrelated_field=42", p2_value: "some_unrelated_field=7",
+      p1_treatment: "DIRECT", p2_treatment: "DIRECT",
+      differential: null, evidence_family: null, reliability: null, sample: null,
+      unavailable_reason: null, sources: [],
+    }, null, "2026-09-05T05:35:31.017Z");
+    expect(patch.p1_value).toBe("some_unrelated_field=42");
+    expect(patch.p2_value).toBe("some_unrelated_field=7");
+    expect(patch.p1_treatment).toBe("DIRECT");
+    expect(patch.p2_treatment).toBe("DIRECT");
+  });
+
   it("does not overwrite a settled opposite side when resuming a legacy one-sided run", () => {
     const patch = preserveSettledOppositeSide(metricPairPatch(undefined, "provider timeout", "2026-04-11T10:00:00Z"), {
       p1_status: "COMPLETE", p1_value: "72", p1_treatment: "DIRECT",
@@ -516,12 +609,21 @@ describe("Run Audit pipeline", () => {
           opponent: input.researchOpponent,
           codes: input.metrics.map(metric => metric.code),
         });
+        // Real, spec-matching field names (service_point_win_pct for 002,
+        // return_point_win_pct for 003 -- see COMPARISON_SPECS) with a real numeric value,
+        // so this fixture models a genuine producer answer, not a placeholder metricPairPatch
+        // would now (correctly) reject as not carrying the field the Truth Engine comparison
+        // requires.
+        const spec: Record<string, { field: string; p1: number; p2: number }> = {
+          M02: { field: "service_point_win_pct", p1: 65, p2: 45 },
+          M03: { field: "return_point_win_pct", p1: 55, p2: 35 },
+        };
         return input.metrics.map(metric => {
-          const targeted = ["M02", "M03"].includes(metric.code);
+          const targeted = spec[metric.code];
           if (input.researchSide === "p1") {
             return {
               metric_code: metric.code,
-              p1_value: targeted ? `${metric.code}-p1` : null,
+              p1_value: targeted ? `${targeted.field}=${targeted.p1}` : null,
               p2_value: null,
               p1_treatment: targeted ? "DIRECT" as const : "UNAVAILABLE" as const,
               p2_treatment: "UNAVAILABLE" as const,
@@ -536,7 +638,7 @@ describe("Run Audit pipeline", () => {
           return {
             metric_code: metric.code,
             p1_value: null,
-            p2_value: targeted ? `${metric.code}-p2` : null,
+            p2_value: targeted ? `${targeted.field}=${targeted.p2}` : null,
             p1_treatment: "UNAVAILABLE" as const,
             p2_treatment: targeted ? "DIRECT" as const : "UNAVAILABLE" as const,
             differential: null,
@@ -552,12 +654,16 @@ describe("Run Audit pipeline", () => {
 
     await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
 
+    const expected: Record<string, { field: string; p1: number; p2: number }> = {
+      M02: { field: "service_point_win_pct", p1: 65, p2: 45 },
+      M03: { field: "return_point_win_pct", p1: 55, p2: 35 },
+    };
     for (const code of ["M02", "M03"]) {
       expect(calls.some(call => call.side === "p1" && call.player === P1 && call.opponent === P2 && call.codes.includes(code))).toBe(true);
       expect(calls.some(call => call.side === "p2" && call.player === P2 && call.opponent === P1 && call.codes.includes(code))).toBe(true);
       const row = tables.metric_results.find(metric => metric.metric_code === code)!;
-      expect(row.p1_value).toBe(`${code}-p1`);
-      expect(row.p2_value).toBe(`${code}-p2`);
+      expect(row.p1_value).toBe(`${expected[code].field}=${expected[code].p1}`);
+      expect(row.p2_value).toBe(`${expected[code].field}=${expected[code].p2}`);
       expect(row.p1_treatment).toBe("DIRECT");
       expect(row.p2_treatment).toBe("DIRECT");
       expect(row.p1_unavailable_reason).toBeNull();
@@ -613,7 +719,7 @@ describe("Run Audit pipeline", () => {
       async metrics(input) {
         return input.metrics.map(metric => ({
           metric_code: metric.code,
-          p1_value: input.researchSide === "p1" && metric.code === "M02" ? "74%" : null,
+          p1_value: input.researchSide === "p1" && metric.code === "M02" ? "service_point_win_pct=74" : null,
           p2_value: null,
           p1_treatment: input.researchSide === "p1" && metric.code === "M02" ? "DIRECT" as const : "UNAVAILABLE" as const,
           p2_treatment: "UNAVAILABLE" as const,
@@ -628,7 +734,7 @@ describe("Run Audit pipeline", () => {
     };
     await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
     const row = tables.metric_results.find(metric => metric.metric_code === "M02")!;
-    expect(row.p1_value).toBe("74%");
+    expect(row.p1_value).toBe("service_point_win_pct=74");
     expect(row.p1_treatment).toBe("DIRECT");
     expect(row.p2_value).toBeNull();
     expect(row.p2_treatment).toBe("UNAVAILABLE");

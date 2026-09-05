@@ -19,7 +19,7 @@ import { reconstruct, type SourcedStat } from "./reconstruction/engine";
 import { familyOf } from "./reconstruction/stat-catalog";
 import { classifyMetric } from "./metric-classification";
 import { buildCalibrationSnapshot } from "./calibration-snapshot";
-import { compareMetricRows } from "./truth-engine-metric-comparison";
+import { compareMetricRows, COMPARISON_SPECS, parseMetricValue } from "./truth-engine-metric-comparison";
 import { decideTruthEngineSelection } from "./truth-engine-decision";
 import { runTruthEngineAudit } from "./truth-engine-audit";
 import { buildDecisionRecord } from "./truth-engine-decision-record";
@@ -203,12 +203,37 @@ function stageDetails(rows:StageRow[]):Array<{stage:Stage;status:string;detail:s
 function classify(message:string){const m=message.toLowerCase();if(m.includes("rate limit")||m.includes("429"))return"PROVIDER_RATE_LIMIT";if(m.includes("credit")||m.includes("402"))return"PROVIDER_CREDITS";if(m.includes("api key")||m.includes("unauthorized")||m.includes("401"))return"AUTH_OR_CONFIG";if(m.includes("timeout")||m.includes("timed out"))return"TIMEOUT";if(m.includes("no active")||m.includes("definition"))return"MISSING_DEFINITIONS";if(m.includes("json")||m.includes("parse"))return"PROVIDER_RESPONSE_INVALID";return"ORCHESTRATION_EXCEPTION";}
 type UnavailableReason="NO_SOURCE_FOUND"|"PROVIDER_TIMEOUT"|"PROVIDER_AUTH_FAILED"|"PLAYER_NOT_FOUND"|"MATCH_NOT_FOUND"|"SURFACE_DATA_NOT_FOUND"|"INSUFFICIENT_SAMPLE"|"MISSING_REQUIRED_INPUT"|"SOURCE_CONFLICT"|"RECONSTRUCTION_FAILED"|"API_RATE_LIMIT"|"PARSING_FAILED"|"HISTORICAL_DATA_UNAVAILABLE";
 function unavailableReason(message:string):UnavailableReason{const v=message.toLowerCase();if(v.includes("timeout")||v.includes("timed out"))return"PROVIDER_TIMEOUT";if(v.includes("rate limit")||v.includes("429"))return"API_RATE_LIMIT";if(v.includes("auth")||v.includes("api key")||v.includes("401")||v.includes("403"))return"PROVIDER_AUTH_FAILED";if(v.includes("player")&&v.includes("not found"))return"PLAYER_NOT_FOUND";if(v.includes("match")&&v.includes("not found"))return"MATCH_NOT_FOUND";if(v.includes("surface"))return"SURFACE_DATA_NOT_FOUND";if(v.includes("sample"))return"INSUFFICIENT_SAMPLE";if(v.includes("missing")||v.includes("required input"))return"MISSING_REQUIRED_INPUT";if(v.includes("conflict"))return"SOURCE_CONFLICT";if(v.includes("parse")||v.includes("json"))return"PARSING_FAILED";if(v.includes("historical"))return"HISTORICAL_DATA_UNAVAILABLE";return"NO_SOURCE_FOUND";}
+// A metric row is only genuine two-sided evidence for the Truth Engine's
+// COMPARISON_SPECS if it actually carries the named field (or an approved
+// bareScalarFallback) that spec expects -- never merely because a producer
+// executed and returned SOME value. Live proof this matters: metrics 008/010
+// have persisted bare, unlabeled counts (deciding_sets_won, sets_played, ...)
+// under a self-claimed DIRECT treatment that never actually meant "deciding-set
+// win %"; COMPARISON_SPECS deliberately withholds bareScalarFallback for them
+// for exactly this reason (see its own comment). A value that doesn't carry
+// the declared field is downgraded to UNAVAILABLE here rather than persisted
+// as if it were usable evidence -- this can only make the evidence-coverage
+// numerator more truthful, never fabricate a new value.
+function normalizedMetricCode(code:string):string{const m=code.match(/(\d{1,3})$/);return m?m[1].padStart(3,"0"):code.padStart(3,"0");}
+function usableAgainstComparisonSpec(code:string,value:string):boolean{
+  const spec=COMPARISON_SPECS[normalizedMetricCode(code)];
+  if(!spec)return true; // no declared comparison spec (one of the 56 inactive codes) -- nothing to validate against here
+  const parsed=parseMetricValue(value);
+  const named=[spec.field,...(spec.fieldAliases??[])].some(name=>name!==null&&Number.isFinite(Number(parsed.fields.get(name))));
+  if(named)return true;
+  return Boolean(spec.bareScalarFallback)&&parsed.scalar!==null;
+}
 export function metricPairPatch(f:MetricFinding|undefined,providerError:string|null,retrievedAt:string){
   const side=(key:"p1"|"p2")=>{
-    const treatment=f?.[`${key}_treatment`]??"UNAVAILABLE";
-    const value=f?.[`${key}_value`]??null;
+    let treatment=f?.[`${key}_treatment`]??"UNAVAILABLE";
+    let value=f?.[`${key}_value`]??null;
+    if(f?.metric_code&&value!==null&&(treatment==="DIRECT"||treatment==="RECONSTRUCTED"||treatment==="PARTIAL")&&!usableAgainstComparisonSpec(f.metric_code,value)){
+      treatment="UNAVAILABLE";value=null;
+    }
     const usable=treatment==="DIRECT"||treatment==="RECONSTRUCTED";
-    const sideDetail=f?.[`${key}_unavailable_reason`]??f?.unavailable_reason??(providerError?"Research provider did not return a result for this metric.":null);
+    const sideDetail=(value===null&&f?.[`${key}_value`]!==null&&f?.[`${key}_value`]!==undefined)
+      ?`Producer returned a value for this metric, but it was missing the specific field this metric's comparison requires (only unrelated statistics were present).`
+      :f?.[`${key}_unavailable_reason`]??f?.unavailable_reason??(providerError?"Research provider did not return a result for this metric.":null);
     const detail=usable?null:sideDetail;
     const reason=usable?null:sideDetail?unavailableReason(sideDetail):treatment==="PARTIAL"?"MISSING_REQUIRED_INPUT":providerReason(providerError);
     return{treatment,value,detail,reason,status:treatmentToStatus(treatment)};
