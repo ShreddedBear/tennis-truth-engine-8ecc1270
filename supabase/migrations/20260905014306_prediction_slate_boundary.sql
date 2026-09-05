@@ -134,16 +134,6 @@ create unique index if not exists matches_slate_canonical_key_unique_nonblank
   on public.matches(slate_id, canonical_key)
   where canonical_key is not null and btrim(canonical_key) <> '';
 
--- THE SECOND global rule, and the one production actually enforced. It was found by running
--- the re-upload live rather than by reading this file: with the dedupe query fixed but this
--- index still spanning every slate, re-uploading the same PDF failed outright on
--- "duplicate key value violates unique constraint matches_user_canonical" instead of
--- creating the fresh prediction instances. Same fix, same reason: one fixture may appear
--- once per slate.
-drop index if exists public.matches_user_canonical;
-create unique index if not exists matches_user_slate_canonical
-  on public.matches (user_id, slate_id, canonical_key);
-
 -- The historical duplicate consolidator must respect the same boundary: merging a Slate B
 -- match into its Slate A twin would re-create exactly the leak this migration closes.
 create or replace function public.consolidate_duplicate_matches()
