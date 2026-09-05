@@ -278,4 +278,28 @@ describe("audit-engine: Final Combination Gate stage-dependency gate", () => {
     expect(report.stagesComplete).toBe(false);
     expect(report.stageGaps).toContain("FINAL DECISION");
   });
+
+  // Regression: commitFinalDecision (the FINAL DECISION stage itself, audit-pipeline.ts)
+  // calls buildReport() -> evaluate() from INSIDE its own execution, before its own
+  // audit_stage_runs row is written back as COMPLETE -- so at that exact call site,
+  // "FINAL DECISION" always appears RUNNING, exactly like the fixture above. Because
+  // STAGE_DEPENDENCIES makes FINAL COMBINATION GATE depend on every other stage
+  // including FINAL DECISION, stagesComplete is UNCONDITIONALLY false there for every
+  // run, no matter how complete the evidence actually is. Gating color on stagesComplete
+  // (as this used to) froze every persisted final_decisions row at
+  // color="INCOMPLETE"/action="CONTINUE PROCESSING" forever, even for a fully-executed,
+  // corroborated, stable decision -- which is exactly the shape of this fixture.
+  it("still reports a real color from complete evidence even though FINAL DECISION's own row has not yet persisted COMPLETE (commitFinalDecision's own call site)", () => {
+    const stages = ALL_STAGES_COMPLETE.filter((s) => s.stage !== "FINAL DECISION").concat([{ stage: "FINAL DECISION", status: "RUNNING" }]);
+    const withWinner = fullCommitted(fullRows(), stages);
+    const report = evaluate({ ...withWinner, run: { ...withWinner.run, independent_winner: "Alpha", effective_evidence_count: 5 } });
+    expect(report.auditComplete).toBe(true);
+    expect(report.stagesComplete).toBe(false); // still accurately false -- unaffected, still finalGate's real signal
+    expect(report.stageGaps).toContain("FINAL DECISION"); // unaffected: the raw signal still sees it
+    expect(report.color).not.toBe("INCOMPLETE");
+    expect(report.action).not.toBe("CONTINUE PROCESSING");
+    // FINAL DECISION's own not-yet-persisted row must not itself count as a
+    // green-lock reason either -- only a genuinely different stage lagging would.
+    expect(report.greenLockReasons.some((r) => r.includes("FINAL DECISION"))).toBe(false);
+  });
 });

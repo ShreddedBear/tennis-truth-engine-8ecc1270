@@ -286,6 +286,15 @@ export function evaluate(input: EngineInput): GateReport {
   // additionally require before completing.
   const stageGaps = unmetDependencies(FINAL_STAGE, input.stages);
   const stagesComplete = stageGaps.length === 0;
+  // FINAL DECISION is, structurally, always "the stage currently running" at the one
+  // call site that matters for color/greenLockReasons (commitFinalDecision calls this
+  // function from inside its own execution, before its own row is written back as
+  // COMPLETE) -- so it is never a genuine gap for THAT purpose, only ever a snapshot
+  // artifact. `stageGaps`/`stagesComplete` above stay the real, unfiltered signal for
+  // finalGate's own completion check, which runs after FINAL DECISION truly has
+  // completed and so is unaffected either way.
+  const colorRelevantStageGaps = stageGaps.filter((stage) => stage !== "FINAL DECISION");
+  const colorStagesComplete = colorRelevantStageGaps.length === 0;
 
   const checks = [
     { key: "identity", label: "Match identity resolved to a terminal state", pass: ["VERIFIED", "UNVERIFIED", "UNAVAILABLE"].includes(match.identity_status), detail: match.identity_status },
@@ -310,7 +319,7 @@ export function evaluate(input: EngineInput): GateReport {
 
   const greenLockReasons: string[] = [];
   if (!auditComplete) greenLockReasons.push("Required stages incomplete");
-  if (!stagesComplete) greenLockReasons.push(`Pipeline execution incomplete: ${stageGaps.join(", ")}`);
+  if (!colorStagesComplete) greenLockReasons.push(`Pipeline execution incomplete: ${colorRelevantStageGaps.join(", ")}`);
   if (!firewallValid) greenLockReasons.push("Matrix firewall violated");
   if (!matrixRemovalSurvived) greenLockReasons.push("GREEN LOCKED — Matrix-removal test not survived");
   if (!familyRemovalSurvived) greenLockReasons.push("Strongest-family removal not survived");
@@ -321,8 +330,25 @@ export function evaluate(input: EngineInput): GateReport {
   if (unresolvedCritical) greenLockReasons.push("Unresolved CRITICAL contradiction");
   if (input.matrixWp !== null && input.matrixWp <= 55) greenLockReasons.push("No-edge floor: favorite probability ≤55%");
 
+  // color/action are computed from `auditComplete` alone, deliberately NOT from
+  // `stagesComplete`. `stagesComplete` asks whether audit_stage_runs shows every
+  // stage up to and including FINAL COMBINATION GATE itself persisted COMPLETE --
+  // but this function is called from INSIDE the FINAL DECISION stage's own
+  // execution (commitFinalDecision, audit-pipeline.ts), before that stage's own
+  // row has been written back as COMPLETE. Since STAGE_DEPENDENCIES makes FINAL
+  // COMBINATION GATE depend on every prior stage including FINAL DECISION itself,
+  // stagesComplete is UNCONDITIONALLY false at that exact moment, for every run,
+  // regardless of how complete the actual evidence is -- gating color on it here
+  // froze every persisted final_decisions row at color=INCOMPLETE, action=
+  // "CONTINUE PROCESSING" forever, even for a fully-executed, 60%-corroborated,
+  // stable decision. `stagesComplete`/`stageGaps` remain on the returned report
+  // for callers that legitimately need them: finalGate (the stage that actually
+  // runs after FINAL DECISION completes, and so sees them accurately) still
+  // requires both before letting the pipeline call itself done, and
+  // "Pipeline execution incomplete" still surfaces as a YELLOW-lock reason below
+  // for the genuine case of an earlier stage's row lagging its own data.
   let color: GateReport["color"] = "INCOMPLETE";
-  if (!auditComplete || !stagesComplete) {
+  if (!auditComplete) {
     color = "INCOMPLETE";
   } else if (lowCoverage || !run.independent_winner) {
     color = "INSUFFICIENT EVIDENCE";
