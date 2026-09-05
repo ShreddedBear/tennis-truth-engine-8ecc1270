@@ -6,9 +6,8 @@
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
 import { metricPairPatch, metricRowsForSideExecution, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
-import { unmetDependencies, canonicalizeStageRows, resolveActiveRun, isActiveRunStatus, INVALIDATED_RUN_STATUS } from "./audit-stages";
+import { unmetDependencies, canonicalizeStageRows, INVALIDATED_RUN_STATUS } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
-import { computeExecutionPercent } from "./audit-progress";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 import { MATRIX_SUMMARY_REQUIRED_CODES } from "./metric-classification";
 
@@ -1342,121 +1341,87 @@ describe("Stage dependency gate: enforced through the real pipeline (runPipeline
 });
 
 // ----------------------------------------------------------------------------
-// Clear Slate regression test: Audit -> Clear Slate -> verify old active
-// state cannot be seen/used -> start new audit -> verify new audit_run_id ->
-// verify exactly one canonical 16-stage diagnostic chain with no
-// contamination from the previous run.
+// Clear Slate regression test.
 //
-// clearOperationalSlate (reset-slate.functions.ts) only ever does one thing
-// to audit_runs: set the latest run's status to INVALIDATED_RUN_STATUS and
-// clear its lease. It never touches audit_stage_runs, metric_results, or any
-// other child table -- those are deliberately preserved as history. This
-// test reproduces exactly that write against a properly run-scoped mock (so
-// it can actually prove isolation, unlike makeMemoryDeps) and drives a real
-// second audit through resolveActiveRun/ensureRun/runPipeline -- the actual
-// production code paths, not a simulation of them.
+// Clear Slate is now a hard, physical delete (public.clear_operational_slate(),
+// see the migration and reset-slate.functions.ts): matches, audit_runs and every
+// CASCADE-linked child row are gone, not invalidated in place. The pipeline
+// itself implements none of that -- deletion is a database/data-layer concern --
+// so what this level can and must prove is the other half of the contract: a
+// match that has been physically removed can never be resumed, and nothing in
+// the pipeline recreates it. PipelineDeps has no operation that creates a
+// match (only `createRun`, which requires a match to already exist -- matches
+// are created exclusively by upload.tsx); this test proves the runtime
+// behavior matches that structural guarantee.
 // ----------------------------------------------------------------------------
-describe("Clear Slate: true clean slate for the next audit", () => {
-  it("produces a brand-new audit_run_id with exactly one canonical 16-stage chain, with the previous run's active state unreachable and its history untouched", async () => {
-    const { deps, runsById, stagesByRun, tablesByRun } = makeMultiRunMemoryDeps();
+describe("Clear Slate: a deleted match cannot be resumed or resurrected", () => {
+  it("K. a match removed mid-run aborts safely: no stage past the deletion point is ever marked complete, and nothing is recreated", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    let deleted = false;
+    const raceDeps: PipelineDeps = {
+      ...deps,
+      async getMatch(matchId) { return deleted ? null : deps.getMatch(matchId); },
+      async setStage(runId, matchId, stage, patch) {
+        if (deleted) throw new Error('insert or update on table "audit_stage_runs" violates foreign key constraint "audit_stage_runs_match_id_fkey"');
+        const result = await deps.setStage(runId, matchId, stage, patch);
+        // Simulate Clear Slate's DELETE committing the instant P1 METRIC
+        // EXECUTION finishes -- the worker is still "in flight" for every
+        // stage after this one.
+        if (stage === "P1 METRIC EXECUTION" && patch["status"] === "COMPLETE") deleted = true;
+        return result;
+      },
+    };
 
-    // 1. Run a full audit to completion.
-    const first = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
-    expect(first.complete).toBe(true);
-    const oldRunId = first.runId;
-    const oldRun = runsById.get(oldRunId)!;
-    expect(oldRun.run_number).toBe(1);
-    expect(stagesByRun.get(oldRunId)!.size).toBe(STAGES.length);
-    expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
+    // The per-stage catch absorbs the write failure for every stage after
+    // the deletion point -- but buildReport's own getMatch check at the end
+    // of runPipeline then finds the match gone too, so the call surfaces
+    // that as a thrown error rather than a false "success". Either way
+    // nothing is silently recreated, which is the actual safety property.
+    await expect(runPipeline(raceDeps, MATCH_ID, { budgetMs: 120_000 })).rejects.toThrow(/match\/run missing/i);
 
-    // 2. Clear Slate: reproduce exactly what clearOperationalSlate does to
-    // audit_runs for this match's latest run -- nothing else.
-    await deps.updateRun(oldRunId, { status: INVALIDATED_RUN_STATUS, lease_owner: null, lease_expires_at: null });
-
-    // 3. Verify old active state cannot be seen/used: the active-run
-    // resolver (the same one match.$matchId.tsx and slate.tsx use) must
-    // resolve straight through the invalidated run to null -- not fall back
-    // to displaying its stale, fully-populated diagnostics.
-    const latestAfterClear = await deps.getLatestRun(MATCH_ID);
-    expect(latestAfterClear?.status).toBe(INVALIDATED_RUN_STATUS);
-    expect(isActiveRunStatus(latestAfterClear?.status)).toBe(false);
-    expect(resolveActiveRun(latestAfterClear ? [latestAfterClear] : [])).toBeNull();
-    // Execution % for "the active slate" must read 0, not the old run's
-    // last-known progress, once there is no active run to report on.
-    expect(computeExecutionPercent([])).toBe(0);
-
-    // History is preserved, not deleted: the old run and all of its
-    // canonical diagnostics and evidence still exist, untouched.
-    expect(stagesByRun.get(oldRunId)!.size).toBe(STAGES.length);
-    expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
-
-    // 4. Start a new audit. preparePipelineRun/ensureRun must see the
-    // invalidated run and create a genuinely new one rather than resuming
-    // it -- and immediately after creation, before any stage has run,
-    // execution must read exactly 0%, not carry over the old run's progress.
-    const preparedRun = await preparePipelineRun(deps, MATCH_ID);
-    expect(preparedRun.id).not.toBe(oldRunId);
-    // run_number must strictly increase, never reset to 1: Clear Slate
-    // invalidates the old run but never deletes it, and audit_runs carries a
-    // live UNIQUE(match_id, run_number) constraint in production -- resetting
-    // to 1 here would collide with that still-present old row's run_number=1
-    // on insert. A UI presenting "RUN 1" for a freshly cleared slate must
-    // compute that from the count of active runs, not from this id.
-    expect(preparedRun.run_number).toBe(2);
-    expect(computeExecutionPercent(Array.from((stagesByRun.get(preparedRun.id) ?? new Map()).values()) as never)).toBe(0);
-
-    const second = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
-    expect(second.complete).toBe(true);
-    const newRunId = second.runId;
-
-    // 5. Verify a new audit_run_id.
-    expect(newRunId).toBe(preparedRun.id);
-    expect(newRunId).not.toBe(oldRunId);
-    expect(runsById.get(newRunId)!.run_number).toBe(2);
-    expect(runsById.get(newRunId)!.status).toBe("COMPLETE");
-    // The old run's status is exactly as Clear Slate left it -- the new run
-    // never touched it.
-    expect(runsById.get(oldRunId)!.status).toBe(INVALIDATED_RUN_STATUS);
-
-    // 6. Verify exactly one canonical 16-stage diagnostic chain for the new
-    // run, in dependency order, with zero contamination from the previous
-    // run's rows.
-    const newStages = Array.from(stagesByRun.get(newRunId)!.values());
-    expect(newStages).toHaveLength(STAGES.length);
-    const canonical = canonicalizeStageRows(newStages.map((r) => ({ stage: String(r["stage"]), status: String(r["status"]) })));
-    expect(canonical).toHaveLength(STAGES.length);
-    expect(canonical.map((c) => c.stage)).toEqual(STAGES);
-    expect(canonical.every((c) => c.row?.status === "COMPLETE")).toBe(true);
-    for (const stage of STAGES) {
-      expect(unmetDependencies(stage, newStages.map((r) => ({ stage: String(r["stage"]), status: String(r["status"]) })))).toEqual([]);
+    // Nothing past P1 was ever marked complete, and no further stage was
+    // ever actually processed.
+    expect(stages.get("P1 METRIC EXECUTION")?.["status"]).toBe("COMPLETE");
+    for (const stage of ["P2 METRIC EXECUTION", "VERIFICATION AUDIT", "FINAL DECISION", "FINAL COMBINATION GATE"] as const) {
+      expect(stages.get(stage)?.["status"], stage).not.toBe("COMPLETE");
     }
+    // instantiate() seeds every verification/disagreement row up front (as
+    // "NOT STARTED" placeholders) well before P1 even starts, so their mere
+    // presence proves nothing about whether they were processed -- what
+    // must hold is that none of them ever advanced past that placeholder,
+    // since VERIFICATION AUDIT/DISAGREEMENT never got to run.
+    expect(tables["verification_results"]!.every((r) => r["status"] === "NOT STARTED")).toBe(true);
+    expect(tables["disagreement_results"]!.every((r) => r["status"] === "NOT STARTED")).toBe(true);
 
-    // No previous metric/evidence state leaked into the new run: same real
-    // denominator, entirely disjoint row ids from the old run's rows.
-    const newMetrics = tablesByRun.get(newRunId)!.metric_results;
-    expect(newMetrics).toHaveLength(DEF_COUNTS.METRICS);
-    const oldMetricIds = new Set(tablesByRun.get(oldRunId)!.metric_results.map((r) => r["id"]));
-    const newMetricIds = new Set(newMetrics.map((r) => r["id"]));
-    expect([...newMetricIds].some((id) => oldMetricIds.has(id))).toBe(false);
-
-    // The old run's own diagnostic chain and evidence are still there,
-    // completely isolated -- history preserved, not deleted, not merged.
-    expect(stagesByRun.get(oldRunId)!.size).toBe(STAGES.length);
-    expect(tablesByRun.get(oldRunId)!.metric_results).toHaveLength(DEF_COUNTS.METRICS);
-    expect(stagesByRun.size).toBe(2);
-    expect(tablesByRun.size).toBe(2);
+    // A subsequent call for the same matchId -- a retry, a second tab, a
+    // stale background job -- must refuse outright now that the match is
+    // truly gone, never silently recreate it.
+    await expect(runPipeline(raceDeps, MATCH_ID, { budgetMs: 120_000 })).rejects.toThrow(/not found/i);
+    await expect(preparePipelineRun(raceDeps, MATCH_ID)).rejects.toThrow(/not found/i);
   }, 60_000);
+});
 
-  // ensureRun's new-run branch computes run_number as
-  // `(existing?.run_number ?? 0) + 1` from the raw latest audit_runs row --
-  // active or invalidated -- so it is always strictly greater than any
-  // run_number this match has ever had, and NEVER resets to 1 once a prior
-  // run exists. That monotonicity is not cosmetic: audit_runs carries a live
-  // UNIQUE(match_id, run_number) index in production, Clear Slate invalidates
-  // a run but never deletes its row, and a reset-to-1 scheme was found to
-  // collide with that still-present old row on the very next post-Clear-Slate
-  // audit for every match that had ever been cleared before. A genuinely
-  // fresh match (no prior runs at all) still starts at RUN 1.
+// ----------------------------------------------------------------------------
+// Run-number monotonicity across an INVALIDATED-BUT-NOT-DELETED run -- a
+// separate guarantee from Clear Slate, which now hard-deletes the match
+// entirely (see above) and so leaves no invalidated row for a future run to
+// ever collide with. This still matters for the other, unrelated source of
+// INVALIDATED_RUN_STATUS: a rule-document version change marks a still-live
+// match's latest run stale in place, so it gets re-run under the new rules
+// without the match itself being touched.
+//
+// ensureRun's new-run branch computes run_number as
+// `(existing?.run_number ?? 0) + 1` from the raw latest audit_runs row --
+// active or invalidated -- so it is always strictly greater than any
+// run_number this match has ever had, and NEVER resets to 1 once a prior
+// run exists. That monotonicity is not cosmetic: audit_runs carries a live
+// UNIQUE(match_id, run_number) index in production, a rule-version change
+// invalidates a run but never deletes its row, and a reset-to-1 scheme was
+// found to collide with that still-present old row on the very next audit
+// for every match ever revisited this way. A genuinely fresh match (no
+// prior runs at all) still starts at RUN 1.
+// ----------------------------------------------------------------------------
+describe("Run-number monotonicity across an invalidated (not deleted) run", () => {
   it("fresh slate (no prior audit runs at all) -> new audit -> RUN 1", async () => {
     const { deps, runsById } = makeMultiRunMemoryDeps();
     const prepared = await preparePipelineRun(deps, MATCH_ID);
@@ -1464,14 +1429,15 @@ describe("Clear Slate: true clean slate for the next audit", () => {
     expect(runsById.get(prepared.id)!.run_number).toBe(1);
   });
 
-  it("Clear Slate -> new audit -> run_number keeps climbing past every prior invalidated run, never colliding with one", async () => {
+  it("rule-document version change invalidates a run -> new audit -> run_number keeps climbing past every prior invalidated run, never colliding with one", async () => {
     const { deps, runsById } = makeMultiRunMemoryDeps();
 
-    // Simulate several real Clear Slate cycles: run to completion, invalidate,
-    // repeat. Six prior (invalidated, but never deleted) runs must yield RUN
-    // 7 for the next genuinely new audit -- a reset to RUN 1 here would try
-    // to insert a duplicate (match_id, run_number) row against the still-live
-    // unique constraint, since Clear Slate never deletes the old rows.
+    // Simulate several rule-version-change cycles: run to completion,
+    // invalidate in place (the match itself is never touched or deleted),
+    // repeat. Six prior invalidated runs must yield RUN 7 for the next
+    // genuinely new audit -- a reset to RUN 1 here would try to insert a
+    // duplicate (match_id, run_number) row against the still-live unique
+    // constraint, since invalidation never deletes the old rows.
     let lastRunId: string | null = null;
     for (let cycle = 0; cycle < 6; cycle++) {
       const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });

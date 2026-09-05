@@ -1,68 +1,78 @@
 import { createServerFn } from "@tanstack/react-start";
-import { INVALIDATED_RUN_STATUS } from "./audit-stages";
+import { LOCAL_WORKSPACE_ID } from "./constants";
 
-async function readIds(db: any, table: string, column: string, ids?: string[]): Promise<any[]> {
-  if (ids && !ids.length) return [];
-  let query = db.from(table).select("*");
-  if (ids?.length) query = query.in(column, ids);
-  const { data, error } = await query;
-  if (error) throw new Error(`Could not read ${table}: ${error.message}`);
-  return data ?? [];
+// CLEAR SLATE MEANS PHYSICAL DELETION -- never retirement, archival, an is_active flag,
+// or "preserve for auditing". The previous implementation only flipped
+// summary_versions.is_active to false, nulled matches.active_summary_version_id, and
+// invalidated the latest audit_runs row: every matches row, every metric/verification/
+// disagreement/underdog/stress/decision row, and every summary_versions/summary_uploads
+// row survived, physically, in the database. Because upload.tsx's findReusable() searches
+// `matches` globally by canonical_key with no "cleared" filter, re-uploading the same PDF
+// after that soft clear found and reused the old match row -- reviving its old audit
+// history under what looked like a fresh upload. That is the leak this closes.
+//
+// The actual deletion, and everything it must and must not cascade, lives in ONE place:
+// the public.clear_operational_slate(uuid) database function (see the migration this
+// commit adds). This module is a thin, typed wrapper around that single authoritative
+// path -- there must never be a second scattered DELETE statement reimplementing it here.
+export interface ClearSlateResult {
+  matches: number;
+  auditRuns: number;
+  summaryVersions: number;
+  uploads: number;
+  slates: number;
+  calibrationObservations: number;
+  before: Record<string, number>;
+  after: Record<string, number>;
 }
 
-async function updateIn(db: any, table: string, column: string, ids: string[], patch: Record<string, unknown>) {
-  if (!ids.length) return;
-  const { error } = await db.from(table).update(patch).in(column, ids);
-  if (error) throw new Error(`Could not clear ${table}: ${error.message}`);
+interface ClearOperationalSlateRpcRow {
+  before: Record<string, number>;
+  after: Record<string, number>;
+  deleted_matches: number;
+  deleted_uploads: number;
+  deleted_slates: number;
+  deleted_calibration_observations: number;
 }
 
-export async function clearOperationalSlate(db: any) {
-  const uploadRows = await readIds(db, "summary_uploads", "id");
-  const uploadIds = uploadRows.map((r: any) => String(r.id));
-  const versionRows = await readIds(db, "summary_versions", "upload_id", uploadIds);
-  const activeVersions = versionRows.filter((row: any) => row.is_active !== false);
-  const versionIds = activeVersions.map((r: any) => String(r.id));
-  const activeUploadIds = [...new Set(activeVersions.map((r: any) => String(r.upload_id)).filter(Boolean))];
-  const matchIds = [...new Set(activeVersions.map((r: any) => String(r.match_id)).filter(Boolean))];
+export async function clearOperationalSlate(db: {
+  rpc(fn: "clear_operational_slate", args: { p_user_id: string }): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+}): Promise<ClearSlateResult> {
+  const { data: raw, error } = await db.rpc("clear_operational_slate", { p_user_id: LOCAL_WORKSPACE_ID });
+  if (error) throw new Error(`Clear Slate failed: ${error.message}`);
+  if (!raw || typeof raw !== "object") throw new Error("Clear Slate failed: the database returned no result.");
+  const data = raw as ClearOperationalSlateRpcRow;
 
-  const latestRunIds: string[] = [];
-  for (let i = 0; i < matchIds.length; i += 200) {
-    const batch = matchIds.slice(i, i + 200);
-    if (!batch.length) continue;
-    const runs = await readIds(db, "audit_runs", "match_id", batch);
-    const latestByMatch = new Map<string, any>();
-    for (const run of runs) {
-      const current = latestByMatch.get(String(run.match_id));
-      if (!current || Number(run.run_number) > Number(current.run_number)) latestByMatch.set(String(run.match_id), run);
-    }
-    latestRunIds.push(...[...latestByMatch.values()].map((run: any) => String(run.id)));
+  // AFTER must independently prove the delete actually happened, not just that the RPC
+  // returned without error -- every count here comes from the function re-querying the
+  // exact rows it just deleted, inside the same transaction (see the migration).
+  const survivors = Object.entries(data.after).filter(([, count]) => count > 0);
+  if (survivors.length) {
+    throw new Error(`Clear Slate did not fully delete the operational slate: ${survivors.map(([table, count]) => `${table}=${count}`).join(", ")} still present.`);
   }
 
-  await updateIn(db, "summary_versions", "id", versionIds, { is_active: false });
-  await updateIn(db, "matches", "id", matchIds, { active_summary_version_id: null });
-  await updateIn(db, "audit_runs", "id", latestRunIds, {
-    status: INVALIDATED_RUN_STATUS,
-    lease_owner: null,
-    lease_expires_at: null,
-  });
-
   return {
-    matches: matchIds.length,
-    auditRuns: latestRunIds.length,
-    summaryVersions: versionIds.length,
-    uploads: activeUploadIds.length,
+    matches: data.deleted_matches,
+    auditRuns: data.before["audit_runs"] ?? 0,
+    summaryVersions: data.before["summary_versions"] ?? 0,
+    uploads: data.deleted_uploads,
+    slates: data.deleted_slates,
+    calibrationObservations: data.deleted_calibration_observations,
+    before: data.before,
+    after: data.after,
   };
 }
 
-export function removableOperationalMatchIds(matchIds: string[], completedMatchIds: Iterable<string>) {
-  const protectedIds = new Set(completedMatchIds);
-  return matchIds.filter(id => !protectedIds.has(id));
-}
-
 /**
- * Clears only operational slate/upload/audit data.
- * Calibration versions/buckets, rule documents/definitions, metric registry,
- * and historical evidence datasets are intentionally preserved.
+ * Clears the entire operational prediction slate: uploaded matches, every audit_runs row
+ * and everything computed from them (metrics, verification, disagreement, underdog,
+ * stress, final decisions, coverage, execution logs, result grades), match identity/
+ * dedup records, summary versions/uploads, and the prediction slate row itself.
+ *
+ * Nothing here is soft-deleted, retired, or archived. Global reference data --
+ * players, tournaments, the metric registry, rules, calibration configuration, source
+ * observations, the runtime tennis index -- is untouched: none of it is reachable from
+ * `matches` by any foreign key, and clear_operational_slate() never references it.
  */
 export const resetOperationalSlate = createServerFn({ method: "POST" })
   .inputValidator((data: { confirm: string }) => {
@@ -76,6 +86,6 @@ export const resetOperationalSlate = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       deleted,
-      preserved: ["permanent uploads", "completed audit snapshots", "calibration", "rules", "metric registry", "metric wiring", "source observations", "historical evidence"],
+      preserved: ["players", "tournaments", "metric registry", "rules", "calibration configuration", "source observations", "runtime tennis index"],
     };
   });

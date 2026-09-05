@@ -1,106 +1,68 @@
 import { describe, expect, it } from "vitest";
 import { clearOperationalSlate } from "./reset-slate.functions";
+import { LOCAL_WORKSPACE_ID } from "./constants";
 
-type Row = Record<string, unknown>;
+// Clear Slate means physical deletion, proven end to end through this module's thin RPC
+// wrapper: it must call the one authoritative database function with the right user, and
+// it must refuse to report success unless the function's own AFTER snapshot proves every
+// row is actually gone -- never trust a bare "no error" as proof of deletion.
 
-class MemoryDb {
-  tables: Record<string, Row[]>;
-
-  constructor() {
-    const current = { id: "match-current" };
-    this.tables = {
-      summary_uploads: [{ id: "upload-1" }, { id: "upload-2" }],
-      summary_pages: [{ id: "page-1", upload_id: "upload-1" }],
-      summary_versions: [
-        { id: "version-1", upload_id: "upload-1", match_id: current.id, is_active: true },
-        { id: "version-2", upload_id: "upload-2", match_id: current.id, is_active: true },
-      ],
-      matches: [current, { id: "historical-match" }],
-      audit_runs: [{ id: "run-current", match_id: current.id, status: "RUNNING", lease_owner: "worker-1" }, { id: "run-history", match_id: "historical-match" }],
-      metric_results: [{ id: "metric-current", audit_run_id: "run-current" }],
-      reconstruction_results: [],
-      verification_results: [],
-      disagreement_results: [],
-      underdog_results: [],
-      stress_results: [],
-      audit_stage_runs: [{ id: "stage-current", audit_run_id: "run-current", status: "RUNNING" }],
-      source_snapshots: [],
-      source_conflicts: [],
-      audit_coverage: [],
-      metric_coverage_rates: [],
-      final_decisions: [{ id: "decision-current", audit_run_id: "run-current" }],
-      execution_logs: [{ id: "log-current", audit_run_id: "run-current", match_id: current.id }],
-      match_identity_records: [{ id: "identity-current", match_id: current.id }],
-      parsed_summary_fields: [{ id: "field-current", summary_version_id: "version-1" }],
-      calibration_versions: [{ id: "calibration-1" }],
-      calibration_buckets: [{ id: "bucket-1", calibration_version_id: "calibration-1" }],
-      source_observations: [{ id: "observation-1" }],
-      rule_documents: [{ id: "rules-1" }],
-    };
-  }
-
-  from(table: string) {
-    const db = this;
-    return {
-      mode: "select" as "select" | "update" | "delete",
-      column: "",
-      values: null as string[] | null,
-      patch: null as Record<string, unknown> | null,
-      select() { return this; },
-      update(patch: Record<string, unknown>) { this.mode = "update" as never; this.patch = patch; return this; },
-      delete() { this.mode = "delete"; return this; },
-      in(column: string, values: string[]) {
-        this.column = column;
-        this.values = values;
-        const rows = db.tables[table] ?? [];
-        const selected = new Set(values);
-        if (this.mode === "update") {
-          db.tables[table] = rows.map((row) => selected.has(String(row[column])) ? { ...row, ...this.patch } : row);
-          return Promise.resolve({ data: null, error: null });
-        }
-        if (this.mode === "delete") {
-          db.tables[table] = rows.filter((row) => !selected.has(String(row[column])));
-          return Promise.resolve({ data: null, error: null });
-        }
-        return Promise.resolve({ data: rows.filter((row) => selected.has(String(row[column]))), error: null });
-      },
-      then(resolve: (value: { data: Row[]; error: null }) => unknown) {
-        return Promise.resolve({ data: db.tables[table] ?? [], error: null }).then(resolve);
-      },
-    };
-  }
+function fakeDb(result: { before: Record<string, number>; after: Record<string, number>; deleted_matches: number; deleted_uploads: number; deleted_slates: number; deleted_calibration_observations: number } | null, error: string | null = null) {
+  const calls: Array<{ fn: string; args: unknown }> = [];
+  return {
+    calls,
+    rpc(fn: string, args: unknown) {
+      calls.push({ fn, args });
+      return Promise.resolve({ data: result, error: error ? { message: error } : null });
+    },
+  };
 }
 
-describe("clearOperationalSlate", () => {
-  it("clears populated current slate rows while preserving permanent data", async () => {
-    const db = new MemoryDb();
-    const deleted = await clearOperationalSlate(db);
+const CLEAN_AFTER = {
+  matches: 0, audit_runs: 0, metric_results: 0, verification_results: 0, disagreement_results: 0,
+  underdog_results: 0, stress_results: 0, final_decisions: 0, audit_coverage: 0, audit_stage_runs: 0,
+  execution_logs: 0, result_grades: 0, match_identity_records: 0, summary_versions: 0, prediction_slates: 0,
+  truth_engine_calibration_observations: 0,
+};
+const POPULATED_BEFORE = { ...CLEAN_AFTER, matches: 50, audit_runs: 62, metric_results: 4300, summary_versions: 50, summary_uploads: 3, prediction_slates: 1 };
 
-    expect(deleted).toEqual({ matches: 1, auditRuns: 1, summaryVersions: 2, uploads: 2 });
-    expect(db.tables.matches).toEqual([{ id: "match-current", active_summary_version_id: null }, { id: "historical-match" }]);
-    expect(db.tables.audit_runs).toHaveLength(2);
-    expect(db.tables.audit_runs.find((row) => row.id === "run-history")).toBeTruthy();
-    expect(db.tables.summary_uploads).toHaveLength(2);
-    expect(db.tables.summary_pages).toHaveLength(1);
-    expect(db.tables.summary_versions.every((row) => row.is_active === false)).toBe(true);
-    expect(db.tables.audit_runs.find((row) => row.id === "run-current")).toMatchObject({ status: "INVALIDATED — RERUN REQUIRED", lease_owner: null, lease_expires_at: null });
-    expect(db.tables.calibration_versions).toEqual([{ id: "calibration-1" }]);
-    expect(db.tables.calibration_buckets).toEqual([{ id: "bucket-1", calibration_version_id: "calibration-1" }]);
-    expect(db.tables.source_observations).toEqual([{ id: "observation-1" }]);
-    expect(db.tables.rule_documents).toEqual([{ id: "rules-1" }]);
+describe("clearOperationalSlate", () => {
+  it("A/D. calls the single authoritative RPC, scoped to this app's operational owner", async () => {
+    const db = fakeDb({ before: POPULATED_BEFORE, after: CLEAN_AFTER, deleted_matches: 50, deleted_uploads: 3, deleted_slates: 1, deleted_calibration_observations: 0 });
+    await clearOperationalSlate(db);
+    expect(db.calls).toEqual([{ fn: "clear_operational_slate", args: { p_user_id: LOCAL_WORKSPACE_ID } }]);
   });
 
-  it("clears stuck leased and resumable runs, is idempotent, and allows a clean new upload", async () => {
-    const db = new MemoryDb();
-    await clearOperationalSlate(db);
+  it("reports the real deleted counts, not a soft-clear count", async () => {
+    const db = fakeDb({ before: POPULATED_BEFORE, after: CLEAN_AFTER, deleted_matches: 50, deleted_uploads: 3, deleted_slates: 1, deleted_calibration_observations: 0 });
+    const result = await clearOperationalSlate(db);
+    expect(result).toMatchObject({ matches: 50, auditRuns: 62, summaryVersions: 50, uploads: 3, slates: 1, calibrationObservations: 0 });
+    expect(result.before).toEqual(POPULATED_BEFORE);
+    expect(result.after).toEqual(CLEAN_AFTER);
+  });
 
-    expect(await clearOperationalSlate(db)).toEqual({ matches: 0, auditRuns: 0, summaryVersions: 0, uploads: 0 });
-    db.tables.summary_uploads.push({ id: "upload-new" });
-    db.tables.summary_versions.push({ id: "version-new", upload_id: "upload-new", match_id: "match-new", is_active: true });
-    db.tables.matches.push({ id: "match-new", active_summary_version_id: "version-new" });
+  it("P. zero matches on the slate succeeds cleanly, reporting zero deletions", async () => {
+    const emptyBefore = { ...CLEAN_AFTER, summary_uploads: 0 };
+    const db = fakeDb({ before: emptyBefore, after: CLEAN_AFTER, deleted_matches: 0, deleted_uploads: 0, deleted_slates: 0, deleted_calibration_observations: 0 });
+    const result = await clearOperationalSlate(db);
+    expect(result).toMatchObject({ matches: 0, auditRuns: 0, summaryVersions: 0, uploads: 0, slates: 0 });
+  });
 
-    expect(await clearOperationalSlate(db)).toEqual({ matches: 1, auditRuns: 0, summaryVersions: 1, uploads: 1 });
-    expect(db.tables.matches).toHaveLength(3);
-    expect(db.tables.source_observations).toHaveLength(1);
+  it("O. calling it twice in a row is safe: the second call reports nothing left to delete", async () => {
+    const db = fakeDb({ before: CLEAN_AFTER, after: CLEAN_AFTER, deleted_matches: 0, deleted_uploads: 0, deleted_slates: 0, deleted_calibration_observations: 0 });
+    await expect(clearOperationalSlate(db)).resolves.toMatchObject({ matches: 0 });
+  });
+
+  it("refuses to report success if the database's own AFTER snapshot shows survivors", async () => {
+    // This is the exact bug class being fixed: a soft clear that returns happily while
+    // rows remain. If the RPC's own post-delete verification ever regresses to that, the
+    // wrapper must fail loudly instead of reporting a clean slate.
+    const db = fakeDb({ before: POPULATED_BEFORE, after: { ...CLEAN_AFTER, matches: 50 }, deleted_matches: 0, deleted_uploads: 0, deleted_slates: 0, deleted_calibration_observations: 0 });
+    await expect(clearOperationalSlate(db)).rejects.toThrow(/did not fully delete/i);
+  });
+
+  it("surfaces a database error rather than reporting a silent, incomplete success", async () => {
+    const db = fakeDb(null, "permission denied for function clear_operational_slate");
+    await expect(clearOperationalSlate(db)).rejects.toThrow(/permission denied/);
   });
 });

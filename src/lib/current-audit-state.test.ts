@@ -168,13 +168,20 @@ describe("isRowOnActiveSlate", () => {
 // appear anywhere. This exercises the exact functions Dashboard, Active
 // Slate, Master Ranked Board, and Execution Logs each call -- not a
 // simulation of the pages, the real shared logic they run.
+//
+// Clear Slate itself is a hard, physical delete (clear_operational_slate(),
+// see the migration and reset-slate.functions.ts) -- not the is_active/
+// INVALIDATED_RUN_STATUS soft-clear this test used to simulate. The rows
+// these helpers filter simply cease to exist; there is no "cleared but still
+// present" state left to filter out, and no historical view that can still
+// reach the old rows -- reaching them at all would mean the delete failed.
 // ----------------------------------------------------------------------------
 describe("Clear Slate propagation across every operational tab's data source", () => {
-  it("removes cleared matches from every tab's filtering logic, and a fresh upload afterward produces a clean new slate with no old matches", () => {
+  it("removes deleted matches from every tab's filtering logic, and a fresh upload afterward produces a clean new slate with no old matches", () => {
     // 1. Upload + audit: two matches (m1, m2) fully audited, active summary
     // versions, completed runs, decisions, and execution logs -- exactly
     // what every operational page reads.
-    const matches = [{ id: "m1" }, { id: "m2" }];
+    let matches = [{ id: "m1" }, { id: "m2" }];
     let summaryVersions: Array<{ match_id: string; is_active: boolean }> = [
       { match_id: "m1", is_active: true },
       { match_id: "m2", is_active: true },
@@ -183,11 +190,11 @@ describe("Clear Slate propagation across every operational tab's data source", (
       { id: "run-m1", match_id: "m1", run_number: 1, status: "COMPLETE" },
       { id: "run-m2", match_id: "m2", run_number: 1, status: "COMPLETE" },
     ];
-    const decisions = [
+    let decisions = [
       { audit_run_id: "run-m1", audit_complete: true, final_audit_color: "GREEN" },
       { audit_run_id: "run-m2", audit_complete: true, final_audit_color: "YELLOW" },
     ];
-    const logs = [
+    let logs = [
       { id: "log-1", audit_run_id: "run-m1", match_id: "m1" },
       { id: "log-2", audit_run_id: "run-m2", match_id: "m2" },
     ];
@@ -206,11 +213,15 @@ describe("Clear Slate propagation across every operational tab's data source", (
     expect(slateVisible()).toHaveLength(2);
     expect(logsVisible()).toHaveLength(2);
 
-    // 2. Clear Slate: reproduces exactly what clearOperationalSlate does --
-    // deactivate every active summary_version, invalidate each match's
-    // latest run. Nothing is deleted.
-    summaryVersions = summaryVersions.map((v) => ({ ...v, is_active: false }));
-    runs = runs.map((r) => ({ ...r, status: INVALIDATED_RUN_STATUS }));
+    // 2. Clear Slate: reproduces what clear_operational_slate() actually
+    // does -- matches, audit_runs, final_decisions and execution_logs for
+    // the cleared user are PHYSICALLY DELETED (cascade), not flagged.
+    const clearedMatchIds = new Set(matches.map((m) => m.id));
+    matches = matches.filter((m) => !clearedMatchIds.has(m.id));
+    summaryVersions = summaryVersions.filter((v) => !clearedMatchIds.has(v.match_id));
+    runs = runs.filter((r) => !clearedMatchIds.has(r.match_id));
+    decisions = decisions.filter((d) => runs.some((r) => r.id === d.audit_run_id));
+    logs = logs.filter((l) => !clearedMatchIds.has(l.match_id));
 
     // 3. Every operational tab's filtering logic must now be empty.
     expect(dashboardMatches()).toHaveLength(0);
@@ -218,16 +229,18 @@ describe("Clear Slate propagation across every operational tab's data source", (
     expect(slateVisible()).toHaveLength(0);
     expect(logsVisible()).toHaveLength(0);
 
-    // History is preserved, not deleted: the old rows still exist and are
-    // reachable through an explicit historical view (scope="all" in
-    // slate.tsx/logs.tsx skips the active-slate filter entirely).
-    expect(matches).toHaveLength(2);
-    expect(logs).toHaveLength(2);
-    expect(runs.every((r) => r.status === INVALIDATED_RUN_STATUS)).toBe(true);
+    // The rows themselves are gone -- not present-but-hidden, not reachable
+    // through any "scope=all"/historical view. Nothing left to un-hide.
+    expect(matches).toHaveLength(0);
+    expect(runs).toHaveLength(0);
+    expect(decisions).toHaveLength(0);
+    expect(logs).toHaveLength(0);
+    expect(summaryVersions).toHaveLength(0);
 
-    // 4. A fresh upload creates a brand-new match (m3) with its own active
-    // summary_version, run, decision, and log -- m1/m2 remain untouched and
-    // still cleared.
+    // 4. A fresh upload creates a brand-new match (m3, a genuinely new id --
+    // a real re-upload never reuses m1/m2's old ids, because those rows no
+    // longer exist to reuse) with its own active summary_version, run,
+    // decision, and log.
     const newMatches = [...matches, { id: "m3" }];
     summaryVersions = [...summaryVersions, { match_id: "m3", is_active: true }];
     runs = [...runs, { id: "run-m3", match_id: "m3", run_number: 1, status: "COMPLETE" }];
@@ -240,10 +253,13 @@ describe("Clear Slate propagation across every operational tab's data source", (
     const slateAfter = newMatches.filter((m) => isRowOnActiveSlate(m, activeIdsAfterReupload));
     const logsAfter = newLogs.filter((l) => activeRunIds(runs, activeIdsAfterReupload).has(l.audit_run_id));
 
-    // 5. Only the new match appears anywhere -- never m1/m2.
+    // 5. Only the new match appears anywhere -- never m1/m2, whose ids are
+    // now unrecognizable to every one of these functions because the rows
+    // that carried them do not exist.
     expect(dashboardAfter.map((m) => m.id)).toEqual(["m3"]);
     expect(boardAfter.map((r) => r.match.id)).toEqual(["m3"]);
     expect(slateAfter.map((m) => m.id)).toEqual(["m3"]);
     expect(logsAfter.map((l) => l.id)).toEqual(["log-3"]);
+    expect(dashboardAfter.some((m) => clearedMatchIds.has(m.id))).toBe(false);
   });
 });
