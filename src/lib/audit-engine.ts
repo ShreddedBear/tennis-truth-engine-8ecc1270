@@ -347,10 +347,28 @@ export function evaluate(input: EngineInput): GateReport {
   // requires both before letting the pipeline call itself done, and
   // "Pipeline execution incomplete" still surfaces as a YELLOW-lock reason below
   // for the genuine case of an earlier stage's row lagging its own data.
+  // color is gated on `!run.independent_winner` alone -- deliberately NOT on
+  // `lowCoverage`. `run.independent_winner` (and, identically, the deterministic
+  // decision persisted in gate_report.deterministic_decision.selected_player) is
+  // the actual Truth Engine authority: it comes from the 25-active-metric family-
+  // consolidated, verification/disagreement/underdog/stress-audited, >=60%-
+  // directional-support decision. `lowCoverage`/`usableCoveragePercent`, by
+  // contrast, is `coverageFor()`'s reading of ALL 81 processing-universe codes --
+  // including the 56 the Truth Engine deliberately does not rely on -- and is
+  // near-guaranteed to read low for any match, since most of those 56 stay
+  // UNAVAILABLE simply because nothing researches them anymore. Gating color on
+  // it here let the inactive 56 indirectly veto a decision they never participate
+  // in: real case, Mathys Erhard vs Anton Shepp, Truth Engine selected Erhard at
+  // 60% directional support while this gate's 81-code coverage read 43.8%, and
+  // the persisted color/action came out "INSUFFICIENT EVIDENCE" despite a real
+  // winner already existing. Coverage remains fully diagnostic below (reported on
+  // `coverage`, and still able to withhold GREEN/DOUBLE GREEN via
+  // greenLockReasons) -- it can make a real winner read YELLOW instead of GREEN,
+  // but it can never turn one into "no winner".
   let color: GateReport["color"] = "INCOMPLETE";
   if (!auditComplete) {
     color = "INCOMPLETE";
-  } else if (lowCoverage || !run.independent_winner) {
+  } else if (!run.independent_winner) {
     color = "INSUFFICIENT EVIDENCE";
   } else if (unresolvedCritical || strongUnderdogPathways >= 2 || !matrixRemovalSurvived || (input.matrixWp !== null && input.matrixWp <= 55)) {
     color = "RED / PASS";

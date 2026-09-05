@@ -303,3 +303,227 @@ describe("audit-engine: Final Combination Gate stage-dependency gate", () => {
     expect(report.greenLockReasons.some((r) => r.includes("FINAL DECISION"))).toBe(false);
   });
 });
+
+// ----------------------------------------------------------------------------
+// The 81-code coverage gate must never veto a valid Truth Engine winner.
+//
+// coverageFor() measures usable evidence across the FULL 81-code processing
+// universe -- including the 56 codes the Truth Engine's own active registry
+// (truth-engine-active-metrics.ts) does not rely on. Real case: Mathys Erhard
+// vs Anton Shepp -- the Truth Engine (25 active metrics, family-consolidated,
+// verification/disagreement/underdog/stress-audited) selected Erhard at 60%
+// directional support, while this gate's 81-code coverage read 43.8% (most of
+// the 56 unused codes sit UNAVAILABLE simply because nothing researches them
+// anymore) -- and the persisted color/action came out "INSUFFICIENT EVIDENCE",
+// silently discarding a real winner. `run.independent_winner` (identical to
+// gate_report.deterministic_decision.selected_player) IS the Truth Engine's
+// authority; `lowCoverage` no longer participates in whether color can name a
+// winner -- it can still hold a real winner at YELLOW instead of GREEN
+// (greenLockReasons), but it can never turn one into "no winner".
+// ----------------------------------------------------------------------------
+describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engine winner", () => {
+  const cleanVerification: EngineInput["verification"] = [{ status: "COMPLETE", outcome: "PASS", severity: "STANDARD" }];
+  const cleanDisagreement: EngineInput["disagreement"] = [{ status: "COMPLETE", contradiction_severity: "NONE" }];
+  const cleanUnderdog = (winner: string, loser: string): EngineInput["underdog"] => [
+    { status: "COMPLETE", classification: "WEAK", player_side: loser },
+    { status: "COMPLETE", classification: "WEAK", player_side: winner },
+  ];
+  const cleanStress: EngineInput["stress"] = [
+    { status: "COMPLETE", test_code: "ST01", outcome: "STABLE" },
+    { status: "COMPLETE", test_code: "ST02", outcome: "STABLE" },
+    { status: "COMPLETE", test_code: "ST03", outcome: "STABLE" },
+  ];
+  // commitConclusion (audit-pipeline.ts) always stamps independent_decision_committed_at
+  // once the INDEPENDENT CONCLUSION stage runs -- including the refusal case, where
+  // independent_winner stays null but the conclusion was still genuinely reached. Tying
+  // these to whether a winner exists would fabricate a different, unreal "INCOMPLETE"
+  // failure mode for the refusal fixtures below.
+  const committedRun = (winner: string | null, overrides: Partial<EngineInput["run"]> = {}): EngineInput["run"] => ({
+    ...baseRun,
+    research_lock_at: "2026-09-05T05:00:00.000Z",
+    independent_decision_committed_at: "2026-09-05T05:38:12.000Z",
+    matrix_revealed_at: "2026-09-05T05:38:13.000Z",
+    independent_winner: winner,
+    calibration_version_id: "cal-1",
+    effective_evidence_count: 5,
+    ...overrides,
+  });
+
+  /**
+   * `usableCount` metrics get real DIRECT evidence (backed by a value and a source);
+   * the rest of `totalCount` sit UNAVAILABLE, exactly like the 56 codes the Truth
+   * Engine's active registry does not rely on -- this is what drives
+   * usableCoveragePercent down to whatever the caller wants (e.g. 43.8%-like) without
+   * touching auditComplete (p1/p2 sweep only requires a DONE_STATES status, which
+   * UNAVAILABLE already satisfies).
+   */
+  function metricsWithCoverage(usableCount: number, totalCount: number): EngineInput["metrics"] {
+    const rows: EngineInput["metrics"] = [];
+    for (let i = 0; i < totalCount; i++) {
+      // isProcessMetaCode/isNoSourceMetricCode (audit-engine.ts) strip any non-digit
+      // prefix down to the trailing 1-3 digits before classifying -- "T001" normalizes
+      // right back to "001" and hits the real registry anyway. Codes in the 200s fall
+      // outside both the real 001-081 catalog and this file's "999" mock, so
+      // classifyMetric misses and defaults to LEGITIMATE_PLAYER_METRIC
+      // (metric-classification.ts) -- none of these can be EXCLUDED/NO_SOURCE, so the
+      // coverage denominator is exactly `totalCount` and usableCount/totalCount is the
+      // real, predictable usablePercent.
+      const code = String(200 + i).padStart(3, "0");
+      const usable = i < usableCount;
+      rows.push({
+        status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE",
+        p1_treatment: usable ? "DIRECT" : "UNAVAILABLE", p2_treatment: usable ? "DIRECT" : "UNAVAILABLE",
+        matrix_derived: false, evidence_family: usable ? `FAMILY_${i}` : null, metric_name: `metric ${code}`, metric_code: code,
+        p1_value: usable ? "10" : null, p2_value: usable ? "5" : null,
+        sources: usable ? [{ source_name: "Tour Stats" }] : [],
+      });
+    }
+    return rows;
+  }
+
+  function fixture(args: { winner: string | null; usableCount: number; totalCount: number; disagreement?: EngineInput["disagreement"]; loser?: string; runOverrides?: Partial<EngineInput["run"]> }): EngineInput {
+    const loser = args.loser ?? (args.winner === "Alpha" ? "Beta" : "Alpha");
+    return {
+      match: baseMatch,
+      run: committedRun(args.winner, args.runOverrides),
+      metrics: metricsWithCoverage(args.usableCount, args.totalCount),
+      verification: cleanVerification,
+      disagreement: args.disagreement ?? cleanDisagreement,
+      underdog: args.winner ? cleanUnderdog(args.winner, loser) : cleanUnderdog("Alpha", "Beta"),
+      stress: cleanStress,
+      reconstructions: [],
+      conflicts: [],
+      matrixWp: null,
+      stages: ALL_STAGES_COMPLETE,
+    };
+  }
+
+  // The persisted "committed" check detail is `run.independent_winner` verbatim
+  // (see the checks array above) -- the reliable, color-independent way to read
+  // back the actual Truth Engine winner regardless of what color/action say.
+  // `action` only ever names the winner for GREEN/DOUBLE GREEN by pre-existing,
+  // untouched design (YELLOW/RED/INSUFFICIENT EVIDENCE never did, before or
+  // after this fix) -- these tests must not mistake that pre-existing convention
+  // for a suppression bug of their own.
+  const winnerDetail = (report: ReturnType<typeof evaluate>) => report.checks.find((c) => c.key === "committed")?.detail;
+
+  it("1. a valid P1 selection is not suppressed by low coverage across the inactive 56", () => {
+    // 5 of 81 usable -> 6.2%, far below the 70% threshold -- reproduces the real shape.
+    const report = evaluate(fixture({ winner: "Alpha", usableCount: 5, totalCount: 81 }));
+    expect(report.coverage.usablePercent).toBeLessThan(70);
+    expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(report.color).not.toBe("INCOMPLETE");
+    expect(winnerDetail(report)).toBe("Alpha");
+  });
+
+  it("2. a valid P2 selection is not suppressed by low coverage across the inactive 56", () => {
+    const report = evaluate(fixture({ winner: "Beta", usableCount: 5, totalCount: 81 }));
+    expect(report.coverage.usablePercent).toBeLessThan(70);
+    expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(winnerDetail(report)).toBe("Beta");
+  });
+
+  it("3. strong active evidence with poor inactive-universe coverage still returns the deterministic winner", () => {
+    // 25 of 81 usable (the entire active registry usable, none of the other 56)
+    // -> well under the 70% threshold, so this legitimately reads YELLOW (coverage
+    // may still hold a real winner short of GREEN) -- never INSUFFICIENT EVIDENCE.
+    const report = evaluate(fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 }));
+    expect(report.coverage.usablePercent).toBeCloseTo((25 / 81) * 100, 1);
+    expect(report.color).toBe("YELLOW");
+    expect(winnerDetail(report)).toBe("Alpha");
+  });
+
+  it("4. 25/25 (100% of the active set) does not itself manufacture a winner when the Truth Engine produced none", () => {
+    const report = evaluate(fixture({ winner: null, usableCount: 25, totalCount: 25 }));
+    expect(report.coverage.usablePercent).toBe(100);
+    expect(report.color).toBe("INSUFFICIENT EVIDENCE");
+    expect(report.action).toBe("INSUFFICIENT EVIDENCE");
+  });
+
+  it("5. fewer than 25 usable active metrics can still produce a winner when the Truth Engine's own rules already established one", () => {
+    // Only 10 of 81 usable, well under a full active set, yet a winner exists.
+    const report = evaluate(fixture({ winner: "Alpha", usableCount: 10, totalCount: 81 }));
+    expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(winnerDetail(report)).toBe("Alpha");
+  });
+
+  it("6. evidence coverage remains a diagnostic value, distinct from and never overwriting the winner", () => {
+    const low = evaluate(fixture({ winner: "Alpha", usableCount: 3, totalCount: 81 }));
+    const high = evaluate(fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 }));
+    expect(low.coverage.usablePercent).toBeLessThan(high.coverage.usablePercent);
+    // Coverage moved (diagnostic); the winner did not (authoritative), in either fixture.
+    expect(winnerDetail(low)).toBe("Alpha");
+    expect(winnerDetail(high)).toBe("Alpha");
+    expect(low.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(high.color).not.toBe("INSUFFICIENT EVIDENCE");
+  });
+
+  it("7/8. the 56 inactive metrics can neither vote for nor veto either player", () => {
+    // Vary ONLY the inactive/unusable metric rows (the ones beyond the first 25); the
+    // winner and the color must not move, because nothing about evaluate()'s color
+    // path reads them for anything but the coverage diagnostic.
+    const withNoiseA = fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 });
+    const withNoiseB = { ...withNoiseA, metrics: metricsWithCoverage(25, 81).map((m, i) => (i >= 25 ? { ...m, p1_treatment: "PARTIAL" as const, p2_treatment: "UNAVAILABLE" as const } : m)) };
+    const a = evaluate(withNoiseA);
+    const b = evaluate(withNoiseB);
+    expect(winnerDetail(a)).toBe(winnerDetail(b));
+    expect(a.color).toBe(b.color);
+  });
+
+  it("9. the 81-code completion percentage cannot overwrite selected_player", () => {
+    const lowCompletion = evaluate(fixture({ winner: "Alpha", usableCount: 2, totalCount: 81 }));
+    const highCompletion = evaluate(fixture({ winner: "Alpha", usableCount: 60, totalCount: 81 }));
+    expect(lowCompletion.coverage.usablePercent).toBeLessThan(highCompletion.coverage.usablePercent);
+    expect(winnerDetail(lowCompletion)).toBe("Alpha");
+    expect(winnerDetail(highCompletion)).toBe("Alpha");
+    expect(lowCompletion.color).not.toBe("INSUFFICIENT EVIDENCE");
+    // 60 of 81 = 74.1%, above the 70% threshold -- coverage is good enough here that
+    // nothing else holds it back, so this one reaches a real "PLAY" color.
+    expect(["GREEN", "DOUBLE GREEN"]).toContain(highCompletion.color);
+    expect(highCompletion.action).toBe("PLAY — Alpha");
+  });
+
+  it("11. verification/disagreement/underdog/stress still execute exactly as before and can still block GREEN with a real winner present", () => {
+    // A CRITICAL disagreement is a genuine Truth Engine audit finding (part of the
+    // decision path itself, not the coverage gate) -- it must still hold color at
+    // RED/PASS even though a winner exists and coverage is irrelevant here.
+    const report = evaluate(fixture({
+      winner: "Alpha", usableCount: 25, totalCount: 81,
+      disagreement: [{ status: "COMPLETE", contradiction_severity: "CRITICAL" }],
+    }));
+    expect(report.color).toBe("RED / PASS");
+    expect(report.action).toBe("PASS");
+    // The winner is untouched even though the color is not a "play" color --
+    // it is still readable from run.independent_winner, unaffected by this gate.
+    expect(report.checks.find((c) => c.key === "committed")?.detail).toBe("Alpha");
+  });
+
+  it("13. P1/P2 inversion stays symmetric under low coverage", () => {
+    const forward = evaluate(fixture({ winner: "Alpha", usableCount: 5, totalCount: 81 }));
+    const inverted = evaluate({
+      ...fixture({ winner: "Beta", usableCount: 5, totalCount: 81 }),
+      match: { ...baseMatch, player1_name: "Beta", player2_name: "Alpha" },
+    });
+    expect(forward.color).toBe(inverted.color);
+    expect(forward.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(winnerDetail(forward)).toBe("Alpha");
+    expect(winnerDetail(inverted)).toBe("Beta");
+  });
+
+  it("14. a genuine Truth Engine refusal (no winner) still produces INSUFFICIENT EVIDENCE, coverage notwithstanding", () => {
+    const lowCoverageNoWinner = evaluate(fixture({ winner: null, usableCount: 5, totalCount: 81 }));
+    const highCoverageNoWinner = evaluate(fixture({ winner: null, usableCount: 25, totalCount: 25 }));
+    expect(lowCoverageNoWinner.color).toBe("INSUFFICIENT EVIDENCE");
+    expect(highCoverageNoWinner.color).toBe("INSUFFICIENT EVIDENCE");
+  });
+
+  it("15. a legacy coverage value in the exact real shape (~43.8%) cannot convert a valid selection into INSUFFICIENT EVIDENCE", () => {
+    // 35 of 80 non-excluded codes usable ~= 43.75%, reproducing the real
+    // Erhard/Shepp run's coverage almost exactly.
+    const report = evaluate(fixture({ winner: "Mathys Erhard", usableCount: 35, totalCount: 80, loser: "Anton Shepp" }));
+    expect(report.coverage.usablePercent).toBeCloseTo(43.8, 0);
+    expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(report.color).not.toBe("INCOMPLETE");
+    expect(winnerDetail(report)).toBe("Mathys Erhard");
+  });
+});
