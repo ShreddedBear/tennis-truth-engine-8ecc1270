@@ -441,10 +441,27 @@ export interface TruthEngineAuditResult {
 /**
  * The single entry point: evidence in, auditable winner (or an explicit refusal) out.
  *
- * The winner comes from the deterministic decision core. Verification, Disagreement,
- * Underdog and Stress are genuine audit layers over that same evidence -- and the stress
- * result can DOWNGRADE the outcome to a refusal (a selection that reverses under a
- * one-noise-floor erosion is not reported as a winner), but no layer can invent a winner.
+ * ORDER MATTERS, and it is the product's order: the deterministic decision core selects a
+ * side from the family-consolidated evidence, then Verification, Disagreement, Underdog and
+ * Stress all run over that same evidence BEFORE the final side is returned. Every one of
+ * them is computed on every audit, and all four are reported and persisted with the
+ * decision.
+ *
+ * WHAT NO LAYER MAY DO. None of them invents a winner, and none of them silently deletes
+ * one either. Stress in particular is an OBSERVATION LAYER: a selection that erodes under a
+ * one-noise-floor perturbation is reported FRAGILE or UNSTABLE and carried as a decision
+ * feature, not converted into a refusal. That erosion is a synthetic what-if over shifted
+ * numbers -- it is not evidence that the measured edge does not exist, and treating it as a
+ * veto silently discarded selections the measured evidence does support. (The one genuine
+ * reversal test that DOES refuse lives in the decision core: leave-one-family-out
+ * recomputes the leader with each REAL family removed, and a real family that reverses the
+ * leader means the call is contradicted by evidence actually in hand.)
+ *
+ * Refusal therefore has exactly one source: decideTruthEngineSelection returning
+ * INSUFFICIENT_EVIDENCE -- no directional evidence, a tie, below the 60% threshold, or a
+ * LOFO reversal. Low coverage, an unavailable metric, a single supporting family, an
+ * examined underdog pathway and an unstable stress result are none of them reasons to
+ * refuse.
  */
 export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: string, p2Name: string): TruthEngineAuditResult {
   const decision = decideTruthEngineSelection({ comparisons, p1Name, p2Name });
@@ -454,9 +471,9 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
   const underdog = runUnderdogAnalysis(comparisons, selected, p1Name, p2Name);
   const stress = runStressTest(comparisons, p1Name, p2Name);
 
-  // A selection that does not survive the adverse recomputation is refused, not asserted.
-  const stressRefuses = selected !== null && stress.changed;
-  const finalSide = stressRefuses ? null : selected;
+  // The final side IS the deterministic decision's side. The four audit layers above have
+  // already run and are returned with it; none of them may overwrite it.
+  const finalSide = selected;
   const winner = finalSide === "P1" ? p1Name : finalSide === "P2" ? p2Name : null;
 
   const supportCount = decision.independent_support_families.length;
@@ -490,11 +507,9 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
     independent_evidence_families: supportCount,
     contradiction_families: contraCount,
     leave_one_family_out_winner: decision.flipping_families.length ? "CHANGES" : decision.outcome,
-    final_reason: stressRefuses
-      ? `Refused: ${decision.selected_player} led on the measured evidence, but ${stress.reason}`
-      : finalSide === null
-        ? `Refused: ${decision.reason}`
-        : `${winner} is the audit winner. ${decision.reason} ${disagreement.final_effect} Underdog: ${underdog.overall_viability}. Stress: ${stress.stability}.`,
+    final_reason: finalSide === null
+      ? `Refused: ${decision.reason}`
+      : `${winner} is the audit winner. ${decision.reason} ${disagreement.final_effect} Underdog: ${underdog.overall_viability}. Stress: ${stress.stability} -- ${stress.reason} This is recorded as a characteristic of the decision, not a veto over it.`,
     evidence_chain: evidenceChain,
   };
 }

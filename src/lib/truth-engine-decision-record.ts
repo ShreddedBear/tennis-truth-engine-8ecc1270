@@ -1,6 +1,9 @@
 import type { TruthEngineAuditResult } from "./truth-engine-audit";
 import { activeMetricReadiness, type MetricRowForReadiness } from "./truth-engine-active-metrics";
 import { playerNamesMatch } from "./match-result-resolution";
+// The selected-player reader lives in its own minimal module so the grading path can import
+// it without importing this file (which necessarily names coverage and support fields).
+export { readSelectedPlayerFromGateReport, type SelectedPlayerRead } from "./truth-engine-selected-player";
 
 // THE DECISION RECORD — structured features of one finished Truth Engine decision.
 //
@@ -139,6 +142,13 @@ export function buildDecisionRecord({ audit, metricRows, now, actualWinner }: De
     actual_winner: actualWinner ?? null,
     decision_correct: resolved ? playerNamesMatch(selected!, actualWinner!) : null,
   };
+}
+
+/** The persisted decision record itself, when this run has one. */
+export function readDecisionRecord(gateReport: unknown): Partial<TruthEngineDecisionRecord> | null {
+  if (!gateReport || typeof gateReport !== "object") return null;
+  const record = (gateReport as Record<string, unknown>)["deterministic_decision"];
+  return record && typeof record === "object" ? (record as Partial<TruthEngineDecisionRecord>) : null;
 }
 
 /**

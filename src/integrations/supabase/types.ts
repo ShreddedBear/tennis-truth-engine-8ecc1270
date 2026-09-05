@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -141,8 +141,8 @@ export type Database = {
           created_at: string
           disagreement_version_id: string | null
           effective_evidence_count: number
-          id: string
           heartbeat_at: string | null
+          id: string
           independent_decision_committed_at: string | null
           independent_high: number | null
           independent_inputs: Json
@@ -150,14 +150,14 @@ export type Database = {
           independent_method_id: string | null
           independent_method_version: string | null
           independent_winner: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
           match_id: string
           matrix_revealed_at: string | null
           metrics_version_id: string | null
           raw_signal_count: number
           research_lock_at: string | null
           run_number: number
-          lease_expires_at: string | null
-          lease_owner: string | null
           stale_reason: string | null
           status: string
           updated_at: string
@@ -171,8 +171,8 @@ export type Database = {
           created_at?: string
           disagreement_version_id?: string | null
           effective_evidence_count?: number
-          id?: string
           heartbeat_at?: string | null
+          id?: string
           independent_decision_committed_at?: string | null
           independent_high?: number | null
           independent_inputs?: Json
@@ -180,14 +180,14 @@ export type Database = {
           independent_method_id?: string | null
           independent_method_version?: string | null
           independent_winner?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           match_id: string
           matrix_revealed_at?: string | null
           metrics_version_id?: string | null
           raw_signal_count?: number
           research_lock_at?: string | null
           run_number?: number
-          lease_expires_at?: string | null
-          lease_owner?: string | null
           stale_reason?: string | null
           status?: string
           updated_at?: string
@@ -201,8 +201,8 @@ export type Database = {
           created_at?: string
           disagreement_version_id?: string | null
           effective_evidence_count?: number
-          id?: string
           heartbeat_at?: string | null
+          id?: string
           independent_decision_committed_at?: string | null
           independent_high?: number | null
           independent_inputs?: Json
@@ -210,14 +210,14 @@ export type Database = {
           independent_method_id?: string | null
           independent_method_version?: string | null
           independent_winner?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           match_id?: string
           matrix_revealed_at?: string | null
           metrics_version_id?: string | null
           raw_signal_count?: number
           research_lock_at?: string | null
           run_number?: number
-          lease_expires_at?: string | null
-          lease_owner?: string | null
           stale_reason?: string | null
           status?: string
           updated_at?: string
@@ -1165,6 +1165,7 @@ export type Database = {
           scheduled_date: string | null
           scheduled_local_at: string | null
           scheduled_utc_at: string | null
+          slate_id: string | null
           surface: string | null
           surface_status: string
           tournament_id: string | null
@@ -1196,6 +1197,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_local_at?: string | null
           scheduled_utc_at?: string | null
+          slate_id?: string | null
           surface?: string | null
           surface_status?: string
           tournament_id?: string | null
@@ -1227,6 +1229,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_local_at?: string | null
           scheduled_utc_at?: string | null
+          slate_id?: string | null
           surface?: string | null
           surface_status?: string
           tournament_id?: string | null
@@ -1248,6 +1251,13 @@ export type Database = {
             columns: ["player2_id"]
             isOneToOne: false
             referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_slate_id_fkey"
+            columns: ["slate_id"]
+            isOneToOne: false
+            referencedRelation: "prediction_slates"
             referencedColumns: ["id"]
           },
           {
@@ -1694,6 +1704,36 @@ export type Database = {
           id?: string
           normalized_key?: string
           tour?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      prediction_slates: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          retired_at: string | null
+          retired_reason: string | null
+          slate_number: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
+          slate_number: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
+          slate_number?: number
           user_id?: string
         }
         Relationships: []
@@ -2783,6 +2823,129 @@ export type Database = {
         }
         Relationships: []
       }
+      truth_engine_calibration_observations: {
+        Row: {
+          actual_winner: string
+          audit_run_id: string
+          calibration_eligible: boolean
+          conflicted_families: string[]
+          contradicting_families: string[]
+          contradicting_family_count: number | null
+          corroborated: boolean | null
+          created_at: string
+          decision_outcome: string
+          directional_families: number | null
+          disagreement_result: string | null
+          eligibility_reason: string | null
+          evidence_coverage_expected: number | null
+          evidence_coverage_percent: number | null
+          evidence_coverage_usable: number | null
+          evidence_support_percent: number | null
+          final_score: string | null
+          id: string
+          match_id: string
+          neutral_families: string[]
+          observed_at: string
+          player1_name: string
+          player2_name: string
+          predicted_at: string | null
+          prediction_outcome: string
+          result_status: string | null
+          run_number: number
+          scheduled_date: string | null
+          selected_player: string
+          slate_id: string | null
+          stability: string | null
+          stress_result: string | null
+          supporting_families: string[]
+          supporting_family_count: number | null
+          underdog_result: string | null
+          updated_at: string
+          user_id: string
+          verification_result: string | null
+        }
+        Insert: {
+          actual_winner: string
+          audit_run_id: string
+          calibration_eligible?: boolean
+          conflicted_families?: string[]
+          contradicting_families?: string[]
+          contradicting_family_count?: number | null
+          corroborated?: boolean | null
+          created_at?: string
+          decision_outcome: string
+          directional_families?: number | null
+          disagreement_result?: string | null
+          eligibility_reason?: string | null
+          evidence_coverage_expected?: number | null
+          evidence_coverage_percent?: number | null
+          evidence_coverage_usable?: number | null
+          evidence_support_percent?: number | null
+          final_score?: string | null
+          id?: string
+          match_id: string
+          neutral_families?: string[]
+          observed_at?: string
+          player1_name: string
+          player2_name: string
+          predicted_at?: string | null
+          prediction_outcome: string
+          result_status?: string | null
+          run_number?: number
+          scheduled_date?: string | null
+          selected_player: string
+          slate_id?: string | null
+          stability?: string | null
+          stress_result?: string | null
+          supporting_families?: string[]
+          supporting_family_count?: number | null
+          underdog_result?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_result?: string | null
+        }
+        Update: {
+          actual_winner?: string
+          audit_run_id?: string
+          calibration_eligible?: boolean
+          conflicted_families?: string[]
+          contradicting_families?: string[]
+          contradicting_family_count?: number | null
+          corroborated?: boolean | null
+          created_at?: string
+          decision_outcome?: string
+          directional_families?: number | null
+          disagreement_result?: string | null
+          eligibility_reason?: string | null
+          evidence_coverage_expected?: number | null
+          evidence_coverage_percent?: number | null
+          evidence_coverage_usable?: number | null
+          evidence_support_percent?: number | null
+          final_score?: string | null
+          id?: string
+          match_id?: string
+          neutral_families?: string[]
+          observed_at?: string
+          player1_name?: string
+          player2_name?: string
+          predicted_at?: string | null
+          prediction_outcome?: string
+          result_status?: string | null
+          run_number?: number
+          scheduled_date?: string | null
+          selected_player?: string
+          slate_id?: string | null
+          stability?: string | null
+          stress_result?: string | null
+          supporting_families?: string[]
+          supporting_family_count?: number | null
+          underdog_result?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_result?: string | null
+        }
+        Relationships: []
+      }
       underdog_results: {
         Row: {
           audit_run_id: string
@@ -2982,12 +3145,114 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      active_prediction_slate: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          label: string | null
+          retired_at: string | null
+          retired_reason: string | null
+          slate_number: number
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prediction_slates"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      claim_audit_run: {
+        Args: {
+          p_lease_owner: string
+          p_lease_seconds?: number
+          p_run_id: string
+        }
+        Returns: boolean
+      }
+      consolidate_duplicate_matches: {
+        Args: never
+        Returns: {
+          keeper_match_id: string
+          merged_match_id: string
+        }[]
+      }
+      ensure_active_prediction_slate: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          label: string | null
+          retired_at: string | null
+          retired_reason: string | null
+          slate_number: number
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prediction_slates"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      release_audit_run_lease: {
+        Args: { p_lease_owner: string; p_run_id: string }
+        Returns: boolean
+      }
+      renew_audit_run_lease: {
+        Args: {
+          p_lease_owner: string
+          p_lease_seconds?: number
+          p_run_id: string
+        }
+        Returns: boolean
+      }
+      retire_active_prediction_slate: {
+        Args: { reason?: string }
+        Returns: string
+      }
+      upsert_metric_evidence_side: {
+        Args: { p_payload: Json }
+        Returns: {
+          as_of_date: string
+          computed_at: string
+          created_at: string
+          evidence_family: string | null
+          formula: string | null
+          id: string
+          input_observation_ids: string[]
+          metric_code: string
+          metric_name: string
+          opponent_name: string | null
+          player_name: string
+          reliability: number | null
+          sample_label: string | null
+          source_ids: string[]
+          sources: Json
+          surface: string | null
+          tournament: string | null
+          treatment: string
+          unavailable_reason: string | null
+          updated_at: string
+          user_id: string | null
+          valid_from: string | null
+          valid_until: string | null
+          value_text: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "metric_evidence_store"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -3007,12 +3272,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3036,11 +3301,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3061,11 +3326,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3086,11 +3351,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3103,11 +3368,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

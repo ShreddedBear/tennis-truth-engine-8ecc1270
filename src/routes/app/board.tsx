@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { buildBoardPdf } from "@/lib/report-pdf";
 import { toast } from "sonner";
 import { currentAuditRows, activeSlateMatchIds } from "@/lib/current-audit-state";
+import { readSelectedPlayerFromGateReport } from "@/lib/truth-engine-selected-player";
+import { fetchActiveSlateId } from "@/lib/active-slate-client";
+import { matchesOnSlate } from "@/lib/prediction-slate";
+
+function selectedPlayerFor(gateReport: unknown, independentWinner: string | null) {
+  const { present, selected_player } = readSelectedPlayerFromGateReport(gateReport);
+  return present ? selected_player : independentWinner;
+}
 
 export const Route = createFileRoute("/app/board")({
   head: () => ({
@@ -43,10 +51,13 @@ export function useBoardRows() {
   return useQuery({
     queryKey: ["board"],
     queryFn: async (): Promise<BoardRow[]> => {
+      // Read the current slate first, and key every match read to it: a retired slate must
+      // not rank on the board, and must not be servable from a stale cache entry either.
+      const slateId = await fetchActiveSlateId();
       const [decisionResult, runResult, matchResult, fieldResult, versionResult] = await Promise.all([
         supabase.from("final_decisions").select("*"),
         supabase.from("audit_runs").select("*"),
-        supabase.from("matches").select("*"),
+        slateId ? supabase.from("matches").select("*").eq("slate_id", slateId) : Promise.resolve({ data: [], error: null }),
         supabase.from("parsed_summary_fields").select("summary_version_id, field_key, normalized_value"),
         supabase.from("summary_versions").select("id, match_id, is_active"),
       ]);
@@ -74,7 +85,7 @@ export function useBoardRows() {
       // the active slate (an active summary_version) are eligible, using the
       // same definition every other operational page reuses.
       const slateMatchIds = activeSlateMatchIds(versions);
-      const activeMatches = matches.filter((match) => slateMatchIds.has(match.id));
+      const activeMatches = matchesOnSlate(matches, slateId).filter((match) => slateMatchIds.has(match.id));
 
       return currentAuditRows(activeMatches, runs, decisions).filter((row) => row.decision).map(({ match, run, decision: d }) => {
         const snapshot = (d!.gate_report as Record<string, any> | null)?.calibration_snapshot;
@@ -83,7 +94,10 @@ export function useBoardRows() {
           : null;
         return {
           matchLabel: `${match.player1_name} vs ${match.player2_name}`,
-          selection: d!.final_selection ?? run?.independent_winner ?? "—",
+          // THE ENGINE'S PICK, from the one authoritative field. final_decisions
+          // .final_selection is an ACTION (the recommendation), never a player -- reading it
+          // here is what used to show a recommendation string in a "selection" column.
+          selection: selectedPlayerFor(d!.gate_report, run?.independent_winner ?? null) ?? "—",
           tournament: match?.tournament_name ?? "—",
           surface: match?.surface ?? "—",
           matrixPick: matrixFor(match.id, "matrix_predicted_winner") ?? "—",

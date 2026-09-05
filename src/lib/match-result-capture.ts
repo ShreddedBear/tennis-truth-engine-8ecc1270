@@ -16,6 +16,7 @@
 //     population of those into calibrated probabilities is a later, separate job.
 
 import { matchResultIsFinal, mergeCapturedResult, resolvePredictionOutcome, type CapturedResult, type PredictionResolution } from "./match-result-resolution";
+import { readSelectedPlayerFromGateReport } from "./truth-engine-selected-player";
 
 export interface CaptureMatchRow {
   id: string;
@@ -86,17 +87,11 @@ export interface ResultCaptureSummary {
  * reading it as one would grade the wrong thing.
  */
 export function selectedPlayerForRun(run: CaptureRunRow, decision: CaptureDecisionRow | undefined): string | null {
-  const report = decision?.gate_report;
-  if (report && typeof report === "object") {
-    const record = (report as Record<string, unknown>)["deterministic_decision"];
-    if (record && typeof record === "object") {
-      const selected = (record as Record<string, unknown>)["selected_player"];
-      if (typeof selected === "string" && selected.trim()) return selected.trim();
-      // An explicit null selected_player is a real refusal, not missing data: the engine
-      // declined to name a player. Fall through to nothing rather than to the older column.
-      if (selected === null) return null;
-    }
-  }
+  // One reader for the whole app (truth-engine-selected-player.ts). An explicit null inside
+  // a present record is a real refusal, not missing data, so it must NOT fall through to the
+  // older column and resurrect a pick the engine declined to make.
+  const { present, selected_player } = readSelectedPlayerFromGateReport(decision?.gate_report);
+  if (present) return selected_player;
   return String(run.independent_winner ?? "").trim() || null;
 }
 

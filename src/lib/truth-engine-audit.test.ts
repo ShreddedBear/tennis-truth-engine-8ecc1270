@@ -188,7 +188,7 @@ describe("TEST 10/11 — the Stress Test genuinely recomputes winner_after", () 
     expect(a.audit_winner).toBe(P1);
   });
 
-  it("Test 10: a thin lead collapses under adverse erosion -> winner_after changes and the audit refuses", () => {
+  it("Test 10: a thin lead collapses under adverse erosion -> winner_after changes, and that is REPORTED, not enforced", () => {
     // Each edge is only ~1.4x its noise floor, so one noise-floor erosion removes them all.
     const a = audit([
       row("001", "1514", "1500"), // 14 vs materiality 10
@@ -198,10 +198,14 @@ describe("TEST 10/11 — the Stress Test genuinely recomputes winner_after", () 
     expect(a.stress.winner_before).toBe("P1");
     expect(a.stress.winner_after).not.toBe("P1");
     expect(a.stress.changed).toBe(true);
-    // A selection that does not survive its own stress test is refused, not asserted.
-    expect(a.refused).toBe(true);
-    expect(a.audit_winner).toBeNull();
-    expect(a.final_reason).toMatch(/Refused/);
+    // STRESS IS AN OBSERVATION LAYER. The adverse case is a synthetic what-if over shifted
+    // numbers, not evidence that the measured edge is absent, so it is carried as a
+    // characteristic of the decision (FRAGILE/UNSTABLE) and does NOT erase a selection the
+    // measured evidence supports. Refusal comes only from the deterministic decision core.
+    expect(["FRAGILE", "UNSTABLE"]).toContain(a.stress.stability);
+    expect(a.refused).toBe(false);
+    expect(a.audit_winner).toBe(P1);
+    expect(a.final_reason).toMatch(/not a veto/);
   });
 
   it("the ADVERSE case is a real recomputation, not a relabel: its family counts genuinely differ", () => {

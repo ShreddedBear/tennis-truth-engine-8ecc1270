@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StateText } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { activeSlateMatchIds, activeRunIds } from "@/lib/current-audit-state";
+import { fetchActiveSlateId } from "@/lib/active-slate-client";
 
 export const Route = createFileRoute("/app/logs")({
   head: () => ({
@@ -23,17 +24,23 @@ function Logs() {
   const { data } = useQuery({
     queryKey: ["logs"],
     queryFn: async () => {
-      const [{ data: logs }, { data: runs }, { data: versions }] = await Promise.all([
+      const slateId = await fetchActiveSlateId();
+      const [{ data: logs }, { data: runs }, { data: versions }, { data: slateMatches }] = await Promise.all([
         supabase.from("execution_logs").select("*").order("created_at", { ascending: false }).limit(300),
         supabase.from("audit_runs").select("id, match_id, run_number, status"),
         supabase.from("summary_versions").select("match_id, is_active"),
+        slateId ? supabase.from("matches").select("id").eq("slate_id", slateId) : Promise.resolve({ data: [] as Array<{ id: string }> }),
       ]);
       // Operational execution data must be scoped to active/current runs --
       // the same activeSlateMatchIds + resolveActiveRun-backed definition
       // every other operational page reuses. A cleared match's (or an
       // invalidated run's) log rows are real history, never deleted, but
       // they must not read as current operational output by default.
-      const activeIds = activeRunIds(runs ?? [], activeSlateMatchIds(versions ?? []));
+      // Current slate first, then the active-summary-version rule within it: a retired
+      // slate's runs are never "current operational output", however they are reached.
+      const onSlate = new Set((slateMatches ?? []).map((m) => m.id));
+      const currentMatchIds = new Set([...activeSlateMatchIds(versions ?? [])].filter((id) => onSlate.has(id)));
+      const activeIds = activeRunIds(runs ?? [], currentMatchIds);
       return { logs: logs ?? [], activeRunIds: [...activeIds] };
     },
   });

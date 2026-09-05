@@ -9,6 +9,8 @@ import { normalizeName } from "@/lib/summary-parser";
 import { activeRunExecutionPercent } from "@/lib/audit-progress";
 import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { activeRunIds, activeSlateMatchIds, isRowOnActiveSlate } from "@/lib/current-audit-state";
+import { fetchActiveSlate } from "@/lib/active-slate-client";
+import { matchesOnSlate } from "@/lib/prediction-slate";
 import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
@@ -31,16 +33,22 @@ function Slate(){
   const qc=useQueryClient();
   const[scope,setScope]=useState<"active"|"all">("active");
   const executeBatch=useServerFn(runAuditBatch);
+  const{data:currentSlate}=useQuery({queryKey:["prediction-slate"],refetchInterval:3000,queryFn:fetchActiveSlate});
+  const slateId=currentSlate?.id??null;
   const{data}=useQuery({
-    queryKey:["slate"],
+    // THE SLATE ID IS PART OF THE CACHE KEY. A retired slate's cached page is a different
+    // entry, so refreshing (or any refetch) after Clear Slate cannot resurrect it.
+    queryKey:["slate",slateId],
     refetchInterval:3000,
     queryFn:async()=>{
+      // Matches are read BY SLATE at the query itself, not filtered afterwards: a retired
+      // slate's rows never enter the client at all, for either scope below.
       const[{data:matches},{data:runs},{data:versions}]=await Promise.all([
-        supabase.from("matches").select("*").order("created_at",{ascending:false}),
+        slateId?supabase.from("matches").select("*").eq("slate_id",slateId).order("created_at",{ascending:false}):Promise.resolve({data:[]}),
         supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at"),
         supabase.from("summary_versions").select("match_id, upload_id, created_at, is_active"),
       ]);
-      const raw=matches??[],runRows=runs??[],groups:any[][]=[];
+      const raw=matchesOnSlate((matches??[]) as any[],slateId),runRows=runs??[],groups:any[][]=[];
       for(const match of raw){const index=groups.findIndex(group=>samePair(group[0],match));if(index<0)groups.push([match]);else groups[index].push(match);}
       // The active slate = matches with an active summary_version -- the
       // same definition Dashboard and the Master Ranked Board use (reused
@@ -111,18 +119,18 @@ function Slate(){
   const activeStageFor=(run:any)=>{const running=stagesFor(run).filter(({row})=>row?.status==="RUNNING");return running.length?running[running.length-1].row:null;};
   const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
   const activeMatchIds=new Set(data?.activeMatchIds??[]);
-  // "active" is the true current slate (an active summary_version) --
-  // cleared matches are gone the instant Clear Slate runs. "all" is an
-  // explicit historical view: every match ever ingested, cleared or not.
+  // BOTH scopes are inside the current slate. "active" additionally requires an active
+  // summary_version; "all" means every match on THIS slate -- never "every row still in the
+  // matches table", which is what used to let a retired slate reappear behind the toggle.
   const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||isRowOnActiveSlate(match,activeMatchIds));
 
   return <div className="space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h1 className="text-xl font-semibold">Active slate</h1>
-        <p className="text-sm text-muted-foreground">{scope==="active"?"Showing the current active slate -- matches cleared by Clear Slate disappear immediately.":"Showing every match ever ingested, including cleared/historical matches."} Active runs are claimed in bounded batches and refreshed from persisted stages every few seconds. Evidence is shown only after canonical coverage rows are persisted.</p>
+        <p className="text-sm text-muted-foreground">{scope==="active"?"Showing matches on the current slate that still hold an active summary version.":"Showing every match on the current slate, including any whose summary version was superseded."} Retired slates are never shown here: Clear Slate retires the slate, and every query on this page is scoped to the current one. Active runs are claimed in bounded batches and refreshed from persisted stages every few seconds. Evidence is shown only after canonical coverage rows are persisted.</p>
       </div>
-      <Button size="sm" variant="secondary" onClick={()=>setScope(scope==="active"?"all":"active")}>{scope==="active"?`Show all matches (${data?.matches?.length??0})`:"Show active slate only"}</Button>
+      <Button size="sm" variant="secondary" onClick={()=>setScope(scope==="active"?"all":"active")}>{scope==="active"?`Show all matches on this slate (${data?.matches?.length??0})`:"Show active summary versions only"}</Button>
     </div>
     <div className="panel overflow-x-auto">
       <table className="w-full text-sm">
@@ -147,7 +155,7 @@ function Slate(){
               </div></td>
             </tr>;
           })}
-          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
+          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{slateId?(scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches on the current slate."):"The slate has been cleared. Active slate = 0. Upload a summary PDF to open the next slate."}</td></tr>}
         </tbody>
       </table>
     </div>

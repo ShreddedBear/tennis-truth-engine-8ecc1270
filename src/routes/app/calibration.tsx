@@ -9,6 +9,8 @@ import { winRate } from "@/lib/audit-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BucketBadge } from "@/components/StatusBadge";
+import { useServerFn } from "@tanstack/react-start";
+import { rebuildCalibrationObservations } from "@/lib/calibration-observations.functions";
 
 export const Route = createFileRoute("/app/calibration")({
   head: () => ({
@@ -100,6 +102,32 @@ function Calibration() {
     onError: (e) => toast.error((e as Error).message),
   });
 
+  // TRUTH ENGINE CALIBRATION -- a SEPARATE population from the Matrix ledger below, which is
+  // keyed on matrix_wp. The two are never mixed, and neither is ever back-filled from the
+  // other.
+  const rebuildObservations = useServerFn(rebuildCalibrationObservations);
+  const { data: engine } = useQuery({
+    queryKey: ["truth-engine-calibration"],
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("truth_engine_calibration_observations")
+        .select("id, selected_player, actual_winner, prediction_outcome, evidence_support_percent, evidence_coverage_percent, stress_result, corroborated, calibration_eligible, scheduled_date")
+        .order("scheduled_date", { ascending: false })
+        .limit(200);
+      if (error) throw new Error(error.message);
+      return rows ?? [];
+    },
+  });
+  const rebuild = useMutation({
+    mutationFn: () => rebuildObservations({}),
+    onSuccess: (result) => {
+      toast.success(`Results captured: ${result.capture.results_captured}. Resolved observations: ${result.observations.observations_built} (${result.observations.calibration_eligible} calibration-eligible). Calibration status: ${result.calibration.status}.`);
+      qc.invalidateQueries();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const eligible = (engine ?? []).filter((row) => row.calibration_eligible);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -113,6 +141,34 @@ function Calibration() {
         <Link to="/app/calibration-history" className="text-sm text-primary underline-offset-4 hover:underline">
           Version history
         </Link>
+      </div>
+
+      <div className="panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Truth Engine calibration</h2>
+            <p className="text-xs text-muted-foreground">
+              Learns <span className="font-medium">final decision characteristics &rarr; actual match winner</span> from resolved
+              predictions only. Evidence coverage is diagnostic and never enters this; evidence support is a decision feature, not a
+              probability. This population is entirely separate from the Matrix WP ledger below.
+            </p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
+            {rebuild.isPending ? "Capturing results…" : "Capture results & rebuild observations"}
+          </Button>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div><p className="mono-num text-2xl font-semibold">{engine?.length ?? 0}</p><p className="text-xs text-muted-foreground">resolved Truth Engine predictions</p></div>
+          <div><p className="mono-num text-2xl font-semibold">{eligible.length}</p><p className="text-xs text-muted-foreground">calibration-eligible (pre-match, one per match)</p></div>
+          <div><p className="mono-num text-2xl font-semibold">{eligible.length ? `${eligible.filter((r) => r.prediction_outcome === "WIN").length}/${eligible.length}` : "—"}</p><p className="text-xs text-muted-foreground">observed wins &mdash; counts, not a calibrated probability</p></div>
+        </div>
+        {!eligible.length && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Historical calibration is not yet populated: no completed match has produced a resolved pre-match Truth Engine decision.
+            No probability is reported until real outcomes exist &mdash; the evidence-support number is not substituted for one, and the
+            Matrix WP baseline is not borrowed.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

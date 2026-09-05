@@ -8,6 +8,8 @@ import { log } from "@/lib/audit-runs";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
 import { activeMetricReadiness } from "@/lib/truth-engine-active-metrics";
+import { deterministicIndependentConclusion } from "@/lib/audit-pipeline";
+import { buildTruthEnginePrediction } from "@/lib/truth-engine-prediction";
 import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
 import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
 import { MATRIX_FIELDS } from "@/lib/constants";
@@ -128,6 +130,59 @@ function ActiveEvidenceSummary({ rows, processingTotal }: { rows: ResultRow[]; p
       {cell("Active Truth Engine evidence", `${readiness.usable}/${readiness.expected} usable · ${readiness.percent}%`)}
       {cell("One-sided (no lean)", String(readiness.oneSided))}
       {cell("Unavailable / not executed", `${readiness.unavailable} / ${readiness.notExecuted}`)}
+    </div>
+  );
+}
+
+// THE THREE PERCENTAGES, SIDE BY SIDE AND LABELLED.
+//
+// They have been conflated so often that the panel states each one's meaning inline:
+//   Evidence coverage  -- DIAGNOSTIC. How much of the 25-metric active universe was usable.
+//   Evidence support   -- the family-level SELECTION criterion the 60% threshold applies to.
+//   Calibrated win probability -- the only probability, and only once resolved outcomes exist.
+// The winner shown is the deterministic decision AFTER verification, disagreement, underdog
+// and stress have all run; those four are reported as states beside it, never summed into it.
+function TruthEnginePrediction({ metrics, p1Name, p2Name }: { metrics: Array<Record<string, unknown>>; p1Name: string; p2Name: string }) {
+  const audit = deterministicIndependentConclusion(metrics, p1Name, p2Name).audit;
+  const prediction = buildTruthEnginePrediction({ audit, metricRows: metrics as never, p1Name, p2Name });
+  const support = prediction.evidence_support;
+  const box = (label: string, value: string, note: string, tone?: string) => (
+    <div key={label} className="rounded-md border border-border p-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`mono-num text-lg font-semibold ${tone ?? ""}`}>{value}</div>
+      <div className="mt-1 text-[10px] leading-snug text-muted-foreground">{note}</div>
+    </div>
+  );
+  return (
+    <div className="mt-3 rounded-md border border-border p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold">Truth Engine prediction</h3>
+        <span className={prediction.final_deterministic_winner ? "text-ok text-sm font-semibold" : "text-warn text-sm"}>
+          {prediction.final_deterministic_winner ?? "NO DIRECTIONAL SELECTION"}
+        </span>
+      </div>
+      <div className="mt-2 grid gap-2 text-xs md:grid-cols-3">
+        {box("Evidence coverage", `${prediction.evidence_coverage.percent}%`,
+          `${prediction.evidence_coverage.usable}/${prediction.evidence_coverage.expected} active metrics usable. Diagnostic only — never a win probability, and a fuller set is not a stronger prediction.`)}
+        {box("Evidence support", `${support.p1_percent}% / ${support.p2_percent}%`,
+          `${p1Name} vs ${p2Name}, over ${support.directional_families} directional famil${support.directional_families === 1 ? "y" : "ies"}. The 60% selection criterion applies here. Not a win probability.`,
+          support.p1_percent >= 60 || support.p2_percent >= 60 ? "text-ok" : "text-warn")}
+        {box("Calibrated win probability",
+          prediction.calibrated_win_probability.calibrated_win_probability === null ? "—" : `${prediction.calibrated_win_probability.calibrated_win_probability}%`,
+          prediction.calibrated_win_probability.reason)}
+      </div>
+      <div className="mt-2 grid gap-1 text-[11px] sm:grid-cols-2 lg:grid-cols-4">
+        {([["Verification", prediction.scrutiny.verification], ["Disagreement", prediction.scrutiny.disagreement],
+           ["Underdog", prediction.scrutiny.underdog], ["Stress", prediction.scrutiny.stress]] as const).map(([label, value]) => (
+          <div key={label} className="rounded-md bg-muted px-2 py-1">
+            <span className="text-muted-foreground">{label}: </span><span className="font-medium">{value}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+        {support.corroborated ? "Corroborated by more than one independent evidence family." : "Uncorroborated: a single independent evidence family supports this selection."}
+        {" "}Stress is recorded as a characteristic of the decision, not a veto over it. {prediction.decision_reason}
+      </p>
     </div>
   );
 }
@@ -508,6 +563,7 @@ function Workspace() {
               ? `AUDIT INCOMPLETE — pipeline still executing: ${report.stageGaps.join(", ")}`
               : "AUDIT INCOMPLETE"}
         </p>
+        <TruthEnginePrediction metrics={(data.metrics ?? []) as Array<Record<string, unknown>>} p1Name={match.player1_name} p2Name={match.player2_name} />
         <div className="mt-3 rounded-md border border-border p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-sm font-semibold">Evidence coverage</h3>

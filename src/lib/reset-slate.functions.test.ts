@@ -9,13 +9,16 @@ class MemoryDb {
   constructor() {
     const current = { id: "match-current" };
     this.tables = {
+      // Clear Slate now retires the current slate first; the memory db answers the same
+      // rpc the Supabase client issues.
+      prediction_slates: [{ id: "slate-1", slate_number: 1, retired_at: null }],
       summary_uploads: [{ id: "upload-1" }, { id: "upload-2" }],
       summary_pages: [{ id: "page-1", upload_id: "upload-1" }],
       summary_versions: [
         { id: "version-1", upload_id: "upload-1", match_id: current.id, is_active: true },
         { id: "version-2", upload_id: "upload-2", match_id: current.id, is_active: true },
       ],
-      matches: [current, { id: "historical-match" }],
+      matches: [{ ...current, slate_id: "slate-1" }, { id: "historical-match", slate_id: "slate-0" }],
       audit_runs: [{ id: "run-current", match_id: current.id, status: "RUNNING", lease_owner: "worker-1" }, { id: "run-history", match_id: "historical-match" }],
       metric_results: [{ id: "metric-current", audit_run_id: "run-current" }],
       reconstruction_results: [],
@@ -37,6 +40,15 @@ class MemoryDb {
       source_observations: [{ id: "observation-1" }],
       rule_documents: [{ id: "rules-1" }],
     };
+  }
+
+  async rpc(name: string, args: Record<string, unknown>) {
+    if (name !== "retire_active_prediction_slate") throw new Error(`unexpected rpc ${name}`);
+    const active = this.tables.prediction_slates.find((slate) => !slate.retired_at);
+    if (!active) return { data: null, error: null };
+    active.retired_at = "2026-09-05T12:00:00.000Z";
+    active.retired_reason = args.reason;
+    return { data: active.id, error: null };
   }
 
   from(table: string) {
@@ -76,8 +88,9 @@ describe("clearOperationalSlate", () => {
     const db = new MemoryDb();
     const deleted = await clearOperationalSlate(db);
 
-    expect(deleted).toEqual({ matches: 1, auditRuns: 1, summaryVersions: 2, uploads: 2 });
-    expect(db.tables.matches).toEqual([{ id: "match-current", active_summary_version_id: null }, { id: "historical-match" }]);
+    expect(deleted).toEqual({ retiredSlateId: "slate-1", matches: 1, auditRuns: 1, summaryVersions: 2, uploads: 2 });
+    expect(db.tables.matches).toEqual([{ id: "match-current", slate_id: "slate-1", active_summary_version_id: null }, { id: "historical-match", slate_id: "slate-0" }]);
+    expect(db.tables.prediction_slates[0].retired_at).toBeTruthy();
     expect(db.tables.audit_runs).toHaveLength(2);
     expect(db.tables.audit_runs.find((row) => row.id === "run-history")).toBeTruthy();
     expect(db.tables.summary_uploads).toHaveLength(2);
@@ -94,12 +107,16 @@ describe("clearOperationalSlate", () => {
     const db = new MemoryDb();
     await clearOperationalSlate(db);
 
-    expect(await clearOperationalSlate(db)).toEqual({ matches: 0, auditRuns: 0, summaryVersions: 0, uploads: 0 });
+    // Nothing left active: the slate is already retired, so a second clear retires nothing.
+    expect(await clearOperationalSlate(db)).toEqual({ retiredSlateId: null, matches: 0, auditRuns: 0, summaryVersions: 0, uploads: 0 });
+
+    // A NEW slate opens with the next upload, and clearing again retires that one.
+    db.tables.prediction_slates.push({ id: "slate-2", slate_number: 2, retired_at: null });
     db.tables.summary_uploads.push({ id: "upload-new" });
     db.tables.summary_versions.push({ id: "version-new", upload_id: "upload-new", match_id: "match-new", is_active: true });
-    db.tables.matches.push({ id: "match-new", active_summary_version_id: "version-new" });
+    db.tables.matches.push({ id: "match-new", slate_id: "slate-2", active_summary_version_id: "version-new" });
 
-    expect(await clearOperationalSlate(db)).toEqual({ matches: 1, auditRuns: 0, summaryVersions: 1, uploads: 1 });
+    expect(await clearOperationalSlate(db)).toEqual({ retiredSlateId: "slate-2", matches: 1, auditRuns: 0, summaryVersions: 1, uploads: 1 });
     expect(db.tables.matches).toHaveLength(3);
     expect(db.tables.source_observations).toHaveLength(1);
   });

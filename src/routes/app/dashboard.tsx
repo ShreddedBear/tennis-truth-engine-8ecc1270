@@ -9,6 +9,8 @@ import { winRate } from "@/lib/audit-engine";
 import { resetOperationalSlate } from "@/lib/reset-slate.functions";
 import { APP_BUILD_INFO } from "@/generated/app-build-info";
 import { currentAuditRows, activeSlateMatchIds } from "@/lib/current-audit-state";
+import { fetchActiveSlateId } from "@/lib/active-slate-client";
+import { matchesOnSlate } from "@/lib/prediction-slate";
 
 export const Route = createFileRoute("/app/dashboard")({
   head: () => ({
@@ -25,11 +27,14 @@ export const Route = createFileRoute("/app/dashboard")({
 function Dashboard() {
   const queryClient = useQueryClient();
   const resetSlate = useServerFn(resetOperationalSlate);
+  // The slate id is in the cache key AND in the match query, so a cleared slate can be
+  // neither read nor served from cache here.
+  const { data: slateId } = useQuery({ queryKey: ["prediction-slate-id"], queryFn: fetchActiveSlateId });
   const { data } = useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", slateId ?? null],
     queryFn: async () => {
       const [matches, runs, decisions, version, uploads, slateVersions] = await Promise.all([
-        supabase.from("matches").select("id, match_status, identity_status, surface_status"),
+        supabase.from("matches").select("id, slate_id, match_status, identity_status, surface_status"),
         supabase.from("audit_runs").select("id, match_id, run_number, status"),
         supabase.from("final_decisions").select("audit_run_id, final_audit_color, audit_complete"),
         supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle(),
@@ -39,7 +44,11 @@ function Dashboard() {
       const buckets = version.data
         ? (await supabase.from("calibration_buckets").select("*").eq("calibration_version_id", version.data.id).order("wp_min")).data ?? []
         : [];
-      const slateMatchIds = activeSlateMatchIds(slateVersions.data ?? []);
+      // Current slate first, then the active-summary-version rule within it. A match must
+      // satisfy BOTH to count as current.
+      const onSlate = matchesOnSlate((matches.data ?? []) as Array<{ id: string; slate_id?: string | null }>, slateId ?? null);
+      const onSlateIds = new Set(onSlate.map((m) => m.id));
+      const slateMatchIds = new Set([...activeSlateMatchIds(slateVersions.data ?? [])].filter((id) => onSlateIds.has(id)));
       const slateUploadIds = new Set((slateVersions.data ?? []).filter((row) => row.is_active === true).map((row) => row.upload_id));
       const currentRows = currentAuditRows(
         (matches.data ?? []).filter((match) => slateMatchIds.has(match.id)),
@@ -59,14 +68,20 @@ function Dashboard() {
   const clearMutation = useMutation({
     mutationFn: async () => {
       const confirmed = window.confirm(
-        "Clear the operational slate to 0? This removes uploaded match/slate/audit run data but preserves calibration, rules, and historical evidence.",
+        "Clear the operational slate to 0? The current slate is retired: its matches, audit runs and decisions stop being current and can never be reused by a later upload. Global reference data (players, historical evidence, rules, metric registry, calibration) is preserved.",
       );
       if (!confirmed) throw new Error("CANCELLED");
       return resetSlate({ data: { confirm: "CLEAR SLATE" } });
     },
     onSuccess: async (result) => {
+      // Clear the cache outright rather than only marking it stale: an invalidated-but-
+      // retained entry can still be served while the refetch is in flight, which is one of
+      // the ways the retired slate appeared to survive a clear. removeQueries drops the
+      // retired slate's entries entirely, and the slate id changing gives every page a new
+      // cache key anyway.
+      queryClient.removeQueries();
       await queryClient.invalidateQueries();
-      toast.success(`Slate cleared: ${result.deleted.matches} matches and ${result.deleted.uploads} uploads removed.`);
+      toast.success(`Slate retired: ${result.deleted.matches} matches and ${result.deleted.auditRuns} audit runs left the current slate. The next upload opens a new slate.`);
     },
     onError: (error) => {
       if ((error as Error).message === "CANCELLED") return;

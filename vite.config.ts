@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { execSync } from "node:child_process";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
@@ -28,6 +29,16 @@ const appBuildInfo = {
 
   export default defineConfig({
     vite: {
+      // Several suites (the 013/014/030 producer fixes, the 043/044 underdog patterns, the
+      // twin-match search) parse the ~80MB generated runtime tennis index inside the test
+      // body. They complete in roughly 3-8s each, which sat close enough to vitest's 5s
+      // default that adding any further parallel load made them time out at random --
+      // reporting a red suite for a change that had nothing to do with them. The headroom is
+      // for I/O-bound fixture loading only; no assertion or behaviour changes with it.
+      test: {
+        testTimeout: 30_000,
+        hookTimeout: 30_000,
+      },
       define: {
         __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
       },

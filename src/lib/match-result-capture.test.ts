@@ -218,6 +218,9 @@ function codeOf(path: string) {
 describe("evidence never enters the verdict", () => {
   const resolution = codeOf("src/lib/match-result-resolution.ts");
   const capture = codeOf("src/lib/match-result-capture.ts");
+  // The selected-player reader is its own minimal module precisely so the grading path can
+  // read a decision's pick without importing anything that names the evidence behind it.
+  const selectedPlayer = codeOf("src/lib/truth-engine-selected-player.ts");
 
   it("H/I/J. the resolution primitives never reference coverage, the active registry or probability", () => {
     // The grading module cannot even name these things, so no future edit can quietly wire
@@ -225,10 +228,13 @@ describe("evidence never enters the verdict", () => {
     for (const forbidden of ["coverage", "ACTIVE_METRIC", "activeMetricReadiness", "evidence_support", "evidence_percent", "probability", "win_probability", "bucketFor"]) {
       expect(resolution, forbidden).not.toContain(forbidden);
     }
-    // The orchestrator may READ a decision record, but only ever for selected_player.
-    expect(capture).toContain('"selected_player"');
+    // The orchestrator may READ a decision record, but only ever for selected_player, and
+    // only through the one minimal reader.
+    expect(capture).toContain("readSelectedPlayerFromGateReport");
+    expect(selectedPlayer).toContain('"selected_player"');
     for (const forbidden of ["evidence_coverage", "evidence_support_percent", "activeMetricReadiness", "bucketFor", "probability"]) {
       expect(capture, forbidden).not.toContain(forbidden);
+      expect(selectedPlayer, forbidden).not.toContain(forbidden);
     }
     // resolvePredictionOutcome's signature admits nothing but names and status.
     expect(resolution).toContain("resolvePredictionOutcome(\n  selectedPlayer: string | null | undefined,\n  facts: MatchResultFacts,\n)");
