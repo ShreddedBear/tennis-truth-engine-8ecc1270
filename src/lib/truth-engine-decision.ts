@@ -27,6 +27,7 @@
 // neutral-in-favour-of-anyone, and never evidence for the side that does have data.
 
 import type { ComparisonFavours, MetricComparison } from "./truth-engine-metric-comparison";
+import { isActiveMetricCode } from "./truth-engine-active-metrics";
 
 export type FamilyVote = "P1" | "P2" | "NEUTRAL" | "INTERNALLY_CONFLICTED";
 export type SelectionOutcome = "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
@@ -156,7 +157,17 @@ export interface DecisionInput {
 }
 
 export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: DecisionInput): TruthEngineDecision {
-  const families = buildFamilies(comparisons);
+  // Defense in depth: in the real pipeline every MetricComparison[] passed here already
+  // came from compareMetricRows, which can structurally never mark an inactive (no-spec)
+  // code "COMPARED" (see truth-engine-metric-comparison.ts). This second, independent
+  // filter on the FAMILIES input means that guarantee doesn't rest on every future caller
+  // routing through compareMetricRows correctly -- an inactive code can never become voting
+  // evidence here even if handed a forged/malformed comparison that claims to be
+  // "COMPARED". `unavailable` deliberately still lists every excluded code, active or not
+  // (with its real reason, NO_COMPARISON_SPEC for an inactive one) -- that diagnostic
+  // transparency is what proves an inactive code was seen and correctly excluded, not
+  // silently dropped.
+  const families = buildFamilies(comparisons.filter((c) => isActiveMetricCode(c.metric_code)));
   const unavailable = comparisons
     .filter((c) => c.status !== "COMPARED")
     .map((c) => ({ metric_code: c.metric_code, status: c.status, reason: c.reason }));

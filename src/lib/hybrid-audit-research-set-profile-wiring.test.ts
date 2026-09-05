@@ -24,7 +24,9 @@ import { localMetricRows } from "./hybrid-audit-research.server";
 const CONTEXT = "date 2026-09-01 · surface hard";
 
 describe("hybrid-audit-research: local Set Profile wiring for metric 008", () => {
-  it("008 (Deciding-set win %) now surfaces the real deciding_set_win_pct field from local CSV data", () => {
+  // Reads the real ~79k-row committed CSV; parallel test-run contention can occasionally
+  // push that past vitest's default 5000ms.
+  it("008 (Deciding-set win %) now surfaces the real deciding_set_win_pct field from local CSV data", { timeout: 15000 }, () => {
     const [row] = localMetricRows("Novak Djokovic", "Some Unknown Player", CONTEXT, [
       { code: "008", name: "Set Profile", body: null },
     ]);
