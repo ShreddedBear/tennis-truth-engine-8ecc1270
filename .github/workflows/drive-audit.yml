@@ -1,0 +1,51 @@
+name: Drive Audit Batch
+
+# Unattended continuation for in-flight audits, independent of
+# /api/drive-audit-batch (that path is armed via AUDIT_CRON_SECRET and an
+# external HTTP scheduler; this one runs the same pipeline code directly in
+# the runner via `bun run`, authenticated with the Supabase service-role key
+# instead). Every audit-driving path outside this workflow is triggered from
+# a browser tab (Upload's commit flow, Active Slate's poll loop), so the
+# moment that tab closes or backgrounds, every RUNNING audit freezes exactly
+# where it was -- confirmed in production, where a real batch sat with zero
+# heartbeat activity for over an hour once nobody was watching the page.
+# This workflow keeps RUNNING audits advancing regardless.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drive-audit-batch
+  cancel-in-progress: false
+
+jobs:
+  drive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build runtime tennis index from committed CSV sources
+        run: node scripts/build-runtime-tennis-index.mjs
+
+      - name: Drive every RUNNING audit one wave forward
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+          RESEARCH_FALLBACK_API_KEY: ${{ secrets.RESEARCH_FALLBACK_API_KEY }}
+          RESEARCH_FALLBACK_URL: ${{ secrets.RESEARCH_FALLBACK_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: bun run scripts/drive-audit-batch.ts
