@@ -1,4 +1,5 @@
 import { COMPARISON_SPECS } from "./truth-engine-metric-comparison";
+import { classifyMetricActivation, type MetricActivationForMatch } from "./metric-activation-status";
 
 // THE ACTIVE TRUTH ENGINE METRIC SET — one definition, derived, never typed out.
 //
@@ -41,6 +42,9 @@ export interface MetricRowForReadiness {
   p2_treatment?: string | null;
   p1_value?: string | null;
   p2_value?: string | null;
+  /** Already-persisted machine-readable reasons (metricPairPatch's UnavailableReason). */
+  p1_unavailable_reason?: string | null;
+  p2_unavailable_reason?: string | null;
 }
 
 export type ActiveMetricOutcome = "USABLE_TWO_SIDED" | "ONE_SIDED" | "UNAVAILABLE" | "NOT_EXECUTED";
@@ -56,8 +60,18 @@ export interface ActiveMetricReadiness {
   unavailable: number;
   /** Active codes with no row in this run at all. */
   notExecuted: number;
+  /** usable / expected(25) -- the ORIGINAL, unchanged, fixed-denominator readiness number. */
   percent: number;
-  byCode: Array<{ code: string; outcome: ActiveMetricOutcome }>;
+  /**
+   * How many of the 25 are legitimately eligible FOR THIS MATCH: `expected` minus codes
+   * where BOTH sides independently landed on an evidence-based absence (see
+   * metric-activation-status.ts's DENOMINATOR_EXCUSED_STATUSES) -- never a metric merely
+   * NOT_EXECUTED or broken by a real pipeline bug, which stay counted as misses.
+   */
+  eligible: number;
+  /** usable / eligible -- the DYNAMIC, per-match coverage number this task adds. */
+  eligiblePercent: number;
+  byCode: Array<{ code: string; outcome: ActiveMetricOutcome; activation: MetricActivationForMatch }>;
 }
 
 function sideUsable(treatment: string | null | undefined, value: string | null | undefined) {
@@ -91,19 +105,27 @@ export function activeMetricReadiness(
 
   const outcomes = codes.map((code) => {
     const row = byCode.get(code);
-    if (!row) return { code, outcome: "NOT_EXECUTED" as const };
+    const activation = classifyMetricActivation(
+      code,
+      { executed: Boolean(row), treatment: row?.p1_treatment, value: row?.p1_value, reason: row?.p1_unavailable_reason },
+      { executed: Boolean(row), treatment: row?.p2_treatment, value: row?.p2_value, reason: row?.p2_unavailable_reason },
+    );
+    if (!row) return { code, outcome: "NOT_EXECUTED" as const, activation };
     const p1 = sideUsable(row.p1_treatment, row.p1_value);
     const p2 = sideUsable(row.p2_treatment, row.p2_value);
-    if (p1 && p2) return { code, outcome: "USABLE_TWO_SIDED" as const };
-    if (p1 || p2) return { code, outcome: "ONE_SIDED" as const };
-    return { code, outcome: "UNAVAILABLE" as const };
+    if (p1 && p2) return { code, outcome: "USABLE_TWO_SIDED" as const, activation };
+    if (p1 || p2) return { code, outcome: "ONE_SIDED" as const, activation };
+    return { code, outcome: "UNAVAILABLE" as const, activation };
   });
 
   const count = (outcome: ActiveMetricOutcome) => outcomes.filter((entry) => entry.outcome === outcome).length;
   const usable = count("USABLE_TWO_SIDED");
+  const eligible = outcomes.filter((entry) => entry.activation.countsTowardDenominator).length;
   return {
     expected: codes.length,
     usable,
+    eligible,
+    eligiblePercent: eligible > 0 ? Number(((usable / eligible) * 100).toFixed(1)) : 0,
     oneSided: count("ONE_SIDED"),
     unavailable: count("UNAVAILABLE"),
     notExecuted: count("NOT_EXECUTED"),

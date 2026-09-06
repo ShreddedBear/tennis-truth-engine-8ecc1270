@@ -146,3 +146,52 @@ describe("readiness reproduces the real live run it was built to explain", () =>
     expect(r.percent).toBe(20);
   });
 });
+
+describe("dynamic per-match denominator (eligible/eligiblePercent)", () => {
+  it("a metric genuinely unavailable on both sides (real, evidenced absence) is excused from the denominator", () => {
+    const rows: MetricRowForReadiness[] = [
+      { metric_code: "001", p1_treatment: "DIRECT", p1_value: "1600", p2_treatment: "DIRECT", p2_value: "1400" },
+      // 009 (Pressure point win %): no PBP source exists for either player in this match.
+      { metric_code: "009", p1_treatment: "UNAVAILABLE", p1_value: null, p1_unavailable_reason: "NO_SOURCE_FOUND", p2_treatment: "UNAVAILABLE", p2_value: null, p2_unavailable_reason: "HISTORICAL_DATA_UNAVAILABLE" },
+    ];
+    const r = activeMetricReadiness(rows, ["001", "009"]);
+    expect(r.expected).toBe(2);
+    expect(r.eligible).toBe(1); // only 001 -- 009 is excused, not merely "unavailable"
+    expect(r.usable).toBe(1);
+    expect(r.eligiblePercent).toBe(100); // 1/1, not diluted by a metric with no real signal
+    expect(r.percent).toBe(50); // the ORIGINAL fixed-25-style number is untouched
+  });
+
+  it("insufficient sample on both sides is also excused -- real scarcity, not a bug", () => {
+    const rows: MetricRowForReadiness[] = [
+      { metric_code: "029", p1_treatment: "UNAVAILABLE", p1_value: null, p1_unavailable_reason: "INSUFFICIENT_SAMPLE", p2_treatment: "UNAVAILABLE", p2_value: null, p2_unavailable_reason: "INSUFFICIENT_SAMPLE" },
+    ];
+    const r = activeMetricReadiness(rows, ["029"]);
+    expect(r.eligible).toBe(0);
+    expect(r.eligiblePercent).toBe(0);
+  });
+
+  it("a real pipeline bug on even one side keeps the metric IN the denominator as a miss", () => {
+    const rows: MetricRowForReadiness[] = [
+      // P1 genuinely has no data; P2's identity resolution failed -- a fixable defect, not proof of absence.
+      { metric_code: "055", p1_treatment: "UNAVAILABLE", p1_value: null, p1_unavailable_reason: "NO_SOURCE_FOUND", p2_treatment: "UNAVAILABLE", p2_value: null, p2_unavailable_reason: "PLAYER_NOT_FOUND" },
+    ];
+    const r = activeMetricReadiness(rows, ["055"]);
+    expect(r.eligible).toBe(1);
+    expect(r.eligiblePercent).toBe(0); // counted, but not usable -- an honest miss, not hidden
+  });
+
+  it("a metric never attempted at all always counts toward the denominator, never excused", () => {
+    const r = activeMetricReadiness([], ["001", "002"]);
+    expect(r.eligible).toBe(2);
+    expect(r.eligiblePercent).toBe(0);
+  });
+
+  it("byCode carries the full per-side activation classification for the audit trail", () => {
+    const rows: MetricRowForReadiness[] = [
+      { metric_code: "001", p1_treatment: "DIRECT", p1_value: "1600", p2_treatment: "DIRECT", p2_value: "1400" },
+    ];
+    const r = activeMetricReadiness(rows, ["001"]);
+    expect(r.byCode[0].activation).toMatchObject({ code: "001", p1: "ACTIVATED", p2: "ACTIVATED", activated: true, countsTowardDenominator: true });
+  });
+});

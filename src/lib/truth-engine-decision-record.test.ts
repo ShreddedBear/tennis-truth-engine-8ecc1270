@@ -194,3 +194,40 @@ describe("the record preserves the decision structure calibration will need", ()
     expect(frozen.schema_version).toBe(1);
   });
 });
+
+describe("dynamic per-match denominator and the full per-metric audit trail", () => {
+  it("a metric with a real, evidenced absence on both sides is excused from evidence_coverage_eligible", () => {
+    const rows: MetricRowForComparison[] = [
+      ...strongP1(),
+      // 009 (Pressure point win %): no PBP source for either player in this match.
+      { metric_code: "009", p1_value: null, p2_value: null, p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE", p1_unavailable_reason: "NO_SOURCE_FOUND", p2_unavailable_reason: "HISTORICAL_DATA_UNAVAILABLE" } as never,
+    ];
+    const r = record(rows);
+    expect(r.evidence_coverage_expected).toBe(ACTIVE_METRIC_CODES.length);
+    // 009 is excused; every other un-executed active code still counts as a miss.
+    expect(r.evidence_coverage_eligible).toBe(ACTIVE_METRIC_CODES.length - 1);
+    expect(r.evidence_coverage_eligible_percent).not.toBe(r.evidence_coverage_percent);
+
+    const entry009 = r.metric_activation.find((m) => m.code === "009")!;
+    expect(entry009).toMatchObject({ p1_status: "SOURCE_EMPTY", p2_status: "GENUINELY_UNAVAILABLE", activated: false, counts_toward_denominator: false });
+  });
+
+  it("metric_activation names every one of the 25 active codes, not just the ones with rows", () => {
+    const r = record(strongP1());
+    expect(r.metric_activation).toHaveLength(ACTIVE_METRIC_CODES.length);
+    expect(r.metric_activation.map((m) => m.code).sort()).toEqual([...ACTIVE_METRIC_CODES].sort());
+    const notExecuted = r.metric_activation.find((m) => m.code === "080")!;
+    expect(notExecuted).toMatchObject({ p1_status: "NOT_ATTEMPTED", p2_status: "NOT_ATTEMPTED", counts_toward_denominator: true });
+  });
+
+  it("a real pipeline defect on one side (e.g. identity resolution) is never excused, even when the other side has none", () => {
+    const rows: MetricRowForComparison[] = [
+      ...strongP1(),
+      { metric_code: "055", p1_value: null, p2_value: null, p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE", p1_unavailable_reason: "NO_SOURCE_FOUND", p2_unavailable_reason: "PLAYER_NOT_FOUND" } as never,
+    ];
+    const r = record(rows);
+    const entry055 = r.metric_activation.find((m) => m.code === "055")!;
+    expect(entry055.counts_toward_denominator).toBe(true);
+    expect(entry055.p2_status).toBe("IDENTITY_MISMATCH");
+  });
+});

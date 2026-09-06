@@ -68,6 +68,18 @@ export interface TruthEngineDecisionRecord {
   evidence_coverage_percent: number;
   evidence_coverage_one_sided: number;
   evidence_coverage_unavailable: number;
+  /**
+   * DIAGNOSTIC ONLY, dynamic per match: expected(25) minus codes where BOTH sides
+   * independently proved (not assumed) there is no legitimate underlying data for THIS
+   * match (see metric-activation-status.ts). A metric merely not-yet-attempted, or broken
+   * by a real pipeline defect on even one side, still counts here as a miss -- this number
+   * can only go up when a metric is legitimately, evidentially inapplicable, never when
+   * coverage is simply low.
+   */
+  evidence_coverage_eligible: number;
+  evidence_coverage_eligible_percent: number;
+  /** The full per-metric audit trail: every one of the 25 codes, why it landed where it did. */
+  metric_activation: Array<{ code: string; p1_status: string; p2_status: string; activated: boolean; counts_toward_denominator: boolean }>;
 
   /**
    * THE CALIBRATION TARGET. Null until the real result is known. A record with a null
@@ -135,6 +147,15 @@ export function buildDecisionRecord({ audit, metricRows, now, actualWinner }: De
     evidence_coverage_percent: coverage.percent,
     evidence_coverage_one_sided: coverage.oneSided,
     evidence_coverage_unavailable: coverage.unavailable,
+    evidence_coverage_eligible: coverage.eligible,
+    evidence_coverage_eligible_percent: coverage.eligiblePercent,
+    metric_activation: coverage.byCode.map((entry) => ({
+      code: entry.code,
+      p1_status: entry.activation.p1,
+      p2_status: entry.activation.p2,
+      activated: entry.activation.activated,
+      counts_toward_denominator: entry.activation.countsTowardDenominator,
+    })),
 
     actual_winner: actualWinner ?? null,
     decision_correct: resolved ? playerNamesMatch(selected!, actualWinner!) : null,

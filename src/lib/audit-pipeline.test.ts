@@ -741,6 +741,85 @@ describe("Run Audit pipeline", () => {
     expect(row.p2_unavailable_reason).toBe("NO_SOURCE_FOUND");
   });
 
+  it("retries a transient PROVIDER_TIMEOUT failure and succeeds on a second attempt, bounded and logged", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    let attempts = 0;
+    const logCalls: Array<Record<string, unknown>> = [];
+    deps.log = async (entry) => { logCalls.push(entry); };
+    deps.research = {
+      ...researcher,
+      async metrics(input) {
+        return input.metrics.map(metric => {
+          if (metric.code !== "M02" || input.researchSide !== "p1") {
+            return {
+              metric_code: metric.code, p1_value: "50", p2_value: "48",
+              p1_treatment: "DIRECT" as const, p2_treatment: "DIRECT" as const,
+              differential: null, evidence_family: "FAM", reliability: .85, sample: "s",
+              unavailable_reason: null, sources: [],
+            };
+          }
+          attempts += 1;
+          if (attempts === 1) {
+            return {
+              metric_code: metric.code, p1_value: null, p2_value: null,
+              p1_treatment: "UNAVAILABLE" as const, p2_treatment: "UNAVAILABLE" as const,
+              differential: null, evidence_family: null, reliability: null, sample: null,
+              unavailable_reason: "Provider request timed out after 20000ms", sources: [],
+            };
+          }
+          return {
+            metric_code: metric.code, p1_value: "service_point_win_pct=74", p2_value: null,
+            p1_treatment: "DIRECT" as const, p2_treatment: "UNAVAILABLE" as const,
+            differential: null, evidence_family: "PBP_SCORE_STATE", reliability: .9, sample: "s",
+            unavailable_reason: null, sources: [{ source_name: "retry-source" }],
+          };
+        });
+      },
+    };
+    await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+    const row = tables.metric_results.find(metric => metric.metric_code === "M02")!;
+    // Retried the SAME metric through the SAME producer path -- never a different metric,
+    // never a relaxed field -- and succeeded on the second attempt.
+    expect(row.p1_treatment).toBe("DIRECT");
+    expect(row.p1_value).toBe("service_point_win_pct=74");
+    expect(attempts).toBe(2); // exactly one retry, not the full bounded budget wasted
+    expect(logCalls.some(entry => entry.status === "RETRYING" && (entry.output as { retried_codes?: string[] } | undefined)?.retried_codes?.includes("M02"))).toBe(true);
+  });
+
+  it("bounds retries: a persistently timing-out metric stops after a fixed number of attempts instead of looping indefinitely", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    let attempts = 0;
+    deps.research = {
+      ...researcher,
+      async metrics(input) {
+        return input.metrics.map(metric => {
+          if (metric.code !== "M02" || input.researchSide !== "p1") {
+            return {
+              metric_code: metric.code, p1_value: "50", p2_value: "48",
+              p1_treatment: "DIRECT" as const, p2_treatment: "DIRECT" as const,
+              differential: null, evidence_family: "FAM", reliability: .85, sample: "s",
+              unavailable_reason: null, sources: [],
+            };
+          }
+          attempts += 1;
+          return {
+            metric_code: metric.code, p1_value: null, p2_value: null,
+            p1_treatment: "UNAVAILABLE" as const, p2_treatment: "UNAVAILABLE" as const,
+            differential: null, evidence_family: null, reliability: null, sample: null,
+            unavailable_reason: "Provider request timed out after 20000ms", sources: [],
+          };
+        });
+      },
+    };
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+    expect(result.complete).toBe(true); // the audit still reaches completion
+    // 1 initial attempt + at most 2 bounded retries = 3 total, never unbounded.
+    expect(attempts).toBe(3);
+    const row = tables.metric_results.find(metric => metric.metric_code === "M02")!;
+    expect(row.p1_treatment).toBe("UNAVAILABLE");
+    expect(row.p1_unavailable_reason).toBe("PROVIDER_TIMEOUT");
+  });
+
   it("keeps every required denominator when all research providers fail", async () => {
     const { deps, tables, stages } = makeMemoryDeps();
     const failure = async () => {
