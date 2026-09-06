@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as ApiAdminRepublishMetricsDocumentRouteImport } from './routes/api/admin-republish-metrics-document'
+import { Route as ApiDriveAuditBatchRouteImport } from './routes/api/drive-audit-batch'
 import { Route as ApiEvidenceCoverageDiagnosticRouteImport } from './routes/api/evidence-coverage-diagnostic'
 import { Route as ApiWarehouseIngestRouteImport } from './routes/api/warehouse-ingest'
 import { Route as AppBoardRouteImport } from './routes/app/board'
@@ -42,6 +43,11 @@ const ApiAdminRepublishMetricsDocumentRoute =
     path: '/api/admin-republish-metrics-document',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiDriveAuditBatchRoute = ApiDriveAuditBatchRouteImport.update({
+  id: '/api/drive-audit-batch',
+  path: '/api/drive-audit-batch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEvidenceCoverageDiagnosticRoute =
   ApiEvidenceCoverageDiagnosticRouteImport.update({
     id: '/api/evidence-coverage-diagnostic',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/api/admin-republish-metrics-document': typeof ApiAdminRepublishMetricsDocumentRoute
+  '/api/drive-audit-batch': typeof ApiDriveAuditBatchRoute
   '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/api/admin-republish-metrics-document': typeof ApiAdminRepublishMetricsDocumentRoute
+  '/api/drive-audit-batch': typeof ApiDriveAuditBatchRoute
   '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/api/admin-republish-metrics-document': typeof ApiAdminRepublishMetricsDocumentRoute
+  '/api/drive-audit-batch': typeof ApiDriveAuditBatchRoute
   '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
   '/app/board': typeof AppBoardRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/api/admin-republish-metrics-document'
+    | '/api/drive-audit-batch'
     | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
     | '/app/board'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/api/admin-republish-metrics-document'
+    | '/api/drive-audit-batch'
     | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
     | '/app/board'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/api/admin-republish-metrics-document'
+    | '/api/drive-audit-batch'
     | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
     | '/app/board'
@@ -225,6 +237,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
   ApiAdminRepublishMetricsDocumentRoute: typeof ApiAdminRepublishMetricsDocumentRoute
+  ApiDriveAuditBatchRoute: typeof ApiDriveAuditBatchRoute
   ApiEvidenceCoverageDiagnosticRoute: typeof ApiEvidenceCoverageDiagnosticRoute
   ApiWarehouseIngestRoute: typeof ApiWarehouseIngestRoute
 }
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       path: '/api/admin-republish-metrics-document'
       fullPath: '/api/admin-republish-metrics-document'
       preLoaderRoute: typeof ApiAdminRepublishMetricsDocumentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/drive-audit-batch': {
+      id: '/api/drive-audit-batch'
+      path: '/api/drive-audit-batch'
+      fullPath: '/api/drive-audit-batch'
+      preLoaderRoute: typeof ApiDriveAuditBatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/evidence-coverage-diagnostic': {
@@ -382,6 +402,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   ApiAdminRepublishMetricsDocumentRoute: ApiAdminRepublishMetricsDocumentRoute,
+  ApiDriveAuditBatchRoute: ApiDriveAuditBatchRoute,
   ApiEvidenceCoverageDiagnosticRoute: ApiEvidenceCoverageDiagnosticRoute,
   ApiWarehouseIngestRoute: ApiWarehouseIngestRoute,
 }

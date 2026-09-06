@@ -70,13 +70,21 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
     }
   });
 
-export const runAuditBatch = createServerFn({ method: "POST" })
-  .inputValidator((data: { matchIds: string[]; budgetMs?: number; concurrency?: number }) => {
-    const matchIds=Array.isArray(data?.matchIds)?[...new Set(data.matchIds.filter(id=>typeof id==="string"&&id.length>=10))].slice(0,100):[];
-    if(!matchIds.length)throw new Error("At least one matchId is required");
-    return{matchIds,budgetMs:data.budgetMs,concurrency:Math.min(4,Math.max(1,Math.floor(data.concurrency??3)))};
-  })
-  .handler(async({data})=>{
+export interface DriveAuditBatchInput { matchIds: string[]; budgetMs?: number; concurrency?: number; }
+
+function validateDriveAuditBatchInput(data: DriveAuditBatchInput) {
+  const matchIds=Array.isArray(data?.matchIds)?[...new Set(data.matchIds.filter(id=>typeof id==="string"&&id.length>=10))].slice(0,100):[];
+  if(!matchIds.length)throw new Error("At least one matchId is required");
+  return{matchIds,budgetMs:data.budgetMs,concurrency:Math.min(4,Math.max(1,Math.floor(data.concurrency??3)))};
+}
+
+// Shared core behind both the browser-triggered runAuditBatch server function
+// and any unattended caller (e.g. a scheduled driver hitting a plain HTTP
+// route -- see /api/drive-audit-batch) that needs the exact same fair
+// scheduling and meta-derived-metric reopening logic, not a second copy of
+// it that can drift out of sync with the tested one.
+export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
+    const data=validateDriveAuditBatchInput(rawData);
     const batchId=`batch-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
     const startedAt=Date.now();
     const[{makeDeps},pipeline,{mapBounded}]=await Promise.all([import("./audit-repo.server"),import("./audit-pipeline"),import("./audit-batch")]);
@@ -160,4 +168,8 @@ export const runAuditBatch = createServerFn({ method: "POST" })
     const complete=results.filter(item=>item.complete).length,blocked=results.filter(item=>!item.ok||item.failures?.length).length,leased=results.filter(item=>item.leaseHeld).length;
     console.info("[audit-batch]",{batchId,total:data.matchIds.length,complete,blocked,leased,durationMs:Date.now()-startedAt});
     return{ok:blocked===0,batchId,total:data.matchIds.length,complete,blocked,leased,active:data.matchIds.length-complete-blocked,results,durationMs:Date.now()-startedAt};
-  });
+}
+
+export const runAuditBatch = createServerFn({ method: "POST" })
+  .inputValidator((data: DriveAuditBatchInput) => data)
+  .handler(async ({ data }) => driveAuditBatch(data));
