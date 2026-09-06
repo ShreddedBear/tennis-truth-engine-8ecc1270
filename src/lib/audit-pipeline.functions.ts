@@ -121,7 +121,17 @@ export const runAuditBatch = createServerFn({ method: "POST" })
       try{return{matchId,run:await pipeline.preparePipelineRun(deps,matchId),error:null as string|null};}
       catch(error){return{matchId,run:null,error:error instanceof Error?error.message:String(error)};}
     });
-    const scheduled=prepared.filter(item=>item.run&&item.run.status!=="COMPLETE").slice(0,data.concurrency);
+    // Fairness: with more matches queued than fit in one wave (concurrency),
+    // ordering must rotate across calls or the same front-of-array matches
+    // monopolize every wave forever while the rest of the batch starves.
+    // heartbeat_at is touched on every stage transition (runPipeline), so
+    // least-recently-touched-first naturally round-robins the whole backlog
+    // over successive polls -- a never-started run (heartbeat_at null) sorts
+    // first, ahead of one already mid-flight.
+    const scheduled=prepared
+      .filter(item=>item.run&&item.run.status!=="COMPLETE")
+      .sort((a,b)=>(Date.parse(String(a.run?.heartbeat_at??""))||0)-(Date.parse(String(b.run?.heartbeat_at??""))||0))
+      .slice(0,data.concurrency);
     const driven=await mapBounded(scheduled,data.concurrency,async({matchId})=>{
         const itemStarted=Date.now();
         try{
