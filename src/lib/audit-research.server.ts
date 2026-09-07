@@ -17,7 +17,12 @@ import { STAT_CATALOG, type StatDef } from "./reconstruction/stat-catalog";
 import type { SourcedStat } from "./reconstruction/engine";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3-flash-preview";
+// api.openai.com is the one sane default for OPENAI_API_KEY specifically --
+// unlike RESEARCH_FALLBACK_API_KEY (which names no particular vendor and
+// must always come with an explicit URL), OPENAI_API_KEY only ever means
+// one real endpoint unless the caller is deliberately pointing it at an
+// Azure/self-hosted OpenAI-compatible proxy via OPENAI_BASE_URL.
+const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
 // Every browser-triggered pipeline slice is budgeted to 20s
 // (BROWSER_SAFE_BUDGET_MS in audit-pipeline.functions.ts) specifically so the
 // server call returns before the browser's fetch transport drops it. This
@@ -46,34 +51,52 @@ interface ProviderAttempt {
   url: string;
   key: string;
   auth: "lovable" | "bearer";
+  model: string;
+  // Only Lovable's gateway (a Gemini proxy) understands the "google_search"
+  // tool shape used for grounding below; sending it to a plain OpenAI-
+  // compatible endpoint is a guaranteed 400 on every grounded call, wasting
+  // the retry-without-tools round trip that exists for genuine edge cases.
+  supportsGoogleSearchTool: boolean;
 }
 
+// Model IDs are provider-specific, not global: Lovable's gateway proxies to
+// Gemini and expects "google/..." IDs, while a plain OpenAI-compatible
+// endpoint expects its own model names ("gpt-4o-mini" etc.) -- a single
+// shared MODEL constant only ever worked because Lovable was the only
+// configured provider. Read live (like every other setting here) rather
+// than cached at module load, so an env change takes effect on the very
+// next call instead of needing a process restart.
 function providers(): ProviderAttempt[] {
   const configured: ProviderAttempt[] = [];
   const lovableKey = process.env["LOVABLE_API_KEY"];
-  if (lovableKey) configured.push({ name: "Lovable AI", url: GATEWAY, key: lovableKey, auth: "lovable" });
+  if (lovableKey) {
+    const model = process.env["LOVABLE_RESEARCH_MODEL"] ?? "google/gemini-3-flash-preview";
+    configured.push({ name: "Lovable AI", url: GATEWAY, key: lovableKey, auth: "lovable", model, supportsGoogleSearchTool: true });
+  }
   const fallbackKey = process.env["RESEARCH_FALLBACK_API_KEY"] ?? process.env["OPENAI_API_KEY"];
-  const fallbackUrl = process.env["RESEARCH_FALLBACK_URL"] ?? process.env["OPENAI_BASE_URL"];
+  const fallbackUrl = process.env["RESEARCH_FALLBACK_URL"] ?? process.env["OPENAI_BASE_URL"] ?? (process.env["OPENAI_API_KEY"] ? OPENAI_DEFAULT_BASE_URL : undefined);
   if (fallbackKey && fallbackUrl) {
-    configured.push({ name: "Configured fallback provider", url: fallbackUrl.replace(/\/$/, "") + "/chat/completions", key: fallbackKey, auth: "bearer" });
+    const model = process.env["RESEARCH_FALLBACK_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "gpt-4o-mini";
+    configured.push({ name: "Configured fallback provider", url: fallbackUrl.replace(/\/$/, "") + "/chat/completions", key: fallbackKey, auth: "bearer", model, supportsGoogleSearchTool: false });
   }
   return configured;
 }
 
 async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Promise<T> {
-  const body: Record<string, unknown> = {
-    model: MODEL,
-    messages: [
-      { role: "system", content: `${HOUSE_RULES}\nRespond as: ${shapeHint}` },
-      { role: "user", content: prompt },
-    ],
-    response_format: { type: "json_object" },
-  };
-  if (grounded) body["tools"] = [{ type: "google_search" }];
   const attempts = providers();
   if (!attempts.length) throw new Error("Research providers are not configured: set LOVABLE_API_KEY or a fallback provider.");
   const errors: string[] = [];
   for (const provider of attempts) {
+    const body: Record<string, unknown> = {
+      model: provider.model,
+      messages: [
+        { role: "system", content: `${HOUSE_RULES}\nRespond as: ${shapeHint}` },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+    };
+    const attemptGrounded = grounded && provider.supportsGoogleSearchTool;
+    if (attemptGrounded) body["tools"] = [{ type: "google_search" }];
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
     // Throughput measurement: this line is the entire cost of "measure #2" from
@@ -92,7 +115,7 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
         signal: controller.signal,
         body: JSON.stringify(body),
       });
-      if (!res.ok && grounded && (res.status === 400 || res.status === 422)) {
+      if (!res.ok && attemptGrounded && (res.status === 400 || res.status === 422)) {
         const retryBody = { ...body };
         delete retryBody["tools"];
         res = await fetch(provider.url, {

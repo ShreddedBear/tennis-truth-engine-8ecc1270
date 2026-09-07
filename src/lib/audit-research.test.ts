@@ -116,3 +116,55 @@ describe("research provider fallback", () => {
     expect(result).toEqual([]);
   });
 });
+
+describe("provider-specific model IDs and grounding (no Lovable dependency required)", () => {
+  it("sends Lovable's default Gemini model ID to the Lovable gateway", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "primary-key");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(providerResponse());
+
+    await resolveMatchIdentity(input);
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.model).toBe("google/gemini-3-flash-preview");
+    expect(body.tools).toEqual([{ type: "google_search" }]);
+  });
+
+  it("talks to OpenAI directly with a real OpenAI model ID and no Lovable key at all", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(providerResponse());
+
+    const result = await resolveMatchIdentity(input);
+
+    expect(result.player1_canonical).toBe("Player One");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.openai.com/v1/chat/completions");
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.model).toBe("gpt-4o-mini");
+    // OpenAI's Chat Completions API has no "google_search" tool -- sending it
+    // would be a guaranteed 400 on every grounded call. A grounded request
+    // (resolveMatchIdentity's first pass always is) must never carry it when
+    // talking to a bearer/OpenAI-shaped provider.
+    expect(body.tools).toBeUndefined();
+  });
+
+  it("defaults an unset OPENAI_BASE_URL to api.openai.com, but honors an explicit override", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("OPENAI_BASE_URL", "https://my-proxy.internal/v1");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(providerResponse());
+
+    await resolveMatchIdentity(input);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://my-proxy.internal/v1/chat/completions");
+  });
+
+  it("honors RESEARCH_FALLBACK_MODEL / OPENAI_MODEL overrides for the bearer provider", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("OPENAI_MODEL", "gpt-4.1-mini");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(providerResponse());
+
+    await resolveMatchIdentity(input);
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.model).toBe("gpt-4.1-mini");
+  });
+});
