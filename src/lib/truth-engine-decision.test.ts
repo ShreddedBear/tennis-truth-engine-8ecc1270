@@ -320,6 +320,45 @@ describe("refusal is first-class", () => {
     expect(d.unavailable.length).toBeGreaterThan(0);
   });
 
+  it("exactly 60.0% of the directional evidence qualifies (boundary is inclusive)", () => {
+    // 3 independent P1-supporting families vs 2 independent P2-supporting (contradicting)
+    // families, 0 conflicted: 3/5 = 60.0% exactly. This must select, not refuse -- the
+    // gate is "at least 60%", not "more than 60%".
+    const d = decide([
+      row("001", "1600", "1500"), // SURFACE_STRENGTH -> P1
+      row("011", "match_win_pct=70", "match_win_pct=50"), // RESULTS_HISTORY -> P1
+      row("027", "lead_protection_rate_pct=70", "lead_protection_rate_pct=50"), // CLOSING_ABILITY -> P1
+      row("051", "shrunk_win_probability_pct=40", "shrunk_win_probability_pct=60"), // H2H_PROBABILITY -> P2
+      row("055", "elo_change_last10=-20", "elo_change_last10=20"), // RECENT_FORM -> P2
+    ]);
+    expect(d.directional_families).toBe(5);
+    expect(d.evidence_percent).toBe(60);
+    expect(d.outcome).toBe("P1");
+    expect(d.corroborated).toBe(true);
+  });
+
+  it("just under 60% refuses -- the comparison uses the unrounded share, not the rounded display value", () => {
+    // Same shape as the 60.0% case above, plus one more P1-supporting family (SET_PROFILE),
+    // which shifts the leader's share to 4/7 = 57.142...%, still displayed rounded to 57.1%
+    // but compared against the threshold as the raw float. Regression coverage for a real
+    // bug: evidenceShare() used to round to 1 decimal BEFORE comparing against
+    // EVIDENCE_SELECTION_THRESHOLD, so a raw share just under 60% that happened to round up
+    // to "60.0" would have incorrectly cleared the gate.
+    const d = decide([
+      row("001", "1600", "1500"),
+      row("011", "match_win_pct=70", "match_win_pct=50"),
+      row("027", "lead_protection_rate_pct=70", "lead_protection_rate_pct=50"),
+      row("008", "set3_deciding_set_win_pct=70", "set3_deciding_set_win_pct=50"),
+      row("051", "shrunk_win_probability_pct=40", "shrunk_win_probability_pct=60"),
+      row("055", "elo_change_last10=-20", "elo_change_last10=20"),
+      row("036", "favorite_losses_rate_pct=40", "favorite_losses_rate_pct=10"), // LOWER_IS_BETTER -> P2
+    ]);
+    expect(d.directional_families).toBe(7);
+    expect(d.evidence_percent).toBeCloseTo(57.1, 1);
+    expect(d.evidence_percent).toBeLessThan(60);
+    expect(d.outcome).toBe("INSUFFICIENT_EVIDENCE");
+  });
+
   it("an internally conflicted family drags the share down instead of being ignored", () => {
     // 002 and 003 are both POINT_BY_POINT and disagree, so that family is conflicted. It
     // stays in the denominator (1 support of 2 directional = 50%), which is what stops a

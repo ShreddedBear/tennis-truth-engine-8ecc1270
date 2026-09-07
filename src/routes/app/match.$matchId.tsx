@@ -136,9 +136,6 @@ function Workspace() {
   const { matchId } = Route.useParams();
   const qc = useQueryClient();
   const [showMatrix, setShowMatrix] = useState(false);
-  const [winner, setWinner] = useState("");
-  const [low, setLow] = useState("");
-  const [high, setHigh] = useState("");
   const [running, setRunning] = useState(false);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
 
@@ -802,21 +799,21 @@ function Workspace() {
             <h3 className="font-semibold">Branch B — independent conclusion</h3>
             <p className="text-xs text-muted-foreground">Committed before any Matrix output is visible.</p>
             <div className="mt-3 space-y-2">
-              <Select
-                value={winner || run.independent_winner || ""}
-                options={["", match.player1_name, match.player2_name]}
-                onChange={setWinner}
-              />
-              <div className="flex gap-2">
-                <Input placeholder="range low %" className="h-8" value={low} onChange={(e) => setLow(e.target.value)} />
-                <Input placeholder="range high %" className="h-8" value={high} onChange={(e) => setHigh(e.target.value)} />
-              </div>
+              {/* The winner and range are computed deterministically by the Truth Engine
+                  (truth-engine-decision.ts) from validated evidence -- there is no manual
+                  override here, by design (see the master correction spec: Independent
+                  Conclusion is the only stage authorized to select a winner, and it must
+                  not be an editable input). This is a read-only display of that result. */}
+              <p className="mono-num text-sm">
+                {run.independent_winner ?? (committed ? "INSUFFICIENT EVIDENCE" : "not committed yet")}
+                {run.independent_low !== null && run.independent_high !== null ? ` · ${run.independent_low}–${run.independent_high}%` : ""}
+              </p>
               <Button size="sm" onClick={commitIndependent} disabled={committed}>
                 {committed ? "Committed" : "Commit independent conclusion"}
               </Button>
               {committed && (
                 <p className="mono-num text-xs text-muted-foreground">
-                  {run.independent_winner} · committed {new Date(run.independent_decision_committed_at!).toLocaleString()}
+                  {run.independent_winner ?? "INSUFFICIENT EVIDENCE"} · committed {new Date(run.independent_decision_committed_at!).toLocaleString()}
                 </p>
               )}
             </div>
