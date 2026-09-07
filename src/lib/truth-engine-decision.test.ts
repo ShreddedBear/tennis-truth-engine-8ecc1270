@@ -351,7 +351,7 @@ describe("refusal is first-class", () => {
       row("008", "set3_deciding_set_win_pct=70", "set3_deciding_set_win_pct=50"),
       row("051", "shrunk_win_probability_pct=40", "shrunk_win_probability_pct=60"),
       row("055", "elo_change_last10=-20", "elo_change_last10=20"),
-      row("036", "favorite_losses_rate_pct=40", "favorite_losses_rate_pct=10"), // LOWER_IS_BETTER -> P2
+      row("036", "favorite_losses_rate_pct=40; trailing_losses_used=20", "favorite_losses_rate_pct=10; trailing_losses_used=20"), // LOWER_IS_BETTER -> P2
     ]);
     expect(d.directional_families).toBe(7);
     expect(d.evidence_percent).toBeCloseTo(57.1, 1);
