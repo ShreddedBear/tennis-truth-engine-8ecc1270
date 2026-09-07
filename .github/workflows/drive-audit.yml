@@ -46,6 +46,9 @@ jobs:
           LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
           RESEARCH_FALLBACK_API_KEY: ${{ secrets.RESEARCH_FALLBACK_API_KEY }}
           RESEARCH_FALLBACK_URL: ${{ secrets.RESEARCH_FALLBACK_URL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # The repo secret is actually named OPEN_API, not OPENAI_API_KEY --
+          # this maps it to the env var name the code (audit-research.server.ts)
+          # actually reads, without renaming the secret itself.
+          OPENAI_API_KEY: ${{ secrets.OPEN_API || secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
         run: bun run scripts/drive-audit-batch.ts
