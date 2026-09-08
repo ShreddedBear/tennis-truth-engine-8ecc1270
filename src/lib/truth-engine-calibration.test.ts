@@ -255,7 +255,7 @@ describe("computeWalkForwardCalibration", () => {
     // one bucket; deciles by count still produce buckets, but the total pool is small
     // enough per decile-of-a-decile to exercise the NaN-backoff path deterministically via
     // a very small explicit dataset instead -- assert the invariant on the exact minimum.
-    const observations = Array.from({ length: 40 }, (_, i) => obs(`2026-01-${String((i % 28) + 1).padStart(2, "0")}T0${i % 10}:00:00Z`, 50 + i, i % 2));
+    const observations = Array.from({ length: 40 }, (_, i) => obs(`2026-01-${String((i % 28) + 1).padStart(2, "0")}T0${i % 10}:00:00Z`, 50 + i, i % 2 === 0 ? 1 : 0));
     const result = computeWalkForwardCalibration(observations, { minTotalSample: 40, minTrainFold: 30 });
     if (result.available) {
       for (const bucket of result.overall!.reliability_buckets) {
