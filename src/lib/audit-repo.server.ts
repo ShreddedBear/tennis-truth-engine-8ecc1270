@@ -48,6 +48,7 @@ export async function makeDeps(): Promise<PipelineDeps> {
         audit_run_id: runId,
         final_audit_color: payload["final_audit_color"] ?? null,
         final_selection: payload["final_selection"] ?? payload["final_recommendation"] ?? null,
+        selected_player_id: payload["selected_player_id"] ?? null,
         action: payload["action"] ?? payload["final_recommendation"] ?? null,
         gate_report: { ...extras, ...((payload["gate_report"] && typeof payload["gate_report"] === "object") ? payload["gate_report"] as Record<string, unknown> : {}) },
         completion_percent: payload["completion_percent"] ?? 0,

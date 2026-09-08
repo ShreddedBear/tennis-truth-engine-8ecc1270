@@ -5,7 +5,7 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { metricPairPatch, metricRowsForSideExecution, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { metricPairPatch, metricRowsForSideExecution, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, resolveWinnerId, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
 import { unmetDependencies, canonicalizeStageRows, INVALIDATED_RUN_STATUS } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
@@ -33,6 +33,8 @@ vi.mock("./metric-classification", async (importOriginal) => {
 const MATCH_ID = "11111111-1111-1111-1111-111111111111";
 const P1 = "Carlos Alcaraz";
 const P2 = "Jannik Sinner";
+const P1_ID = "22222222-2222-2222-2222-222222222222";
+const P2_ID = "33333333-3333-3333-3333-333333333333";
 
 const DEF_COUNTS = { METRICS: 81, VERIFICATION: 60, DISAGREEMENT: 70 } as const;
 // The Truth Engine execution universe is the 25 active codes (ACTIVE_METRIC_CODES)
@@ -194,6 +196,8 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
     id: MATCH_ID,
     player1_name: P1,
     player2_name: P2,
+    player1_id: P1_ID,
+    player2_id: P2_ID,
     tournament_name: null,
     event_level: null,
     round: null,
@@ -343,6 +347,8 @@ function makeMultiRunMemoryDeps(): {
     id: MATCH_ID,
     player1_name: P1,
     player2_name: P2,
+    player1_id: P1_ID,
+    player2_id: P2_ID,
     tournament_name: null,
     event_level: null,
     round: null,
@@ -1740,4 +1746,103 @@ describe("Final Decision refuses on a winner-integrity mismatch", () => {
     // winner and the fresh recomputation agree.
     expect(finalDecisionStage?.detail).not.toMatch(/WINNER_INTEGRITY_MISMATCH|no longer matches/);
   });
+});
+
+describe("resolveWinnerId -- id resolution never touches names", () => {
+  const identity = { player1_id: P1_ID, player2_id: P2_ID };
+
+  it("P1 outcome resolves to player1_id", () => {
+    expect(resolveWinnerId("P1", identity)).toBe(P1_ID);
+  });
+
+  it("P2 outcome resolves to player2_id", () => {
+    expect(resolveWinnerId("P2", identity)).toBe(P2_ID);
+  });
+
+  it("INSUFFICIENT_EVIDENCE resolves to null -- never a fallback guess", () => {
+    expect(resolveWinnerId("INSUFFICIENT_EVIDENCE", identity)).toBeNull();
+  });
+
+  it("an unresolved match identity (player1_id/player2_id both null) leaves the id null rather than inferring one", () => {
+    expect(resolveWinnerId("P1", { player1_id: null, player2_id: null })).toBeNull();
+  });
+
+  it("same-named players in different matches never collide, because resolution is id-keyed, not name-keyed", () => {
+    const matchA = { player1_id: "aaaaaaaa-0000-0000-0000-000000000001", player2_id: "aaaaaaaa-0000-0000-0000-000000000002" };
+    const matchB = { player1_id: "bbbbbbbb-0000-0000-0000-000000000001", player2_id: "bbbbbbbb-0000-0000-0000-000000000002" };
+    // Both matches could have identical player1_name/player2_name display strings (e.g. two
+    // "John Smith"s) -- resolveWinnerId never looks at a name at all, so the two matches'
+    // "P1" winners resolve to their own match's id, never each other's.
+    expect(resolveWinnerId("P1", matchA)).toBe(matchA.player1_id);
+    expect(resolveWinnerId("P1", matchB)).toBe(matchB.player1_id);
+    expect(resolveWinnerId("P1", matchA)).not.toBe(resolveWinnerId("P1", matchB));
+  });
+});
+
+describe("Winner identity propagation and integrity (Part 4)", () => {
+  it("P1 selected: independent_winner_id is player1_id, and it survives into final_decisions.selected_player_id and the Final Combination Gate", async () => {
+    const { deps } = makeMemoryDeps();
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(result.complete).toBe(true);
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P1);
+    expect(run?.independent_winner_id).toBe(P1_ID);
+    const gate = result.stages.find((s) => s.stage === "FINAL COMBINATION GATE");
+    expect(gate?.status).toBe("COMPLETE");
+  }, 60_000);
+
+  it("P2 selected: independent_winner_id is player2_id (mirrors the P1 case, not a walkover artifact)", async () => {
+    const { deps } = makeMemoryDeps();
+    deps.research = { ...researcher, async metrics(input) { const findings = await researcher.metrics(input); return findings.map((f) => ({ ...f, p1_treatment: f.p2_treatment, p2_treatment: f.p1_treatment, p1_value: f.p2_value, p2_value: f.p1_value })); } };
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(result.complete).toBe(true);
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P2);
+    expect(run?.independent_winner_id).toBe(P2_ID);
+  }, 60_000);
+
+  it("winner name correct but committed id incorrect: Final Decision and the Final Combination Gate both BLOCK", async () => {
+    const { deps, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    // Name is genuinely player1's own name, but the id was corrupted to point at neither
+    // player -- an integrity violation distinct from a mere name mismatch.
+    await deps.updateRun(run.id, { independent_winner: P1, independent_winner_id: "99999999-9999-9999-9999-999999999999", independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    for (const stage of STAGES) {
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+      if (stage === "INDEPENDENT CONCLUSION") break;
+    }
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).toBe("BLOCKED");
+    expect(finalDecisionStage?.detail).toMatch(/WINNER_IDENTITY_INTEGRITY_VIOLATION|does not match either/);
+    const gate = result.stages.find((s) => s.stage === "FINAL COMBINATION GATE");
+    expect(gate?.status).not.toBe("COMPLETE");
+  }, 60_000);
+
+  it("winner id belongs to neither player at all: same BLOCK, distinguishable message", async () => {
+    const { deps, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    await deps.updateRun(run.id, { independent_winner: P1, independent_winner_id: "00000000-0000-0000-0000-000000000000", independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    for (const stage of STAGES) {
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+      if (stage === "INDEPENDENT CONCLUSION") break;
+    }
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).toBe("BLOCKED");
+    expect(finalDecisionStage?.detail).toContain("00000000-0000-0000-0000-000000000000");
+  }, 60_000);
+
+  it("a legitimately unresolved match identity (player1_id/player2_id both null) commits a name-only winner without blocking -- legacy/backward-compatible, never fabricated", async () => {
+    const { deps } = makeMemoryDeps();
+    // Simulate a match whose identity resolution never ran (both ids null) -- this must
+    // remain a valid, non-blocking state: the id stays null, the name-based winner still
+    // commits, matching the existing backward-compatibility contract for legacy rows.
+    await deps.updateMatch(MATCH_ID, { player1_id: null, player2_id: null });
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(result.complete).toBe(true);
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P1);
+    expect(run?.independent_winner_id).toBeNull();
+  }, 60_000);
 });
