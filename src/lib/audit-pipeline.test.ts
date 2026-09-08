@@ -1668,3 +1668,71 @@ describe("Run-number monotonicity across an invalidated (not deleted) run", () =
     expect(new Set(allRunNumbers).size).toBe(allRunNumbers.length);
   }, 60_000);
 });
+
+describe("Final Decision refuses on a winner-integrity mismatch", () => {
+  // Live-DB finding: an audit_run whose committed independent_winner was null
+  // (INSUFFICIENT_EVIDENCE) had a final_decisions.gate_report.deterministic_decision
+  // showing a clear, corroborated P2 win -- because commitFinalDecision recomputes
+  // deterministicIndependentConclusion() fresh from metric_results, a pure function whose
+  // premise (this reproduces exactly what commitConclusion already committed) breaks if
+  // the metric evidence changed in between. Reproduced here: seed a run whose Independent
+  // Conclusion is already committed with NO winner, then seed metric_results with strong,
+  // unambiguous P2-favoring evidence for three independent families (as if evidence
+  // resolved after that commit) before Final Decision ever runs. Final Decision must
+  // refuse -- never silently persist a decision record that disagrees with the already-
+  // committed conclusion.
+  it("blocks Final Decision when the fresh recomputation disagrees with the committed independent_winner", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    await deps.updateRun(run.id, { independent_winner: null, independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+
+    for (const stage of STAGES) {
+      if (stage === "INDEPENDENT CONCLUSION") { stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 }); break; }
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+    }
+
+    // Strong, unambiguous P2 evidence across three independent families -- as verified
+    // directly against decideTruthEngineSelection, this yields outcome "P2", 100% evidence,
+    // corroborated: true. commitConclusion never saw this (it ran before this evidence
+    // existed, per the seeded independent_winner: null above); Final Decision does.
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1500", p2_value: "1600", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=50", p2_value: "match_win_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=50", p2_value: "lead_protection_rate_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).toBe("BLOCKED");
+    expect(finalDecisionStage?.detail).toMatch(/WINNER_INTEGRITY_MISMATCH|no longer matches/);
+    expect(result.complete).toBe(false);
+    expect(result.failures.some((f) => f.stage === "FINAL DECISION" && /no longer matches/.test(f.message))).toBe(true);
+
+    // The already-committed conclusion must remain exactly what it was -- the mismatch
+    // blocks Final Decision, it does not silently "fix" the committed value either way.
+    const latestRun = await deps.getLatestRun(MATCH_ID);
+    expect(latestRun?.independent_winner).toBeNull();
+  });
+
+  it("does not block when the fresh recomputation agrees with the committed winner (the ordinary case)", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    // Same three rows, but the committed winner already matches what they support --
+    // simulating the ordinary case where evidence has not moved since commit.
+    await deps.updateRun(run.id, { independent_winner: P2, independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    for (const stage of STAGES) {
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+      if (stage === "INDEPENDENT CONCLUSION") break;
+    }
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1500", p2_value: "1600", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=50", p2_value: "match_win_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=50", p2_value: "lead_protection_rate_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).not.toBe("BLOCKED");
+  });
+});

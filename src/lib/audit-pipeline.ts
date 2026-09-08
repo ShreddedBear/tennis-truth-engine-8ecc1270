@@ -650,8 +650,24 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
   // result is known.
   const decisionMetrics=await deps.list("metric_results",runId);
   const decisionMatch=await deps.getMatch(matchId);
+  const freshDeterministic=decisionMatch?deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name):null;
+  // WINNER INTEGRITY CHECK. This recomputation is a pure function of metric_results, and is
+  // supposed to exactly reproduce the winner commitConclusion already locked into
+  // run.independent_winner -- that is the whole premise of calling it again here rather than
+  // just copying the committed value. A real production run proved that premise can break:
+  // if metric evidence for the 25 active codes changes between the Independent Conclusion
+  // commit and this stage (e.g. late-arriving evidence resolves after commit), this fresh
+  // recomputation can disagree with the already-committed conclusion -- and nothing was
+  // stopping that disagreement from being silently persisted into gate_report as if it were
+  // audited, where downstream calibration/grading code (match-result-capture.ts) reads it as
+  // authoritative. Per the product's own "refusal is a first-class outcome" rule, a
+  // disagreement here is an integrity failure, not something to resolve by picking either
+  // side -- it must block, not silently diverge.
+  if(freshDeterministic&&freshDeterministic.winner!==(run?.independent_winner??null)){
+    return{status:"BLOCKED",done:0,total:1,errorCode:"WINNER_INTEGRITY_MISMATCH",message:`Final Decision blocked: the committed Independent Conclusion winner (${run?.independent_winner??"none"}) no longer matches what the current metric evidence deterministically supports (${freshDeterministic.winner??"none"}). Evidence changed after Independent Conclusion was committed; this run requires a fresh audit rather than a silently divergent Final Decision.`};
+  }
   const decisionRecord=decisionMatch?buildDecisionRecord({
-    audit:deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name).audit,
+    audit:freshDeterministic!.audit,
     metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null})),
     now:deps.now(),
     actualWinner:(decisionMatch as unknown as{actual_winner?:string|null}).actual_winner??null,
