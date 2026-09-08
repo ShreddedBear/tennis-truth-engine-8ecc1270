@@ -1802,11 +1802,19 @@ describe("Winner identity propagation and integrity (Part 4)", () => {
   }, 60_000);
 
   it("winner name correct but committed id incorrect: Final Decision and the Final Combination Gate both BLOCK", async () => {
-    const { deps, stages } = makeMemoryDeps();
+    const { deps, tables, stages } = makeMemoryDeps();
     const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
     // Name is genuinely player1's own name, but the id was corrupted to point at neither
-    // player -- an integrity violation distinct from a mere name mismatch.
+    // player -- an integrity violation distinct from a mere name mismatch. Metric evidence
+    // is seeded to agree with the name (P1 wins) so the pre-existing name-based
+    // WINNER_INTEGRITY_MISMATCH check does not fire first and mask the id check this test
+    // is actually about.
     await deps.updateRun(run.id, { independent_winner: P1, independent_winner_id: "99999999-9999-9999-9999-999999999999", independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1600", p2_value: "1500", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=70", p2_value: "match_win_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=70", p2_value: "lead_protection_rate_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
     for (const stage of STAGES) {
       stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
       if (stage === "INDEPENDENT CONCLUSION") break;
@@ -1820,9 +1828,14 @@ describe("Winner identity propagation and integrity (Part 4)", () => {
   }, 60_000);
 
   it("winner id belongs to neither player at all: same BLOCK, distinguishable message", async () => {
-    const { deps, stages } = makeMemoryDeps();
+    const { deps, tables, stages } = makeMemoryDeps();
     const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
     await deps.updateRun(run.id, { independent_winner: P1, independent_winner_id: "00000000-0000-0000-0000-000000000000", independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1600", p2_value: "1500", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=70", p2_value: "match_win_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=70", p2_value: "lead_protection_rate_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
     for (const stage of STAGES) {
       stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
       if (stage === "INDEPENDENT CONCLUSION") break;
