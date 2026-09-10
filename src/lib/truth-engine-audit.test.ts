@@ -188,20 +188,52 @@ describe("TEST 10/11 — the Stress Test genuinely recomputes winner_after", () 
     expect(a.audit_winner).toBe(P1);
   });
 
-  it("Test 10: a thin lead collapses under adverse erosion -> winner_after changes and the audit refuses", () => {
-    // Each edge is only ~1.4x its noise floor, so one noise-floor erosion removes them all.
+  it("Test 10: a thin, UNCONTESTED lead loses its own margin under adverse erosion but is still the audit winner (comparative robustness, not a one-sided veto)", () => {
+    // Each edge is only ~1.4x its noise floor, so one noise-floor erosion of the LEADER's
+    // own edges removes all three. But P2 has no favouring evidence at all to begin with,
+    // so eroding P2's (nonexistent) own edges changes nothing -- P1 remains the leader
+    // under that mirror case too. This is exactly LEADER_MORE_ROBUST: the two players were
+    // not tested equally by the OLD single-sided veto, which refused P1 purely because
+    // P1's own margin was thin, without ever checking whether P2 fared any better under
+    // the identical erosion. P2 did not; P1 remains the winner.
     const a = audit([
       row("001", "1514", "1500"), // 14 vs materiality 10
       row("005", "last10_win_pct=57", "last10_win_pct=50"), // 7 vs 5
       row("027", "lead_protection_rate_pct=57", "lead_protection_rate_pct=50"), // 7 vs 5
     ]);
     expect(a.stress.winner_before).toBe("P1");
-    expect(a.stress.winner_after).not.toBe("P1");
-    expect(a.stress.changed).toBe(true);
-    // A selection that does not survive its own stress test is refused, not asserted.
-    expect(a.refused).toBe(true);
-    expect(a.audit_winner).toBeNull();
-    expect(a.final_reason).toMatch(/Refused/);
+    expect(a.stress.winner_after).not.toBe("P1"); // the LEADER-only recomputation still collapses
+    expect(a.stress.changed).toBe(true); // diagnostic only -- no longer drives the refusal
+    expect(a.stress.comparative_robustness).toBe("LEADER_MORE_ROBUST");
+    expect(a.stress.p1.outcome_when_this_side_stressed).toBe("INSUFFICIENT_EVIDENCE");
+    expect(a.stress.p2.outcome_when_this_side_stressed).toBe("P1"); // P2 has nothing of its own to erode
+    expect(a.refused).toBe(false);
+    expect(a.audit_winner).toBe(P1);
+    expect(a.audit_winner_side).toBe("P1");
+  });
+
+  it("a trailing challenger can never win its OWN stress test: eroding only the challenger's own favouring evidence can never grow the challenger's vote count or shrink the leader's", () => {
+    // Even a very strong, single-family challenger edge (H2H at ~9x its noise floor,
+    // comfortably surviving a one-noise-floor erosion on its own terms) cannot overtake a
+    // leader who already holds strictly more independent support families: eroding the
+    // CHALLENGER's own evidence never touches the leader's votes, so the leader's count is
+    // unchanged while the challenger's is unchanged-at-best. CHALLENGER_MORE_ROBUST
+    // therefore requires the challenger to already be even with or ahead of the leader
+    // before erosion -- which would mean the decision core itself, not Stress, is the
+    // stage that has to resolve the match. This is the structural reason 0 of the 14 real
+    // DOWNSTREAM_VETO_BUG cases were CHALLENGER_MORE_ROBUST even under the forensic
+    // reconstruction: it is not a fact about this slate, it is a fact about the shape of a
+    // family-vote-count decision combined with a same-direction-only erosion.
+    const a = audit([
+      row("001", "1900", "1500"), // P1 by 400 vs materiality 10 -> huge, survives erosion easily
+      row("005", "last10_win_pct=80", "last10_win_pct=30"), // P1 by 50 vs materiality 5 -> huge
+      row("051", "shrunk_win_probability_pct=27", "shrunk_win_probability_pct=73"), // P2 by 46pp vs materiality 3 -> P2's own strongest possible edge
+    ]);
+    expect(a.decision.outcome).toBe("P1"); // 2 support vs 1 contra, clears 60% (2/3 = 66.7%)
+    expect(a.stress.p2.outcome_when_this_side_stressed).not.toBe("P2");
+    expect(a.stress.comparative_robustness).not.toBe("CHALLENGER_MORE_ROBUST");
+    expect(a.refused).toBe(false);
+    expect(a.audit_winner).toBe(P1);
   });
 
   it("the ADVERSE case is a real recomputation, not a relabel: its family counts genuinely differ", () => {

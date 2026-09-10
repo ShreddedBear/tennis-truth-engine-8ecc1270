@@ -538,7 +538,7 @@ async function executeStress(deps:PipelineDeps,matchId:string,runId:string):Prom
     if(code==="ST01"||code==="ST02"){
       // Matrix-removal tests stay deterministic and independent of the provider: the audit
       // consumes no Matrix-derived metric, so removing them cannot change the winner.
-      await deps.update("stress_results",String(row["id"]),{winner_before:audit.stress.winner_before==="INSUFFICIENT_EVIDENCE"?null:audit.stress.winner_before,winner_after:matrixDerivedUsed===0?(audit.stress.winner_before==="INSUFFICIENT_EVIDENCE"?null:audit.stress.winner_before):null,range_before:null,range_after:null,outcome:matrixDerivedUsed===0?"STABLE":"UNSTABLE",status:"COMPLETE",unavailable_detail:`Matrix-derived metrics consumed by the independent audit: ${matrixDerivedUsed}.`,retrieved_at:now});
+      await deps.update("stress_results",String(row["id"]),{winner_before:audit.stress.winner_before==="INSUFFICIENT_EVIDENCE"?null:audit.stress.winner_before,winner_after:matrixDerivedUsed===0?(audit.stress.winner_before==="INSUFFICIENT_EVIDENCE"?null:audit.stress.winner_before):null,range_before:null,range_after:null,outcome:matrixDerivedUsed===0?"STABLE":"UNSTABLE",status:"COMPLETE",unavailable_detail:`Matrix-derived metrics consumed by the independent audit: ${matrixDerivedUsed}.`,retrieved_at:now,p1_outcome_when_stressed:audit.stress.p1.outcome_when_this_side_stressed==="INSUFFICIENT_EVIDENCE"?null:audit.stress.p1.outcome_when_this_side_stressed,p2_outcome_when_stressed:audit.stress.p2.outcome_when_this_side_stressed==="INSUFFICIENT_EVIDENCE"?null:audit.stress.p2.outcome_when_this_side_stressed,p1_support_percent_before:audit.stress.p1.initial_support_percent,p1_support_percent_after:audit.stress.p1.stress_adjusted_support_percent,p2_support_percent_before:audit.stress.p2.initial_support_percent,p2_support_percent_after:audit.stress.p2.stress_adjusted_support_percent,comparative_robustness:audit.stress.comparative_robustness});
       recomputed++;continue;
     }
     const mapped=stressRowPatch(code,audit,now);
@@ -547,7 +547,7 @@ async function executeStress(deps:PipelineDeps,matchId:string,runId:string):Prom
   }
   const after=await deps.list("stress_results",runId),done=after.filter(r=>["COMPLETE","UNAVAILABLE","EXCLUDED"].includes(String(r["status"]))).length;
   return done===after.length
-    ?{status:"COMPLETE",done,total:after.length,detail:{winner_before:audit.stress.winner_before,winner_after:audit.stress.winner_after,changed:audit.stress.changed,stability:audit.stress.stability,recomputed_tests:recomputed}}
+    ?{status:"COMPLETE",done,total:after.length,detail:{winner_before:audit.stress.winner_before,winner_after:audit.stress.winner_after,changed:audit.stress.changed,stability:audit.stress.stability,comparative_robustness:audit.stress.comparative_robustness,recomputed_tests:recomputed}}
     :{status:"BLOCKED",done,total:after.length,errorCode:"STRESS_INCOMPLETE",message:`${after.length-done} stress tests unexecuted.`};
 }
 

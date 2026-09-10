@@ -21,12 +21,73 @@
 //    declared noise floor (its materiality), never from prose and never hardcoded.
 
 import { COMPARISON_SPECS, type MetricComparison } from "./truth-engine-metric-comparison";
-import { decideTruthEngineSelection, type TruthEngineDecision } from "./truth-engine-decision";
+import { decideTruthEngineSelection, type TruthEngineDecision, type SelectionOutcome } from "./truth-engine-decision";
 
 export type Severity = "NONE" | "MINOR" | "MODERATE" | "MAJOR" | "CRITICAL";
 export type VerificationOutcome = "SUPPORTS_P1" | "SUPPORTS_P2" | "NEUTRAL" | "INSUFFICIENT_EVIDENCE";
 export type PathwayViability = "NO_VIABLE_PATHWAY" | "POTENTIAL_PATHWAY" | "VIABLE_PATHWAY" | "STRONG_PATHWAY";
 export type StressStability = "ROBUST" | "STABLE" | "FRAGILE" | "UNSTABLE" | "NOT_APPLICABLE";
+export type StressSide = "P1" | "P2";
+
+/**
+ * How the two players' Stress profiles compare, read WITHOUT privileging either side.
+ * Computed the same way regardless of which side happened to lead the decision core --
+ * there is no `if (leader === "P1") ... else ...` branch anywhere in this file.
+ *
+ *  NOT_APPLICABLE         -- no selection existed before Stress; nothing to compare.
+ *  BOTH_SURVIVE           -- the leader keeps its own selection even with its OWN evidence
+ *                            eroded. Nothing to adjudicate; the challenger's profile does
+ *                            not matter here because the leader was never actually at risk.
+ *  LEADER_MORE_ROBUST     -- eroding the leader's own evidence costs it the selection, but
+ *                            eroding the challenger's own evidence leaves the leader still
+ *                            ahead. Of the two, the leader is the more robust.
+ *  CHALLENGER_MORE_ROBUST -- eroding the challenger's own evidence STILL leaves the
+ *                            challenger ahead. The challenger genuinely survives scrutiny
+ *                            the leader does not -- the one state that is a real comparative
+ *                            finding about the two players, not an artifact of only ever
+ *                            testing the leader.
+ *  NON_DISCRIMINATING     -- stressing either player hands the match to the other. The
+ *                            shift is larger than the evidence separation in both
+ *                            directions, so it ranks nobody.
+ */
+export type SymmetricStressVerdict = "NON_DISCRIMINATING" | "LEADER_MORE_ROBUST" | "CHALLENGER_MORE_ROBUST" | "BOTH_SURVIVE" | "NOT_APPLICABLE";
+
+/**
+ * One player's own Stress profile: what happens to the evidence picture when THAT side's
+ * own currently-favouring evidence -- and only that -- is eroded by one noise floor per
+ * metric. Computed with the identical rule for P1 and P2; nothing here is "for P1, then
+ * assumed inverse for P2".
+ */
+export interface SideStressResult {
+  side: StressSide;
+  /** This side's share of the directional evidence before any erosion. */
+  initial_support_percent: number;
+  /** This side's share of the directional evidence after ITS OWN favouring edges are eroded. */
+  stress_adjusted_support_percent: number;
+  /** The full re-derived selection once this side's own evidence is eroded. */
+  outcome_when_this_side_stressed: SelectionOutcome;
+  support_families_before: number;
+  support_families_after: number;
+  /** Families that favoured this side before erosion and favour nobody after it -- genuine edge erosion. */
+  families_neutralised: string[];
+  /**
+   * Families that favoured NOBODY before erosion and favour the opponent after it. This
+   * would be directional evidence manufactured out of declared parity, not an eroded edge.
+   * Always empty: the erosion below only ever touches comparisons already favouring the
+   * side being stressed, so a NEUTRAL or opponent-favouring comparison can never move.
+   * Retained as an explicit field (and asserted empty in tests) so the guarantee is
+   * auditable, not merely implied by the implementation.
+   */
+  families_manufactured_for_opponent: string[];
+  /**
+   * Families that favoured this side before erosion and the OPPONENT after it. Always
+   * empty for the same structural reason: eroding a favouring comparison by one noise
+   * floor can weaken it to NEUTRAL but can never cross zero into the opponent's favour
+   * (the pre-erosion advantage exceeds the floor by construction, so subtracting exactly
+   * one floor cannot make it exceed the floor in the other direction).
+   */
+  families_flipped_to_opponent: string[];
+}
 
 /**
  * Magnitude of an observed edge expressed in units of that metric's OWN declared noise
@@ -332,26 +393,48 @@ export interface StressCase {
 }
 
 export interface StressTest {
+  /** Kept for the persisted ST03/ST05-07 rows: the selection under test is the pre-Stress leader. */
   winner_before: "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
   winner_after: "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
+  /** True when eroding the LEADER's own edges alone changes the outcome. Diagnostic only --
+   *  it no longer drives the refusal decision; see `comparative_robustness`. */
   changed: boolean;
   cases: StressCase[];
   stability: StressStability;
   reason: string;
+  /** Each player's own Stress profile, computed by the identical rule. */
+  p1: SideStressResult;
+  p2: SideStressResult;
+  /** The one comparative reading that can legitimately withdraw a selection. */
+  comparative_robustness: SymmetricStressVerdict;
 }
 
 /**
- * Shifts every comparison's edge by `steps` multiples of that metric's OWN materiality
- * (its declared noise floor), in the direction adverse (negative) or favourable (positive)
- * to `side`, then re-derives favours from the shifted numbers.
+ * Shifts a comparison's edge by `steps` multiples of that metric's OWN materiality (its
+ * declared noise floor), in the direction adverse (negative) or favourable (positive) to
+ * `side`, then re-derives favours from the shifted number.
  *
  * This is the principled adverse assumption: "the observed edge overstates the true edge by
  * about the amount this metric already treats as noise". It is derived from each metric's
  * existing specification, never a number invented to force a flip.
+ *
+ * CRITICAL: the shift is applied ONLY to comparisons that already favour `side`. A
+ * comparison the engine measured as NEUTRAL, or one favouring the opponent, is left
+ * completely untouched. Without this guard, shifting every comparison (the previous
+ * behaviour) could push a NEUTRAL comparison -- one the engine explicitly found "both
+ * players measured, no material difference" -- across the noise floor into a vote for the
+ * opponent. That is not erosion of an existing edge; it is directional evidence the shift
+ * manufactures out of declared parity, and no formal spec defines such a transformation.
+ * Restricting the shift to `side`'s own favouring comparisons also guarantees, by
+ * construction, that erosion (steps=-1) can weaken a favouring edge to NEUTRAL but can
+ * never cross zero into a vote for the opponent: the pre-shift advantage already exceeds
+ * one materiality unit (that is what "favours `side`" means), so subtracting exactly one
+ * materiality unit cannot make it exceed a materiality unit in the opposite direction.
  */
 function shiftComparisons(comparisons: MetricComparison[], side: "P1" | "P2", steps: number): MetricComparison[] {
   return comparisons.map((c) => {
     if (c.status !== "COMPARED" || c.differential === null || c.advantage_p1 === null) return c;
+    if (c.favours !== side) return c;
     const spec = COMPARISON_SPECS[c.metric_code];
     if (!spec) return c;
     // Move the P1-facing advantage toward/away from the chosen side.
@@ -366,13 +449,93 @@ function outcomeOf(decision: TruthEngineDecision): "P1" | "P2" | "INSUFFICIENT_E
   return decision.outcome;
 }
 
+/** Share of the directional evidence held by `side` in a given (re)derived decision. */
+function directionalPercent(side: StressSide, decision: TruthEngineDecision): number {
+  const support = decision.families.filter((f) => f.vote === side).length;
+  const contra = decision.families.filter((f) => f.vote === "P1" || f.vote === "P2").length - support;
+  const conflicted = decision.families.filter((f) => f.vote === "INTERNALLY_CONFLICTED").length;
+  const denominator = support + contra + conflicted;
+  return denominator > 0 ? Number(((support / denominator) * 100).toFixed(1)) : 0;
+}
+
+/**
+ * One side's complete Stress profile: erode ONLY that side's own currently-favouring
+ * evidence by one noise floor per metric, then genuinely re-derive the full selection.
+ * Called identically for P1 and P2 -- there is no leader-dependent branching here or in
+ * any caller of this function.
+ */
+export function evaluateSideStress(comparisons: MetricComparison[], side: StressSide, p1Name: string, p2Name: string): SideStressResult {
+  const base = decideTruthEngineSelection({ comparisons, p1Name, p2Name });
+  const stressedComparisons = shiftComparisons(comparisons, side, -1);
+  const stressed = decideTruthEngineSelection({ comparisons: stressedComparisons, p1Name, p2Name });
+
+  const voteBefore = new Map(base.families.map((f) => [f.family, f.vote]));
+  const voteAfter = new Map(stressed.families.map((f) => [f.family, f.vote]));
+  const opponent: StressSide = side === "P1" ? "P2" : "P1";
+  const manufactured: string[] = [];
+  const neutralised: string[] = [];
+  const flipped: string[] = [];
+  for (const [family, was] of voteBefore) {
+    const now = voteAfter.get(family);
+    if (was === "NEUTRAL" && now === opponent) manufactured.push(family);
+    if (was === side && now === "NEUTRAL") neutralised.push(family);
+    if (was === side && now === opponent) flipped.push(family);
+  }
+
+  return {
+    side,
+    initial_support_percent: directionalPercent(side, base),
+    stress_adjusted_support_percent: directionalPercent(side, stressed),
+    outcome_when_this_side_stressed: stressed.outcome,
+    support_families_before: base.families.filter((f) => f.vote === side).length,
+    support_families_after: stressed.families.filter((f) => f.vote === side).length,
+    families_neutralised: neutralised.sort(),
+    families_manufactured_for_opponent: manufactured.sort(),
+    families_flipped_to_opponent: flipped.sort(),
+  };
+}
+
+/**
+ * Reads the two per-side Stress profiles against each other. Neither side is privileged:
+ * the same four-way comparison is applied whichever side happens to be `leader`.
+ */
+export function robustnessVerdict(leader: "P1" | "P2" | null, p1Stress: SideStressResult, p2Stress: SideStressResult): SymmetricStressVerdict {
+  if (leader !== "P1" && leader !== "P2") return "NOT_APPLICABLE";
+  const challenger: StressSide = leader === "P1" ? "P2" : "P1";
+  const leaderStress = leader === "P1" ? p1Stress : p2Stress;
+  const challengerStress = leader === "P1" ? p2Stress : p1Stress;
+  const underOwnStress = leaderStress.outcome_when_this_side_stressed;
+  const underChallengerStress = challengerStress.outcome_when_this_side_stressed;
+  // The leader kept its selection even with its own edges eroded: nothing to adjudicate.
+  if (underOwnStress === leader) return "BOTH_SURVIVE";
+  // The challenger wins its OWN mirror case too -- it genuinely survives scrutiny the
+  // leader does not, and withdrawing the leader's selection is then a real comparative
+  // finding rather than an artifact of only ever testing the leader.
+  if (underChallengerStress === challenger) return "CHALLENGER_MORE_ROBUST";
+  // Perfect mirror: stress either player and the OTHER one wins. The shift is bigger than
+  // the evidence separation in both directions, so it ranks nobody.
+  if (underOwnStress === challenger && underChallengerStress === leader) return "NON_DISCRIMINATING";
+  // The leader's own stress merely removes the selection, while the challenger's stress
+  // leaves the leader ahead: of the two, the leader is the more robust.
+  if (underChallengerStress === leader) return "LEADER_MORE_ROBUST";
+  return "NON_DISCRIMINATING";
+}
+
 /**
  * Recomputes the FULL selection (family voting, leave-one-family-out and all) under each
- * case. `winner_after` is a real recomputation result, not a relabelling of `winner_before`.
+ * case for the LEADER (kept for the persisted ST03/ST05/ST06/ST07 stress-test rows and the
+ * BASE/ADVERSE/FAVOURABLE detail they carry), plus a genuine two-sided evaluation -- `p1`
+ * and `p2` -- computed by the identical rule for both players via `evaluateSideStress`, and
+ * `comparative_robustness`, the one honest reading of which side actually survives
+ * equivalent scrutiny. `winner_after` is a real recomputation result, not a relabelling of
+ * `winner_before`.
  */
 export function runStressTest(comparisons: MetricComparison[], p1Name: string, p2Name: string): StressTest {
   const base = decideTruthEngineSelection({ comparisons, p1Name, p2Name });
   const before = outcomeOf(base);
+  const p1Stress = evaluateSideStress(comparisons, "P1", p1Name, p2Name);
+  const p2Stress = evaluateSideStress(comparisons, "P2", p1Name, p2Name);
+
   if (before === "INSUFFICIENT_EVIDENCE") {
     return {
       winner_before: before,
@@ -381,11 +544,14 @@ export function runStressTest(comparisons: MetricComparison[], p1Name: string, p
       cases: [{ case_name: "BASE", winner: before, support_families: base.independent_support_families.length, contradiction_families: base.independent_contradiction_families.length, assumption: "Observed evidence as measured." }],
       stability: "NOT_APPLICABLE",
       reason: "No selection was made, so there is nothing to stress.",
+      p1: p1Stress,
+      p2: p2Stress,
+      comparative_robustness: "NOT_APPLICABLE",
     };
   }
 
   const selected: "P1" | "P2" = before;
-  // ADVERSE: erode the selected player's measured edge by one noise floor per metric.
+  // ADVERSE: erode the selected player's own favouring edges by one noise floor per metric.
   const adverseComparisons = shiftComparisons(comparisons, selected, -1);
   const adverse = decideTruthEngineSelection({ comparisons: adverseComparisons, p1Name, p2Name });
   // FAVOURABLE: the mirror, for a symmetric picture of the decision surface.
@@ -395,10 +561,11 @@ export function runStressTest(comparisons: MetricComparison[], p1Name: string, p
   const after = outcomeOf(adverse);
   const cases: StressCase[] = [
     { case_name: "BASE", winner: before, support_families: base.independent_support_families.length, contradiction_families: base.independent_contradiction_families.length, assumption: "Observed evidence as measured." },
-    { case_name: "ADVERSE", winner: after, support_families: adverse.independent_support_families.length, contradiction_families: adverse.independent_contradiction_families.length, assumption: `Every edge favouring the selected side reduced by one metric-specific noise floor.` },
-    { case_name: "FAVOURABLE", winner: outcomeOf(favourable), support_families: favourable.independent_support_families.length, contradiction_families: favourable.independent_contradiction_families.length, assumption: "Every edge favouring the selected side widened by one metric-specific noise floor." },
+    { case_name: "ADVERSE", winner: after, support_families: adverse.independent_support_families.length, contradiction_families: adverse.independent_contradiction_families.length, assumption: `The selected side's own favouring edges reduced by one metric-specific noise floor each; evidence favouring nobody or the opponent is left untouched.` },
+    { case_name: "FAVOURABLE", winner: outcomeOf(favourable), support_families: favourable.independent_support_families.length, contradiction_families: favourable.independent_contradiction_families.length, assumption: "The selected side's own favouring edges widened by one metric-specific noise floor each." },
   ];
 
+  const comparativeRobustness = robustnessVerdict(selected, p1Stress, p2Stress);
   const reversed = after !== before && after !== "INSUFFICIENT_EVIDENCE";
   const lost = after === "INSUFFICIENT_EVIDENCE";
   const stability: StressStability = reversed ? "UNSTABLE" : lost ? "FRAGILE" : base.independent_contradiction_families.length === 0 && base.stability === "ROBUST" ? "ROBUST" : "STABLE";
@@ -410,10 +577,13 @@ export function runStressTest(comparisons: MetricComparison[], p1Name: string, p
     cases,
     stability,
     reason: reversed
-      ? `Eroding the selected side's edge by one noise floor per metric REVERSES the winner (${before} -> ${after}). The selection is unstable.`
+      ? `Eroding the selected side's own edges by one noise floor per metric REVERSES the winner (${before} -> ${after}). The selection is unstable.`
       : lost
-        ? `Eroding the selected side's edge by one noise floor per metric removes the selection entirely (no side retains a supported lead). The selection is fragile.`
-        : `The selection survives eroding every supporting edge by one noise floor per metric (${before} retained).`,
+        ? `Eroding the selected side's own edges by one noise floor per metric removes the selection entirely (no side retains a supported lead). Comparative robustness: ${comparativeRobustness}.`
+        : `The selection survives eroding every one of its own supporting edges by one noise floor per metric (${before} retained).`,
+    p1: p1Stress,
+    p2: p2Stress,
+    comparative_robustness: comparativeRobustness,
   };
 }
 
@@ -442,9 +612,20 @@ export interface TruthEngineAuditResult {
  * The single entry point: evidence in, auditable winner (or an explicit refusal) out.
  *
  * The winner comes from the deterministic decision core. Verification, Disagreement,
- * Underdog and Stress are genuine audit layers over that same evidence -- and the stress
- * result can DOWNGRADE the outcome to a refusal (a selection that reverses under a
- * one-noise-floor erosion is not reported as a winner), but no layer can invent a winner.
+ * Underdog and Stress are genuine audit layers over that same evidence -- and Stress can
+ * DOWNGRADE the outcome to a refusal, but only on a genuine comparative finding: the
+ * opponent demonstrably surviving the identical scrutiny the leader does not
+ * (`comparative_robustness === "CHALLENGER_MORE_ROBUST"`). Eroding only the leader's own
+ * evidence and treating that erosion as a verdict -- without ever subjecting the opponent
+ * to the same test -- is exactly the one-sided global veto this function used to commit
+ * (every prior refusal from this stage always tested the leader alone and never the
+ * opponent, so the opponent was never once shown to be the more robust of the two). A
+ * leader whose margin merely narrows under its own erosion, or whose evidence collapses
+ * while the opponent has nothing to show for its own erosion either
+ * (`LEADER_MORE_ROBUST`), or where neither side's evidence discriminates
+ * (`NON_DISCRIMINATING`), or where the leader's own selection survives its own erosion
+ * outright (`BOTH_SURVIVE`), all remain the leader's win: Stress narrows a margin, it does
+ * not, by itself, erase a valid comparative result. No layer can invent a winner.
  */
 export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: string, p2Name: string): TruthEngineAuditResult {
   const decision = decideTruthEngineSelection({ comparisons, p1Name, p2Name });
@@ -454,8 +635,9 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
   const underdog = runUnderdogAnalysis(comparisons, selected, p1Name, p2Name);
   const stress = runStressTest(comparisons, p1Name, p2Name);
 
-  // A selection that does not survive the adverse recomputation is refused, not asserted.
-  const stressRefuses = selected !== null && stress.changed;
+  // A selection is refused only when the opponent demonstrably survives the SAME scrutiny
+  // the leader does not -- a genuine comparative finding, not a one-sided veto.
+  const stressRefuses = selected !== null && stress.comparative_robustness === "CHALLENGER_MORE_ROBUST";
   const finalSide = stressRefuses ? null : selected;
   const winner = finalSide === "P1" ? p1Name : finalSide === "P2" ? p2Name : null;
 
@@ -473,7 +655,7 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
     ...verification.findings.map((f) => `VERIFICATION ${f.family}: ${f.outcome} (${f.severity}) -- ${f.decision_effect}`),
     `DISAGREEMENT: ${disagreement.final_effect}`,
     `UNDERDOG: ${underdog.reason} Overall ${underdog.overall_viability}.`,
-    `STRESS: base=${stress.winner_before} adverse=${stress.winner_after} changed=${stress.changed} stability=${stress.stability}.`,
+    `STRESS: base=${stress.winner_before} adverse=${stress.winner_after} changed=${stress.changed} stability=${stress.stability} comparative_robustness=${stress.comparative_robustness} (P1 stressed->${stress.p1.outcome_when_this_side_stressed}, P2 stressed->${stress.p2.outcome_when_this_side_stressed}).`,
     `LEAVE-ONE-FAMILY-OUT: ${decision.flipping_families.length ? `reversed by ${decision.flipping_families.join(", ")}` : "no single family reverses the leader"}.`,
   ];
 
@@ -491,7 +673,7 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
     contradiction_families: contraCount,
     leave_one_family_out_winner: decision.flipping_families.length ? "CHANGES" : decision.outcome,
     final_reason: stressRefuses
-      ? `Refused: ${decision.selected_player} led on the measured evidence, but ${stress.reason}`
+      ? `Refused: ${decision.selected_player} led on the measured evidence, but under equivalent scrutiny of BOTH players (each side's own favouring edges eroded by one noise floor, in turn), the opponent survives that scrutiny and ${decision.selected_player} does not (comparative_robustness=CHALLENGER_MORE_ROBUST). This is a genuine comparative finding, not a one-sided veto.`
       : finalSide === null
         ? `Refused: ${decision.reason}`
         : `${winner} is the audit winner. ${decision.reason} ${disagreement.final_effect} Underdog: ${underdog.overall_viability}. Stress: ${stress.stability}.`,

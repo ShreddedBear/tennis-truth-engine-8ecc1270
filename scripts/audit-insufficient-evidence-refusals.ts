@@ -202,7 +202,7 @@ writeFileSync(`${outDir}/insufficient-evidence-refusals.json`, JSON.stringify({
 // ---------------------------------------------------------------------------
 // HUMAN-READABLE REPORT — the same facts as the JSON, arranged for reading.
 // ---------------------------------------------------------------------------
-const ORDER_MD: RefusalClassification[] = ["TRUE_TIE", "BELOW_THRESHOLD", "CONFLICTED_EVIDENCE", "ROBUSTNESS_UNRESOLVED", "DOWNSTREAM_VETO_BUG", "DATA_OR_PIPELINE_BUG", "OTHER"];
+const ORDER_MD: RefusalClassification[] = ["TRUE_TIE", "BELOW_THRESHOLD", "CONFLICTED_EVIDENCE", "ROBUSTNESS_UNRESOLVED", "DOWNSTREAM_VETO_BUG", "FIXED_PENDING_REPROCESS", "DATA_OR_PIPELINE_BUG", "OTHER"];
 const pct = (n: number) => `${n.toFixed(4).replace(/\.?0+$/, "")}%`;
 const md: string[] = [];
 md.push(`# Forensic audit — the ${diagnostic.length} INSUFFICIENT_EVIDENCE decisions`, "");
@@ -257,7 +257,7 @@ writeFileSync(`${outDir}/insufficient-evidence-refusals.md`, md.join("\n"));
 // ---------------------------------------------------------------------------
 // STEP 9 — console summary.
 // ---------------------------------------------------------------------------
-const ORDER: RefusalClassification[] = ["TRUE_TIE", "BELOW_THRESHOLD", "CONFLICTED_EVIDENCE", "ROBUSTNESS_UNRESOLVED", "DOWNSTREAM_VETO_BUG", "DATA_OR_PIPELINE_BUG", "OTHER"];
+const ORDER: RefusalClassification[] = ["TRUE_TIE", "BELOW_THRESHOLD", "CONFLICTED_EVIDENCE", "ROBUSTNESS_UNRESOLVED", "DOWNSTREAM_VETO_BUG", "FIXED_PENDING_REPROCESS", "DATA_OR_PIPELINE_BUG", "OTHER"];
 const counts = new Map<RefusalClassification, typeof results>();
 for (const r of results) counts.set(r.forensics.classification, [...(counts.get(r.forensics.classification) ?? []), r]);
 

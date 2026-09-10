@@ -291,6 +291,19 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
   const code = String(testCode ?? "");
   const before = audit.stress.winner_before;
   const rangeOf = (w: string) => (w === "INSUFFICIENT_EVIDENCE" ? null : w);
+  // Every stress row carries BOTH players' own profile and the one comparative reading
+  // that can legitimately withdraw a selection, regardless of which test the row is for --
+  // this is what makes "what happened to P1 under Stress?" and "what happened to P2?"
+  // answerable per persisted row, not only in-memory during the run.
+  const perPlayer = {
+    p1_outcome_when_stressed: rangeOf(audit.stress.p1.outcome_when_this_side_stressed),
+    p2_outcome_when_stressed: rangeOf(audit.stress.p2.outcome_when_this_side_stressed),
+    p1_support_percent_before: audit.stress.p1.initial_support_percent,
+    p1_support_percent_after: audit.stress.p1.stress_adjusted_support_percent,
+    p2_support_percent_before: audit.stress.p2.initial_support_percent,
+    p2_support_percent_after: audit.stress.p2.stress_adjusted_support_percent,
+    comparative_robustness: audit.stress.comparative_robustness,
+  };
 
   if (code === "ST03") {
     // Leave-one-family-out is a real recomputation already performed by the decision core.
@@ -308,6 +321,7 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
         unavailable_detail: `Removing each independent evidence family in turn: ${reversed ? `reversed by ${audit.decision.flipping_families.join(", ")}` : tie ? `no reversal; removing ${audit.decision.tie_inducing_families.join(" or ")} would leave it tied` : "leader unchanged by any single removal"}.`,
         provider_error: null, missing_inputs: [], sources: [{ source_name: "Truth Engine leave-one-family-out recomputation", url: null, retrieved_at: null }],
         source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
+        ...perPlayer,
       },
     };
   }
@@ -324,6 +338,7 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
           unavailable_reason: "MISSING_REQUIRED_INPUT",
           unavailable_detail: "No side was selected on the available evidence, so there is no selection to stress-test.",
           provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
+          ...perPlayer,
         },
       };
     }
@@ -333,12 +348,17 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
         winner_before: rangeOf(before),
         winner_after: rangeOf(audit.stress.winner_after),
         range_before: null, range_after: null,
-        outcome: audit.stress.changed ? "UNSTABLE" : "STABLE",
+        // A selection is no longer marked UNSTABLE merely because the LEADER's own margin
+        // narrowed (that is `audit.stress.changed`, kept for diagnostic display below); it
+        // is UNSTABLE only when the opponent demonstrably survives the identical scrutiny
+        // the leader does not -- the one comparative finding that can withdraw a selection.
+        outcome: audit.stress.comparative_robustness === "CHALLENGER_MORE_ROBUST" ? "UNSTABLE" : "STABLE",
         status: "COMPLETE",
         unavailable_reason: null,
-        unavailable_detail: `Adverse recomputation (${adverse.assumption}): support families ${audit.stress.cases[0]!.support_families} -> ${adverse.support_families}; winner ${before} -> ${audit.stress.winner_after}.`,
-        provider_error: null, missing_inputs: [], sources: [{ source_name: "Truth Engine adverse-case recomputation", url: null, retrieved_at: null }],
+        unavailable_detail: `Adverse recomputation on the leader alone (${adverse.assumption}): support families ${audit.stress.cases[0]!.support_families} -> ${adverse.support_families}; winner ${before} -> ${audit.stress.winner_after}. Comparative robustness (both players tested independently): ${audit.stress.comparative_robustness}.`,
+        provider_error: null, missing_inputs: [], sources: [{ source_name: "Truth Engine adverse-case recomputation (both players)", url: null, retrieved_at: null }],
         source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
+        ...perPlayer,
       },
     };
   }
@@ -350,6 +370,7 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
       unavailable_reason: "MISSING_REQUIRED_INPUT",
       unavailable_detail: STRESS_MISSING_EVIDENCE[code] ?? "No deterministic evidence path for this stress test.",
       provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
+      ...perPlayer,
     },
   };
 }

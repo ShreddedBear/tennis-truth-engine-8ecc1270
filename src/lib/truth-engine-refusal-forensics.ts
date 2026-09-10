@@ -32,14 +32,19 @@ import {
   runUnderdogAnalysis,
   runVerificationAudit,
   magnitudeRatio,
+  robustnessVerdict,
   type TruthEngineAuditResult,
+  type SideStressResult,
+  type SymmetricStressVerdict as ProductionSymmetricStressVerdict,
 } from "./truth-engine-audit";
 import { compareMetricRows, COMPARISON_SPECS, type MetricComparison, type MetricRowForComparison } from "./truth-engine-metric-comparison";
 
 export type Side = "P1" | "P2";
 export type StageComparison = "P1" | "P2" | "TIE" | "INSUFFICIENT";
 
-/** One of the seven mandated primary classifications. Exactly one is assigned per refusal. */
+/** One of the eight primary classifications (the original seven, plus one added when the
+ *  Stress fix resolved a case but production has not been re-run to update the persisted
+ *  row -- see FIXED_PENDING_REPROCESS below). Exactly one is assigned per refusal. */
 export type RefusalClassification =
   | "TRUE_TIE"
   | "BELOW_THRESHOLD"
@@ -47,6 +52,16 @@ export type RefusalClassification =
   | "ROBUSTNESS_UNRESOLVED"
   | "DOWNSTREAM_VETO_BUG"
   | "DATA_OR_PIPELINE_BUG"
+  /**
+   * The corrected reconstruction now finds a winner that clears the threshold, survives
+   * leave-one-family-out, AND survives the corrected two-sided Stress evaluation
+   * (comparative_robustness is never CHALLENGER_MORE_ROBUST) -- but the PERSISTED row still
+   * shows INSUFFICIENT EVIDENCE because production has not re-run this match since the fix.
+   * Per the read-only production-safety constraint, this reconstruction never writes to
+   * production, so this state is expected and distinct from a live defect: it is the fix
+   * working, awaiting the next real pipeline run to update the stored verdict.
+   */
+  | "FIXED_PENDING_REPROCESS"
   | "OTHER";
 
 export interface PerSideSupport {
@@ -105,7 +120,13 @@ export interface StressProfile {
   /** Leader of the full re-derived selection when THIS side is the one stressed. */
   outcome_when_this_side_stressed: StageComparison;
   status: "ROBUST" | "FRAGILE" | "REVERSED" | "REMOVED" | "NOT_APPLICABLE";
-  /** True when production actually ran an adverse case for this side. */
+  /**
+   * True when production's own `runStressTest` computed this side's profile as part of its
+   * real two-sided evaluation (now always, post-fix -- both `p1` and `p2` are always
+   * computed by `evaluateSideStress`). False only distinguishes the pre-fix era, where
+   * production could only ever stress the pre-Stress leader and this reconstruction had to
+   * run its own separate mirror computation to get the other side's profile at all.
+   */
   evaluated_by_production: boolean;
   /**
    * Families that voted for NOBODY before the shift (the engine measured both players and
@@ -121,25 +142,12 @@ export interface StressProfile {
 }
 
 /**
- * The like-for-like comparison production never makes: the same adverse shift applied to
- * EACH player in turn.
- *
- *  NON_DISCRIMINATING  -- stressing either side hands the match to the other. The shift is
- *                         larger than the evidence separation for both players, so it
- *                         distinguishes nothing; only the unstressed comparison does.
- *  LEADER_MORE_ROBUST  -- stressing the leader costs it the selection, but stressing the
- *                         challenger leaves the leader ahead. The leader is the more robust
- *                         of the two under identical scrutiny.
- *  CHALLENGER_MORE_ROBUST -- stressing the challenger still leaves the challenger ahead.
- *                         The challenger genuinely survives scrutiny the leader does not.
- *  BOTH_SURVIVE / NOT_APPLICABLE -- no leader existed, or neither side loses its footing.
+ * The like-for-like comparison this used to be the only place production ever made: the
+ * same adverse shift applied to EACH player in turn. Production now computes this itself
+ * (`truth-engine-audit.ts`: `evaluateSideStress` / `robustnessVerdict`) and actually acts
+ * on it, so this is a re-export of the production type, not a parallel one.
  */
-export type SymmetricStressVerdict =
-  | "NON_DISCRIMINATING"
-  | "LEADER_MORE_ROBUST"
-  | "CHALLENGER_MORE_ROBUST"
-  | "BOTH_SURVIVE"
-  | "NOT_APPLICABLE";
+export type SymmetricStressVerdict = ProductionSymmetricStressVerdict;
 
 export interface StageTrace {
   /** Leader on family votes alone, before the 60% threshold is applied. */
@@ -261,82 +269,53 @@ function supportFor(side: Side, families: FamilyEvidence[]): PerSideSupport {
 }
 
 /**
- * The adverse recomputation production runs, but pointed at a NAMED side rather than only
- * at whichever side happened to lead. Production's runStressTest can only ever stress the
- * selected side (it returns NOT_APPLICABLE when there is no selection), so this is how the
- * audit gets a like-for-like stress profile for BOTH players.
- *
- * The shift itself is production's own rule, restated here rather than imported because
- * production does not export it: move each comparison's P1-facing advantage by one of that
- * metric's declared materiality units against `side`, then re-derive `favours` from the
- * shifted number exactly as compareMetricRow does.
+ * A like-for-like stress profile for a NAMED side, wrapping production's own two-sided
+ * computation (`evaluateSideStress`) rather than re-deriving it. Production used to be
+ * unable to stress anything but the selected side; now that it genuinely evaluates both
+ * players by the identical rule, this is a thin adapter onto production's `SideStressResult`
+ * -- shaped as `StressProfile` for backward compatibility with the JSON/MD report this
+ * module already produces, and unchanged in field names so existing consumers of that report
+ * do not need to change.
  */
-function shiftAgainst(comparisons: MetricComparison[], side: Side): MetricComparison[] {
-  return comparisons.map((c) => {
-    if (c.status !== "COMPARED" || c.differential === null || c.advantage_p1 === null) return c;
-    const spec = COMPARISON_SPECS[c.metric_code];
-    if (!spec) return c;
-    const advantage = Number((c.advantage_p1 + spec.materiality * -1 * (side === "P1" ? 1 : -1)).toFixed(6));
-    const favours = Math.abs(advantage) <= spec.materiality ? "NEUTRAL" : advantage > 0 ? "P1" : "P2";
-    return { ...c, advantage_p1: advantage, favours: favours as MetricComparison["favours"] };
-  });
-}
-
-function stressProfileFor(side: Side, comparisons: MetricComparison[], base: TruthEngineDecision, p1: string, p2: string, productionEvaluated: boolean): StressProfile {
-  const before = supportFor(side, base.families).support_ratio_percent;
-  const stressed = decideTruthEngineSelection({ comparisons: shiftAgainst(comparisons, side), p1Name: p1, p2Name: p2 });
-  const after = supportFor(side, stressed.families).support_ratio_percent;
-  const voteBefore = new Map(base.families.map((f) => [f.family, f.vote]));
-  const voteAfter = new Map(stressed.families.map((f) => [f.family, f.vote]));
-  const opponent: Side = side === "P1" ? "P2" : "P1";
-  const manufactured: string[] = [];
-  const neutralised: string[] = [];
-  const flipped: string[] = [];
-  for (const [family, was] of voteBefore) {
-    const now = voteAfter.get(family);
-    if (was === "NEUTRAL" && now === opponent) manufactured.push(family);
-    if (was === side && now === "NEUTRAL") neutralised.push(family);
-    if (was === side && now === opponent) flipped.push(family);
-  }
-  const outcome: StageComparison = stressed.outcome === "INSUFFICIENT_EVIDENCE" ? "INSUFFICIENT" : stressed.outcome;
+function stressProfileFor(side: Side, sideResult: SideStressResult, productionEvaluated: boolean): StressProfile {
+  const outcome: StageComparison = sideResult.outcome_when_this_side_stressed === "INSUFFICIENT_EVIDENCE" ? "INSUFFICIENT" : sideResult.outcome_when_this_side_stressed;
   const other: Side = side === "P1" ? "P2" : "P1";
   const status: StressProfile["status"] =
     outcome === other ? "REVERSED"
     : outcome === side ? "ROBUST"
-    : after < before ? "FRAGILE"
+    : sideResult.stress_adjusted_support_percent < sideResult.initial_support_percent ? "FRAGILE"
     : "REMOVED";
   return {
-    initial_support_percent: before,
-    stress_adjusted_support_percent: after,
+    initial_support_percent: sideResult.initial_support_percent,
+    stress_adjusted_support_percent: sideResult.stress_adjusted_support_percent,
     outcome_when_this_side_stressed: outcome,
     status,
     evaluated_by_production: productionEvaluated,
-    families_manufactured_for_opponent: manufactured.sort(),
-    families_neutralised: neutralised.sort(),
-    families_flipped_to_opponent: flipped.sort(),
+    families_manufactured_for_opponent: sideResult.families_manufactured_for_opponent,
+    families_neutralised: sideResult.families_neutralised,
+    families_flipped_to_opponent: sideResult.families_flipped_to_opponent,
   };
 }
 
-/** Reads the two per-side stress profiles against each other. Neither side is privileged. */
+/**
+ * Reads the two per-side stress profiles against each other. Delegates to production's own
+ * `robustnessVerdict` -- there is exactly one implementation of this comparison in the
+ * codebase now, and production actually acts on it (see `runTruthEngineAudit`).
+ */
 export function symmetricStressVerdict(leader: StageComparison, p1: StressProfile, p2: StressProfile): SymmetricStressVerdict {
   if (leader !== "P1" && leader !== "P2") return "NOT_APPLICABLE";
-  const challenger: Side = leader === "P1" ? "P2" : "P1";
-  const leaderStressed = leader === "P1" ? p1 : p2;
-  const challengerStressed = leader === "P1" ? p2 : p1;
-  const underOwnStress = leaderStressed.outcome_when_this_side_stressed;
-  const underChallengerStress = challengerStressed.outcome_when_this_side_stressed;
-  // The leader kept its selection even with its own edges eroded: nothing to adjudicate.
-  if (underOwnStress === leader) return "BOTH_SURVIVE";
-  // The challenger wins the mirror case too -- it genuinely survives scrutiny the leader
-  // does not, and the veto is then a real robustness finding rather than an artifact.
-  if (underChallengerStress === challenger) return "CHALLENGER_MORE_ROBUST";
-  // Perfect mirror: stress either player and the OTHER one wins. The shift is bigger than
-  // the evidence separation in both directions, so it ranks nobody.
-  if (underOwnStress === challenger && underChallengerStress === leader) return "NON_DISCRIMINATING";
-  // The leader's own stress merely removes the selection, while the challenger's stress
-  // leaves the leader ahead: of the two, the leader is the more robust.
-  if (underChallengerStress === leader) return "LEADER_MORE_ROBUST";
-  return "NON_DISCRIMINATING";
+  const asSideResult = (side: Side, profile: StressProfile): SideStressResult => ({
+    side,
+    initial_support_percent: profile.initial_support_percent,
+    stress_adjusted_support_percent: profile.stress_adjusted_support_percent,
+    outcome_when_this_side_stressed: profile.outcome_when_this_side_stressed === "P1" || profile.outcome_when_this_side_stressed === "P2" ? profile.outcome_when_this_side_stressed : "INSUFFICIENT_EVIDENCE",
+    support_families_before: 0,
+    support_families_after: 0,
+    families_neutralised: profile.families_neutralised,
+    families_manufactured_for_opponent: profile.families_manufactured_for_opponent,
+    families_flipped_to_opponent: profile.families_flipped_to_opponent,
+  });
+  return robustnessVerdict(leader, asSideResult("P1", p1), asSideResult("P2", p2));
 }
 
 /** Leader on family votes alone -- the decision core's first, pre-threshold comparison. */
@@ -376,12 +355,15 @@ function classify(input: {
   const { trace, p1, p2, symmetricVerdict, leaderStress, challengerStress, decision, comparedCount, oneSidedCount, activeCodes, supplyFailures, supplyBreakdown } = input;
   const leader: StageComparison = trace.family_vote;
 
-  // DOWNSTREAM_VETO_BUG: a winner genuinely existed at the end of the decision core (it
-  // cleared the threshold AND survived leave-one-family-out) and a LATER stage removed it.
+  // DOWNSTREAM_VETO_BUG / ROBUSTNESS_UNRESOLVED: a winner genuinely existed at the end of
+  // the decision core (it cleared the threshold AND survived leave-one-family-out) and
+  // Stress removed it. Under the corrected, two-sided, non-manufacturing Stress evaluation
+  // this requires symmetricVerdict === "CHALLENGER_MORE_ROBUST" -- the one state that is a
+  // genuine comparative finding rather than a one-sided artifact.
   if (trace.after_lofo_initial_decision === "P1" || trace.after_lofo_initial_decision === "P2") {
     const selected = trace.after_lofo_initial_decision;
-    const lost = trace.after_stress !== selected || trace.final_stored === "INSUFFICIENT";
-    if (lost) {
+    const stressStillVetoes = trace.after_stress !== selected;
+    if (stressStillVetoes) {
       const manufactured = leaderStress.families_manufactured_for_opponent;
       const mechanism =
         `Under the adverse case the leader's own families were ${leaderStress.families_neutralised.length ? `neutralised (${leaderStress.families_neutralised.join(", ")})` : "left intact"}` +
@@ -403,6 +385,19 @@ function classify(input: {
         classification: "DOWNSTREAM_VETO_BUG",
         stage: trace.stage_that_removed_the_leader ?? "POST_DECISION_AUDIT",
         explanation: `The decision core selected ${selected} at ${(selected === "P1" ? p1 : p2).support_ratio_percent.toFixed(6)}% of the directional evidence, cleared the ${EVIDENCE_SELECTION_THRESHOLD}% threshold and survived leave-one-family-out; the STRESS stage then converted that selection into a refusal. The conversion is not a comparative finding: the adverse case is applied ONLY to the selected side (symmetric verdict: ${symmetricVerdict}), so the opponent's profile is never subjected to the same erosion before the selection is withdrawn. ${mechanism}`,
+      };
+    }
+    // The corrected reconstruction now survives Stress (comparative_robustness is never
+    // CHALLENGER_MORE_ROBUST here), but the PERSISTED row still disagrees. Since this
+    // reconstruction is read-only and never writes to production, that can only mean the
+    // stored verdict predates the fix -- this match has not been re-run by the real
+    // pipeline since. That is the fix working, not a live defect, so it gets its own label
+    // rather than being reported as still vetoed.
+    if (trace.final_stored === "INSUFFICIENT") {
+      return {
+        classification: "FIXED_PENDING_REPROCESS",
+        stage: "PERSISTENCE (stored verdict predates the Stress fix; production has not re-run this match)",
+        explanation: `The decision core selected ${selected} at ${(selected === "P1" ? p1 : p2).support_ratio_percent.toFixed(6)}% of the directional evidence, cleared the ${EVIDENCE_SELECTION_THRESHOLD}% threshold, survived leave-one-family-out, and now survives the corrected two-sided Stress evaluation as well (comparative_robustness=${symmetricVerdict}, never CHALLENGER_MORE_ROBUST). The persisted row still reads INSUFFICIENT EVIDENCE only because this read-only reconstruction, per its production-safety constraints, never writes to production -- the real pipeline has not re-run this match since the fix.`,
       };
     }
   }
@@ -586,9 +581,12 @@ export function forensicsForMatch(input: ForensicMatchInput): RefusalForensics {
     };
   };
 
-  const productionStressedSide = stress.winner_before === "P1" || stress.winner_before === "P2" ? stress.winner_before : null;
-  const stressP1 = stressProfileFor("P1", comparisons, decision, input.p1, input.p2, productionStressedSide === "P1");
-  const stressP2 = stressProfileFor("P2", comparisons, decision, input.p1, input.p2, productionStressedSide === "P2");
+  // Production now genuinely evaluates BOTH players' Stress profiles (truth-engine-audit.ts:
+  // runStressTest), not just the selected side -- so both are "evaluated by production" in
+  // the sense that matters (the recomputation is real, not a diagnostic-only mirror). The
+  // BASE/ADVERSE/FAVOURABLE `cases` detail production persists still only names the leader.
+  const stressP1 = stressProfileFor("P1", stress.p1, true);
+  const stressP2 = stressProfileFor("P2", stress.p2, true);
 
   const familyVote = familyVoteLeader(decision.families);
   const leaderSupport = familyVote === "P1" ? p1Support : familyVote === "P2" ? p2Support : null;
@@ -609,9 +607,15 @@ export function forensicsForMatch(input: ForensicMatchInput): RefusalForensics {
   const verificationAgreesWithCore = afterLofo !== "P1" && afterLofo !== "P2" ? true : verificationOwnLeader === afterLofo;
   const afterDisagreement: StageComparison = afterVerification;
   const afterUnderdog: StageComparison = afterDisagreement;
+  // A selection is genuinely removed at Stress only on the one comparative finding that can
+  // legitimately withdraw it: the opponent surviving the identical scrutiny the leader does
+  // not (production's `comparative_robustness === "CHALLENGER_MORE_ROBUST"`). This mirrors
+  // `runTruthEngineAudit` exactly -- `stress.changed` (the LEADER's own margin narrowing) is
+  // diagnostic only and no longer withdraws a selection in production, so it must not
+  // withdraw one in this reconstruction either.
   const afterStress: StageComparison =
     afterUnderdog === "P1" || afterUnderdog === "P2"
-      ? stress.changed
+      ? stress.comparative_robustness === "CHALLENGER_MORE_ROBUST"
         ? stress.winner_after === "INSUFFICIENT_EVIDENCE"
           ? "INSUFFICIENT"
           : (stress.winner_after as StageComparison)
