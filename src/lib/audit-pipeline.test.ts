@@ -1052,6 +1052,7 @@ describe("Run Audit pipeline", () => {
       independent_decision_committed_at: null,
       matrix_revealed_at: null,
       independent_winner: null,
+      independent_winner_side: null,
       independent_low: null,
       independent_high: null,
       calibrated_low: null,

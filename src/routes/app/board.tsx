@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { buildBoardPdf } from "@/lib/report-pdf";
 import { toast } from "sonner";
 import { currentAuditRows, activeSlateMatchIds } from "@/lib/current-audit-state";
+import { readPersistedSelectedPlayer } from "@/lib/selected-player-identity";
 
 export const Route = createFileRoute("/app/board")({
   head: () => ({
@@ -83,7 +84,14 @@ export function useBoardRows() {
           : null;
         return {
           matchLabel: `${match.player1_name} vs ${match.player2_name}`,
-          selection: d!.final_selection ?? run?.independent_winner ?? "—",
+          // THE CANONICAL SELECTED PLAYER, read from the decision's own identity fields.
+          // NEVER final_selection: that column holds the recommended ACTION ("PLAY — <name>",
+          // "MONITOR / REDUCE", "PASS"), and parsing a player out of it would make a display
+          // string the source of truth. The UI derives no winner of its own.
+          selection: readPersistedSelectedPlayer(d!.gate_report, match, {
+            side: run?.independent_winner_side,
+            name: run?.independent_winner,
+          }).player_name ?? "—",
           tournament: match?.tournament_name ?? "—",
           surface: match?.surface ?? "—",
           matrixPick: matrixFor(match.id, "matrix_predicted_winner") ?? "—",

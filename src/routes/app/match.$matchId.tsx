@@ -15,6 +15,7 @@ import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePip
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuditColorBadge, BucketBadge, StateText } from "@/components/StatusBadge";
+import { readPersistedSelectedPlayer } from "@/lib/selected-player-identity";
 import { EvidenceGapReport } from "@/components/EvidenceGapReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -299,12 +300,15 @@ function Workspace() {
       surface_status: match.surface_status,
       player1_name: match.player1_name,
       player2_name: match.player2_name,
+      player1_id: match.player1_id,
+      player2_id: match.player2_id,
     },
     run: {
       research_lock_at: run.research_lock_at,
       independent_decision_committed_at: run.independent_decision_committed_at,
       matrix_revealed_at: run.matrix_revealed_at,
       independent_winner: run.independent_winner,
+      independent_winner_side: run.independent_winner_side,
       independent_low: run.independent_low,
       independent_high: run.independent_high,
       calibration_version_id: run.calibration_version_id,
@@ -384,6 +388,15 @@ function Workspace() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Selected Winner and Color, together. The winner is READ from the persisted
+                decision's canonical identity; the colour is produced independently by the
+                existing colour rules. Neither is derived from the other. */}
+            <span className="text-sm font-medium">
+              {readPersistedSelectedPlayer(data.decision?.gate_report, match, {
+                side: run.independent_winner_side,
+                name: run.independent_winner,
+              }).player_name ?? "No selected winner"}
+            </span>
             <AuditColorBadge color={data.decision?.final_audit_color ?? report.color} />
             <Button onClick={runAudit} disabled={running}>
               {running ? "Running audit…" : "Run Audit"}

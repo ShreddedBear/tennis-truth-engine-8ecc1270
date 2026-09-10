@@ -12,6 +12,7 @@ import { activeRunIds, activeSlateMatchIds, isRowOnActiveSlate } from "@/lib/cur
 import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
 import { Button } from "@/components/ui/button";
 import { AuditColorBadge, StateText } from "@/components/StatusBadge";
+import { readPersistedSelectedPlayer } from "@/lib/selected-player-identity";
 import { ProgressBar } from "@/components/ProgressBar";
 
 const AUDIT_CONCURRENCY=4;
@@ -37,7 +38,7 @@ function Slate(){
     queryFn:async()=>{
       const[{data:matches},{data:runs},{data:versions}]=await Promise.all([
         supabase.from("matches").select("*").order("created_at",{ascending:false}),
-        supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at"),
+        supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at, independent_winner, independent_winner_side"),
         supabase.from("summary_versions").select("match_id, upload_id, created_at, is_active"),
       ]);
       const raw=matches??[],runRows=runs??[],groups:any[][]=[];
@@ -71,7 +72,7 @@ function Slate(){
       // fetch could stop containing this run's rows once the table grew
       // past the cap).
       const[{data:decisions},{data:stages},{data:coverage}]=activeRunIdList.length?await Promise.all([
-        supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete").in("audit_run_id",activeRunIdList),
+        supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete, selected_player_id, gate_report").in("audit_run_id",activeRunIdList),
         supabase.from("audit_stage_runs").select("audit_run_id, stage, stage_order, status, done_count, total_count, started_at, finished_at, heartbeat_at").in("audit_run_id",activeRunIdList),
         supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count").in("audit_run_id",activeRunIdList),
       ]):[{data:[]},{data:[]},{data:[]}] as const;
@@ -126,10 +127,13 @@ function Slate(){
     </div>
     <div className="panel overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
+        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Selected winner","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
         <tbody>
           {visible.map((match:any)=>{
             const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id),activeStage=activeStageFor(run);
+            // Read, never derived: the identity the final decision persisted, from the
+            // committed conclusion. The colour beside it is produced independently.
+            const selected=decision?readPersistedSelectedPlayer(decision.gate_report,match,{side:run?.independent_winner_side,name:run?.independent_winner}):null;
             return <tr key={match.id} className="border-t border-border">
               <td className="px-3 py-2 font-medium">{match.player1_name} vs {match.player2_name}</td>
               <td className="px-3 py-2">{match.tournament_name??"—"}</td>
@@ -138,6 +142,7 @@ function Slate(){
               <td className="px-3 py-2"><StateText state={match.identity_status}/></td>
               <td className="px-3 py-2"><StateText state={match.surface_status}/></td>
               <td className="mono-num px-3 py-2 text-xs">{run?<div>{`RUN ${run.run_number} · ${run.status}`}{activeStage&&<div className="mt-1 text-[10px] text-muted-foreground">{activeStage.stage} · {activeStage.done_count??0}/{activeStage.total_count??0}</div>}</div>:"—"}</td>
+              <td className="px-3 py-2 font-medium">{selected?.player_name??"—"}</td>
               <td className="px-3 py-2"><AuditColorBadge color={decision?.final_audit_color??"INCOMPLETE"}/></td>
               <td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td>
               <td className="mono-num px-3 py-2 text-xs">{evidence===null?"—":`${evidence}%`}</td>
@@ -147,7 +152,7 @@ function Slate(){
               </div></td>
             </tr>;
           })}
-          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
+          {!visible.length&&<tr><td colSpan={12} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
         </tbody>
       </table>
     </div>

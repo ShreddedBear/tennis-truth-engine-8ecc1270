@@ -3,6 +3,7 @@
 
 import { classifyMetric } from "./metric-classification";
 import { FINAL_STAGE, unmetDependencies, type StageStatusRow } from "./audit-stages";
+import { resolveSelectedPlayer, type SelectedPlayerIdentity } from "./selected-player-identity";
 
 export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"];
 
@@ -57,12 +58,16 @@ export interface EngineInput {
     surface_status: string;
     player1_name: string;
     player2_name: string;
+    player1_id?: string | null;
+    player2_id?: string | null;
   };
   run: {
     research_lock_at: string | null;
     independent_decision_committed_at: string | null;
     matrix_revealed_at: string | null;
     independent_winner: string | null;
+    /** The committed conclusion's P1/P2 side. Null for runs committed before it was stored. */
+    independent_winner_side?: string | null;
     independent_low: number | null;
     independent_high: number | null;
     calibration_version_id: string | null;
@@ -144,6 +149,13 @@ export interface GateReport {
   greenLockReasons: string[];
   color: "DOUBLE GREEN" | "GREEN" | "YELLOW" | "RED / PASS" | "INSUFFICIENT EVIDENCE" | "INCOMPLETE";
   action: string;
+  /**
+   * THE PLAYER THE COLOUR BELONGS TO, resolved from the committed conclusion and shipped on
+   * the same object as `color` so a consumer that has one necessarily has the other. It is an
+   * OUTPUT of the report, never an input to the colour: the colour rules below are unchanged
+   * and read nothing from here.
+   */
+  selectedPlayer: SelectedPlayerIdentity;
 }
 
 export interface CoverageReport {
@@ -208,6 +220,13 @@ function explicitEvidenceFamily(metric: EngineInput["metrics"][number]) {
 
 export function evaluate(input: EngineInput): GateReport {
   const { match, run } = input;
+
+  // Identity only. The colour gate below still keys on run.independent_winner exactly as it
+  // always has -- this adds who the winner IS, and changes no colour and no winner.
+  const selectedPlayer = resolveSelectedPlayer(match, {
+    side: run.independent_winner_side,
+    name: run.independent_winner,
+  });
 
   const metrics: CountPair = {
     done: input.metrics.filter((m) => DONE_STATES.includes(m.p1_status) && DONE_STATES.includes(m.p2_status)).length,
@@ -410,6 +429,7 @@ export function evaluate(input: EngineInput): GateReport {
     greenLockReasons,
     color,
     action,
+    selectedPlayer,
   };
 }
 

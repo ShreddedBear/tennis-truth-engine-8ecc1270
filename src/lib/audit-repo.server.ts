@@ -46,6 +46,10 @@ export async function makeDeps(): Promise<PipelineDeps> {
       };
       const persisted = {
         audit_run_id: runId,
+        // THE CANONICAL SELECTED PLAYER. Written from the committed deterministic conclusion
+        // (audit-pipeline.ts resolves it); this column existed in the database with nothing
+        // writing it, which is why every completed audit carried a colour and no identity.
+        selected_player_id: payload["selected_player_id"] ?? null,
         final_audit_color: payload["final_audit_color"] ?? null,
         final_selection: payload["final_selection"] ?? payload["final_recommendation"] ?? null,
         action: payload["action"] ?? payload["final_recommendation"] ?? null,
