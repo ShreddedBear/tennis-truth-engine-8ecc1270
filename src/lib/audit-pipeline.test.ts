@@ -5,7 +5,9 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { metricPairPatch, metricRowsForSideExecution, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { metricPairPatch, metricRowsForSideExecution, pass2WriteBackPatch, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { compareMetricRows } from "./truth-engine-metric-comparison";
+import type { TruthEngineDecisionRecord } from "./truth-engine-decision-record";
 import { unmetDependencies, canonicalizeStageRows, INVALIDATED_RUN_STATUS } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
@@ -187,6 +189,10 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
     disagreement_results: [],
     underdog_results: [],
     stress_results: [],
+    // The dossier-reconstruction pass genuinely inserts here whenever a catalogued
+    // statistic is extracted (audit-pipeline.ts's executeMetrics). Absent from this
+    // fixture, that insert crashed the P1 stage instead of exercising the path.
+    reconstruction_results: [],
   };
   const stages = new Map<string, Record<string, unknown>>();
   let seq = 0;
@@ -1666,5 +1672,129 @@ describe("Run-number monotonicity across an invalidated (not deleted) run", () =
     // UNIQUE(match_id, run_number) index enforces.
     const allRunNumbers = [...runsById.values()].filter((r: any) => r.match_id === MATCH_ID).map((r: any) => r.run_number);
     expect(new Set(allRunNumbers).size).toBe(allRunNumbers.length);
+  }, 60_000);
+});
+
+// ---------------------------------------------------------------------------
+// PASS-2 WRITE-BACK: a family stat may never masquerade as a different metric
+// ---------------------------------------------------------------------------
+//
+// executeMetrics' dossier-reconstruction pass routes catalogued atomic stats
+// back onto metric_results rows by evidence FAMILY. A family is a group of
+// related statistics, not one measurement, so the previous "first stat in the
+// family wins" rule wrote whichever member the producer happened to emit first
+// as that metric's value, under a usable treatment, bypassing the field
+// contract every pass-1 write already has to satisfy. Production shows the
+// result: 57 of 60 metric-008 rows and 57 of 60 metric-010 rows carrying a
+// BARE COUNT (0..915, 0..280) under treatment DIRECT, for two metrics whose
+// declared quantity is a percentage.
+describe("pass-2 dossier write-back is bound to each metric's declared field", () => {
+  const stat = (key: string, value: number, origin: "DIRECT" | "RECONSTRUCTED" = "RECONSTRUCTED") => ({
+    key, value, player: P1, origin, surface: null, window: null,
+    sources: [{ source_name: "dossier reconstruction" }],
+  }) as never;
+
+  it("refuses a same-family stat that is not the metric's declared quantity", () => {
+    // Catalogue family "008" holds sets_played/sets_won/set_win_pct; Truth Engine
+    // metric 008 means "deciding-set win %". A raw count is not that measurement.
+    const families = new Map([["008", [stat("sets_played", 915), stat("sets_won", 259)]]]);
+    const patch = pass2WriteBackPatch({ id: "r1", metric_code: "M08", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, "2026-04-12T00:00:00.000Z");
+    expect(patch).toBeNull();
+  });
+
+  it("writes the declared quantity in keyed form, so the comparison layer can actually read it", () => {
+    // straight_set_win_pct IS metric 010's declared fieldAlias. Persisting it keyed
+    // (rather than as a bare number) is what lets COMPARISON_SPECS resolve it without
+    // relying on a bareScalarFallback 010 deliberately withholds.
+    const families = new Map([["010", [stat("matches_won", 41), stat("straight_set_win_pct", 63.2)]]]);
+    const patch = pass2WriteBackPatch({ id: "r2", metric_code: "M10", p2_treatment: "UNAVAILABLE", p2_value: null }, "p2", families, "2026-04-12T00:00:00.000Z");
+    expect(patch).not.toBeNull();
+    expect(patch!["p2_value"]).toBe("straight_set_win_pct=63.2");
+    expect(patch!["p2_treatment"]).toBe("RECONSTRUCTED");
+    const [comparison] = compareMetricRows([{ metric_code: "010", p1_value: "straight_set_win_pct=80", p2_value: String(patch!["p2_value"]), p1_treatment: "DIRECT", p2_treatment: "RECONSTRUCTED" }]);
+    expect(comparison.status).toBe("COMPARED");
+    expect(comparison.p2_number).toBe(63.2);
+  });
+
+  it("selects the declared field regardless of the order the producer emitted the family in", () => {
+    const forwards = new Map([["001", [stat("surface_elo", 1830), stat("surface_win_pct", 64)]]]);
+    const backwards = new Map([["001", [stat("surface_win_pct", 64), stat("surface_elo", 1830)]]]);
+    const row = { id: "r3", metric_code: "M01", p1_treatment: "UNAVAILABLE", p1_value: null };
+    const a = pass2WriteBackPatch(row, "p1", forwards, "2026-04-12T00:00:00.000Z");
+    const b = pass2WriteBackPatch(row, "p1", backwards, "2026-04-12T00:00:00.000Z");
+    expect(a!["p1_value"]).toBe("surface_elo=1830");
+    expect(b!["p1_value"]).toBe(a!["p1_value"]);
+  });
+
+  it("never overwrites a side that already carries usable evidence", () => {
+    const families = new Map([["001", [stat("surface_elo", 1200)]]]);
+    const patch = pass2WriteBackPatch({ id: "r4", metric_code: "M01", p1_treatment: "DIRECT", p1_value: "surface_elo=1900" }, "p1", families, "2026-04-12T00:00:00.000Z");
+    expect(patch).toBeNull();
+  });
+
+  it("merges the row's existing sources instead of replacing the opposite side's provenance", () => {
+    const families = new Map([["001", [stat("surface_elo", 1830)]]]);
+    const patch = pass2WriteBackPatch(
+      { id: "r5", metric_code: "M01", p2_treatment: "UNAVAILABLE", p2_value: null, sources: [{ source_name: "P1 side source", url: "https://example.test/p1" }] },
+      "p2", families, "2026-04-12T00:00:00.000Z",
+    );
+    expect((patch!["sources"] as Array<{ source_name: string }>).map((s) => s.source_name)).toEqual(["P1 side source", "dossier reconstruction"]);
+  });
+
+  it("never resurrects a settled EXCLUDED/NO_SOURCE row for a code the Truth Engine cannot grade", () => {
+    // 042 is quarantined and 048 is META_OR_NON_PLAYER: both are instantiated settled and
+    // must never be handed player evidence by any path, including this one.
+    const families = new Map([["042", [stat("win_pct", 60)]], ["048", [stat("win_pct", 60)]]]);
+    for (const code of ["M42", "M48"]) {
+      expect(pass2WriteBackPatch({ id: code, metric_code: code, p1_treatment: "EXCLUDED", p1_value: null }, "p1", families, "2026-04-12T00:00:00.000Z")).toBeNull();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// END-TO-END: an evidenced absence must reach the decision record as one
+// ---------------------------------------------------------------------------
+describe("the persisted decision record classifies missing evidence from its real reason", () => {
+  it("records an evidenced SOURCE_EMPTY absence as such, and drops it from the per-match denominator", async () => {
+    const { deps, tables } = makeMemoryDeps();
+    const saved: Array<Record<string, unknown>> = [];
+    const baseSave = deps.saveDecision.bind(deps);
+    deps.saveDecision = async (runId, existingId, payload) => { saved.push(payload); return baseSave(runId, existingId, payload); };
+
+    // Metric 011 comes back with a real, evidenced "the source holds nothing" answer on
+    // BOTH sides -- the one shape metric-activation-status.ts may legitimately excuse from
+    // this match's denominator. A garbage same-family stat is also offered to the
+    // reconstruction pass, which must not turn that absence into fabricated evidence.
+    const baseMetrics = researcher.metrics.bind(researcher);
+    deps.research = {
+      ...researcher,
+      async metrics(input) {
+        return (await baseMetrics(input)).map((finding) =>
+          String(finding.metric_code).match(/(\d{1,3})$/)?.[1]?.padStart(3, "0") === "011"
+            ? { ...finding, p1_value: null, p2_value: null, p1_treatment: "UNAVAILABLE" as const, p2_treatment: "UNAVAILABLE" as const, unavailable_reason: "No source carried this metric." }
+            : finding,
+        );
+      },
+      async extractStats({ player }) {
+        return [{ key: "matches_played", value: 41, player, origin: "RECONSTRUCTED" as const, surface: null, window: null, sources: [{ source_name: "dossier" }] }];
+      },
+    };
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    const row = tables["metric_results"]!.find((r) => String(r["metric_code"]) === "M11")!;
+    expect(row["p1_value"]).toBeNull();
+    expect(row["p1_treatment"]).toBe("UNAVAILABLE");
+    expect(row["p1_unavailable_reason"]).toBe("NO_SOURCE_FOUND");
+
+    const record = saved.at(-1)!["gate_report"] as { deterministic_decision: TruthEngineDecisionRecord };
+    const activation = record.deterministic_decision.metric_activation.find((entry) => entry.code === "011")!;
+    // Before this fix the reason columns never reached the classifier, so every
+    // unusable side -- however honestly it failed -- was filed PRODUCER_FAILURE and the
+    // "dynamic" denominator could never differ from the fixed 25 for any match.
+    expect(activation.p1_status).toBe("SOURCE_EMPTY");
+    expect(activation.p2_status).toBe("SOURCE_EMPTY");
+    expect(activation.counts_toward_denominator).toBe(false);
+    expect(record.deterministic_decision.evidence_coverage_eligible).toBeLessThan(record.deterministic_decision.evidence_coverage_expected);
   }, 60_000);
 });
