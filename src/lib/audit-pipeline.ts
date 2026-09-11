@@ -285,6 +285,91 @@ export function preserveUsableCurrentSide(patch:Record<string,unknown>,row:Recor
   return patch;
 }
 
+// ----------------------------------------------------------------------------
+// PASS-2 (DOSSIER RECONSTRUCTION) WRITE-BACK GUARD
+//
+// executeMetrics' second pass extracts catalogued atomic statistics from the
+// player dossier and routes them back onto metric_results rows by evidence
+// FAMILY (reconstruction/stat-catalog.ts's familyOf). A family is a GROUP of
+// related statistics, never one measurement: catalogue family "008" alone
+// holds sets_played, sets_won, set_win_pct and several imported aliases, while
+// the Truth Engine's metric 008 means exactly "deciding-set win %". Routing by
+// family therefore took whichever member of the family the producer happened to
+// emit FIRST and wrote it as that metric's value under a usable treatment --
+// making this the one write path in the pipeline that never passed through
+// usableAgainstComparisonSpec, the field-contract guard metricPairPatch already
+// applies to every pass-1 write.
+//
+// Live proof, from the current production database (60 completed runs): 57 of
+// 60 metric-008 rows and 57 of 60 metric-010 rows carry a BARE COUNT (ranges
+// 0..915 and 0..280) under treatment DIRECT, for two metrics whose declared
+// quantity is a percentage; metric 009 ("Pressure point win %") was likewise
+// being written from catalogue family "009", which is deciding-set statistics.
+//
+// Three rules, every one of them derived from a contract that already exists in
+// this codebase rather than newly invented:
+//
+//  1. ONLY A GRADEABLE CODE. A code with no COMPARISON_SPEC is never written.
+//     That keeps this path away from the settled rows instantiate() deliberately
+//     seeds EXCLUDED/NO_SOURCE (META_OR_NON_PLAYER codes, quarantined codes,
+//     042) -- previously it iterated every row and could resurrect one of them
+//     into COMPLETE, defeating the quarantine it is supposed to respect.
+//
+//  2. ONLY THE DECLARED QUANTITY. The chosen stat's own catalogue key must BE
+//     the spec's declared `field` or one of its `fieldAliases`, and the value is
+//     persisted in that metric's KEYED form (`straight_set_win_pct=63.2`) rather
+//     than as a bare number. "Same family" is not knowledge of which
+//     measurement a bare number is; the key is. Because the write is keyed, it
+//     satisfies usableAgainstComparisonSpec through the named-field branch and
+//     never depends on a bareScalarFallback that 008/010 deliberately withhold.
+//     Selection is also no longer "whichever the provider emitted first", so the
+//     persisted value cannot change with provider response ordering.
+//
+//  3. NEVER OVERWRITE, NEVER CLOBBER. A side already holding usable evidence is
+//     left exactly as it is (the same rule preserveUsableCurrentSide enforces on
+//     the pass-1 path), and `sources` is MERGED with what the row already holds
+//     rather than replaced -- `sources` is a shared, un-sided column, so
+//     replacing it destroyed the opposite side's provenance.
+//
+// Returns null whenever any rule declines the write, which is the common case.
+// ----------------------------------------------------------------------------
+export function pass2WriteBackPatch(
+  row:Record<string,unknown>,
+  side:"p1"|"p2",
+  statsByFamily:ReadonlyMap<string,readonly SourcedStat[]>,
+  retrievedAt:string,
+):Record<string,unknown>|null{
+  const code=normalizedMetricCode(String(row["metric_code"]??"").replace(/^M/,""));
+  const spec=COMPARISON_SPECS[code];
+  if(!spec)return null;
+  const declared=[spec.field,...(spec.fieldAliases??[])].filter((name):name is string=>typeof name==="string"&&name.length>0);
+  if(!declared.length)return null;
+  const stat=(statsByFamily.get(code)??[]).find(candidate=>declared.includes(candidate.key)&&Number.isFinite(candidate.value));
+  if(!stat)return null;
+  const alreadyUsable=["DIRECT","RECONSTRUCTED","PARTIAL"].includes(String(row[`${side}_treatment`]??""))&&String(row[`${side}_value`]??"").trim()!=="";
+  if(alreadyUsable)return null;
+  const value=`${stat.key}=${stat.value}`;
+  if(!usableAgainstComparisonSpec(code,value))return null;
+  const priorSources=Array.isArray(row["sources"])?(row["sources"] as SourceRef[]):[];
+  const sources=[...priorSources,...(stat.sources??[])].filter((source,index,all)=>
+    all.findIndex(other=>(other as SourceRef).source_name===(source as SourceRef).source_name&&(other as SourceRef).url===(source as SourceRef).url)===index,
+  );
+  return{
+    [`${side}_value`]:value,
+    [`${side}_status`]:"COMPLETE",
+    [`${side}_treatment`]:stat.origin,
+    [`${side}_unavailable_reason`]:null,
+    [`${side}_provider_error`]:null,
+    [`${side}_retrieved_at`]:retrievedAt,
+    status:"COMPLETE",
+    sources,
+    source_attempts:sources,
+    reconstruction_attempted:true,
+    reconstruction_reason:stat.calculation??null,
+    reconstruction_result:value,
+  };
+}
+
 export function metricRowsForSideExecution(rows:Array<Record<string,unknown>>,side:"p1"|"p2",priorDone=0){
   const stableRows=[...rows].sort((a,b)=>String(a["metric_code"]??a["id"]??"").localeCompare(String(b["metric_code"]??b["id"]??"")));
   // Quarantine guard, derived from the metric's own CODE rather than its persisted
@@ -462,7 +547,7 @@ for(let attempt=1;attempt<=MAX_METRIC_RETRY_ATTEMPTS&&retryQueue.length&&Date.no
   retryQueue=await runResearchBatch(retryQueue);
 }
 treatedInPass+=batch.length;await ctx.progress(completedBefore+treatedInPass,rows.length);}
-if(!timedOut&&deps.research.extractStats){const player=side==="p1"?match.player1_name:match.player2_name,run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined;let raw:SourcedStat[]=[],extractionError:string|null=null;try{raw=await deps.research.extractStats({player,dossier:cached?.[player]??dossier,context:digestContext});}catch(error){extractionError=errorDetail(error);}const outcome=reconstruct(raw),reconstructionRows=[...outcome.derived.map(stat=>({audit_run_id:runId,metric_code:stat.key,player_side:player,status:"COMPLETE",output:String(stat.value),formula:stat.formula??null,inputs:stat.inputs?.map(input=>({key:input.key,value:input.value,origin:input.origin,sources:input.sources}))??[],calculation:stat.calculation??null,source_refs:stat.sources,assumptions:null,reliability:.8,unavailable_reason:null,provider_error:null,missing_inputs:[],source_attempts:stat.sources,reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value),retrieved_at:deps.now().toISOString()})),...outcome.blocked.map(blocked=>({audit_run_id:runId,metric_code:blocked.output,player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:blocked.missing},calculation:blocked.reason,source_refs:[],assumptions:blocked.reason,reliability:null,unavailable_reason:"RECONSTRUCTION_FAILED",provider_error:null,missing_inputs:blocked.missing,source_attempts:[],reconstruction_attempted:true,reconstruction_reason:blocked.reason,reconstruction_result:null,retrieved_at:deps.now().toISOString()})),...(raw.length||outcome.blocked.length?[]:[{audit_run_id:runId,metric_code:"PASS2_EXTRACTION",player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:["dossier"]},calculation:extractionError??"No catalogued statistics were extracted from the player dossier.",source_refs:[],assumptions:null,reliability:null,unavailable_reason:extractionError?unavailableReason(extractionError):"NO_SOURCE_FOUND",provider_error:extractionError,missing_inputs:["dossier"],source_attempts:[],reconstruction_attempted:true,reconstruction_reason:extractionError??"No catalogued statistics were extracted from the player dossier.",retrieved_at:deps.now().toISOString()}])];if(reconstructionRows.length)await deps.insert("reconstruction_results",reconstructionRows as never);const statsByFamily=new Map<string,SourcedStat>();for(const stat of[...raw,...outcome.derived]){const family=familyOf(stat.key);if(family&&!statsByFamily.has(family))statsByFamily.set(family,stat);}for(const row of rows){const stat=statsByFamily.get(String(row["metric_code"]).replace(/^M/,"").padStart(3,"0"));if(!stat)continue;const sidePrefix=side==="p1"?"p1":"p2";await deps.update("metric_results",String(row["id"]),{[`${sidePrefix}_value`]:String(stat.value),[`${sidePrefix}_status`]:"COMPLETE",[`${sidePrefix}_treatment`]:stat.origin,[`${sidePrefix}_unavailable_reason`]:null,[`${sidePrefix}_provider_error`]:null,[`${sidePrefix}_retrieved_at`]:deps.now().toISOString(),sources:stat.sources??[],source_attempts:stat.sources??[],missing_inputs:[],reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value)});}}
+if(!timedOut&&deps.research.extractStats){const player=side==="p1"?match.player1_name:match.player2_name,run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined;let raw:SourcedStat[]=[],extractionError:string|null=null;try{raw=await deps.research.extractStats({player,dossier:cached?.[player]??dossier,context:digestContext});}catch(error){extractionError=errorDetail(error);}const outcome=reconstruct(raw),reconstructionRows=[...outcome.derived.map(stat=>({audit_run_id:runId,metric_code:stat.key,player_side:player,status:"COMPLETE",output:String(stat.value),formula:stat.formula??null,inputs:stat.inputs?.map(input=>({key:input.key,value:input.value,origin:input.origin,sources:input.sources}))??[],calculation:stat.calculation??null,source_refs:stat.sources,assumptions:null,reliability:.8,unavailable_reason:null,provider_error:null,missing_inputs:[],source_attempts:stat.sources,reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value),retrieved_at:deps.now().toISOString()})),...outcome.blocked.map(blocked=>({audit_run_id:runId,metric_code:blocked.output,player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:blocked.missing},calculation:blocked.reason,source_refs:[],assumptions:blocked.reason,reliability:null,unavailable_reason:"RECONSTRUCTION_FAILED",provider_error:null,missing_inputs:blocked.missing,source_attempts:[],reconstruction_attempted:true,reconstruction_reason:blocked.reason,reconstruction_result:null,retrieved_at:deps.now().toISOString()})),...(raw.length||outcome.blocked.length?[]:[{audit_run_id:runId,metric_code:"PASS2_EXTRACTION",player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:["dossier"]},calculation:extractionError??"No catalogued statistics were extracted from the player dossier.",source_refs:[],assumptions:null,reliability:null,unavailable_reason:extractionError?unavailableReason(extractionError):"NO_SOURCE_FOUND",provider_error:extractionError,missing_inputs:["dossier"],source_attempts:[],reconstruction_attempted:true,reconstruction_reason:extractionError??"No catalogued statistics were extracted from the player dossier.",retrieved_at:deps.now().toISOString()}])];if(reconstructionRows.length)await deps.insert("reconstruction_results",reconstructionRows as never);const statsByFamily=new Map<string,SourcedStat[]>();for(const stat of[...raw,...outcome.derived]){const family=familyOf(stat.key);if(!family)continue;statsByFamily.set(family,[...(statsByFamily.get(family)??[]),stat]);}const writeBackAt=deps.now().toISOString();for(const row of rows){const patch=pass2WriteBackPatch(row,side,statsByFamily,writeBackAt);if(!patch)continue;await deps.update("metric_results",String(row["id"]),patch);}}
 const done=completedBefore+treatedInPass;if(timedOut)return{status:"PARTIAL",done,total:rows.length,message:`${done}/${rows.length} metrics treated so far for ${side.toUpperCase()}.`};return{status:"COMPLETE",done:rows.length,total:rows.length};}
 
 async function executeRules(deps:PipelineDeps,matchId:string,runId:string,kind:"VERIFICATION"|"DISAGREEMENT",ctx:StageCtx):Promise<StageOutcome>{
@@ -652,7 +737,17 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
   const decisionMatch=await deps.getMatch(matchId);
   const decisionRecord=decisionMatch?buildDecisionRecord({
     audit:deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name).audit,
-    metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null})),
+    // p1_unavailable_reason/p2_unavailable_reason are NOT optional decoration here: they are
+    // the ONLY input metric-activation-status.ts's classifier has for telling an evidenced
+    // terminal absence (SOURCE_EMPTY / INSUFFICIENT_SAMPLE / GENUINELY_UNAVAILABLE -- the
+    // three statuses that may legitimately leave a metric out of the per-match denominator)
+    // apart from a real pipeline defect. Omitting them sent `reason: undefined` for every
+    // side, which the classifier correctly refuses to excuse and files as PRODUCER_FAILURE --
+    // so the dynamic denominator silently collapsed back onto the fixed 25 for every match,
+    // and every honestly-unavailable metric side was recorded in the decision record as a
+    // producer defect. Diagnostic only: nothing here can reach the winner, the colour, or the
+    // 60% threshold.
+    metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null,p1_unavailable_reason:m["p1_unavailable_reason"] as string|null,p2_unavailable_reason:m["p2_unavailable_reason"] as string|null})),
     now:deps.now(),
     actualWinner:(decisionMatch as unknown as{actual_winner?:string|null}).actual_winner??null,
   }):null;
