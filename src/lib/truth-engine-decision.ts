@@ -184,11 +184,17 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
   // denominator because they contain real opposing evidence; NEUTRAL families sit outside
   // it entirely because they favour nobody. With no directional family at all the share is
   // 0, never an undefined division dressed up as a number.
+  // `rawPercent` is the exact, unrounded share and is what the 60% threshold below
+  // compares against. `percent` (rounded to 1 decimal) is for display/persistence only.
+  // Rounding before comparing would let a raw 59.95% round up to "60.0" and incorrectly
+  // clear the gate -- the threshold check must see the real value, not its display form.
   const evidenceShare = (support: string[], contra: string[]) => {
     const directional = support.length + contra.length + conflictedFamilies.length;
+    const rawPercent = directional > 0 ? (support.length / directional) * 100 : 0;
     return {
       directional,
-      percent: directional > 0 ? Number(((support.length / directional) * 100).toFixed(1)) : 0,
+      rawPercent,
+      percent: directional > 0 ? Number(rawPercent.toFixed(1)) : 0,
     };
   };
 
@@ -251,8 +257,8 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
   // family whose own members disagree still poisons itself to INTERNALLY_CONFLICTED and
   // drags this percentage down, and leave-one-family-out below can still refuse a lead
   // that a single family reverses.
-  const { percent: evidencePercent, directional } = evidenceShare(supportNames, contraNames);
-  if (evidencePercent < EVIDENCE_SELECTION_THRESHOLD) {
+  const { percent: evidencePercent, rawPercent, directional } = evidenceShare(supportNames, contraNames);
+  if (rawPercent < EVIDENCE_SELECTION_THRESHOLD) {
     return shell(
       "INSUFFICIENT_EVIDENCE",
       `${leader === "P1" ? p1Name : p2Name} holds ${evidencePercent}% of the directional evidence (${supportNames.length} supporting famil${supportNames.length === 1 ? "y" : "ies"} of ${directional} directional: ${supportNames.join(", ") || "none"}${contraNames.length ? ` against ${contraNames.join(", ")}` : ""}${conflictedFamilies.length ? `, with ${conflictedFamilies.join(", ")} internally conflicted` : ""}), below the ${EVIDENCE_SELECTION_THRESHOLD}% selection threshold. No side is selected.`,

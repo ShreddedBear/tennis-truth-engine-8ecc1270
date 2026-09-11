@@ -5,7 +5,7 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { claimRetrievalForExecutingSideOnly, metricPairPatch, metricRowsForSideExecution, pass2WriteBackPatch, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { claimRetrievalForExecutingSideOnly, metricPairPatch, metricRowsForSideExecution, pass2WriteBackPatch, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, resolveWinnerId, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
 import { compareMetricRows } from "./truth-engine-metric-comparison";
 import type { TruthEngineDecisionRecord } from "./truth-engine-decision-record";
 import { classifyMetricActivation, classifySideActivation, DENOMINATOR_EXCUSED_STATUSES } from "./metric-activation-status";
@@ -37,6 +37,8 @@ const MATCH_ID = "11111111-1111-1111-1111-111111111111";
 const NOW = "2026-04-12T00:00:00.000Z";
 const P1 = "Carlos Alcaraz";
 const P2 = "Jannik Sinner";
+const P1_ID = "22222222-2222-2222-2222-222222222222";
+const P2_ID = "33333333-3333-3333-3333-333333333333";
 
 const DEF_COUNTS = { METRICS: 81, VERIFICATION: 60, DISAGREEMENT: 70 } as const;
 // The Truth Engine execution universe is the 25 active codes (ACTIVE_METRIC_CODES)
@@ -202,6 +204,8 @@ function makeMemoryDeps(): { deps: PipelineDeps; tables: Record<string, Array<Re
     id: MATCH_ID,
     player1_name: P1,
     player2_name: P2,
+    player1_id: P1_ID,
+    player2_id: P2_ID,
     tournament_name: null,
     event_level: null,
     round: null,
@@ -351,6 +355,8 @@ function makeMultiRunMemoryDeps(): {
     id: MATCH_ID,
     player1_name: P1,
     player2_name: P2,
+    player1_id: P1_ID,
+    player2_id: P2_ID,
     tournament_name: null,
     event_level: null,
     round: null,
@@ -2120,5 +2126,189 @@ describe("the persisted decision record classifies missing evidence from its rea
     expect(activation.p2_status).toBe("SOURCE_EMPTY");
     expect(activation.counts_toward_denominator).toBe(false);
     expect(record.deterministic_decision.evidence_coverage_eligible).toBeLessThan(record.deterministic_decision.evidence_coverage_expected);
+  }, 60_000);
+});
+describe("Final Decision refuses on a winner-integrity mismatch", () => {
+  // Live-DB finding: an audit_run whose committed independent_winner was null
+  // (INSUFFICIENT_EVIDENCE) had a final_decisions.gate_report.deterministic_decision
+  // showing a clear, corroborated P2 win -- because commitFinalDecision recomputes
+  // deterministicIndependentConclusion() fresh from metric_results, a pure function whose
+  // premise (this reproduces exactly what commitConclusion already committed) breaks if
+  // the metric evidence changed in between. Reproduced here: seed a run whose Independent
+  // Conclusion is already committed with NO winner, then seed metric_results with strong,
+  // unambiguous P2-favoring evidence for three independent families (as if evidence
+  // resolved after that commit) before Final Decision ever runs. Final Decision must
+  // refuse -- never silently persist a decision record that disagrees with the already-
+  // committed conclusion.
+  it("blocks Final Decision when the fresh recomputation disagrees with the committed independent_winner", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    await deps.updateRun(run.id, { independent_winner: null, independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+
+    for (const stage of STAGES) {
+      if (stage === "INDEPENDENT CONCLUSION") { stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 }); break; }
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+    }
+
+    // Strong, unambiguous P2 evidence across three independent families -- as verified
+    // directly against decideTruthEngineSelection, this yields outcome "P2", 100% evidence,
+    // corroborated: true. commitConclusion never saw this (it ran before this evidence
+    // existed, per the seeded independent_winner: null above); Final Decision does.
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1500", p2_value: "1600", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=50", p2_value: "match_win_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=50", p2_value: "lead_protection_rate_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).toBe("BLOCKED");
+    expect(finalDecisionStage?.detail).toMatch(/WINNER_INTEGRITY_MISMATCH|no longer matches/);
+    expect(result.complete).toBe(false);
+    expect(result.failures.some((f) => f.stage === "FINAL DECISION" && /no longer matches/.test(f.message))).toBe(true);
+
+    // The already-committed conclusion must remain exactly what it was -- the mismatch
+    // blocks Final Decision, it does not silently "fix" the committed value either way.
+    const latestRun = await deps.getLatestRun(MATCH_ID);
+    expect(latestRun?.independent_winner).toBeNull();
+  });
+
+  it("does not block when the fresh recomputation agrees with the committed winner (the ordinary case)", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    // Same three rows, but the committed winner already matches what they support --
+    // simulating the ordinary case where evidence has not moved since commit.
+    await deps.updateRun(run.id, { independent_winner: P2, independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    for (const stage of STAGES) {
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+      if (stage === "INDEPENDENT CONCLUSION") break;
+    }
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1500", p2_value: "1600", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=50", p2_value: "match_win_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=50", p2_value: "lead_protection_rate_pct=70", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
+
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    // This fixture leaves verification/disagreement/underdog/stress tables empty, so Final
+    // Decision legitimately blocks on the pre-existing, unrelated completion invariant
+    // (report.auditComplete) -- that is not what this test is about. What matters here is
+    // that the NEW winner-integrity check specifically does not fire, since the committed
+    // winner and the fresh recomputation agree.
+    expect(finalDecisionStage?.detail).not.toMatch(/WINNER_INTEGRITY_MISMATCH|no longer matches/);
+  });
+});
+
+describe("resolveWinnerId -- id resolution never touches names", () => {
+  const identity = { player1_id: P1_ID, player2_id: P2_ID };
+
+  it("P1 outcome resolves to player1_id", () => {
+    expect(resolveWinnerId("P1", identity)).toBe(P1_ID);
+  });
+
+  it("P2 outcome resolves to player2_id", () => {
+    expect(resolveWinnerId("P2", identity)).toBe(P2_ID);
+  });
+
+  it("INSUFFICIENT_EVIDENCE resolves to null -- never a fallback guess", () => {
+    expect(resolveWinnerId("INSUFFICIENT_EVIDENCE", identity)).toBeNull();
+  });
+
+  it("an unresolved match identity (player1_id/player2_id both null) leaves the id null rather than inferring one", () => {
+    expect(resolveWinnerId("P1", { player1_id: null, player2_id: null })).toBeNull();
+  });
+
+  it("same-named players in different matches never collide, because resolution is id-keyed, not name-keyed", () => {
+    const matchA = { player1_id: "aaaaaaaa-0000-0000-0000-000000000001", player2_id: "aaaaaaaa-0000-0000-0000-000000000002" };
+    const matchB = { player1_id: "bbbbbbbb-0000-0000-0000-000000000001", player2_id: "bbbbbbbb-0000-0000-0000-000000000002" };
+    // Both matches could have identical player1_name/player2_name display strings (e.g. two
+    // "John Smith"s) -- resolveWinnerId never looks at a name at all, so the two matches'
+    // "P1" winners resolve to their own match's id, never each other's.
+    expect(resolveWinnerId("P1", matchA)).toBe(matchA.player1_id);
+    expect(resolveWinnerId("P1", matchB)).toBe(matchB.player1_id);
+    expect(resolveWinnerId("P1", matchA)).not.toBe(resolveWinnerId("P1", matchB));
+  });
+});
+
+describe("Winner identity propagation and integrity (Part 4)", () => {
+  it("P1 selected: independent_winner_id is player1_id, and it survives into final_decisions.selected_player_id and the Final Combination Gate", async () => {
+    const { deps } = makeMemoryDeps();
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(result.complete).toBe(true);
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P1);
+    expect(run?.independent_winner_id).toBe(P1_ID);
+    const gate = result.stages.find((s) => s.stage === "FINAL COMBINATION GATE");
+    expect(gate?.status).toBe("COMPLETE");
+  }, 60_000);
+
+  it("P2 selected: independent_winner_id is player2_id (mirrors the P1 case, not a walkover artifact)", async () => {
+    const { deps } = makeMemoryDeps();
+    deps.research = { ...researcher, async metrics(input) { const findings = await researcher.metrics(input); return findings.map((f) => ({ ...f, p1_treatment: f.p2_treatment, p2_treatment: f.p1_treatment, p1_value: f.p2_value, p2_value: f.p1_value })); } };
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(result.complete).toBe(true);
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P2);
+    expect(run?.independent_winner_id).toBe(P2_ID);
+  }, 60_000);
+
+  it("winner name correct but committed id incorrect: Final Decision and the Final Combination Gate both BLOCK", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    // Name is genuinely player1's own name, but the id was corrupted to point at neither
+    // player -- an integrity violation distinct from a mere name mismatch. Metric evidence
+    // is seeded to agree with the name (P1 wins) so the pre-existing name-based
+    // WINNER_INTEGRITY_MISMATCH check does not fire first and mask the id check this test
+    // is actually about.
+    await deps.updateRun(run.id, { independent_winner: P1, independent_winner_id: "99999999-9999-9999-9999-999999999999", independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1600", p2_value: "1500", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=70", p2_value: "match_win_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=70", p2_value: "lead_protection_rate_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
+    for (const stage of STAGES) {
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+      if (stage === "INDEPENDENT CONCLUSION") break;
+    }
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).toBe("BLOCKED");
+    expect(finalDecisionStage?.detail).toMatch(/WINNER_IDENTITY_INTEGRITY_VIOLATION|does not match either/);
+    const gate = result.stages.find((s) => s.stage === "FINAL COMBINATION GATE");
+    expect(gate?.status).not.toBe("COMPLETE");
+  }, 60_000);
+
+  it("winner id belongs to neither player at all: same BLOCK, distinguishable message", async () => {
+    const { deps, tables, stages } = makeMemoryDeps();
+    const run = await deps.createRun({ match_id: MATCH_ID, run_number: 1 });
+    await deps.updateRun(run.id, { independent_winner: P1, independent_winner_id: "00000000-0000-0000-0000-000000000000", independent_decision_committed_at: "2026-04-11T09:00:00Z" });
+    tables.metric_results.push(
+      { id: "mr-1", metric_code: "001", p1_value: "1600", p2_value: "1500", p1_treatment: "DIRECT", p2_treatment: "DIRECT", status: "COMPLETE" },
+      { id: "mr-2", metric_code: "011", p1_value: "match_win_pct=70", p2_value: "match_win_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+      { id: "mr-3", metric_code: "027", p1_value: "lead_protection_rate_pct=70", p2_value: "lead_protection_rate_pct=50", p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED", status: "COMPLETE" },
+    );
+    for (const stage of STAGES) {
+      stages.set(stage, { stage, status: "COMPLETE", attempts: 1, error_message: null, done_count: 1, total_count: 1 });
+      if (stage === "INDEPENDENT CONCLUSION") break;
+    }
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    const finalDecisionStage = result.stages.find((s) => s.stage === "FINAL DECISION");
+    expect(finalDecisionStage?.status).toBe("BLOCKED");
+    expect(finalDecisionStage?.detail).toContain("00000000-0000-0000-0000-000000000000");
+  }, 60_000);
+
+  it("a legitimately unresolved match identity (player1_id/player2_id both null) commits a name-only winner without blocking -- legacy/backward-compatible, never fabricated", async () => {
+    const { deps } = makeMemoryDeps();
+    // Simulate a match whose identity resolution never ran (both ids null) -- this must
+    // remain a valid, non-blocking state: the id stays null, the name-based winner still
+    // commits, matching the existing backward-compatibility contract for legacy rows.
+    await deps.updateMatch(MATCH_ID, { player1_id: null, player2_id: null });
+    const result = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(result.complete).toBe(true);
+    const run = await deps.getLatestRun(MATCH_ID);
+    expect(run?.independent_winner).toBe(P1);
+    expect(run?.independent_winner_id).toBeNull();
   }, 60_000);
 });

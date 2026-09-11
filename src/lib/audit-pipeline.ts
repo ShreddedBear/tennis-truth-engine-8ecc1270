@@ -76,8 +76,20 @@ export interface StressFinding{test_code:string;winner_after:string|null;range_a
 export interface ConclusionFinding{winner:string|null;low:number|null;high:number|null;rationale:string|null;insufficient_reason:string|null;}
 export interface EvidenceDigest{p1:string;p2:string;context:string;metrics:Array<{code:string;name:string;p1:string|null;p2:string|null;family:string|null}>;}
 export interface Researcher{identity(input:{p1:string;p2:string;hints:Record<string,string|null>}):Promise<IdentityFinding>;dossier?(input:{player:string;opponent:string;context:string}):Promise<string>;extractStats?(input:{player:string;opponent?:string;dossier:string;context:string}):Promise<SourcedStat[]>;metrics(input:{p1:string;p2:string;context:string;auditDate?:string|null;dossier?:string;researchSide?:"p1"|"p2";researchPlayer?:string;researchOpponent?:string;metrics:Array<{code:string;name:string;body:string|null}>}):Promise<MetricFinding[]>;rules(input:{kind:"VERIFICATION"|"DISAGREEMENT";evidence:EvidenceDigest;rules:Array<{code:string;name:string;body:string|null;severity:string}>}):Promise<RuleFinding[]>;underdog(input:{evidence:EvidenceDigest;pathways:Array<{code:string;name:string}>;player_side:string;opponent:string}):Promise<UnderdogFinding[]>;conclusion(input:{evidence:EvidenceDigest;verificationSummary:string;disagreementSummary:string;underdogSummary:string}):Promise<ConclusionFinding>;stress(input:{evidence:EvidenceDigest;conclusion:ConclusionFinding;tests:Array<{code:string;name:string}>}):Promise<StressFinding[]>;}
-export interface MatchRow{id:string;player1_name:string;player2_name:string;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;indoor:boolean|null;best_of:number|null;identity_status:string;surface_status:string;}
-export interface RunRow{id:string;match_id:string;run_number:number;status:string;research_lock_at:string|null;independent_decision_committed_at:string|null;matrix_revealed_at:string|null;independent_winner:string|null;independent_low:number|null;independent_high:number|null;calibrated_low:number|null;calibrated_high:number|null;calibration_version_id:string|null;effective_evidence_count:number;metrics_version_id:string|null;verification_version_id:string|null;disagreement_version_id:string|null;lease_owner?:string|null;lease_expires_at?:string|null;heartbeat_at?:string|null;}
+export interface MatchRow{id:string;player1_name:string;player2_name:string;player1_id?:string|null;player2_id?:string|null;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;indoor:boolean|null;best_of:number|null;identity_status:string;surface_status:string;}
+export interface RunRow{id:string;match_id:string;run_number:number;status:string;research_lock_at:string|null;independent_decision_committed_at:string|null;matrix_revealed_at:string|null;independent_winner:string|null;independent_winner_id?:string|null;independent_low:number|null;independent_high:number|null;calibrated_low:number|null;calibrated_high:number|null;calibration_version_id:string|null;effective_evidence_count:number;metrics_version_id:string|null;verification_version_id:string|null;disagreement_version_id:string|null;lease_owner?:string|null;lease_expires_at?:string|null;heartbeat_at?:string|null;}
+
+/**
+ * Resolves a deterministic P1/P2 outcome to the match's own player_id, never by
+ * name-matching. Returns null when the outcome is INSUFFICIENT_EVIDENCE, or when the
+ * match's own player1_id/player2_id has not been resolved (identity work outside this
+ * pipeline) -- an unresolved ID is left null, never fabricated or guessed from a name.
+ */
+export function resolveWinnerId(outcome:"P1"|"P2"|"INSUFFICIENT_EVIDENCE"|null|undefined,match:Pick<MatchRow,"player1_id"|"player2_id">):string|null{
+  if(outcome==="P1")return match.player1_id??null;
+  if(outcome==="P2")return match.player2_id??null;
+  return null;
+}
 export interface RuleDef{id:string;rule_code:string;rule_name:string;body:string|null;severity:string;blocking:boolean;}
 export interface StageRow{stage:string;status:string;attempts:number;error_message:string|null;done_count:number;total_count:number;}
 export type ChildTable="metric_results"|"reconstruction_results"|"verification_results"|"disagreement_results"|"underdog_results"|"stress_results";
@@ -803,7 +815,15 @@ async function commitConclusion(deps:PipelineDeps,matchId:string,runId:string):P
   // Independent evidence families come from the deterministic decision (correlated metrics
   // collapsed and counted once), not from a raw distinct-string count of evidence_family,
   // which double-counted correlated signals as independent corroboration.
-  const families=new Set(deterministic.audit.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
+  const families=new Set(deterministic.audit.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}
+  // WINNER IDENTITY: resolved from the match's own player1_id/player2_id by the
+  // structural P1/P2 outcome label, never by matching conclusion.winner's name string
+  // against anything -- a name is display data, the id (when the match's identity has
+  // been resolved) is authoritative. Never fabricated: unresolved match identity leaves
+  // this null rather than guessing.
+  const winnerId=resolveWinnerId(deterministic.audit.decision.outcome,match);
+  if(winnerId!==null&&winnerId!==match.player1_id&&winnerId!==match.player2_id)throw new Error(`Winner identity integrity violation: resolved id ${winnerId} matches neither player1_id nor player2_id for match ${matchId}.`);
+  await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_winner_id:winnerId,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,winner_id:winnerId,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
 async function revealMatrix(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(!run?.independent_decision_committed_at)return{status:"BLOCKED",done:0,total:1,errorCode:"FIREWALL",message:"Matrix stays sealed until the independent conclusion is committed."};const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;await deps.updateRun(runId,{matrix_revealed_at:deps.now().toISOString()});return{status:"COMPLETE",done:1,total:1,detail:{matrix_predicted_winner:fields["matrix_predicted_winner"]??null,matrix_wp:wp,agrees_with_independent:fields["matrix_predicted_winner"]&&run.independent_winner?fields["matrix_predicted_winner"].toLowerCase().includes(run.independent_winner.split(" ").slice(-1)[0]!.toLowerCase()):null}};}
 async function applyCalibration(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const{version,buckets}=await deps.getCalibration();if(!version||!buckets.length)return{status:"FAILED",done:0,total:1,errorCode:"NO_ACTIVE_CALIBRATION",message:"No active calibration version with buckets is stored."};const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,snapshot=buildCalibrationSnapshot({versionId:version.id,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null});await deps.updateRun(runId,{calibration_version_id:version.id,calibrated_low:snapshot.calibratedLow,calibrated_high:snapshot.calibratedHigh});return{status:"COMPLETE",done:1,total:1,detail:{calibration_version:version.label,version_number:version.version_number,bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,bucket_wins:snapshot.bucketWins,bucket_graded:snapshot.bucketGraded}};}
 
@@ -860,8 +880,35 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
   // result is known.
   const decisionMetrics=await deps.list("metric_results",runId);
   const decisionMatch=await deps.getMatch(matchId);
+  const freshDeterministic=decisionMatch?deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name):null;
+  // WINNER INTEGRITY CHECK. This recomputation is a pure function of metric_results, and is
+  // supposed to exactly reproduce the winner commitConclusion already locked into
+  // run.independent_winner -- that is the whole premise of calling it again here rather than
+  // just copying the committed value. A real production run proved that premise can break:
+  // if metric evidence for the 25 active codes changes between the Independent Conclusion
+  // commit and this stage (e.g. late-arriving evidence resolves after commit), this fresh
+  // recomputation can disagree with the already-committed conclusion -- and nothing was
+  // stopping that disagreement from being silently persisted into gate_report as if it were
+  // audited, where downstream calibration/grading code (match-result-capture.ts) reads it as
+  // authoritative. Per the product's own "refusal is a first-class outcome" rule, a
+  // disagreement here is an integrity failure, not something to resolve by picking either
+  // side -- it must block, not silently diverge.
+  if(freshDeterministic&&freshDeterministic.winner!==(run?.independent_winner??null)){
+    return{status:"BLOCKED",done:0,total:1,errorCode:"WINNER_INTEGRITY_MISMATCH",message:`Final Decision blocked: the committed Independent Conclusion winner (${run?.independent_winner??"none"}) no longer matches what the current metric evidence deterministically supports (${freshDeterministic.winner??"none"}). Evidence changed after Independent Conclusion was committed; this run requires a fresh audit rather than a silently divergent Final Decision.`};
+  }
+  // WINNER IDENTITY INTEGRITY: the id propagated into final_decisions must be exactly the
+  // id already committed on audit_runs (never re-derived independently here), and that
+  // committed id must itself belong to one of this match's two players -- never anything
+  // else. A name mismatch (checked above) or an id that belongs to neither player are both
+  // integrity failures, not conditions to silently paper over by falling back to a name.
+  const committedWinnerId=run?.independent_winner_id??null;
+  if(decisionMatch&&committedWinnerId!==null&&committedWinnerId!==decisionMatch.player1_id&&committedWinnerId!==decisionMatch.player2_id){
+    return{status:"BLOCKED",done:0,total:1,errorCode:"WINNER_IDENTITY_INTEGRITY_VIOLATION",message:`Final Decision blocked: the committed independent_winner_id (${committedWinnerId}) does not match either player1_id or player2_id on match ${matchId}.`};
+  }
   const decisionRecord=decisionMatch?buildDecisionRecord({
-    audit:deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name).audit,
+    // The re-derived audit (winner-integrity check below), not a second independent
+    // derivation: the record must describe the same decision the gate just validated.
+    audit:freshDeterministic!.audit,
     // p1_unavailable_reason/p2_unavailable_reason are NOT optional decoration here: they are
     // the ONLY input metric-activation-status.ts's classifier has for telling an evidenced
     // terminal absence (SOURCE_EMPTY / INSUFFICIENT_SAMPLE / GENUINELY_UNAVAILABLE -- the
@@ -876,7 +923,11 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
     now:deps.now(),
     actualWinner:(decisionMatch as unknown as{actual_winner?:string|null}).actual_winner??null,
   }):null;
-  await deps.saveDecision(runId,existing,{gate_report:decisionRecord?{deterministic_decision:decisionRecord}:{},final_audit_color:report.color,final_recommendation:report.action,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
+  // final_selection must hold the bare selected-player identity (or null), never the
+  // action string ("PLAY — X" / "PASS" / ...) that final_recommendation carries -- a
+  // direct reader of this column would otherwise silently grade the wrong thing (see
+  // match-result-capture.ts, which works around this by reading gate_report instead).
+  await deps.saveDecision(runId,existing,{gate_report:decisionRecord?{deterministic_decision:decisionRecord}:{},final_audit_color:report.color,final_recommendation:report.action,final_selection:run?.independent_winner??null,selected_player_id:committedWinnerId,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
   if(!(await deps.getDecisionId(runId)))throw new Error("Final decision persistence invariant failed: no decision row exists after save.");
   if(deps.verifyFinalPersistence)await deps.verifyFinalPersistence(runId,report.coverage.p1.total+report.coverage.p2.total,report.auditComplete);
   const detail={color:report.color,action:report.action,completion_percent:report.completionPercent,evidence_coverage:report.coverage.usablePercent,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate};
