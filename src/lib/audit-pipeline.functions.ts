@@ -1,6 +1,7 @@
 // Thin server-function wrapper around the audit execution pipeline.
 // Module scope must stay free of runtime helpers (server-fn splitting).
 import { createServerFn } from "@tanstack/react-start";
+import { matchResultIsFinal } from "./match-result-resolution";
 
 const BROWSER_SAFE_BUDGET_MS = 20_000;
 
@@ -105,6 +106,25 @@ export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
         advancedChanged=await applyFinalAdvancedMetric(deps,runId,matchId);
       }
       const changed=metricChanged||pathwayChanged||stressChanged||advancedChanged;
+      // PREDICTION SNAPSHOT FREEZE (pre-match immutability).
+      //
+      // Reopening the closing stages is correct BEFORE the match is played: a meta-derived
+      // write can legitimately change underlying metric data, and coverage/final decision
+      // must then recompute rather than sit stale behind a COMPLETE status.
+      //
+      // It must never happen AFTER the result is known. Once a real outcome exists, a
+      // recomputation would rewrite the persisted pre-match decision -- and
+      // commitFinalDecision reads matches.actual_winner into the decision record, so the
+      // rewritten "pre-match snapshot" would carry the outcome it is supposed to predate.
+      // That is the snapshot no longer being a snapshot, and it silently contaminates every
+      // calibration observation derived from it.
+      //
+      // matchResultIsFinal is the same predicate result capture itself uses to decide a
+      // result is real (a final/retired status AND a winner resolvable to one of the two
+      // sides), so the freeze turns on at exactly the moment capture would act.
+      const resultFacts=await deps.getMatch(matchId) as unknown as {result_status?:string|null;actual_winner?:string|null;player1_name:string;player2_name:string}|null;
+      const resultKnown=resultFacts?matchResultIsFinal({result_status:resultFacts.result_status??null,actual_winner:resultFacts.actual_winner??null,player1_name:resultFacts.player1_name,player2_name:resultFacts.player2_name}):false;
+      if(changed&&resultKnown)return false;
       // Coverage Persistence / Final Decision / Final Combination Gate are
       // three separate canonical stages now (not one bundled stage): if a
       // meta-derived write changed underlying metric data after any of them

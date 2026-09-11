@@ -150,6 +150,7 @@ export type Database = {
           independent_method_id: string | null
           independent_method_version: string | null
           independent_winner: string | null
+          independent_winner_id: string | null
           lease_expires_at: string | null
           lease_owner: string | null
           match_id: string
@@ -180,6 +181,7 @@ export type Database = {
           independent_method_id?: string | null
           independent_method_version?: string | null
           independent_winner?: string | null
+          independent_winner_id?: string | null
           lease_expires_at?: string | null
           lease_owner?: string | null
           match_id: string
@@ -210,6 +212,7 @@ export type Database = {
           independent_method_id?: string | null
           independent_method_version?: string | null
           independent_winner?: string | null
+          independent_winner_id?: string | null
           lease_expires_at?: string | null
           lease_owner?: string | null
           match_id?: string
@@ -928,6 +931,7 @@ export type Database = {
           gate_report: Json
           id: string
           matrix_firewall_valid: boolean
+          selected_player_id: string | null
           updated_at: string
           user_id: string
           verified_win_rate: number | null
@@ -944,6 +948,7 @@ export type Database = {
           gate_report?: Json
           id?: string
           matrix_firewall_valid?: boolean
+          selected_player_id?: string | null
           updated_at?: string
           user_id?: string
           verified_win_rate?: number | null
@@ -960,6 +965,7 @@ export type Database = {
           gate_report?: Json
           id?: string
           matrix_firewall_valid?: boolean
+          selected_player_id?: string | null
           updated_at?: string
           user_id?: string
           verified_win_rate?: number | null
@@ -970,6 +976,13 @@ export type Database = {
             columns: ["audit_run_id"]
             isOneToOne: false
             referencedRelation: "audit_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "final_decisions_selected_player_id_fkey"
+            columns: ["selected_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
             referencedColumns: ["id"]
           },
         ]
@@ -2826,8 +2839,10 @@ export type Database = {
       truth_engine_calibration_observations: {
         Row: {
           actual_winner: string
+          actual_winner_id: string | null
           audit_run_id: string
           calibration_eligible: boolean
+          calibration_model_version: string | null
           conflicted_families: string[]
           contradicting_families: string[]
           contradicting_family_count: number | null
@@ -2836,17 +2851,23 @@ export type Database = {
           decision_outcome: string
           directional_families: number | null
           disagreement_result: string | null
+          disagreement_version_id: string | null
           eligibility_reason: string | null
+          event_level: string | null
           evidence_coverage_expected: number | null
           evidence_coverage_percent: number | null
           evidence_coverage_usable: number | null
           evidence_support_percent: number | null
+          feature_version: string | null
           final_score: string | null
           id: string
           match_id: string
+          metrics_version_id: string | null
           neutral_families: string[]
           observed_at: string
+          player1_id: string | null
           player1_name: string
+          player2_id: string | null
           player2_name: string
           predicted_at: string | null
           prediction_outcome: string
@@ -2854,20 +2875,26 @@ export type Database = {
           run_number: number
           scheduled_date: string | null
           selected_player: string
+          selected_player_id: string | null
           slate_id: string | null
           stability: string | null
           stress_result: string | null
           supporting_families: string[]
           supporting_family_count: number | null
+          surface: string | null
+          tournament_name: string | null
           underdog_result: string | null
           updated_at: string
           user_id: string
           verification_result: string | null
+          verification_version_id: string | null
         }
         Insert: {
           actual_winner: string
+          actual_winner_id?: string | null
           audit_run_id: string
           calibration_eligible?: boolean
+          calibration_model_version?: string | null
           conflicted_families?: string[]
           contradicting_families?: string[]
           contradicting_family_count?: number | null
@@ -2876,17 +2903,23 @@ export type Database = {
           decision_outcome: string
           directional_families?: number | null
           disagreement_result?: string | null
+          disagreement_version_id?: string | null
           eligibility_reason?: string | null
+          event_level?: string | null
           evidence_coverage_expected?: number | null
           evidence_coverage_percent?: number | null
           evidence_coverage_usable?: number | null
           evidence_support_percent?: number | null
+          feature_version?: string | null
           final_score?: string | null
           id?: string
           match_id: string
+          metrics_version_id?: string | null
           neutral_families?: string[]
           observed_at?: string
+          player1_id?: string | null
           player1_name: string
+          player2_id?: string | null
           player2_name: string
           predicted_at?: string | null
           prediction_outcome: string
@@ -2894,20 +2927,26 @@ export type Database = {
           run_number?: number
           scheduled_date?: string | null
           selected_player: string
+          selected_player_id?: string | null
           slate_id?: string | null
           stability?: string | null
           stress_result?: string | null
           supporting_families?: string[]
           supporting_family_count?: number | null
+          surface?: string | null
+          tournament_name?: string | null
           underdog_result?: string | null
           updated_at?: string
           user_id?: string
           verification_result?: string | null
+          verification_version_id?: string | null
         }
         Update: {
           actual_winner?: string
+          actual_winner_id?: string | null
           audit_run_id?: string
           calibration_eligible?: boolean
+          calibration_model_version?: string | null
           conflicted_families?: string[]
           contradicting_families?: string[]
           contradicting_family_count?: number | null
@@ -2916,17 +2955,23 @@ export type Database = {
           decision_outcome?: string
           directional_families?: number | null
           disagreement_result?: string | null
+          disagreement_version_id?: string | null
           eligibility_reason?: string | null
+          event_level?: string | null
           evidence_coverage_expected?: number | null
           evidence_coverage_percent?: number | null
           evidence_coverage_usable?: number | null
           evidence_support_percent?: number | null
+          feature_version?: string | null
           final_score?: string | null
           id?: string
           match_id?: string
+          metrics_version_id?: string | null
           neutral_families?: string[]
           observed_at?: string
+          player1_id?: string | null
           player1_name?: string
+          player2_id?: string | null
           player2_name?: string
           predicted_at?: string | null
           prediction_outcome?: string
@@ -2934,17 +2979,50 @@ export type Database = {
           run_number?: number
           scheduled_date?: string | null
           selected_player?: string
+          selected_player_id?: string | null
           slate_id?: string | null
           stability?: string | null
           stress_result?: string | null
           supporting_families?: string[]
           supporting_family_count?: number | null
+          surface?: string | null
+          tournament_name?: string | null
           underdog_result?: string | null
           updated_at?: string
           user_id?: string
           verification_result?: string | null
+          verification_version_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "truth_engine_calibration_observations_actual_winner_id_fkey"
+            columns: ["actual_winner_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truth_engine_calibration_observations_player1_id_fkey"
+            columns: ["player1_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truth_engine_calibration_observations_player2_id_fkey"
+            columns: ["player2_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "truth_engine_calibration_observations_selected_player_id_fkey"
+            columns: ["selected_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       underdog_results: {
         Row: {

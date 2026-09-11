@@ -14,6 +14,7 @@
 // architecture's failure was exactly that kind of false completeness.
 
 import type { TruthEngineAuditResult } from "./truth-engine-audit";
+import { playerNamesMatch } from "./match-result-resolution";
 
 export interface StageRowPatch {
   /** Whether the deterministic audit genuinely evaluated this row. */
@@ -218,31 +219,79 @@ export function unmappedUnderdogPathways(audit: TruthEngineAuditResult): Array<{
     .map((p) => ({ family: p.family, pathway_type: p.pathway_type, viability: p.viability }));
 }
 
+/**
+ * Resolves a persisted underdog row to a CANONICAL SIDE.
+ *
+ * `underdog_results.player_side` holds a player NAME in production, not "P1"/"P2", and the
+ * previous implementation compared that name against the underdog's name to decide whether
+ * to evaluate the row. That made evaluation depend on string identity -- the exact coupling
+ * the architecture forbids for winner identity -- and it silently failed for any row whose
+ * stored name did not match character-for-character.
+ *
+ * Both encodings are accepted here and reduced to a side, so identity travels as P1/P2 and
+ * a name is only ever a lookup key, never the decision.
+ */
+function resolvePlayerSide(playerSide: string, p1: string, p2: string): "P1" | "P2" | null {
+  const value = String(playerSide ?? "").trim();
+  if (!value) return null;
+  const upper = value.toUpperCase();
+  if (upper === "P1" || upper === "P2") return upper;
+
+  // Exact identity first. Only if neither side matches exactly is the fuzzy matcher
+  // consulted, and then ONLY when it binds to exactly one side. playerNamesMatch is
+  // deliberately lenient -- it matches on shared name tokens, so "Beta Player" matches
+  // "Alpha Player" on the shared token -- and a lenient matcher resolving an ambiguous
+  // name to whichever side is tested first is precisely how a row gets attributed to the
+  // wrong player. Ambiguity is reported as unresolvable rather than guessed.
+  const exact = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const exactP1 = exact(value, p1);
+  const exactP2 = exact(value, p2);
+  if (exactP1 && !exactP2) return "P1";
+  if (exactP2 && !exactP1) return "P2";
+  if (exactP1 && exactP2) return null; // both sides carry the same name: not resolvable
+
+  const fuzzyP1 = playerNamesMatch(value, p1);
+  const fuzzyP2 = playerNamesMatch(value, p2);
+  if (fuzzyP1 && !fuzzyP2) return "P1";
+  if (fuzzyP2 && !fuzzyP1) return "P2";
+  return null;
+}
+
 export function underdogRowPatch(pathwayCode: unknown, playerSide: string, audit: TruthEngineAuditResult, p1: string, p2: string, now: string): StageRowPatch {
   const code = String(pathwayCode ?? "");
-  const underdogName = audit.underdog.underdog_player;
-  // Only the non-selected player can hold an underdog pathway.
-  if (!underdogName || playerSide !== underdogName) {
+  const side = resolvePlayerSide(playerSide, p1, p2);
+  const analysis = side ? audit.underdog.sides.find((s) => s.side === side) ?? null : null;
+
+  // A row whose player cannot be resolved to either side of THIS match is a genuine data
+  // problem and is reported as one, rather than being silently filed as "not the underdog".
+  if (!analysis) {
     return {
-      evaluated: true,
+      evaluated: false,
       patch: {
         classification: "UNRESOLVED",
-        evidence: underdogName ? `${playerSide} is the selected side; underdog pathways are evaluated for ${underdogName}.` : "No selection was made, so no underdog side exists.",
+        evidence: `Row player "${playerSide}" does not resolve to either side of this match (${p1} / ${p2}).`,
         repeatable: false, status: "UNAVAILABLE",
         unavailable_reason: "MISSING_REQUIRED_INPUT",
-        unavailable_detail: "Not the underdog side for this audit.",
+        unavailable_detail: "Underdog row could not be bound to a canonical player side.",
         provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
       },
     };
   }
-  const pathway = audit.underdog.pathways.find((p) => FAMILY_TO_PATHWAY_CODE[p.family] === code);
+
+  const designation = analysis.is_designated_underdog
+    ? "designated underdog (the non-selected side)"
+    : audit.underdog.underdog_side
+      ? "selected side"
+      : "no selection was made, so neither side is the designated underdog";
+
+  const pathway = analysis.pathways.find((pw) => FAMILY_TO_PATHWAY_CODE[pw.family] === code);
   if (pathway) {
     return {
       evaluated: true,
       patch: {
         // Map the engine's viability onto the existing WEAK/REALISTIC/STRONG vocabulary.
         classification: pathway.viability === "STRONG_PATHWAY" ? "STRONG" : pathway.viability === "VIABLE_PATHWAY" ? "REALISTIC" : "WEAK",
-        evidence: `${pathway.pathway_type} (${pathway.viability}, ${pathway.magnitude_ratio}x noise floor). ${pathway.evidence}. Required: ${pathway.conditions_required}`,
+        evidence: `[${analysis.side} ${analysis.player}, ${designation}] ${pathway.pathway_type} (${pathway.viability}, ${pathway.magnitude_ratio}x noise floor). ${pathway.evidence}. Required: ${pathway.conditions_required}`,
         repeatable: true, status: "COMPLETE",
         unavailable_reason: null, unavailable_detail: null, provider_error: null, missing_inputs: [],
         sources: [{ source_name: "Truth Engine deterministic underdog analysis", url: null, retrieved_at: null }],
@@ -250,13 +299,18 @@ export function underdogRowPatch(pathwayCode: unknown, playerSide: string, audit
       },
     };
   }
+
+  // A mapped pathway with no qualifying edge for THIS player is a real evaluated result --
+  // for either player. Previously only the designated underdog's rows could reach COMPLETE,
+  // so every row belonging to the other side sat UNAVAILABLE/UNRESOLVED forever, and when
+  // the engine refused, every row of both sides did.
   const mapped = Object.values(FAMILY_TO_PATHWAY_CODE).includes(code);
   return {
-    evaluated: mapped, // a mapped pathway with no qualifying edge IS a real evaluated result
+    evaluated: mapped,
     patch: {
       classification: "WEAK",
       evidence: mapped
-        ? `No measurable edge for ${underdogName} in the evidence family backing this pathway; evaluated and found not viable.`
+        ? `[${analysis.side} ${analysis.player}, ${designation}] No measurable edge in the evidence family backing this pathway; evaluated and found not viable.`
         : `Not evaluable: ${PATHWAY_MISSING_EVIDENCE[code] ?? "no active evidence family can establish this pathway."}`,
       repeatable: false,
       status: mapped ? "COMPLETE" : "UNAVAILABLE",
@@ -286,6 +340,25 @@ const STRESS_MISSING_EVIDENCE: Record<string, string> = {
   ST09: "a dangerous-underdog ceiling event requires opponent-quality history the active comparable set does not establish per match.",
   ST10: "physical/conditions evidence is not among the active comparable set.",
 };
+
+/**
+ * The outcome recorded for a test that produced NO result, because the evidence it needs does
+ * not exist for this match.
+ *
+ * It used to be "UNSTABLE" -- a never-run test reported as a failed one. That is the same
+ * category of error the decision core is scrupulous about elsewhere (UNAVAILABLE is never
+ * zero): absence of a result is not a finding of instability. It also had a concrete
+ * consequence, because audit-engine.ts's DOUBLE GREEN test asks whether every stress test
+ * came back STABLE: ST04/ST08/ST09/ST10 can never be evaluated from the active metric set,
+ * so four rows were permanently "UNSTABLE" and DOUBLE GREEN was unreachable for every match,
+ * forever, regardless of the evidence. Production confirmed it: 0 DOUBLE GREEN in 60
+ * completed runs, with 240 rows (60 x 4) carrying status UNAVAILABLE alongside outcome
+ * UNSTABLE.
+ *
+ * The row's `status` already carries the execution state (UNAVAILABLE); this makes the
+ * OUTCOME field say the same honest thing instead of contradicting it.
+ */
+export const STRESS_OUTCOME_NOT_EVALUATED = "NOT EVALUATED";
 
 export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult, now: string): StageRowPatch {
   const code = String(testCode ?? "");
@@ -320,7 +393,7 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
         evaluated: false,
         patch: {
           winner_before: null, winner_after: null, range_before: null, range_after: null,
-          outcome: "UNSTABLE", status: "UNAVAILABLE",
+          outcome: STRESS_OUTCOME_NOT_EVALUATED, status: "UNAVAILABLE",
           unavailable_reason: "MISSING_REQUIRED_INPUT",
           unavailable_detail: "No side was selected on the available evidence, so there is no selection to stress-test.",
           provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
@@ -346,7 +419,7 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
     evaluated: false,
     patch: {
       winner_before: rangeOf(before), winner_after: null, range_before: null, range_after: null,
-      outcome: "UNSTABLE", status: "UNAVAILABLE",
+      outcome: STRESS_OUTCOME_NOT_EVALUATED, status: "UNAVAILABLE",
       unavailable_reason: "MISSING_REQUIRED_INPUT",
       unavailable_detail: STRESS_MISSING_EVIDENCE[code] ?? "No deterministic evidence path for this stress test.",
       provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,

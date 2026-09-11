@@ -23,6 +23,7 @@ import { compareMetricRows, COMPARISON_SPECS, parseMetricValue } from "./truth-e
 import { decideTruthEngineSelection } from "./truth-engine-decision";
 import { runTruthEngineAudit } from "./truth-engine-audit";
 import { buildDecisionRecord } from "./truth-engine-decision-record";
+import { matchSideForName } from "./match-result-resolution";
 import { verificationRowPatch, disagreementRowPatch, underdogRowPatch, stressRowPatch, unmappedUnderdogPathways } from "./truth-engine-stage-mapping";
 import { isActiveMetricCode, normalizeMetricCode } from "./truth-engine-active-metrics";
 import { STAGES, STAGE_DEPENDENCIES, unmetDependencies, isActiveRunStatus, INVALIDATED_RUN_STATUS, type Stage } from "./audit-stages";
@@ -75,8 +76,20 @@ export interface StressFinding{test_code:string;winner_after:string|null;range_a
 export interface ConclusionFinding{winner:string|null;low:number|null;high:number|null;rationale:string|null;insufficient_reason:string|null;}
 export interface EvidenceDigest{p1:string;p2:string;context:string;metrics:Array<{code:string;name:string;p1:string|null;p2:string|null;family:string|null}>;}
 export interface Researcher{identity(input:{p1:string;p2:string;hints:Record<string,string|null>}):Promise<IdentityFinding>;dossier?(input:{player:string;opponent:string;context:string}):Promise<string>;extractStats?(input:{player:string;opponent?:string;dossier:string;context:string}):Promise<SourcedStat[]>;metrics(input:{p1:string;p2:string;context:string;auditDate?:string|null;dossier?:string;researchSide?:"p1"|"p2";researchPlayer?:string;researchOpponent?:string;metrics:Array<{code:string;name:string;body:string|null}>}):Promise<MetricFinding[]>;rules(input:{kind:"VERIFICATION"|"DISAGREEMENT";evidence:EvidenceDigest;rules:Array<{code:string;name:string;body:string|null;severity:string}>}):Promise<RuleFinding[]>;underdog(input:{evidence:EvidenceDigest;pathways:Array<{code:string;name:string}>;player_side:string;opponent:string}):Promise<UnderdogFinding[]>;conclusion(input:{evidence:EvidenceDigest;verificationSummary:string;disagreementSummary:string;underdogSummary:string}):Promise<ConclusionFinding>;stress(input:{evidence:EvidenceDigest;conclusion:ConclusionFinding;tests:Array<{code:string;name:string}>}):Promise<StressFinding[]>;}
-export interface MatchRow{id:string;player1_name:string;player2_name:string;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;indoor:boolean|null;best_of:number|null;identity_status:string;surface_status:string;}
-export interface RunRow{id:string;match_id:string;run_number:number;status:string;research_lock_at:string|null;independent_decision_committed_at:string|null;matrix_revealed_at:string|null;independent_winner:string|null;independent_low:number|null;independent_high:number|null;calibrated_low:number|null;calibrated_high:number|null;calibration_version_id:string|null;effective_evidence_count:number;metrics_version_id:string|null;verification_version_id:string|null;disagreement_version_id:string|null;lease_owner?:string|null;lease_expires_at?:string|null;heartbeat_at?:string|null;}
+export interface MatchRow{id:string;player1_name:string;player2_name:string;player1_id?:string|null;player2_id?:string|null;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;indoor:boolean|null;best_of:number|null;identity_status:string;surface_status:string;}
+export interface RunRow{id:string;match_id:string;run_number:number;status:string;research_lock_at:string|null;independent_decision_committed_at:string|null;matrix_revealed_at:string|null;independent_winner:string|null;independent_winner_id?:string|null;independent_low:number|null;independent_high:number|null;calibrated_low:number|null;calibrated_high:number|null;calibration_version_id:string|null;effective_evidence_count:number;metrics_version_id:string|null;verification_version_id:string|null;disagreement_version_id:string|null;lease_owner?:string|null;lease_expires_at?:string|null;heartbeat_at?:string|null;}
+
+/**
+ * Resolves a deterministic P1/P2 outcome to the match's own player_id, never by
+ * name-matching. Returns null when the outcome is INSUFFICIENT_EVIDENCE, or when the
+ * match's own player1_id/player2_id has not been resolved (identity work outside this
+ * pipeline) -- an unresolved ID is left null, never fabricated or guessed from a name.
+ */
+export function resolveWinnerId(outcome:"P1"|"P2"|"INSUFFICIENT_EVIDENCE"|null|undefined,match:Pick<MatchRow,"player1_id"|"player2_id">):string|null{
+  if(outcome==="P1")return match.player1_id??null;
+  if(outcome==="P2")return match.player2_id??null;
+  return null;
+}
 export interface RuleDef{id:string;rule_code:string;rule_name:string;body:string|null;severity:string;blocking:boolean;}
 export interface StageRow{stage:string;status:string;attempts:number;error_message:string|null;done_count:number;total_count:number;}
 export type ChildTable="metric_results"|"reconstruction_results"|"verification_results"|"disagreement_results"|"underdog_results"|"stress_results";
@@ -86,7 +99,7 @@ export interface PipelineResult{runId:string;complete:boolean;nextStage:Stage|nu
 const METRIC_BATCH=15,RULE_BATCH=20,DEFAULT_BUDGET_MS=45_000,RESEARCH_LOCK_TTL_MS=30*60_000;
 const s=(v:unknown)=>(v===null||v===undefined?null:String(v));
 function lockExpired(lockAt:string|null,now:Date):boolean{if(!lockAt)return false;const lockMs=new Date(lockAt).getTime();if(Number.isNaN(lockMs))return false;return now.getTime()-lockMs>RESEARCH_LOCK_TTL_MS;}
-function providerReason(error:unknown):string{const m=error instanceof Error?error.message.toLowerCase():String(error??"").toLowerCase();if(m.includes("timeout")||m.includes("timed out"))return"PROVIDER_TIMEOUT";if(m.includes("401")||m.includes("403")||m.includes("auth")||m.includes("api key"))return"PROVIDER_AUTH_FAILED";if(m.includes("429")||m.includes("rate limit"))return"API_RATE_LIMIT";if(m.includes("402")||m.includes("credit")||m.includes("quota"))return"PROVIDER_CREDITS";if(m.includes("player")&&m.includes("not found"))return"PLAYER_NOT_FOUND";if(m.includes("match")&&m.includes("not found"))return"MATCH_NOT_FOUND";if(m.includes("surface"))return"SURFACE_DATA_NOT_FOUND";if(m.includes("parse")||m.includes("json"))return"PARSING_FAILED";return"NO_SOURCE_FOUND";}
+function providerReason(error:unknown):string{const m=error instanceof Error?error.message.toLowerCase():String(error??"").toLowerCase();if(m.includes("timeout")||m.includes("timed out"))return"PROVIDER_TIMEOUT";if(m.includes("401")||m.includes("403")||m.includes("auth")||m.includes("api key"))return"PROVIDER_AUTH_FAILED";if(m.includes("429")||m.includes("rate limit"))return"API_RATE_LIMIT";if(m.includes("402")||m.includes("credit")||m.includes("quota"))return"PROVIDER_CREDITS";if(m.includes("player")&&m.includes("not found"))return"PLAYER_NOT_FOUND";if(m.includes("match")&&m.includes("not found"))return"MATCH_NOT_FOUND";if(m.includes("surface"))return"SURFACE_DATA_NOT_FOUND";if(m.includes("parse")||m.includes("json"))return"PARSING_FAILED";return"PRODUCER_FAILED_WITHOUT_REASON";}
 function errorDetail(error:unknown){return error instanceof Error?error.message.slice(0,800):error?String(error).slice(0,800):null;}
 function digestFrom(match:MatchRow,metrics:Array<Record<string,unknown>>):EvidenceDigest{return{p1:match.player1_name,p2:match.player2_name,context:[match.tournament_name&&`tournament ${match.tournament_name}`,match.event_level&&`level ${match.event_level}`,match.round&&`round ${match.round}`,match.scheduled_date&&`date ${match.scheduled_date}`,match.surface&&`surface ${match.surface}`,match.indoor===null||match.indoor===undefined?null:match.indoor?"indoor":"outdoor",match.best_of&&`best of ${match.best_of}`].filter(Boolean).join(" · "),metrics:metrics.filter(m=>m["p1_value"]||m["p2_value"]).map(m=>({code:String(m["metric_code"]),name:String(m["metric_name"]),p1:s(m["p1_value"]),p2:s(m["p2_value"]),family:s(m["evidence_family"])}))};}
 const treatmentToStatus=(t:Treatment)=>t==="UNAVAILABLE"?"UNAVAILABLE":t==="EXCLUDED"?"EXCLUDED":"COMPLETE";
@@ -202,7 +215,7 @@ function stageDetails(rows:StageRow[]):Array<{stage:Stage;status:string;detail:s
   return STAGES.map(stage=>{const row=rows.find(item=>item.stage===stage);return{stage,status:row?.status??"PENDING",detail:row?(row.error_message?row.error_message:`${row.done_count}/${row.total_count}`):"not started"};});
 }
 function classify(message:string){const m=message.toLowerCase();if(m.includes("rate limit")||m.includes("429"))return"PROVIDER_RATE_LIMIT";if(m.includes("credit")||m.includes("402"))return"PROVIDER_CREDITS";if(m.includes("api key")||m.includes("unauthorized")||m.includes("401"))return"AUTH_OR_CONFIG";if(m.includes("timeout")||m.includes("timed out"))return"TIMEOUT";if(m.includes("no active")||m.includes("definition"))return"MISSING_DEFINITIONS";if(m.includes("json")||m.includes("parse"))return"PROVIDER_RESPONSE_INVALID";return"ORCHESTRATION_EXCEPTION";}
-type UnavailableReason="NO_SOURCE_FOUND"|"PROVIDER_TIMEOUT"|"PROVIDER_AUTH_FAILED"|"PLAYER_NOT_FOUND"|"MATCH_NOT_FOUND"|"SURFACE_DATA_NOT_FOUND"|"INSUFFICIENT_SAMPLE"|"MISSING_REQUIRED_INPUT"|"SOURCE_CONFLICT"|"RECONSTRUCTION_FAILED"|"API_RATE_LIMIT"|"PARSING_FAILED"|"HISTORICAL_DATA_UNAVAILABLE";
+type UnavailableReason="NO_SOURCE_FOUND"|"PRODUCER_FAILED_WITHOUT_REASON"|"PROVIDER_TIMEOUT"|"PROVIDER_AUTH_FAILED"|"PLAYER_NOT_FOUND"|"MATCH_NOT_FOUND"|"SURFACE_DATA_NOT_FOUND"|"INSUFFICIENT_SAMPLE"|"MISSING_REQUIRED_INPUT"|"SOURCE_CONFLICT"|"RECONSTRUCTION_FAILED"|"API_RATE_LIMIT"|"PARSING_FAILED"|"HISTORICAL_DATA_UNAVAILABLE";
 function unavailableReason(message:string):UnavailableReason{const v=message.toLowerCase();if(v.includes("timeout")||v.includes("timed out"))return"PROVIDER_TIMEOUT";if(v.includes("rate limit")||v.includes("429"))return"API_RATE_LIMIT";if(v.includes("auth")||v.includes("api key")||v.includes("401")||v.includes("403"))return"PROVIDER_AUTH_FAILED";if(v.includes("player")&&v.includes("not found"))return"PLAYER_NOT_FOUND";if(v.includes("match")&&v.includes("not found"))return"MATCH_NOT_FOUND";if(v.includes("surface"))return"SURFACE_DATA_NOT_FOUND";if(v.includes("sample"))return"INSUFFICIENT_SAMPLE";if(v.includes("missing")||v.includes("required input"))return"MISSING_REQUIRED_INPUT";if(v.includes("conflict"))return"SOURCE_CONFLICT";if(v.includes("parse")||v.includes("json"))return"PARSING_FAILED";if(v.includes("historical"))return"HISTORICAL_DATA_UNAVAILABLE";return"NO_SOURCE_FOUND";}
 // A metric row is only genuine two-sided evidence for the Truth Engine's
 // COMPARISON_SPECS if it actually carries the named field (or an approved
@@ -232,11 +245,29 @@ export function metricPairPatch(f:MetricFinding|undefined,providerError:string|n
       treatment="UNAVAILABLE";value=null;
     }
     const usable=treatment==="DIRECT"||treatment==="RECONSTRUCTED";
-    const sideDetail=(value===null&&f?.[`${key}_value`]!==null&&f?.[`${key}_value`]!==undefined)
+    // WHAT THE PRODUCER ACTUALLY SAID, kept separate from the generic placeholder below.
+    // The machine-readable reason must be derived only from a real, producer-stated
+    // explanation -- never from filler text this function wrote itself.
+    const statedDetail=(value===null&&f?.[`${key}_value`]!==null&&f?.[`${key}_value`]!==undefined)
       ?`Producer returned a value for this metric, but it was missing the specific field this metric's comparison requires (only unrelated statistics were present).`
-      :f?.[`${key}_unavailable_reason`]??f?.unavailable_reason??(providerError?"Research provider did not return a result for this metric.":null);
+      :f?.[`${key}_unavailable_reason`]??f?.unavailable_reason??null;
+    const sideDetail=statedDetail??(providerError?"Research provider did not return a result for this metric.":null);
     const detail=usable?null:sideDetail;
-    const reason=usable?null:sideDetail?unavailableReason(sideDetail):treatment==="PARTIAL"?"MISSING_REQUIRED_INPUT":providerReason(providerError);
+    // REASON RESOLUTION, most authoritative first. Both fallbacks used to collapse onto
+    // NO_SOURCE_FOUND, which metric-activation-status.ts reads as SOURCE_EMPTY -- one of the
+    // three statuses that EXCUSE a metric from the per-match evidence denominator. So a
+    // provider error, and a producer that simply returned nothing and said nothing, were both
+    // being recorded as "we asked and the source is genuinely empty". Neither proved that:
+    //   * a provider error is a producer failure, so it is classified from the error itself;
+    //   * no stated reason and no error proves nothing at all, so it is
+    //     PRODUCER_FAILED_WITHOUT_REASON -- a real miss to fix, never a free excusal.
+    // Only a producer's own stated explanation may still resolve to an evidence-based
+    // absence, which is exactly the burden of proof the denominator policy asks for.
+    const reason=usable?null
+      :statedDetail?unavailableReason(statedDetail)
+      :providerError?providerReason(providerError)
+      :treatment==="PARTIAL"?"MISSING_REQUIRED_INPUT"
+      :"PRODUCER_FAILED_WITHOUT_REASON";
     return{treatment,value,detail,reason,status:treatmentToStatus(treatment)};
   };
   const p1=side("p1"),p2=side("p2");
@@ -279,13 +310,206 @@ export function preserveSettledOppositeSide(patch:Record<string,unknown>,row:Rec
 export function preserveUsableCurrentSide(patch:Record<string,unknown>,row:Record<string,unknown>,side:"p1"|"p2"){
   const usable=(treatment:unknown,value:unknown)=>["DIRECT","RECONSTRUCTED","PARTIAL"].includes(String(treatment))&&String(value??"").trim()!=="";
   if(!usable(row[`${side}_treatment`],row[`${side}_value`])||usable(patch[`${side}_treatment`],patch[`${side}_value`]))return patch;
+  // The retrieval timestamp is deliberately NOT dropped with the rest of the side's keys.
+  // Keeping the prior VALUE is the point of this function; suppressing the record that this
+  // side was re-attempted is not, and it is what left the P2 stage with no per-row evidence
+  // of its own execution -- forcing the fragile positional resume cursor
+  // metricRowsForSideExecution used to depend on. The value is preserved; the attempt is
+  // still recorded.
+  const attemptedAt=patch[`${side}_retrieved_at`];
   for(const key of Object.keys(patch))if(key.startsWith(`${side}_`))delete patch[key];
+  if(attemptedAt!==undefined)patch[`${side}_retrieved_at`]=attemptedAt;
   for(const key of["unavailable_reason","unavailable_detail","provider_error","missing_inputs"])delete patch[key];
   patch["status"]="COMPLETE";
   return patch;
 }
 
-export function metricRowsForSideExecution(rows:Array<Record<string,unknown>>,side:"p1"|"p2",priorDone=0){
+// ----------------------------------------------------------------------------
+// PASS-2 (DOSSIER RECONSTRUCTION) WRITE-BACK GUARD
+//
+// executeMetrics' second pass extracts catalogued atomic statistics from the
+// player dossier and routes them back onto metric_results rows by evidence
+// FAMILY (reconstruction/stat-catalog.ts's familyOf). A family is a GROUP of
+// related statistics, never one measurement: catalogue family "008" alone
+// holds sets_played, sets_won, set_win_pct and several imported aliases, while
+// the Truth Engine's metric 008 means exactly "deciding-set win %". Routing by
+// family therefore took whichever member of the family the producer happened to
+// emit FIRST and wrote it as that metric's value under a usable treatment --
+// making this the one write path in the pipeline that never passed through
+// usableAgainstComparisonSpec, the field-contract guard metricPairPatch already
+// applies to every pass-1 write.
+//
+// Live proof, from the current production database (60 completed runs): 57 of
+// 60 metric-008 rows and 57 of 60 metric-010 rows carry a BARE COUNT (ranges
+// 0..915 and 0..280) under treatment DIRECT, for two metrics whose declared
+// quantity is a percentage; metric 009 ("Pressure point win %") was likewise
+// being written from catalogue family "009", which is deciding-set statistics.
+//
+// Three rules, every one of them derived from a contract that already exists in
+// this codebase rather than newly invented:
+//
+//  1. ONLY A GRADEABLE CODE. A code with no COMPARISON_SPEC is never written.
+//     That keeps this path away from the settled rows instantiate() deliberately
+//     seeds EXCLUDED/NO_SOURCE (META_OR_NON_PLAYER codes, quarantined codes,
+//     042) -- previously it iterated every row and could resurrect one of them
+//     into COMPLETE, defeating the quarantine it is supposed to respect.
+//
+//  2. ONLY THE DECLARED QUANTITY. The chosen stat's own catalogue key must BE
+//     the spec's declared `field` or one of its `fieldAliases`, and the value is
+//     persisted in that metric's KEYED form (`straight_set_win_pct=63.2`) rather
+//     than as a bare number. "Same family" is not knowledge of which
+//     measurement a bare number is; the key is. Because the write is keyed, it
+//     satisfies usableAgainstComparisonSpec through the named-field branch and
+//     never depends on a bareScalarFallback that 008/010 deliberately withhold.
+//     Selection is also no longer "whichever the provider emitted first", so the
+//     persisted value cannot change with provider response ordering.
+//
+//  3. THE EVIDENCE MUST BELONG TO THE SIDE BEING WRITTEN. Every SourcedStat
+//     carries the player it was extracted for. That name must resolve, through
+//     matchSideForName, to exactly the side this write targets -- so a P1
+//     extraction can never populate P2 and vice versa. matchSideForName is used
+//     rather than a string compare because it is the codebase's existing
+//     definition of "which side is this name", accent- and initial-tolerant, and
+//     it returns null (refusing the write) when two players' surnames collide and
+//     the name cannot be attributed to one side without guessing.
+//
+//  4. TERMINAL STATES ARE TERMINAL. A side settled EXCLUDED or NO_SOURCE is a
+//     decision already taken (a META_OR_NON_PLAYER code, a quarantined code);
+//     no evidence write may silently transition it back into COMPLETE. Rule 1
+//     already excludes today's settled codes because none of them carries a
+//     COMPARISON_SPEC, but that is a coincidence of the current registry, not a
+//     guarantee -- this states the invariant directly so a future reclassification
+//     cannot quietly reopen the path.
+//
+//  5. NEVER OVERWRITE, NEVER CLOBBER, ALWAYS ATTRIBUTE. A side already holding
+//     usable evidence is left exactly as it is (the same rule
+//     preserveUsableCurrentSide enforces on the pass-1 path). `sources` is a
+//     shared, un-sided column, so it is MERGED with what the row already holds
+//     rather than replaced -- replacing it is what left 44 of 45 metric-001 rows
+//     attributing P1's number to P2's source -- and every entry this side-specific
+//     pass contributes is stamped with `player_side`, so a merged array stays
+//     attributable to the side it actually came from. Entries with no
+//     `player_side` are the pass-1 researcher's, which genuinely describe both
+//     sides at once.
+//
+// Returns null whenever any rule declines the write, which is the common case.
+// ----------------------------------------------------------------------------
+export interface Pass2WriteBackContext{p1Name:string;p2Name:string;retrievedAt:string}
+
+export function pass2WriteBackPatch(
+  row:Record<string,unknown>,
+  side:"p1"|"p2",
+  statsByFamily:ReadonlyMap<string,readonly SourcedStat[]>,
+  context:Pass2WriteBackContext,
+):Record<string,unknown>|null{
+  const code=normalizedMetricCode(String(row["metric_code"]??"").replace(/^M/,""));
+  const spec=COMPARISON_SPECS[code];
+  if(!spec)return null;
+  const declared=[spec.field,...(spec.fieldAliases??[])].filter((name):name is string=>typeof name==="string"&&name.length>0);
+  if(!declared.length)return null;
+  if(["EXCLUDED","NO_SOURCE"].includes(String(row[`${side}_status`]??""))||["EXCLUDED","NO_SOURCE"].includes(String(row[`${side}_treatment`]??"")))return null;
+  const expectedSide=side==="p1"?"P1":"P2";
+  const facts={player1_name:context.p1Name,player2_name:context.p2Name};
+  const stat=(statsByFamily.get(code)??[]).find(candidate=>
+    declared.includes(candidate.key)
+    &&Number.isFinite(candidate.value)
+    &&matchSideForName(candidate.player,facts)===expectedSide,
+  );
+  if(!stat)return null;
+  const alreadyUsable=["DIRECT","RECONSTRUCTED","PARTIAL"].includes(String(row[`${side}_treatment`]??""))&&String(row[`${side}_value`]??"").trim()!=="";
+  if(alreadyUsable)return null;
+  const value=`${stat.key}=${stat.value}`;
+  if(!usableAgainstComparisonSpec(code,value))return null;
+  const priorSources=Array.isArray(row["sources"])?(row["sources"] as SourceRef[]):[];
+  const attributed=(stat.sources??[]).map(source=>({...source,player_side:expectedSide}));
+  const sources=[...priorSources,...attributed].filter((source,index,all)=>
+    all.findIndex(other=>{
+      const a=other as SourceRef&{player_side?:string},b=source as SourceRef&{player_side?:string};
+      return a.source_name===b.source_name&&a.url===b.url&&(a.player_side??null)===(b.player_side??null);
+    })===index,
+  );
+  return{
+    [`${side}_value`]:value,
+    [`${side}_status`]:"COMPLETE",
+    [`${side}_treatment`]:stat.origin,
+    [`${side}_unavailable_reason`]:null,
+    [`${side}_provider_error`]:null,
+    [`${side}_retrieved_at`]:context.retrievedAt,
+    status:"COMPLETE",
+    sources,
+    source_attempts:sources,
+    reconstruction_attempted:true,
+    reconstruction_reason:stat.calculation??null,
+    reconstruction_result:value,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// RESUME SEMANTICS: has THIS side already been researched with itself as the
+// research subject?
+//
+// Why the two sides cannot share one rule, and why P2 could not simply copy P1's:
+// the researcher returns ONE paired finding carrying both players' values, so the
+// P1 stage's write settles p2_status too (metricPairPatch writes both prefixes;
+// preserveSettledOppositeSide only withholds a side that is ALREADY settled, and on
+// the first P1 pass P2 is not). If P2 filtered on p2_status the way P1 filters on
+// p1_status, its pending set would be empty on arrival and the P2 stage would never
+// execute anything -- P2 would silently inherit whatever the P1-oriented research
+// happened to say about it. That is precisely the evidence the P2 stage exists to
+// obtain independently.
+//
+// The old workaround was a POSITIONAL cursor: slice(priorDone - protectedCount) into
+// a sorted array. Position is not identity: any change in the row set or its ordering
+// between two slices of the same stage moves the window and silently skips P2 rows,
+// permanently and with no trace -- they would finish the run holding only whatever
+// P1's paired pass left on them.
+//
+// HONEST SCOPE. That is a latent fragility, not the cause of the one-sided-evidence
+// gap the gap audit measured (97 P1-only against 25 P2-only). A read-only check of all
+// 1,500 active metric-sides in production found p2_retrieved_at strictly later than
+// p1_retrieved_at on 1,500 of 1,500 -- every row did get its own P2-oriented pass, so
+// the cursor skipped nothing in those runs. The measured gap concentrates in the
+// history-fed metrics (055, 006, 001, 010, 008, 068) while the point-by-point metrics
+// (002, 003, 032) tilt the other way, which is a producer data-coverage signature
+// rather than a side-handling bug. This change removes the fragility and fixes the
+// provenance falsehood below; it does not claim to close that gap.
+//
+// The canonical per-row fact replacing it: `${side}_retrieved_at`, which now means
+// exactly "a retrieval was performed for this row with THIS side as the research
+// subject". claimRetrievalForExecutingSideOnly enforces that meaning -- a P1-oriented
+// pass may still write P2's VALUE from the paired finding, but it no longer stamps a
+// P2 retrieval it did not perform -- and preserveUsableCurrentSide always lets the
+// stamp through, so it is recorded even on an attempt that keeps a prior better value.
+// That last part is what makes resume terminate instead of re-researching forever.
+//
+// Deliberately a presence check, not a timestamp comparison. An earlier draft asked
+// whether p2_retrieved_at had moved PAST p1_retrieved_at, which silently depends on
+// clock resolution: two writes inside the same millisecond compare equal and the row
+// looks untreated forever. Presence has no such failure mode.
+//
+// Both sides therefore answer the same question -- "has this row been researched with
+// this side as the subject?" -- through the same expression, from persisted per-row
+// state, and neither depends on where a row sits in an array.
+// ----------------------------------------------------------------------------
+function researchedForOwnSide(row:Record<string,unknown>,side:"p1"|"p2"):boolean{
+  return String(row[`${side}_retrieved_at`]??"").trim()!=="";
+}
+
+/**
+ * Strips the OPPOSITE side's retrieval timestamp from a research patch.
+ *
+ * The researcher answers with one paired finding carrying both players' values, so a
+ * P1-oriented pass legitimately writes P2's value -- but it performed no retrieval with
+ * P2 as the subject, and stamping p2_retrieved_at as though it had is what destroyed
+ * the only per-row record the P2 stage could have resumed from. The value still lands;
+ * only the claim to have retrieved it for that side is withheld.
+ */
+export function claimRetrievalForExecutingSideOnly(patch:Record<string,unknown>,side:"p1"|"p2"){
+  delete patch[`${side==="p1"?"p2":"p1"}_retrieved_at`];
+  return patch;
+}
+
+export function metricRowsForSideExecution(rows:Array<Record<string,unknown>>,side:"p1"|"p2"){
   const stableRows=[...rows].sort((a,b)=>String(a["metric_code"]??a["id"]??"").localeCompare(String(b["metric_code"]??b["id"]??"")));
   // Quarantine guard, derived from the metric's own CODE rather than its persisted
   // status -- the same silent-re-entry-proof approach audit-engine.ts's coverageFor()
@@ -302,14 +526,12 @@ export function metricRowsForSideExecution(rows:Array<Record<string,unknown>>,si
   // "never researched" guarantee code-identity-proof for them too, rather than dependent
   // on a persisted status a legacy row or a downstream writer could differ on.
   const active=stableRows.filter(row=>!isNoSourceRuleCode(String(row["metric_code"]??"")));
-  if(side==="p1"){
-    const pending=active.filter(row=>!["COMPLETE","UNAVAILABLE","EXCLUDED","NO_SOURCE"].includes(String(row["p1_status"])));
-    return{pending,completedBefore:stableRows.length-pending.length};
-  }
-  const eligible=active.filter(row=>!["EXCLUDED","NO_SOURCE"].includes(String(row["p2_status"])));
-  const protectedCount=stableRows.length-eligible.length;
-  const completedOrientationCount=Math.max(0,Math.min(eligible.length,priorDone-protectedCount));
-  return{pending:eligible.slice(completedOrientationCount),completedBefore:protectedCount+completedOrientationCount};
+  // A side settled EXCLUDED/NO_SOURCE is never offered for research, on either side --
+  // that is the instantiation-time decision the quarantine and META carve-outs rest on,
+  // and it must hold identically for P1 and P2.
+  const eligible=active.filter(row=>!["EXCLUDED","NO_SOURCE"].includes(String(row[`${side}_status`])));
+  const pending=eligible.filter(row=>!researchedForOwnSide(row,side));
+  return{pending,completedBefore:stableRows.length-pending.length};
 }
 
 async function ensureRun(deps:PipelineDeps,match:MatchRow,forceNewRun=false):Promise<RunRow>{
@@ -418,7 +640,7 @@ async function instantiate(deps:PipelineDeps,matchId:string,runId:string):Promis
 const activeMetricDefs=metricDefs.filter(d=>isActiveMetricCode(d.rule_code)||isProcessMetaRuleCode(d.rule_code)||normalizeMetricCode(d.rule_code)==="042");
 const existingMetrics=await deps.list("metric_results",runId),haveMetric=new Set(existingMetrics.map(r=>String(r["metric_code"]))),newMetrics=activeMetricDefs.filter(d=>!haveMetric.has(d.rule_code)).map(d=>{const excluded=isProcessMetaRuleCode(d.rule_code);const noSource=!excluded&&isNoSourceRuleCode(d.rule_code);const quarantined=noSource&&isMatrixSummaryQuarantinedRuleCode(d.rule_code);const initial=excluded?"EXCLUDED":noSource?"NO_SOURCE":"NOT STARTED";const settled=excluded||noSource;return{audit_run_id:runId,metric_code:d.rule_code,metric_name:d.rule_name,category:d.severity,evidence_family:d.rule_name,matrix_derived:false,status:initial,p1_status:initial,p2_status:initial,p1_treatment:excluded?"EXCLUDED":"UNAVAILABLE",p2_treatment:excluded?"EXCLUDED":"UNAVAILABLE",unavailable_reason:excluded?"PROCESS_META_NOT_PLAYER_EVIDENCE":quarantined?"MATRIX_SUMMARY_EVIDENCE_REQUIRED":noSource?"NO_SOURCE_NO_LEGITIMATE_PATHWAY":null,unavailable_detail:excluded?"Canonical classification registry classifies this code as a process/model-governance section (see metric-classification.ts), not a player-level metric; excluded from player-evidence coverage rather than scored as unavailable.":quarantined?"The Truth Engine does not currently possess the Tennis Matrix AI Summary evidence this code requires, so it is quarantined out of the ACTIVE audit pipeline (see MATRIX_SUMMARY_REQUIRED_RECORDS in metric-classification.ts). This is not a failure, a zero, a retirement, or a permanent determination: the definition, formula, schema and all historical results/evidence are preserved, the code contributes no active weight and cannot block this audit, and it is restored to the active denominator once real Matrix Summary evidence is uploaded, validated and the code has earned reactivation.":noSource?"Canonical classification registry records a documented determination that no legitimate obtainable or reconstructable evidence pathway exists for this code (see PROTECTED_UNAVAILABLE_RECORDS in metric-classification.ts); excluded from player-evidence coverage rather than scored as unavailable.":null};});if(newMetrics.length)await deps.insert("metric_results",newMetrics);const existingVer=await deps.list("verification_results",runId),haveVer=new Set(existingVer.map(r=>String(r["rule_code"]))),newVer=verDefs.filter(d=>!haveVer.has(d.rule_code)).map(d=>({audit_run_id:runId,rule_id:d.id,rule_code:d.rule_code,rule_name:d.rule_name,severity:d.severity,status:"NOT STARTED",outcome:"NOT STARTED"}));if(newVer.length)await deps.insert("verification_results",newVer);const existingDis=await deps.list("disagreement_results",runId),haveDis=new Set(existingDis.map(r=>String(r["rule_code"]))),newDis=disDefs.filter(d=>!haveDis.has(d.rule_code)).map(d=>({audit_run_id:runId,rule_id:d.id,rule_code:d.rule_code,rule_name:d.rule_name,status:"NOT STARTED"}));if(newDis.length)await deps.insert("disagreement_results",newDis);const existingUnder=await deps.list("underdog_results",runId),haveUnder=new Set(existingUnder.map(r=>`${r["player_side"]}|${r["pathway_code"]}`)),newUnder=[match.player1_name,match.player2_name].flatMap(side=>UNDERDOG_PATHWAYS.filter(([code])=>!haveUnder.has(`${side}|${code}`)).map(([code,name])=>({audit_run_id:runId,pathway_code:code,pathway_name:name,player_side:side,classification:"UNRESOLVED",status:"NOT STARTED"})));if(newUnder.length)await deps.insert("underdog_results",newUnder);const existingStress=await deps.list("stress_results",runId),haveStress=new Set(existingStress.map(r=>String(r["test_code"]))),newStress=STRESS_TESTS.filter(([code])=>!haveStress.has(code)).map(([code,name])=>({audit_run_id:runId,test_code:code,test_name:name,status:"NOT STARTED",outcome:"NOT STARTED"}));if(newStress.length)await deps.insert("stress_results",newStress);const total=activeMetricDefs.length+verDefs.length+disDefs.length+UNDERDOG_PATHWAYS.length*2+STRESS_TESTS.length;return{status:"COMPLETE",done:total,total,detail:{metrics:activeMetricDefs.length,verification:verDefs.length,disagreement:disDefs.length,underdog:UNDERDOG_PATHWAYS.length*2,stress:STRESS_TESTS.length}};}
 
-async function executeMetrics(deps:PipelineDeps,matchId:string,runId:string,side:"p1"|"p2",ctx:StageCtx):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const rows=await deps.list("metric_results",runId);if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No metric rows instantiated."};const stageName=side==="p1"?"P1 METRIC EXECUTION":"P2 METRIC EXECUTION",priorStage=(await deps.getStages(runId)).find(stage=>stage.stage===stageName),{pending,completedBefore}=metricRowsForSideExecution(rows,side,priorStage?.done_count??0),versions=await deps.getActiveVersionId("METRICS"),defs=versions?await deps.getRules(versions):[],bodyByCode=new Map(defs.map(d=>[d.rule_code,d.body])),digestContext=digestFrom(match,rows).context;let dossier="";if(pending.length&&deps.research.dossier){const run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined,need=[match.player1_name,match.player2_name].filter(p=>!cached?.[p]),fresh:Record<string,string>={...(cached??{})};const retrieved=await Promise.all(need.map(async player=>{const opponent=player===match.player1_name?match.player2_name:match.player1_name;try{return[player,await deps.research.dossier!({player,opponent,context:digestContext})]as const;}catch{return[player,""]as const;}}));for(const[player,value]of retrieved)fresh[player]=value;if(need.length)await deps.updateRun(runId,{independent_inputs:{...((run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs??{}),dossiers:fresh}});dossier=fresh[side==="p1"?match.player1_name:match.player2_name]??"";}
+async function executeMetrics(deps:PipelineDeps,matchId:string,runId:string,side:"p1"|"p2",ctx:StageCtx):Promise<StageOutcome>{const match=await deps.getMatch(matchId);if(!match)throw new Error("match disappeared");const rows=await deps.list("metric_results",runId);if(!rows.length)return{status:"FAILED",done:0,total:0,errorCode:"MISSING_DEFINITIONS",message:"No metric rows instantiated."};const stageName=side==="p1"?"P1 METRIC EXECUTION":"P2 METRIC EXECUTION",{pending,completedBefore}=metricRowsForSideExecution(rows,side),versions=await deps.getActiveVersionId("METRICS"),defs=versions?await deps.getRules(versions):[],bodyByCode=new Map(defs.map(d=>[d.rule_code,d.body])),digestContext=digestFrom(match,rows).context;let dossier="";if(pending.length&&deps.research.dossier){const run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined,need=[match.player1_name,match.player2_name].filter(p=>!cached?.[p]),fresh:Record<string,string>={...(cached??{})};const retrieved=await Promise.all(need.map(async player=>{const opponent=player===match.player1_name?match.player2_name:match.player1_name;try{return[player,await deps.research.dossier!({player,opponent,context:digestContext})]as const;}catch{return[player,""]as const;}}));for(const[player,value]of retrieved)fresh[player]=value;if(need.length)await deps.updateRun(runId,{independent_inputs:{...((run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs??{}),dossiers:fresh}});dossier=fresh[side==="p1"?match.player1_name:match.player2_name]??"";}
 // Bounded in-audit retry: a transient/technical failure (provider timeout, rate limit --
 // see metric-activation-status.ts's RETRIABLE_REASONS) gets a fresh attempt at the SAME
 // metric through the SAME producer/source path, never a fallback to a different metric and
@@ -447,7 +669,7 @@ const runResearchBatch=async(rowsToRun:Array<Record<string,unknown>>):Promise<Ar
   const byCode=new Map(findings.map(f=>[f.metric_code,f]));const retrievedAt=deps.now().toISOString();const stillRetriable:Array<Record<string,unknown>>=[];
   await Promise.all(rowsToRun.map(async row=>{
     const paired=metricPairPatch(byCode.get(String(row["metric_code"])),providerError,retrievedAt);
-    const oriented=preserveSettledOppositeSide(paired,row,side);
+    const oriented=claimRetrievalForExecutingSideOnly(preserveSettledOppositeSide(paired,row,side),side);
     const finalPatch=preserveUsableCurrentSide(oriented,row,side);
     await deps.update("metric_results",String(row["id"]),finalPatch);
     const reason=finalPatch[`${side}_unavailable_reason`];
@@ -462,7 +684,7 @@ for(let attempt=1;attempt<=MAX_METRIC_RETRY_ATTEMPTS&&retryQueue.length&&Date.no
   retryQueue=await runResearchBatch(retryQueue);
 }
 treatedInPass+=batch.length;await ctx.progress(completedBefore+treatedInPass,rows.length);}
-if(!timedOut&&deps.research.extractStats){const player=side==="p1"?match.player1_name:match.player2_name,run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined;let raw:SourcedStat[]=[],extractionError:string|null=null;try{raw=await deps.research.extractStats({player,dossier:cached?.[player]??dossier,context:digestContext});}catch(error){extractionError=errorDetail(error);}const outcome=reconstruct(raw),reconstructionRows=[...outcome.derived.map(stat=>({audit_run_id:runId,metric_code:stat.key,player_side:player,status:"COMPLETE",output:String(stat.value),formula:stat.formula??null,inputs:stat.inputs?.map(input=>({key:input.key,value:input.value,origin:input.origin,sources:input.sources}))??[],calculation:stat.calculation??null,source_refs:stat.sources,assumptions:null,reliability:.8,unavailable_reason:null,provider_error:null,missing_inputs:[],source_attempts:stat.sources,reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value),retrieved_at:deps.now().toISOString()})),...outcome.blocked.map(blocked=>({audit_run_id:runId,metric_code:blocked.output,player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:blocked.missing},calculation:blocked.reason,source_refs:[],assumptions:blocked.reason,reliability:null,unavailable_reason:"RECONSTRUCTION_FAILED",provider_error:null,missing_inputs:blocked.missing,source_attempts:[],reconstruction_attempted:true,reconstruction_reason:blocked.reason,reconstruction_result:null,retrieved_at:deps.now().toISOString()})),...(raw.length||outcome.blocked.length?[]:[{audit_run_id:runId,metric_code:"PASS2_EXTRACTION",player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:["dossier"]},calculation:extractionError??"No catalogued statistics were extracted from the player dossier.",source_refs:[],assumptions:null,reliability:null,unavailable_reason:extractionError?unavailableReason(extractionError):"NO_SOURCE_FOUND",provider_error:extractionError,missing_inputs:["dossier"],source_attempts:[],reconstruction_attempted:true,reconstruction_reason:extractionError??"No catalogued statistics were extracted from the player dossier.",retrieved_at:deps.now().toISOString()}])];if(reconstructionRows.length)await deps.insert("reconstruction_results",reconstructionRows as never);const statsByFamily=new Map<string,SourcedStat>();for(const stat of[...raw,...outcome.derived]){const family=familyOf(stat.key);if(family&&!statsByFamily.has(family))statsByFamily.set(family,stat);}for(const row of rows){const stat=statsByFamily.get(String(row["metric_code"]).replace(/^M/,"").padStart(3,"0"));if(!stat)continue;const sidePrefix=side==="p1"?"p1":"p2";await deps.update("metric_results",String(row["id"]),{[`${sidePrefix}_value`]:String(stat.value),[`${sidePrefix}_status`]:"COMPLETE",[`${sidePrefix}_treatment`]:stat.origin,[`${sidePrefix}_unavailable_reason`]:null,[`${sidePrefix}_provider_error`]:null,[`${sidePrefix}_retrieved_at`]:deps.now().toISOString(),sources:stat.sources??[],source_attempts:stat.sources??[],missing_inputs:[],reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value)});}}
+if(!timedOut&&deps.research.extractStats){const player=side==="p1"?match.player1_name:match.player2_name,run=await deps.getLatestRun(matchId),cached=(run as unknown as{independent_inputs?:Record<string,unknown>}|null)?.independent_inputs?.["dossiers"] as Record<string,string>|undefined;let raw:SourcedStat[]=[],extractionError:string|null=null;try{raw=await deps.research.extractStats({player,dossier:cached?.[player]??dossier,context:digestContext});}catch(error){extractionError=errorDetail(error);}const outcome=reconstruct(raw),reconstructionRows=[...outcome.derived.map(stat=>({audit_run_id:runId,metric_code:stat.key,player_side:player,status:"COMPLETE",output:String(stat.value),formula:stat.formula??null,inputs:stat.inputs?.map(input=>({key:input.key,value:input.value,origin:input.origin,sources:input.sources}))??[],calculation:stat.calculation??null,source_refs:stat.sources,assumptions:null,reliability:.8,unavailable_reason:null,provider_error:null,missing_inputs:[],source_attempts:stat.sources,reconstruction_attempted:true,reconstruction_reason:stat.calculation??null,reconstruction_result:String(stat.value),retrieved_at:deps.now().toISOString()})),...outcome.blocked.map(blocked=>({audit_run_id:runId,metric_code:blocked.output,player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:blocked.missing},calculation:blocked.reason,source_refs:[],assumptions:blocked.reason,reliability:null,unavailable_reason:"RECONSTRUCTION_FAILED",provider_error:null,missing_inputs:blocked.missing,source_attempts:[],reconstruction_attempted:true,reconstruction_reason:blocked.reason,reconstruction_result:null,retrieved_at:deps.now().toISOString()})),...(raw.length||outcome.blocked.length?[]:[{audit_run_id:runId,metric_code:"PASS2_EXTRACTION",player_side:player,status:"UNAVAILABLE",output:null,formula:null,inputs:{missing:["dossier"]},calculation:extractionError??"No catalogued statistics were extracted from the player dossier.",source_refs:[],assumptions:null,reliability:null,unavailable_reason:extractionError?unavailableReason(extractionError):"NO_SOURCE_FOUND",provider_error:extractionError,missing_inputs:["dossier"],source_attempts:[],reconstruction_attempted:true,reconstruction_reason:extractionError??"No catalogued statistics were extracted from the player dossier.",retrieved_at:deps.now().toISOString()}])];if(reconstructionRows.length)await deps.insert("reconstruction_results",reconstructionRows as never);const statsByFamily=new Map<string,SourcedStat[]>();for(const stat of[...raw,...outcome.derived]){const family=familyOf(stat.key);if(!family)continue;statsByFamily.set(family,[...(statsByFamily.get(family)??[]),stat]);}const writeBackContext:Pass2WriteBackContext={p1Name:match.player1_name,p2Name:match.player2_name,retrievedAt:deps.now().toISOString()};for(const row of rows){const patch=pass2WriteBackPatch(row,side,statsByFamily,writeBackContext);if(!patch)continue;await deps.update("metric_results",String(row["id"]),patch);}}
 const done=completedBefore+treatedInPass;if(timedOut)return{status:"PARTIAL",done,total:rows.length,message:`${done}/${rows.length} metrics treated so far for ${side.toUpperCase()}.`};return{status:"COMPLETE",done:rows.length,total:rows.length};}
 
 async function executeRules(deps:PipelineDeps,matchId:string,runId:string,kind:"VERIFICATION"|"DISAGREEMENT",ctx:StageCtx):Promise<StageOutcome>{
@@ -593,7 +815,15 @@ async function commitConclusion(deps:PipelineDeps,matchId:string,runId:string):P
   // Independent evidence families come from the deterministic decision (correlated metrics
   // collapsed and counted once), not from a raw distinct-string count of evidence_family,
   // which double-counted correlated signals as independent corroboration.
-  const families=new Set(deterministic.audit.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
+  const families=new Set(deterministic.audit.decision.independent_support_families);if(!conclusion.winner){await deps.updateRun(runId,{independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:null,families:families.size,insufficient_reason:conclusion.insufficient_reason??"Independent evidence was insufficient to commit a conclusion."}};}
+  // WINNER IDENTITY: resolved from the match's own player1_id/player2_id by the
+  // structural P1/P2 outcome label, never by matching conclusion.winner's name string
+  // against anything -- a name is display data, the id (when the match's identity has
+  // been resolved) is authoritative. Never fabricated: unresolved match identity leaves
+  // this null rather than guessing.
+  const winnerId=resolveWinnerId(deterministic.audit.decision.outcome,match);
+  if(winnerId!==null&&winnerId!==match.player1_id&&winnerId!==match.player2_id)throw new Error(`Winner identity integrity violation: resolved id ${winnerId} matches neither player1_id nor player2_id for match ${matchId}.`);
+  await deps.updateRun(runId,{independent_winner:conclusion.winner,independent_winner_id:winnerId,independent_low:conclusion.low,independent_high:conclusion.high,independent_decision_committed_at:deps.now().toISOString(),effective_evidence_count:families.size,raw_signal_count:metrics.filter(m=>m["status"]==="COMPLETE").length});return{status:"COMPLETE",done:1,total:1,detail:{winner:conclusion.winner,winner_id:winnerId,families:families.size,rationale:conclusion.rationale?.slice(0,500)??null}};}
 async function revealMatrix(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const run=await deps.getLatestRun(matchId);if(!run?.independent_decision_committed_at)return{status:"BLOCKED",done:0,total:1,errorCode:"FIREWALL",message:"Matrix stays sealed until the independent conclusion is committed."};const fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null;await deps.updateRun(runId,{matrix_revealed_at:deps.now().toISOString()});return{status:"COMPLETE",done:1,total:1,detail:{matrix_predicted_winner:fields["matrix_predicted_winner"]??null,matrix_wp:wp,agrees_with_independent:fields["matrix_predicted_winner"]&&run.independent_winner?fields["matrix_predicted_winner"].toLowerCase().includes(run.independent_winner.split(" ").slice(-1)[0]!.toLowerCase()):null}};}
 async function applyCalibration(deps:PipelineDeps,matchId:string,runId:string):Promise<StageOutcome>{const{version,buckets}=await deps.getCalibration();if(!version||!buckets.length)return{status:"FAILED",done:0,total:1,errorCode:"NO_ACTIVE_CALIBRATION",message:"No active calibration version with buckets is stored."};const run=await deps.getLatestRun(matchId),fields=await deps.getParsedFields(matchId),wpRaw=fields["matrix_wp"],wp=wpRaw?Number(String(wpRaw).replace(/[^\d.]/g,"")):null,snapshot=buildCalibrationSnapshot({versionId:version.id,matrixWp:Number.isFinite(wp)?wp:null,buckets,independentLow:run?.independent_low??null,independentHigh:run?.independent_high??null});await deps.updateRun(runId,{calibration_version_id:version.id,calibrated_low:snapshot.calibratedLow,calibrated_high:snapshot.calibratedHigh});return{status:"COMPLETE",done:1,total:1,detail:{calibration_version:version.label,version_number:version.version_number,bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,bucket_wins:snapshot.bucketWins,bucket_graded:snapshot.bucketGraded}};}
 
@@ -650,13 +880,54 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
   // result is known.
   const decisionMetrics=await deps.list("metric_results",runId);
   const decisionMatch=await deps.getMatch(matchId);
+  const freshDeterministic=decisionMatch?deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name):null;
+  // WINNER INTEGRITY CHECK. This recomputation is a pure function of metric_results, and is
+  // supposed to exactly reproduce the winner commitConclusion already locked into
+  // run.independent_winner -- that is the whole premise of calling it again here rather than
+  // just copying the committed value. A real production run proved that premise can break:
+  // if metric evidence for the 25 active codes changes between the Independent Conclusion
+  // commit and this stage (e.g. late-arriving evidence resolves after commit), this fresh
+  // recomputation can disagree with the already-committed conclusion -- and nothing was
+  // stopping that disagreement from being silently persisted into gate_report as if it were
+  // audited, where downstream calibration/grading code (match-result-capture.ts) reads it as
+  // authoritative. Per the product's own "refusal is a first-class outcome" rule, a
+  // disagreement here is an integrity failure, not something to resolve by picking either
+  // side -- it must block, not silently diverge.
+  if(freshDeterministic&&freshDeterministic.winner!==(run?.independent_winner??null)){
+    return{status:"BLOCKED",done:0,total:1,errorCode:"WINNER_INTEGRITY_MISMATCH",message:`Final Decision blocked: the committed Independent Conclusion winner (${run?.independent_winner??"none"}) no longer matches what the current metric evidence deterministically supports (${freshDeterministic.winner??"none"}). Evidence changed after Independent Conclusion was committed; this run requires a fresh audit rather than a silently divergent Final Decision.`};
+  }
+  // WINNER IDENTITY INTEGRITY: the id propagated into final_decisions must be exactly the
+  // id already committed on audit_runs (never re-derived independently here), and that
+  // committed id must itself belong to one of this match's two players -- never anything
+  // else. A name mismatch (checked above) or an id that belongs to neither player are both
+  // integrity failures, not conditions to silently paper over by falling back to a name.
+  const committedWinnerId=run?.independent_winner_id??null;
+  if(decisionMatch&&committedWinnerId!==null&&committedWinnerId!==decisionMatch.player1_id&&committedWinnerId!==decisionMatch.player2_id){
+    return{status:"BLOCKED",done:0,total:1,errorCode:"WINNER_IDENTITY_INTEGRITY_VIOLATION",message:`Final Decision blocked: the committed independent_winner_id (${committedWinnerId}) does not match either player1_id or player2_id on match ${matchId}.`};
+  }
   const decisionRecord=decisionMatch?buildDecisionRecord({
-    audit:deterministicIndependentConclusion(decisionMetrics,decisionMatch.player1_name,decisionMatch.player2_name).audit,
-    metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null})),
+    // The re-derived audit (winner-integrity check below), not a second independent
+    // derivation: the record must describe the same decision the gate just validated.
+    audit:freshDeterministic!.audit,
+    // p1_unavailable_reason/p2_unavailable_reason are NOT optional decoration here: they are
+    // the ONLY input metric-activation-status.ts's classifier has for telling an evidenced
+    // terminal absence (SOURCE_EMPTY / INSUFFICIENT_SAMPLE / GENUINELY_UNAVAILABLE -- the
+    // three statuses that may legitimately leave a metric out of the per-match denominator)
+    // apart from a real pipeline defect. Omitting them sent `reason: undefined` for every
+    // side, which the classifier correctly refuses to excuse and files as PRODUCER_FAILURE --
+    // so the dynamic denominator silently collapsed back onto the fixed 25 for every match,
+    // and every honestly-unavailable metric side was recorded in the decision record as a
+    // producer defect. Diagnostic only: nothing here can reach the winner, the colour, or the
+    // 60% threshold.
+    metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null,p1_unavailable_reason:m["p1_unavailable_reason"] as string|null,p2_unavailable_reason:m["p2_unavailable_reason"] as string|null})),
     now:deps.now(),
     actualWinner:(decisionMatch as unknown as{actual_winner?:string|null}).actual_winner??null,
   }):null;
-  await deps.saveDecision(runId,existing,{gate_report:decisionRecord?{deterministic_decision:decisionRecord}:{},final_audit_color:report.color,final_recommendation:report.action,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
+  // final_selection must hold the bare selected-player identity (or null), never the
+  // action string ("PLAY — X" / "PASS" / ...) that final_recommendation carries -- a
+  // direct reader of this column would otherwise silently grade the wrong thing (see
+  // match-result-capture.ts, which works around this by reading gate_report instead).
+  await deps.saveDecision(runId,existing,{gate_report:decisionRecord?{deterministic_decision:decisionRecord}:{},final_audit_color:report.color,final_recommendation:report.action,final_selection:run?.independent_winner??null,selected_player_id:committedWinnerId,completion_percent:report.completionPercent,audit_complete:report.auditComplete,independent_winner:run?.independent_winner??null,independent_range:run?.independent_low!==null&&run?.independent_high!==null?`${run?.independent_low}-${run?.independent_high}`:null,calibrated_range:snapshot.calibratedLow!==null&&snapshot.calibratedHigh!==null?`${snapshot.calibratedLow}-${snapshot.calibratedHigh}`:null,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate,calibration_wins:snapshot.bucketWins,calibration_graded:snapshot.bucketGraded,green_locked:report.greenLocked,green_lock_reasons:report.greenLockReasons,matrix_firewall_valid:report.matrixFirewallValid});
   if(!(await deps.getDecisionId(runId)))throw new Error("Final decision persistence invariant failed: no decision row exists after save.");
   if(deps.verifyFinalPersistence)await deps.verifyFinalPersistence(runId,report.coverage.p1.total+report.coverage.p2.total,report.auditComplete);
   const detail={color:report.color,action:report.action,completion_percent:report.completionPercent,evidence_coverage:report.coverage.usablePercent,calibration_version_id:snapshot.calibrationVersionId,calibration_bucket:snapshot.bucketCode,verified_win_rate:snapshot.verifiedWinRate};

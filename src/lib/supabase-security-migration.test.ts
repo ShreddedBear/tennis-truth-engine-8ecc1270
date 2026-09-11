@@ -2,7 +2,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migrationPath = resolve(process.cwd(), "supabase/migrations/20260826103000_supabase_security_rls_repair.sql");
+// SUPERSEDED, and deliberately no longer under supabase/migrations/: this whole-schema
+// overhaul revokes anon SELECT across the schema, and production has zero auth.users, so
+// applying it would take the live UI offline. It was never applied (no 20260826103000 row in
+// the production ledger) and now lives under supabase/security/ so `supabase db push` cannot
+// pick it up. The scoped warehouse/decision/RPC/calibration lockdowns replaced it.
+//
+// These assertions are kept as a record of what the file contains -- if it is ever revived
+// behind a real authentication migration, its content must still be what was reviewed.
+const migrationPath = resolve(process.cwd(), "supabase/security/superseded-20260826103000_supabase_security_rls_repair.sql");
 const sql = readFileSync(migrationPath, "utf8");
 
 const backendOnly = [

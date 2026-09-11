@@ -4,14 +4,14 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'supabase/migrations/20260826103000_supabase_security_rls_repair.sql'
+      - 'supabase/migrations/**'
       - 'supabase/security/**'
       - 'src/lib/supabase-security-migration.test.ts'
       - '.github/workflows/supabase-security-repair.yml'
   push:
     branches: [main]
     paths:
-      - 'supabase/migrations/20260826103000_supabase_security_rls_repair.sql'
+      - 'supabase/migrations/**'
       - 'supabase/security/**'
       - 'src/lib/supabase-security-migration.test.ts'
       - '.github/workflows/supabase-security-repair.yml'

@@ -3,6 +3,7 @@
 
 import { classifyMetric } from "./metric-classification";
 import { FINAL_STAGE, unmetDependencies, type StageStatusRow } from "./audit-stages";
+import { activeMetricReadiness, type MetricRowForReadiness } from "./truth-engine-active-metrics";
 
 export const DONE_STATES = ["COMPLETE", "UNAVAILABLE", "EXCLUDED", "NO_SOURCE"];
 
@@ -80,6 +81,15 @@ export interface EngineInput {
     metric_code?: string | null;
     p1_value?: string | null;
     p2_value?: string | null;
+    /**
+     * Required by the DYNAMIC coverage denominator below. These are the only input
+     * metric-activation-status.ts has for telling an evidenced terminal absence apart from a
+     * pipeline defect; omitting them is what made the denominator inert at the decision-record
+     * call site (G3). buildReport passes metric_results rows through verbatim, so they are
+     * present at runtime -- only this type was hiding them.
+     */
+    p1_unavailable_reason?: string | null;
+    p2_unavailable_reason?: string | null;
     sources?: unknown;
   }>;
   verification: Array<{ status: string; outcome: string; severity: string | null }>;
@@ -137,8 +147,15 @@ export interface GateReport {
   coverage: {
     p1: CoverageReport;
     p2: CoverageReport;
+    /** DYNAMIC: active usable / active eligible. Never a fixed 25 or 81 denominator. */
     usablePercent: number;
     thresholdPercent: number;
+    /** Active codes with usable two-sided evidence -- the numerator. */
+    activeUsable: number;
+    /** Active codes legitimately eligible FOR THIS MATCH -- the dynamic denominator. */
+    activeEligible: number;
+    /** Size of the active set, reported for context only; never used as a denominator. */
+    activeExpected: number;
   };
   greenLocked: boolean;
   greenLockReasons: string[];
@@ -246,8 +263,26 @@ export function evaluate(input: EngineInput): GateReport {
   const effectiveEvidenceCount = families.size;
   const p1Coverage = coverageFor(input.metrics, "p1");
   const p2Coverage = coverageFor(input.metrics, "p2");
-  const usableCoveragePercent = Number(Math.min(p1Coverage.usablePercent, p2Coverage.usablePercent).toFixed(1));
-  const lowCoverage = usableCoveragePercent < COVERAGE_THRESHOLD;
+  // THE COVERAGE GATE'S DENOMINATOR IS DYNAMIC (G8).
+  //
+  // It used to be min(p1,p2) of coverageFor(), whose denominator ranges over every
+  // INSTANTIATED code minus EXCLUDED/NO_SOURCE -- in practice all 81, including the 56 the
+  // Truth Engine deliberately does not grade on and which stay UNAVAILABLE simply because
+  // nothing researches them. That number is near-guaranteed to read low for any match: it
+  // was the dominant green-lock reason on 42 of 60 production decisions, with values as low
+  // as 4%, downgrading real winners GREEN -> YELLOW on the absence of evidence the
+  // architecture says must not count.
+  //
+  // The gate now reads the same quantity the decision actually rests on: how many of the
+  // ACTIVE metrics produced usable two-sided evidence, over how many were legitimately
+  // ELIGIBLE for this match -- `expected` minus the codes where BOTH sides independently
+  // landed on an evidence-based absence. Neither 25 nor 81 appears as a constant anywhere in
+  // it; `eligible` is computed per match from the persisted unavailable reasons.
+  const activeReadiness = activeMetricReadiness(input.metrics as readonly MetricRowForReadiness[]);
+  const usableCoveragePercent = activeReadiness.eligiblePercent;
+  // With no eligible metric at all there is no ratio to test, and a denominator-free
+  // division must not read as "0% coverage" and green-lock the match on arithmetic.
+  const lowCoverage = activeReadiness.eligible > 0 && usableCoveragePercent < COVERAGE_THRESHOLD;
 
   const firewallValid =
     !run.matrix_revealed_at ||
@@ -258,12 +293,22 @@ export function evaluate(input: EngineInput): GateReport {
   const matrixRemovalSurvived =
     matrixRemoval.length > 0 &&
     matrixRemoval.every((s) => s.status === "COMPLETE" && (s.outcome === "STABLE" || s.outcome === "MOSTLY STABLE"));
+  // A stress test only carries a finding when it actually executed. Its `status` is the
+  // execution state; `outcome` is only meaningful alongside a COMPLETE status (see
+  // STRESS_OUTCOME_NOT_EVALUATED in truth-engine-stage-mapping.ts).
+  const stressActuallyEvaluated = input.stress.filter((s) => s.status === "COMPLETE");
   const familyRemoval = input.stress.find((s) => s.test_code === "ST03");
   const familyRemovalSurvived =
     !!familyRemoval && familyRemoval.status === "COMPLETE" && familyRemoval.outcome !== "FAILS";
 
+  // Strong pathways held by the player who was NOT selected. underdog_results.player_side
+  // stores a player name, so the comparison is normalised rather than exact -- and with
+  // both players now receiving a pathway census, this filter is what keeps the winner's own
+  // pathways from counting as opposition to itself.
+  const normaliseName = (value: string | null | undefined) => String(value ?? "").trim().toLowerCase();
+  const selectedName = normaliseName(run.independent_winner);
   const strongUnderdogPathways = input.underdog.filter(
-    (u) => u.classification === "STRONG" && u.player_side !== (run.independent_winner ?? ""),
+    (u) => u.classification === "STRONG" && (selectedName === "" || normaliseName(u.player_side) !== selectedName),
   ).length;
   const unresolvedCritical =
     input.verification.some((v) => v.outcome === "FAIL" && v.severity === "CRITICAL") ||
@@ -325,7 +370,7 @@ export function evaluate(input: EngineInput): GateReport {
   if (!familyRemovalSurvived) greenLockReasons.push("Strongest-family removal not survived");
   if (!full(underdog)) greenLockReasons.push("Dangerous Underdog audit incomplete");
   if (effectiveEvidenceCount < 3) greenLockReasons.push(`Effective independent evidence families = ${effectiveEvidenceCount} (min 3)`);
-  if (lowCoverage) greenLockReasons.push(`Usable metric coverage = ${usableCoveragePercent}% (min ${COVERAGE_THRESHOLD}%)`);
+  if (lowCoverage) greenLockReasons.push(`Usable active-metric coverage = ${usableCoveragePercent}% (${activeReadiness.usable} of ${activeReadiness.eligible} eligible; min ${COVERAGE_THRESHOLD}%)`);
   if (strongUnderdogPathways >= 2) greenLockReasons.push("Multiple STRONG opposing underdog pathways");
   if (unresolvedCritical) greenLockReasons.push("Unresolved CRITICAL contradiction");
   if (input.matrixWp !== null && input.matrixWp <= 55) greenLockReasons.push("No-edge floor: favorite probability ≤55%");
@@ -376,7 +421,15 @@ export function evaluate(input: EngineInput): GateReport {
     color = "YELLOW";
   } else if (
     effectiveEvidenceCount >= 5 &&
-    input.stress.every((s) => s.outcome === "STABLE") &&
+    // "Every stress test came back STABLE" ranges over the tests that ACTUALLY RAN. The rule
+    // is unchanged; what changed is that a test which produced no result is no longer counted
+    // as a failed one. ST04/ST08/ST09/ST10 cannot be evaluated from the active metric set at
+    // all, so including their non-results here made DOUBLE GREEN unreachable for every match
+    // in every circumstance -- a rule no evidence could ever satisfy is not a rule. The
+    // `length > 0` guard keeps the opposite failure closed: a stress stage where nothing ran
+    // cannot vacuously satisfy the requirement.
+    stressActuallyEvaluated.length > 0 &&
+    stressActuallyEvaluated.every((s) => s.outcome === "STABLE") &&
     strongUnderdogPathways === 0 &&
     !input.underdog.some((u) => u.classification === "UNRESOLVED")
   ) {
@@ -405,7 +458,7 @@ export function evaluate(input: EngineInput): GateReport {
     stagesComplete,
     matrixFirewallValid: firewallValid,
     effectiveEvidenceCount,
-    coverage: { p1: p1Coverage, p2: p2Coverage, usablePercent: usableCoveragePercent, thresholdPercent: COVERAGE_THRESHOLD },
+    coverage: { p1: p1Coverage, p2: p2Coverage, usablePercent: usableCoveragePercent, thresholdPercent: COVERAGE_THRESHOLD, activeUsable: activeReadiness.usable, activeEligible: activeReadiness.eligible, activeExpected: activeReadiness.expected },
     greenLocked: greenLockReasons.length > 0,
     greenLockReasons,
     color,

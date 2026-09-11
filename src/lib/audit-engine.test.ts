@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { evaluate, type EngineInput } from "./audit-engine";
 import { STAGES } from "./audit-stages";
+import { ACTIVE_METRIC_CODES } from "./truth-engine-active-metrics";
 
 // To test the NO_SOURCE mechanism itself (distinct bucket, excluded from the
 // denominator, immune to the same silent-re-entry pattern as META_OR_NON_PLAYER)
@@ -359,16 +360,32 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
    */
   function metricsWithCoverage(usableCount: number, totalCount: number): EngineInput["metrics"] {
     const rows: EngineInput["metrics"] = [];
-    for (let i = 0; i < totalCount; i++) {
-      // isProcessMetaCode/isNoSourceMetricCode (audit-engine.ts) strip any non-digit
-      // prefix down to the trailing 1-3 digits before classifying -- "T001" normalizes
-      // right back to "001" and hits the real registry anyway. Codes in the 200s fall
-      // outside both the real 001-081 catalog and this file's "999" mock, so
-      // classifyMetric misses and defaults to LEGITIMATE_PLAYER_METRIC
-      // (metric-classification.ts) -- none of these can be EXCLUDED/NO_SOURCE, so the
-      // coverage denominator is exactly `totalCount` and usableCount/totalCount is the
-      // real, predictable usablePercent.
+    // The coverage GATE now reads the ACTIVE set with a dynamic eligible denominator (G8),
+    // so the fixture has to instantiate real active codes -- rows outside the active set
+    // contribute nothing to it by design. The first `usableCount` active codes carry usable
+    // two-sided evidence; the rest are UNAVAILABLE with NO unavailable_reason, which the
+    // activation classifier files as PRODUCER_FAILURE and therefore keeps IN the denominator.
+    // So eligible == the number of active codes instantiated and the gate percentage is
+    // exactly usableCount / ACTIVE_METRIC_CODES.length.
+    ACTIVE_METRIC_CODES.forEach((code, i) => {
+      const usable = i < usableCount;
+      rows.push({
+        status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE",
+        p1_treatment: usable ? "DIRECT" : "UNAVAILABLE", p2_treatment: usable ? "DIRECT" : "UNAVAILABLE",
+        matrix_derived: false, evidence_family: usable ? `FAMILY_${i}` : null, metric_name: `metric ${code}`, metric_code: code,
+        p1_value: usable ? "10" : null, p2_value: usable ? "5" : null,
+        sources: usable ? [{ source_name: "Tour Stats" }] : [],
+      });
+    });
+    // Everything beyond the active set models the INACTIVE universe: instantiated, never
+    // researched, and -- this is the point of G8 -- unable to move the gate. Codes in the
+    // 200s fall outside both the real 001-081 catalog and this file's "999" mock, so
+    // classifyMetric defaults them to LEGITIMATE_PLAYER_METRIC and they still register in
+    // the per-side coverageFor() diagnostics.
+    for (let i = ACTIVE_METRIC_CODES.length; i < totalCount; i++) {
       const code = String(200 + i).padStart(3, "0");
+      // `usableCount` keeps its original meaning -- usable rows across the WHOLE universe --
+      // so the per-side coverageFor() diagnostics still reproduce the real legacy shapes.
       const usable = i < usableCount;
       rows.push({
         status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE",
@@ -398,6 +415,38 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     };
   }
 
+  describe("DOUBLE GREEN is reachable when a stress test never ran", () => {
+    // REGRESSION. ST04/ST08/ST09/ST10 have no deterministic evidence path and are always
+    // persisted UNAVAILABLE. They used to carry outcome "UNSTABLE", and the DOUBLE GREEN
+    // predicate required EVERY stress row to read "STABLE" -- so DOUBLE GREEN was
+    // structurally unreachable for every match, forever, whatever the evidence said.
+    const notRun = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT EVALUATED" });
+
+    it("an unavailable, never-run test does not withhold DOUBLE GREEN", () => {
+      const base = fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 });
+      const withNotRun = evaluate({ ...base, stress: [...cleanStress, notRun("ST04"), notRun("ST08"), notRun("ST09"), notRun("ST10")] });
+      const withoutThem = evaluate(base);
+      expect(withNotRun.color).toBe(withoutThem.color);
+      expect(withNotRun.color).toBe("DOUBLE GREEN");
+    });
+
+    it("a test that DID run and failed still withholds DOUBLE GREEN", () => {
+      const report = evaluate({
+        ...fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 }),
+        stress: [...cleanStress, { status: "COMPLETE", test_code: "ST05", outcome: "UNSTABLE" }],
+      });
+      expect(report.color).not.toBe("DOUBLE GREEN");
+    });
+
+    it("a stress set with nothing completed never qualifies vacuously", () => {
+      const report = evaluate({
+        ...fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 }),
+        stress: [notRun("ST04"), notRun("ST08")],
+      });
+      expect(report.color).not.toBe("DOUBLE GREEN");
+    });
+  });
+
   // The persisted "committed" check detail is `run.independent_winner` verbatim
   // (see the checks array above) -- the reliable, color-independent way to read
   // back the actual Truth Engine winner regardless of what color/action say.
@@ -423,13 +472,30 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     expect(winnerDetail(report)).toBe("Beta");
   });
 
-  it("3. strong active evidence with poor inactive-universe coverage still returns the deterministic winner", () => {
-    // 25 of 81 usable (the entire active registry usable, none of the other 56)
-    // -> well under the 70% threshold, so this legitimately reads YELLOW (coverage
-    // may still hold a real winner short of GREEN) -- never INSUFFICIENT EVIDENCE.
+  it("3. strong active evidence is no longer dragged down by the inactive universe (G8)", () => {
+    // The entire active registry usable, none of the other 56 -- the exact shape that used
+    // to read 25/81 = 30.9% and green-lock the match. The gate now measures the evidence
+    // the decision actually rests on: every eligible active metric is usable, so coverage is
+    // 100% and no coverage green-lock is raised. The per-side diagnostic still reports the
+    // full-universe picture, because that number is still worth seeing -- it just no longer
+    // decides anything.
     const report = evaluate(fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 }));
-    expect(report.coverage.usablePercent).toBeCloseTo((25 / 81) * 100, 1);
+    expect(report.coverage.usablePercent).toBe(100);
+    expect(report.coverage.activeUsable).toBe(ACTIVE_METRIC_CODES.length);
+    expect(report.coverage.activeEligible).toBe(ACTIVE_METRIC_CODES.length);
+    expect(report.coverage.p1.usablePercent).toBeCloseTo((25 / 81) * 100, 1);
+    expect(report.greenLockReasons.filter((r) => r.includes("coverage"))).toEqual([]);
+    expect(winnerDetail(report)).toBe("Alpha");
+  });
+
+  it("3b. genuinely thin ACTIVE evidence still green-locks", () => {
+    // G8 must not disable the gate, only re-aim it. Three of 25 eligible active metrics
+    // usable is 12% and is still short of the 70% threshold.
+    const report = evaluate(fixture({ winner: "Alpha", usableCount: 3, totalCount: 81 }));
+    expect(report.coverage.usablePercent).toBeLessThan(70);
+    expect(report.greenLockReasons.some((r) => r.includes("coverage"))).toBe(true);
     expect(report.color).toBe("YELLOW");
+    // ...and it still cannot erase the winner.
     expect(winnerDetail(report)).toBe("Alpha");
   });
 
@@ -518,12 +584,145 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
   });
 
   it("15. a legacy coverage value in the exact real shape (~43.8%) cannot convert a valid selection into INSUFFICIENT EVIDENCE", () => {
-    // 35 of 80 non-excluded codes usable ~= 43.75%, reproducing the real
-    // Erhard/Shepp run's coverage almost exactly.
+    // The real Erhard/Shepp run: 35 of 80 non-excluded codes usable ~= 43.75% under the old
+    // full-universe denominator, which is what green-locked it. Under G8 the gate reads the
+    // active set instead, so the legacy number survives only as a per-side diagnostic.
     const report = evaluate(fixture({ winner: "Mathys Erhard", usableCount: 35, totalCount: 80, loser: "Anton Shepp" }));
-    expect(report.coverage.usablePercent).toBeCloseTo(43.8, 0);
+    expect(report.coverage.p1.usablePercent).toBeCloseTo(43.8, 0);
+    expect(report.coverage.usablePercent).toBe(100);
     expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
     expect(report.color).not.toBe("INCOMPLETE");
     expect(winnerDetail(report)).toBe("Mathys Erhard");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A STRESS TEST THAT NEVER RAN IS NOT A FAILED ONE
+// ---------------------------------------------------------------------------
+//
+// ST04/ST08/ST09/ST10 need evidence the active metric set cannot produce, so
+// truth-engine-stage-mapping.ts writes them status UNAVAILABLE. Their OUTCOME used to be
+// written "UNSTABLE" as well -- a never-run test recorded as an instability finding. Because
+// DOUBLE GREEN asks whether every stress test came back STABLE, those four permanent
+// "UNSTABLE" rows made DOUBLE GREEN unreachable for every match in every circumstance.
+// Production: 0 DOUBLE GREEN across 60 completed runs, with 240 such rows.
+describe("audit-engine: the coverage gate uses a DYNAMIC eligible denominator (G8)", () => {
+  // The gate's denominator must never be a constant. It is `eligible`: the active set minus
+  // the codes where BOTH sides independently landed on an evidence-based absence, computed
+  // per match from the persisted unavailable reasons.
+  const activeRows = (usable: number, reason?: string): EngineInput["metrics"] =>
+    ACTIVE_METRIC_CODES.map((code, i) => {
+      const ok = i < usable;
+      return {
+        status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE",
+        p1_treatment: ok ? "DIRECT" : "UNAVAILABLE", p2_treatment: ok ? "DIRECT" : "UNAVAILABLE",
+        matrix_derived: false, evidence_family: `FAMILY_${i}`, metric_name: `Metric ${code}`, metric_code: code,
+        p1_value: ok ? "1" : null, p2_value: ok ? "1" : null,
+        p1_unavailable_reason: ok ? null : (reason ?? null),
+        p2_unavailable_reason: ok ? null : (reason ?? null),
+        sources: ok ? [{ source_name: "s" }] : [],
+      };
+    });
+
+  it("neither 25 nor 81 appears as a hardcoded denominator", () => {
+    // Same numerator, different legitimate eligibility: an evidenced terminal absence
+    // (NO_SOURCE_FOUND) leaves the denominator, a producer defect does not. If the
+    // denominator were a constant these two would report the same percentage.
+    const defect = evaluate({ ...input([]), run: { ...baseRun, independent_winner: "Alpha" }, metrics: activeRows(10) });
+    const evidenced = evaluate({ ...input([]), run: { ...baseRun, independent_winner: "Alpha" }, metrics: activeRows(10, "NO_SOURCE_FOUND") });
+    expect(defect.coverage.activeEligible).toBe(ACTIVE_METRIC_CODES.length);
+    expect(evidenced.coverage.activeEligible).toBe(10);
+    expect(evidenced.coverage.usablePercent).toBeGreaterThan(defect.coverage.usablePercent);
+    expect(evidenced.coverage.usablePercent).toBe(100);
+  });
+
+  it("the denominator actually moves with the evidence, match to match", () => {
+    const seen = new Set([5, 12, 20].map((n) => evaluate({ ...input([]), run: { ...baseRun, independent_winner: "Alpha" }, metrics: activeRows(n, "NO_SOURCE_FOUND") }).coverage.activeEligible));
+    expect(seen.size).toBe(3);
+  });
+
+  it("coverage stays diagnostic: it can withhold GREEN but never erase a winner", () => {
+    const report = evaluate({ ...input([]), run: { ...baseRun, independent_winner: "Alpha" }, metrics: activeRows(2) });
+    expect(report.coverage.usablePercent).toBeLessThan(70);
+    expect(report.greenLockReasons.some((r) => r.includes("coverage"))).toBe(true);
+    expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
+    expect(report.checks.find((c) => c.key === "committed")?.detail).toBe("Alpha");
+  });
+
+  it("a match with no eligible active metric is not green-locked on a denominator-free division", () => {
+    // Every active code legitimately inapplicable -> eligible 0. There is no ratio to test,
+    // and 0/0 must not read as "0% coverage".
+    const report = evaluate({ ...input([]), run: { ...baseRun, independent_winner: "Alpha" }, metrics: activeRows(0, "NO_SOURCE_FOUND") });
+    expect(report.coverage.activeEligible).toBe(0);
+    expect(report.greenLockReasons.some((r) => r.includes("coverage"))).toBe(false);
+  });
+});
+
+describe("audit-engine: not-run stress tests are not counted as instability", () => {
+  const doubleGreenReady = (stress: EngineInput["stress"]): EngineInput => ({
+    ...input([]),
+    run: {
+      ...baseRun,
+      research_lock_at: "2026-04-12T09:00:00.000Z",
+      independent_decision_committed_at: "2026-04-12T09:30:00.000Z",
+      matrix_revealed_at: "2026-04-12T09:31:00.000Z",
+      calibration_version_id: "cal-1",
+      independent_winner: "Alpha",
+      effective_evidence_count: 6,
+    },
+    // The whole active set, two-sided and usable: enough independent families for DOUBLE
+    // GREEN's effectiveEvidenceCount >= 5, and 100% coverage on the dynamic active-set
+    // denominator so no coverage green-lock fires. Supplying only a handful of active codes
+    // would now (correctly, post-G8) read as genuinely thin evidence and green-lock.
+    metrics: ACTIVE_METRIC_CODES.map((code, i) => ({
+      status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE",
+      p1_treatment: "DIRECT", p2_treatment: "DIRECT", matrix_derived: false,
+      evidence_family: `FAMILY_${i}`, metric_name: `Metric ${code}`, metric_code: code,
+      p1_value: "1", p2_value: "1", sources: [{ source_name: "s" }],
+    })),
+    verification: [{ status: "COMPLETE", outcome: "PASS", severity: "STANDARD" }],
+    disagreement: [{ status: "COMPLETE", contradiction_severity: "NONE" }],
+    underdog: [{ status: "COMPLETE", classification: "WEAK", player_side: "Beta" }],
+    stress,
+  });
+  const evaluated = (test_code: string, outcome: string) => ({ status: "COMPLETE", test_code, outcome });
+  const neverRan = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT EVALUATED" });
+  const ALL_EVALUATED_STABLE = ["ST01", "ST02", "ST03", "ST05", "ST06", "ST07"].map((code) => evaluated(code, "STABLE"));
+  const NEVER_RAN = ["ST04", "ST08", "ST09", "ST10"].map(neverRan);
+
+  it("DOUBLE GREEN is structurally reachable once its existing rules are genuinely satisfied", () => {
+    const report = evaluate(doubleGreenReady([...ALL_EVALUATED_STABLE, ...NEVER_RAN]));
+    expect(report.greenLockReasons).toEqual([]);
+    expect(report.color).toBe("DOUBLE GREEN");
+  });
+
+  it("an actually-unstable test still withholds DOUBLE GREEN", () => {
+    const report = evaluate(doubleGreenReady([
+      ...ALL_EVALUATED_STABLE.slice(1), evaluated("ST01", "UNSTABLE"), ...NEVER_RAN,
+    ]));
+    expect(report.color).not.toBe("DOUBLE GREEN");
+  });
+
+  it("a MOSTLY STABLE executed test still withholds DOUBLE GREEN, exactly as before", () => {
+    const report = evaluate(doubleGreenReady([
+      ...ALL_EVALUATED_STABLE.slice(1), evaluated("ST01", "MOSTLY STABLE"), ...NEVER_RAN,
+    ]));
+    expect(report.color).not.toBe("DOUBLE GREEN");
+  });
+
+  it("a stress stage where NOTHING ran cannot vacuously earn DOUBLE GREEN", () => {
+    const report = evaluate(doubleGreenReady(["ST01", "ST02", "ST03"].map(neverRan)));
+    expect(report.color).not.toBe("DOUBLE GREEN");
+    // ST01/ST02 never produced a matrix-removal result, so that lock still fires.
+    expect(report.greenLockReasons.join(" ")).toContain("Matrix-removal test not survived");
+  });
+
+  it("the matrix-removal and strongest-family locks still require a genuinely COMPLETE result", () => {
+    // Unchanged behaviour: these two already required status COMPLETE, and a not-run row
+    // must not satisfy either of them.
+    const report = evaluate(doubleGreenReady([neverRan("ST01"), neverRan("ST02"), neverRan("ST03"), ...NEVER_RAN]));
+    const reasons = report.greenLockReasons.join(" ");
+    expect(reasons).toContain("Matrix-removal test not survived");
+    expect(reasons).toContain("Strongest-family removal not survived");
   });
 });

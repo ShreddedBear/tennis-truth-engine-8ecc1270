@@ -253,12 +253,33 @@ export interface UnderdogPathway {
   magnitude_ratio: number | null;
 }
 
-export interface UnderdogAnalysis {
-  underdog_side: "P1" | "P2" | null;
-  underdog_player: string | null;
+/** One player's complete pathway census, computed from that player's own measured edges. */
+export interface UnderdogSideAnalysis {
+  side: "P1" | "P2";
+  player: string;
+  /** True when this side is the non-selected player, i.e. the designated underdog. */
+  is_designated_underdog: boolean;
   pathways: UnderdogPathway[];
   overall_viability: PathwayViability;
   reason: string;
+}
+
+export interface UnderdogAnalysis {
+  underdog_side: "P1" | "P2" | null;
+  underdog_player: string | null;
+  /** The designated underdog's pathways (empty when there is no selection). */
+  pathways: UnderdogPathway[];
+  overall_viability: PathwayViability;
+  reason: string;
+  /**
+   * BOTH players, always, whether or not a selection exists. The stage previously analysed
+   * only the non-selected side, so when the engine refused it analysed nobody -- 18 of the
+   * 32 current refusals had neither player evaluated and 14 had exactly one, and no
+   * underdog row could ever complete for the other side. A pathway census is a statement
+   * about a player's own evidence and does not depend on who was selected, so it is
+   * computed for both and the selection only decides which of the two is *designated*.
+   */
+  sides: UnderdogSideAnalysis[];
 }
 
 function viabilityFromRatio(ratio: number | null): PathwayViability {
@@ -268,25 +289,15 @@ function viabilityFromRatio(ratio: number | null): PathwayViability {
   return "STRONG_PATHWAY";
 }
 
-/**
- * A pathway exists ONLY where the non-selected player measurably leads an independent
- * evidence family. Theoretical tennis possibilities are never enumerated: if no family
- * favours the underdog, the answer is NO_VIABLE_PATHWAY, not a narrative.
- */
-export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "P1" | "P2" | null, p1Name: string, p2Name: string): UnderdogAnalysis {
-  const underdogSide = selected === "P1" ? "P2" : selected === "P2" ? "P1" : null;
-  if (!underdogSide) {
-    return { underdog_side: null, underdog_player: null, pathways: [], overall_viability: "NO_VIABLE_PATHWAY", reason: "No selection was made, so there is no non-selected player to analyse." };
-  }
-  const underdogPlayer = underdogSide === "P1" ? p1Name : p2Name;
+/** Pathways for ONE named side, from that side's own measured edges. Never inferred. */
+function pathwaysForSide(comparisons: MetricComparison[], side: "P1" | "P2", player: string): { pathways: UnderdogPathway[]; overall: PathwayViability } {
   const compared = comparisons.filter((c) => c.status === "COMPARED" && c.family);
-
   const byFamily = new Map<string, MetricComparison[]>();
   for (const c of compared) byFamily.set(c.family!, [...(byFamily.get(c.family!) ?? []), c]);
 
   const pathways: UnderdogPathway[] = [];
   for (const [family, rows] of [...byFamily.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    const favouring = rows.filter((r) => r.favours === underdogSide);
+    const favouring = rows.filter((r) => r.favours === side);
     if (!favouring.length) continue;
     const ratio = Math.max(...favouring.map((r) => magnitudeRatio(r) ?? 0));
     const viability = viabilityFromRatio(ratio);
@@ -296,26 +307,59 @@ export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "
       family,
       viability,
       supporting_metrics: favouring.map((r) => r.metric_code),
-      evidence: favouring.map((r) => `${r.label ?? r.metric_code}: ${underdogPlayer}=${underdogSide === "P1" ? r.p1_number : r.p2_number} vs ${underdogSide === "P1" ? r.p2_number : r.p1_number} (${(magnitudeRatio(r) ?? 0).toFixed(1)}x noise floor)`).join("; "),
-      conditions_required: `${underdogPlayer} must convert the measured ${family.toLowerCase().replace(/_/g, " ")} edge into match outcomes.`,
+      evidence: favouring.map((r) => `${r.label ?? r.metric_code}: ${player}=${side === "P1" ? r.p1_number : r.p2_number} vs ${side === "P1" ? r.p2_number : r.p1_number} (${(magnitudeRatio(r) ?? 0).toFixed(1)}x noise floor)`).join("; "),
+      conditions_required: `${player} must convert the measured ${family.toLowerCase().replace(/_/g, " ")} edge into match outcomes.`,
       magnitude_ratio: Number(ratio.toFixed(3)),
     });
   }
 
-  // Overall viability is the strongest single pathway, promoted one level when the underdog
+  // Overall viability is the strongest single pathway, promoted one level when the player
   // holds two or more INDEPENDENT pathways (breadth, not repetition of one family).
   const order: PathwayViability[] = ["NO_VIABLE_PATHWAY", "POTENTIAL_PATHWAY", "VIABLE_PATHWAY", "STRONG_PATHWAY"];
   let overall: PathwayViability = pathways.reduce<PathwayViability>((best, p) => (order.indexOf(p.viability) > order.indexOf(best) ? p.viability : best), "NO_VIABLE_PATHWAY");
   if (pathways.length >= 2) overall = order[Math.min(order.length - 1, order.indexOf(overall) + 1)]!;
+  return { pathways, overall };
+}
+
+/**
+ * A pathway exists ONLY where a player measurably leads an independent evidence family.
+ * Theoretical tennis possibilities are never enumerated: if no family favours the player,
+ * the answer is NO_VIABLE_PATHWAY, not a narrative.
+ *
+ * Both players are always analysed, from their own values. `selected` decides only which of
+ * the two is the DESIGNATED underdog (the non-selected side) -- it never decides who gets
+ * analysed. This stage remains diagnostic: it reports pathways and can withhold a colour
+ * upgrade, and it can never select or veto a winner.
+ */
+export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "P1" | "P2" | null, p1Name: string, p2Name: string): UnderdogAnalysis {
+  const underdogSide = selected === "P1" ? "P2" : selected === "P2" ? "P1" : null;
+
+  const sides: UnderdogSideAnalysis[] = (["P1", "P2"] as const).map((side) => {
+    const player = side === "P1" ? p1Name : p2Name;
+    const { pathways, overall } = pathwaysForSide(comparisons, side, player);
+    return {
+      side,
+      player,
+      is_designated_underdog: underdogSide === side,
+      pathways,
+      overall_viability: overall,
+      reason: pathways.length
+        ? `${player} holds ${pathways.length} evidence-supported pathway(s): ${pathways.map((p) => `${p.pathway_type} (${p.viability})`).join(", ")}.`
+        : `No independent evidence family measurably favours ${player}; no viable pathway exists on the available evidence.`,
+    };
+  });
+
+  const designated = sides.find((s) => s.is_designated_underdog) ?? null;
 
   return {
     underdog_side: underdogSide,
-    underdog_player: underdogPlayer,
-    pathways,
-    overall_viability: overall,
-    reason: pathways.length
-      ? `${underdogPlayer} holds ${pathways.length} evidence-supported pathway(s): ${pathways.map((p) => `${p.pathway_type} (${p.viability})`).join(", ")}.`
-      : `No independent evidence family measurably favours ${underdogPlayer}; no viable pathway exists on the available evidence.`,
+    underdog_player: designated?.player ?? null,
+    pathways: designated?.pathways ?? [],
+    overall_viability: designated?.overall_viability ?? "NO_VIABLE_PATHWAY",
+    reason: designated
+      ? designated.reason
+      : `No selection was made, so neither player is the designated underdog. Both players were still analysed: ${sides.map((s) => `${s.player} ${s.overall_viability}`).join("; ")}.`,
+    sides,
   };
 }
 
@@ -324,39 +368,84 @@ export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "
 // ---------------------------------------------------------------------------
 
 export interface StressCase {
-  case_name: "BASE" | "ADVERSE" | "FAVOURABLE";
+  /**
+   * BASE is the evidence as measured; ADVERSE erodes the SELECTED side's own edges; MIRROR
+   * erodes the OTHER player's instead. MIRROR replaced a "FAVOURABLE" case that widened the
+   * selected side's edges -- a case that was computed, reported, and never used, and which
+   * told nobody anything about the opponent.
+   */
+  case_name: "BASE" | "ADVERSE" | "MIRROR" | "SYMMETRIC";
   winner: "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
   support_families: number;
   contradiction_families: number;
   assumption: string;
 }
 
+/** How one player's own profile behaved when ITS OWN edges were eroded. */
+export interface StressSideProfile {
+  side: "P1" | "P2";
+  player: string;
+  /** Share of the directional evidence this side held before the erosion, unrounded. */
+  support_percent_before: number;
+  /** Share it holds after its own edges are eroded by one noise floor each. */
+  support_percent_after: number;
+  outcome_when_stressed: "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
+  status: "ROBUST" | "REVERSED" | "REMOVED";
+}
+
+/**
+ * The two sides' adverse cases read against each other.
+ *
+ *  LEADER_ROBUST               the leader keeps the selection with its own edges eroded.
+ *  CHALLENGER_MORE_ROBUST      the challenger wins the leader's adverse case AND survives
+ *                              its own -- the one finding that is genuinely about the two
+ *                              players, and the only one that withdraws a selection.
+ *  LEADER_FRAGILE_UNCONTESTED  the leader loses its own adverse case, but the challenger
+ *                              does not survive its own either. Thin, not contradicted.
+ */
+export type ComparativeRobustness = "LEADER_ROBUST" | "CHALLENGER_MORE_ROBUST" | "LEADER_FRAGILE_UNCONTESTED" | "NOT_APPLICABLE";
+
 export interface StressTest {
   winner_before: "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
   winner_after: "P1" | "P2" | "INSUFFICIENT_EVIDENCE";
   changed: boolean;
   cases: StressCase[];
+  /** Always both players, always computed from each side's own measured values. */
+  sides: StressSideProfile[];
+  comparative_robustness: ComparativeRobustness;
   stability: StressStability;
   reason: string;
 }
 
 /**
- * Shifts every comparison's edge by `steps` multiples of that metric's OWN materiality
- * (its declared noise floor), in the direction adverse (negative) or favourable (positive)
- * to `side`, then re-derives favours from the shifted numbers.
+ * Erodes ONE side's own measured edges by one of each metric's declared noise floors, and
+ * touches nothing else.
  *
- * This is the principled adverse assumption: "the observed edge overstates the true edge by
- * about the amount this metric already treats as noise". It is derived from each metric's
- * existing specification, never a number invented to force a flip.
+ * This replaces a uniform shift applied to every comparison. That shift had two properties
+ * that made it unusable as evidence about the two players:
+ *
+ *  1. It MANUFACTURED opposing evidence. A comparison the engine had declared NEUTRAL --
+ *     "both players measured, no material difference" -- has |advantage| <= materiality, so
+ *     subtracting one materiality could push it past the floor into a vote for the opponent.
+ *     Parity became directional evidence that no measurement supported.
+ *  2. It could only ever be pointed at the selected side, so the opponent's profile was
+ *     never subjected to the same erosion before the leader's selection was withdrawn.
+ *
+ * Here a comparison is altered only when it currently favours `side`, and its magnitude is
+ * reduced toward zero and clamped there. The sign therefore cannot flip: an eroded edge
+ * either still clears its floor (still that side's) or falls to NEUTRAL. A NEUTRAL
+ * comparison and a comparison favouring the other player are returned untouched.
  */
-function shiftComparisons(comparisons: MetricComparison[], side: "P1" | "P2", steps: number): MetricComparison[] {
+function erodeEdgesOf(comparisons: MetricComparison[], side: "P1" | "P2"): MetricComparison[] {
   return comparisons.map((c) => {
-    if (c.status !== "COMPARED" || c.differential === null || c.advantage_p1 === null) return c;
+    if (c.status !== "COMPARED" || c.advantage_p1 === null) return c;
+    if (c.favours !== side) return c;
     const spec = COMPARISON_SPECS[c.metric_code];
     if (!spec) return c;
-    // Move the P1-facing advantage toward/away from the chosen side.
-    const delta = spec.materiality * steps * (side === "P1" ? 1 : -1);
-    const advantage = Number((c.advantage_p1 + delta).toFixed(6));
+    // Toward zero, never through it. Math.max(0, ...) is what makes a manufactured
+    // opposing vote structurally impossible rather than merely unlikely.
+    const eroded = Math.max(0, Math.abs(c.advantage_p1) - spec.materiality);
+    const advantage = Number(((side === "P1" ? 1 : -1) * eroded).toFixed(6));
     const favours = Math.abs(advantage) <= spec.materiality ? "NEUTRAL" : advantage > 0 ? "P1" : "P2";
     return { ...c, advantage_p1: advantage, favours: favours as MetricComparison["favours"] };
   });
@@ -367,53 +456,142 @@ function outcomeOf(decision: TruthEngineDecision): "P1" | "P2" | "INSUFFICIENT_E
 }
 
 /**
- * Recomputes the FULL selection (family voting, leave-one-family-out and all) under each
- * case. `winner_after` is a real recomputation result, not a relabelling of `winner_before`.
+ * Erodes EVERY directional edge by one of its own metric's noise floors, whichever player
+ * it favours. This is the like-for-like case: the single assumption "every measured edge
+ * overstates the true edge by about the amount this metric already treats as noise",
+ * applied to both players at once and to nobody preferentially.
+ *
+ * It is the only case that can produce a comparative finding. A one-sided erosion cannot:
+ * eroding a side can only ever weaken it, so the other player winning that case says
+ * nothing about the other player's own durability. Eroding both at once does -- a lead
+ * built from edges barely clearing their floors dissolves, while one built on an edge many
+ * floors wide survives, and whichever survives is the more durable of the two.
+ *
+ * Like the one-sided case, magnitudes are clamped at zero, so no comparison can cross into
+ * favouring the player it did not already favour, and a NEUTRAL comparison stays NEUTRAL.
+ */
+function erodeAllEdges(comparisons: MetricComparison[]): MetricComparison[] {
+  // Eroding one side then the other reaches every directional edge exactly once: the second
+  // pass sees the first pass's survivors unchanged, and anything the first pass flattened to
+  // NEUTRAL is no longer a P2 edge for it to touch.
+  return erodeEdgesOf(erodeEdgesOf(comparisons, "P1"), "P2");
+}
+
+/** Share of the directional evidence held by `side`, unrounded. Both sides off one census. */
+function directionalShare(side: "P1" | "P2", decision: TruthEngineDecision): number {
+  const mine = decision.families.filter((f) => f.vote === side).length;
+  const theirs = decision.families.filter((f) => (f.vote === "P1" || f.vote === "P2") && f.vote !== side).length;
+  const conflicted = decision.conflicted_families.length;
+  const directional = mine + theirs + conflicted;
+  return directional > 0 ? (mine / directional) * 100 : 0;
+}
+
+/**
+ * Recomputes the FULL selection (family voting, threshold, leave-one-family-out and all)
+ * with EACH player's own edges eroded in turn, and reports the two results against each
+ * other.
+ *
+ * Both sides are stressed on identical terms. Nothing here is computed for one player and
+ * assumed to be the inverse for the other, and the test never nominates a winner: it only
+ * reports which of the two profiles survives its own erosion. What the caller does with
+ * that is decided in runTruthEngineAudit.
  */
 export function runStressTest(comparisons: MetricComparison[], p1Name: string, p2Name: string): StressTest {
   const base = decideTruthEngineSelection({ comparisons, p1Name, p2Name });
   const before = outcomeOf(base);
+
+  // Each side's own adverse case is computed whether or not a selection exists, so a
+  // refusal still carries a full two-sided robustness picture instead of NOT_APPLICABLE.
+  const p1Stressed = decideTruthEngineSelection({ comparisons: erodeEdgesOf(comparisons, "P1"), p1Name, p2Name });
+  const p2Stressed = decideTruthEngineSelection({ comparisons: erodeEdgesOf(comparisons, "P2"), p1Name, p2Name });
+
+  const symmetricDecision = decideTruthEngineSelection({ comparisons: erodeAllEdges(comparisons), p1Name, p2Name });
+  const sides: StressSideProfile[] = (["P1", "P2"] as const).map((side) => {
+    const ownStressed = side === "P1" ? p1Stressed : p2Stressed;
+    const other: "P1" | "P2" = side === "P1" ? "P2" : "P1";
+    const outcome = outcomeOf(ownStressed);
+    return {
+      side,
+      player: side === "P1" ? p1Name : p2Name,
+      // before/after are read from the SYMMETRIC case, so the two players' numbers are
+      // comparable: both were eroded on identical terms.
+      support_percent_before: Number(directionalShare(side, base).toFixed(6)),
+      support_percent_after: Number(directionalShare(side, symmetricDecision).toFixed(6)),
+      // outcome_when_stressed is this side's OWN adverse case -- a per-player diagnostic,
+      // never the comparative verdict.
+      outcome_when_stressed: outcome,
+      status: outcome === side ? "ROBUST" : outcome === other ? "REVERSED" : "REMOVED",
+    };
+  });
+
+  const p1Profile = sides[0]!;
+  const p2Profile = sides[1]!;
+
   if (before === "INSUFFICIENT_EVIDENCE") {
     return {
       winner_before: before,
       winner_after: before,
       changed: false,
       cases: [{ case_name: "BASE", winner: before, support_families: base.independent_support_families.length, contradiction_families: base.independent_contradiction_families.length, assumption: "Observed evidence as measured." }],
+      sides,
+      comparative_robustness: "NOT_APPLICABLE",
       stability: "NOT_APPLICABLE",
-      reason: "No selection was made, so there is nothing to stress.",
+      reason: "No selection was made, so there is no leader whose robustness could be compared against the other player's.",
     };
   }
 
   const selected: "P1" | "P2" = before;
-  // ADVERSE: erode the selected player's measured edge by one noise floor per metric.
-  const adverseComparisons = shiftComparisons(comparisons, selected, -1);
-  const adverse = decideTruthEngineSelection({ comparisons: adverseComparisons, p1Name, p2Name });
-  // FAVOURABLE: the mirror, for a symmetric picture of the decision surface.
-  const favourableComparisons = shiftComparisons(comparisons, selected, +1);
-  const favourable = decideTruthEngineSelection({ comparisons: favourableComparisons, p1Name, p2Name });
+  const challenger: "P1" | "P2" = selected === "P1" ? "P2" : "P1";
+  const selectedProfile = selected === "P1" ? p1Profile : p2Profile;
+  const challengerProfile = selected === "P1" ? p2Profile : p1Profile;
+  const selectedStressed = selected === "P1" ? p1Stressed : p2Stressed;
+  const challengerStressed = selected === "P1" ? p2Stressed : p1Stressed;
 
-  const after = outcomeOf(adverse);
+  // The like-for-like case both players are judged on (computed once, above).
+  const symmetric = symmetricDecision;
+  const symmetricOutcome = outcomeOf(symmetric);
+
+  const after = outcomeOf(selectedStressed);
   const cases: StressCase[] = [
     { case_name: "BASE", winner: before, support_families: base.independent_support_families.length, contradiction_families: base.independent_contradiction_families.length, assumption: "Observed evidence as measured." },
-    { case_name: "ADVERSE", winner: after, support_families: adverse.independent_support_families.length, contradiction_families: adverse.independent_contradiction_families.length, assumption: `Every edge favouring the selected side reduced by one metric-specific noise floor.` },
-    { case_name: "FAVOURABLE", winner: outcomeOf(favourable), support_families: favourable.independent_support_families.length, contradiction_families: favourable.independent_contradiction_families.length, assumption: "Every edge favouring the selected side widened by one metric-specific noise floor." },
+    { case_name: "ADVERSE", winner: after, support_families: selectedStressed.independent_support_families.length, contradiction_families: selectedStressed.independent_contradiction_families.length, assumption: "Every edge favouring the SELECTED side eroded by one of that metric's own noise floors; neutral and opposing evidence untouched." },
+    { case_name: "MIRROR", winner: outcomeOf(challengerStressed), support_families: challengerStressed.independent_support_families.length, contradiction_families: challengerStressed.independent_contradiction_families.length, assumption: "The identical erosion applied to the OTHER player instead -- diagnostic only, since eroding a side can only weaken it." },
+    { case_name: "SYMMETRIC", winner: symmetricOutcome, support_families: symmetric.independent_support_families.length, contradiction_families: symmetric.independent_contradiction_families.length, assumption: "Every directional edge eroded by one of its own metric's noise floors, both players at once. This is the case the comparative verdict is read from." },
   ];
 
-  const reversed = after !== before && after !== "INSUFFICIENT_EVIDENCE";
-  const lost = after === "INSUFFICIENT_EVIDENCE";
-  const stability: StressStability = reversed ? "UNSTABLE" : lost ? "FRAGILE" : base.independent_contradiction_families.length === 0 && base.stability === "ROBUST" ? "ROBUST" : "STABLE";
+  // THE COMPARATIVE RULE. The only finding that can be said ABOUT THE TWO PLAYERS is one
+  // where the challenger survives scrutiny the leader does not. A leader that loses its own
+  // adverse case while the challenger also fails its own has not been out-survived by
+  // anybody -- that is thin evidence, reported as such, not a comparative verdict.
+  const comparative: ComparativeRobustness =
+    symmetricOutcome === selected
+      ? "LEADER_ROBUST"
+      : symmetricOutcome === challenger
+        ? "CHALLENGER_MORE_ROBUST"
+        : "LEADER_FRAGILE_UNCONTESTED";
+
+  const stability: StressStability =
+    comparative === "CHALLENGER_MORE_ROBUST" ? "UNSTABLE"
+    : comparative === "LEADER_FRAGILE_UNCONTESTED" ? "FRAGILE"
+    : base.independent_contradiction_families.length === 0 && base.stability === "ROBUST" ? "ROBUST"
+    : "STABLE";
+
+  const describe = (p: StressSideProfile) => `${p.player} ${p.support_percent_before.toFixed(1)}% -> ${p.support_percent_after.toFixed(1)}% (${p.status})`;
 
   return {
     winner_before: before,
     winner_after: after,
     changed: after !== before,
     cases,
+    sides,
+    comparative_robustness: comparative,
     stability,
-    reason: reversed
-      ? `Eroding the selected side's edge by one noise floor per metric REVERSES the winner (${before} -> ${after}). The selection is unstable.`
-      : lost
-        ? `Eroding the selected side's edge by one noise floor per metric removes the selection entirely (no side retains a supported lead). The selection is fragile.`
-        : `The selection survives eroding every supporting edge by one noise floor per metric (${before} retained).`,
+    reason:
+      comparative === "LEADER_ROBUST"
+        ? `The selection survives eroding every edge that favours it by one of that metric's own noise floors. ${describe(selectedProfile)} vs ${describe(challengerProfile)}.`
+        : comparative === "CHALLENGER_MORE_ROBUST"
+          ? `Under identical scrutiny the other player is the more robust of the two: eroding the selected side's edges hands the match to ${challengerProfile.player}, and eroding ${challengerProfile.player}'s own edges still leaves ${challengerProfile.player} ahead. ${describe(selectedProfile)} vs ${describe(challengerProfile)}.`
+          : `The selection does not survive its own erosion, but neither does the other player survive theirs, so the stress test establishes no comparative winner and does not withdraw the selection. ${describe(selectedProfile)} vs ${describe(challengerProfile)}.`,
   };
 }
 
@@ -454,8 +632,13 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
   const underdog = runUnderdogAnalysis(comparisons, selected, p1Name, p2Name);
   const stress = runStressTest(comparisons, p1Name, p2Name);
 
-  // A selection that does not survive the adverse recomputation is refused, not asserted.
-  const stressRefuses = selected !== null && stress.changed;
+  // THE STRESS RULE. A selection is withdrawn only on a COMPARATIVE finding: the other
+  // player must both win the leader's adverse case and survive its own. Previously any
+  // change in the leader's adverse case refused the selection, which made the stage a
+  // one-sided veto -- it removed leaders on a test the opponent was never made to take, and
+  // it treated "fragile" as "no winner". A leader whose evidence is merely thin now keeps
+  // the selection and carries stability=FRAGILE, which is what the colour layer reads.
+  const stressRefuses = selected !== null && stress.comparative_robustness === "CHALLENGER_MORE_ROBUST";
   const finalSide = stressRefuses ? null : selected;
   const winner = finalSide === "P1" ? p1Name : finalSide === "P2" ? p2Name : null;
 
@@ -473,7 +656,7 @@ export function runTruthEngineAudit(comparisons: MetricComparison[], p1Name: str
     ...verification.findings.map((f) => `VERIFICATION ${f.family}: ${f.outcome} (${f.severity}) -- ${f.decision_effect}`),
     `DISAGREEMENT: ${disagreement.final_effect}`,
     `UNDERDOG: ${underdog.reason} Overall ${underdog.overall_viability}.`,
-    `STRESS: base=${stress.winner_before} adverse=${stress.winner_after} changed=${stress.changed} stability=${stress.stability}.`,
+    `STRESS: base=${stress.winner_before} adverse=${stress.winner_after} comparative=${stress.comparative_robustness} stability=${stress.stability}; ${stress.sides.map((sp) => `${sp.player} ${sp.support_percent_before.toFixed(1)}%->${sp.support_percent_after.toFixed(1)}% ${sp.status}`).join(" | ")}.`,
     `LEAVE-ONE-FAMILY-OUT: ${decision.flipping_families.length ? `reversed by ${decision.flipping_families.join(", ")}` : "no single family reverses the leader"}.`,
   ];
 
