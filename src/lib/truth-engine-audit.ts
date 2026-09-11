@@ -253,12 +253,33 @@ export interface UnderdogPathway {
   magnitude_ratio: number | null;
 }
 
-export interface UnderdogAnalysis {
-  underdog_side: "P1" | "P2" | null;
-  underdog_player: string | null;
+/** One player's complete pathway census, computed from that player's own measured edges. */
+export interface UnderdogSideAnalysis {
+  side: "P1" | "P2";
+  player: string;
+  /** True when this side is the non-selected player, i.e. the designated underdog. */
+  is_designated_underdog: boolean;
   pathways: UnderdogPathway[];
   overall_viability: PathwayViability;
   reason: string;
+}
+
+export interface UnderdogAnalysis {
+  underdog_side: "P1" | "P2" | null;
+  underdog_player: string | null;
+  /** The designated underdog's pathways (empty when there is no selection). */
+  pathways: UnderdogPathway[];
+  overall_viability: PathwayViability;
+  reason: string;
+  /**
+   * BOTH players, always, whether or not a selection exists. The stage previously analysed
+   * only the non-selected side, so when the engine refused it analysed nobody -- 18 of the
+   * 32 current refusals had neither player evaluated and 14 had exactly one, and no
+   * underdog row could ever complete for the other side. A pathway census is a statement
+   * about a player's own evidence and does not depend on who was selected, so it is
+   * computed for both and the selection only decides which of the two is *designated*.
+   */
+  sides: UnderdogSideAnalysis[];
 }
 
 function viabilityFromRatio(ratio: number | null): PathwayViability {
@@ -268,25 +289,15 @@ function viabilityFromRatio(ratio: number | null): PathwayViability {
   return "STRONG_PATHWAY";
 }
 
-/**
- * A pathway exists ONLY where the non-selected player measurably leads an independent
- * evidence family. Theoretical tennis possibilities are never enumerated: if no family
- * favours the underdog, the answer is NO_VIABLE_PATHWAY, not a narrative.
- */
-export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "P1" | "P2" | null, p1Name: string, p2Name: string): UnderdogAnalysis {
-  const underdogSide = selected === "P1" ? "P2" : selected === "P2" ? "P1" : null;
-  if (!underdogSide) {
-    return { underdog_side: null, underdog_player: null, pathways: [], overall_viability: "NO_VIABLE_PATHWAY", reason: "No selection was made, so there is no non-selected player to analyse." };
-  }
-  const underdogPlayer = underdogSide === "P1" ? p1Name : p2Name;
+/** Pathways for ONE named side, from that side's own measured edges. Never inferred. */
+function pathwaysForSide(comparisons: MetricComparison[], side: "P1" | "P2", player: string): { pathways: UnderdogPathway[]; overall: PathwayViability } {
   const compared = comparisons.filter((c) => c.status === "COMPARED" && c.family);
-
   const byFamily = new Map<string, MetricComparison[]>();
   for (const c of compared) byFamily.set(c.family!, [...(byFamily.get(c.family!) ?? []), c]);
 
   const pathways: UnderdogPathway[] = [];
   for (const [family, rows] of [...byFamily.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    const favouring = rows.filter((r) => r.favours === underdogSide);
+    const favouring = rows.filter((r) => r.favours === side);
     if (!favouring.length) continue;
     const ratio = Math.max(...favouring.map((r) => magnitudeRatio(r) ?? 0));
     const viability = viabilityFromRatio(ratio);
@@ -296,26 +307,59 @@ export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "
       family,
       viability,
       supporting_metrics: favouring.map((r) => r.metric_code),
-      evidence: favouring.map((r) => `${r.label ?? r.metric_code}: ${underdogPlayer}=${underdogSide === "P1" ? r.p1_number : r.p2_number} vs ${underdogSide === "P1" ? r.p2_number : r.p1_number} (${(magnitudeRatio(r) ?? 0).toFixed(1)}x noise floor)`).join("; "),
-      conditions_required: `${underdogPlayer} must convert the measured ${family.toLowerCase().replace(/_/g, " ")} edge into match outcomes.`,
+      evidence: favouring.map((r) => `${r.label ?? r.metric_code}: ${player}=${side === "P1" ? r.p1_number : r.p2_number} vs ${side === "P1" ? r.p2_number : r.p1_number} (${(magnitudeRatio(r) ?? 0).toFixed(1)}x noise floor)`).join("; "),
+      conditions_required: `${player} must convert the measured ${family.toLowerCase().replace(/_/g, " ")} edge into match outcomes.`,
       magnitude_ratio: Number(ratio.toFixed(3)),
     });
   }
 
-  // Overall viability is the strongest single pathway, promoted one level when the underdog
+  // Overall viability is the strongest single pathway, promoted one level when the player
   // holds two or more INDEPENDENT pathways (breadth, not repetition of one family).
   const order: PathwayViability[] = ["NO_VIABLE_PATHWAY", "POTENTIAL_PATHWAY", "VIABLE_PATHWAY", "STRONG_PATHWAY"];
   let overall: PathwayViability = pathways.reduce<PathwayViability>((best, p) => (order.indexOf(p.viability) > order.indexOf(best) ? p.viability : best), "NO_VIABLE_PATHWAY");
   if (pathways.length >= 2) overall = order[Math.min(order.length - 1, order.indexOf(overall) + 1)]!;
+  return { pathways, overall };
+}
+
+/**
+ * A pathway exists ONLY where a player measurably leads an independent evidence family.
+ * Theoretical tennis possibilities are never enumerated: if no family favours the player,
+ * the answer is NO_VIABLE_PATHWAY, not a narrative.
+ *
+ * Both players are always analysed, from their own values. `selected` decides only which of
+ * the two is the DESIGNATED underdog (the non-selected side) -- it never decides who gets
+ * analysed. This stage remains diagnostic: it reports pathways and can withhold a colour
+ * upgrade, and it can never select or veto a winner.
+ */
+export function runUnderdogAnalysis(comparisons: MetricComparison[], selected: "P1" | "P2" | null, p1Name: string, p2Name: string): UnderdogAnalysis {
+  const underdogSide = selected === "P1" ? "P2" : selected === "P2" ? "P1" : null;
+
+  const sides: UnderdogSideAnalysis[] = (["P1", "P2"] as const).map((side) => {
+    const player = side === "P1" ? p1Name : p2Name;
+    const { pathways, overall } = pathwaysForSide(comparisons, side, player);
+    return {
+      side,
+      player,
+      is_designated_underdog: underdogSide === side,
+      pathways,
+      overall_viability: overall,
+      reason: pathways.length
+        ? `${player} holds ${pathways.length} evidence-supported pathway(s): ${pathways.map((p) => `${p.pathway_type} (${p.viability})`).join(", ")}.`
+        : `No independent evidence family measurably favours ${player}; no viable pathway exists on the available evidence.`,
+    };
+  });
+
+  const designated = sides.find((s) => s.is_designated_underdog) ?? null;
 
   return {
     underdog_side: underdogSide,
-    underdog_player: underdogPlayer,
-    pathways,
-    overall_viability: overall,
-    reason: pathways.length
-      ? `${underdogPlayer} holds ${pathways.length} evidence-supported pathway(s): ${pathways.map((p) => `${p.pathway_type} (${p.viability})`).join(", ")}.`
-      : `No independent evidence family measurably favours ${underdogPlayer}; no viable pathway exists on the available evidence.`,
+    underdog_player: designated?.player ?? null,
+    pathways: designated?.pathways ?? [],
+    overall_viability: designated?.overall_viability ?? "NO_VIABLE_PATHWAY",
+    reason: designated
+      ? designated.reason
+      : `No selection was made, so neither player is the designated underdog. Both players were still analysed: ${sides.map((s) => `${s.player} ${s.overall_viability}`).join("; ")}.`,
+    sides,
   };
 }
 

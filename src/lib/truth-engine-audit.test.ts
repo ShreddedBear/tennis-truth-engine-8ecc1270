@@ -368,3 +368,54 @@ describe("final audit output shape", () => {
     expect(a.evidence_chain.join("\n")).toMatch(/LEAVE-ONE-FAMILY-OUT/);
   });
 });
+
+describe("UNDERDOG — both players are analysed, on their own evidence", () => {
+  it("analyses BOTH sides when a selection exists, not only the non-selected one", () => {
+    const a = audit(P1_DOMINANT);
+    expect(a.audit_winner_side).toBe("P1");
+    expect(a.underdog.sides.map((s) => s.side)).toEqual(["P1", "P2"]);
+    expect(a.underdog.sides.map((s) => s.player)).toEqual([P1, P2]);
+    // The designation follows the selection; the analysis does not.
+    expect(a.underdog.sides.find((s) => s.side === "P2")!.is_designated_underdog).toBe(true);
+    expect(a.underdog.sides.find((s) => s.side === "P1")!.is_designated_underdog).toBe(false);
+    // P1 holds the measured edges, so P1's own census is non-empty even though P1 is the
+    // selected side and is therefore never the "underdog".
+    expect(a.underdog.sides.find((s) => s.side === "P1")!.pathways.length).toBeGreaterThan(0);
+  });
+
+  it("analyses BOTH sides when the engine refuses and there is no designated underdog", () => {
+    // Level families -> refusal. Previously this analysed nobody at all.
+    const a = audit([row("001", "1900", "1500"), row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=95")]);
+    expect(a.audit_winner_side).toBeNull();
+    expect(a.underdog.underdog_side).toBeNull();
+    expect(a.underdog.sides).toHaveLength(2);
+    expect(a.underdog.sides.every((s) => !s.is_designated_underdog)).toBe(true);
+    // Both players still have their own measured pathway census.
+    expect(a.underdog.sides.find((s) => s.side === "P1")!.pathways.length).toBeGreaterThan(0);
+    expect(a.underdog.sides.find((s) => s.side === "P2")!.pathways.length).toBeGreaterThan(0);
+  });
+
+  it("each side's pathways come from that side's own values, and swap when the players swap", () => {
+    const forward = audit(P1_DOMINANT);
+    const swapped = audit(P2_DOMINANT);
+    const forwardP1 = forward.underdog.sides.find((s) => s.side === "P1")!;
+    const swappedP2 = swapped.underdog.sides.find((s) => s.side === "P2")!;
+    expect(forwardP1.pathways.map((p) => p.pathway_type).sort()).toEqual(swappedP2.pathways.map((p) => p.pathway_type).sort());
+    expect(forwardP1.overall_viability).toBe(swappedP2.overall_viability);
+  });
+
+  it("never changes the winner: it is diagnostic, not a second prediction engine", () => {
+    const rows = [
+      row("001", "1900", "1500"),
+      row("005", "last10_win_pct=80", "last10_win_pct=30"),
+      row("027", "lead_protection_rate_pct=90", "lead_protection_rate_pct=40"),
+      // A strong P2 pathway that must not be able to veto or flip the selection.
+      row("051", "shrunk_win_probability_pct=10", "shrunk_win_probability_pct=95"),
+    ];
+    const a = audit(rows);
+    const p2 = a.underdog.sides.find((s) => s.side === "P2")!;
+    expect(p2.overall_viability).not.toBe("NO_VIABLE_PATHWAY");
+    // The decision core's outcome is what stands.
+    expect(a.audit_winner_side).toBe(a.decision.outcome === "INSUFFICIENT_EVIDENCE" ? null : a.decision.outcome);
+  });
+});
