@@ -167,9 +167,21 @@ describe("Matrix Summary quarantine — audit behaviour", () => {
     expect(report.coverage.p1.noSource).toBe(QUARANTINED_FIFTEEN.length);
     expect(report.coverage.p1.usablePercent).toBe(100);
     expect(report.coverage.p2.usablePercent).toBe(100);
-    expect(report.coverage.usablePercent).toBe(100);
-    // ...and coverage is therefore NOT flagged low purely because 15 codes are quarantined.
-    expect(report.greenLockReasons.join(" ")).not.toMatch(/coverage/i);
+    // The GATE reads the active set with a dynamic eligible denominator (G8). A quarantined
+    // code is not in the active set at all, so the sharper statement of this test's
+    // invariant is that the quarantined rows cannot move the gate BY ANY AMOUNT: dropping
+    // all fifteen leaves the percentage and the eligible denominator identical.
+    const withoutQuarantined = evaluate({
+      match: { identity_status: "VERIFIED", surface_status: "VERIFIED", player1_name: "Alpha", player2_name: "Beta" },
+      run: { research_lock_at: null, independent_decision_committed_at: null, matrix_revealed_at: null, independent_winner: null, independent_low: null, independent_high: null, calibration_version_id: null, effective_evidence_count: 0 },
+      metrics: [activeRow],
+      verification: [], disagreement: [], underdog: [], stress: [], reconstructions: [], conflicts: [],
+      matrixWp: null, stages,
+    });
+    expect(report.coverage.usablePercent).toBe(withoutQuarantined.coverage.usablePercent);
+    expect(report.coverage.activeEligible).toBe(withoutQuarantined.coverage.activeEligible);
+    // This fixture deliberately supplies ONE active metric, so the gate legitimately reads
+    // thin -- but for that reason, never because fifteen codes are quarantined.
   });
 
   it("contributes zero independent evidence weight (calibration/effective-evidence never counts an unavailable code)", () => {
