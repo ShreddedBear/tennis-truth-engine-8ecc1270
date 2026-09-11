@@ -36,6 +36,13 @@ export type ActivationStatus =
 /** The existing UnavailableReason enum audit-pipeline.ts's metricPairPatch persists. */
 export type PersistedUnavailableReason =
   | "NO_SOURCE_FOUND"
+  /**
+   * The side produced no usable value and offered no evidence-based explanation: either the
+   * provider errored in a way this pipeline could not classify, or the producer simply
+   * returned nothing and said nothing. Deliberately distinct from NO_SOURCE_FOUND -- that one
+   * is a claim that the source was asked and holds nothing, which neither of these proves.
+   */
+  | "PRODUCER_FAILED_WITHOUT_REASON"
   | "PROVIDER_TIMEOUT"
   | "PROVIDER_AUTH_FAILED"
   | "PLAYER_NOT_FOUND"
@@ -102,6 +109,7 @@ export function classifySideActivation(input: SideActivationInput): ActivationSt
     case "SOURCE_CONFLICT":
     case "RECONSTRUCTION_FAILED":
     case "PROVIDER_AUTH_FAILED":
+    case "PRODUCER_FAILED_WITHOUT_REASON":
       return "PRODUCER_FAILURE";
     case "INSUFFICIENT_SAMPLE":
       return "INSUFFICIENT_SAMPLE";

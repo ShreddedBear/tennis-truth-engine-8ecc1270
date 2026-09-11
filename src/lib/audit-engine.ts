@@ -258,6 +258,10 @@ export function evaluate(input: EngineInput): GateReport {
   const matrixRemovalSurvived =
     matrixRemoval.length > 0 &&
     matrixRemoval.every((s) => s.status === "COMPLETE" && (s.outcome === "STABLE" || s.outcome === "MOSTLY STABLE"));
+  // A stress test only carries a finding when it actually executed. Its `status` is the
+  // execution state; `outcome` is only meaningful alongside a COMPLETE status (see
+  // STRESS_OUTCOME_NOT_EVALUATED in truth-engine-stage-mapping.ts).
+  const stressActuallyEvaluated = input.stress.filter((s) => s.status === "COMPLETE");
   const familyRemoval = input.stress.find((s) => s.test_code === "ST03");
   const familyRemovalSurvived =
     !!familyRemoval && familyRemoval.status === "COMPLETE" && familyRemoval.outcome !== "FAILS";
@@ -376,7 +380,15 @@ export function evaluate(input: EngineInput): GateReport {
     color = "YELLOW";
   } else if (
     effectiveEvidenceCount >= 5 &&
-    input.stress.every((s) => s.outcome === "STABLE") &&
+    // "Every stress test came back STABLE" ranges over the tests that ACTUALLY RAN. The rule
+    // is unchanged; what changed is that a test which produced no result is no longer counted
+    // as a failed one. ST04/ST08/ST09/ST10 cannot be evaluated from the active metric set at
+    // all, so including their non-results here made DOUBLE GREEN unreachable for every match
+    // in every circumstance -- a rule no evidence could ever satisfy is not a rule. The
+    // `length > 0` guard keeps the opposite failure closed: a stress stage where nothing ran
+    // cannot vacuously satisfy the requirement.
+    stressActuallyEvaluated.length > 0 &&
+    stressActuallyEvaluated.every((s) => s.outcome === "STABLE") &&
     strongUnderdogPathways === 0 &&
     !input.underdog.some((u) => u.classification === "UNRESOLVED")
   ) {

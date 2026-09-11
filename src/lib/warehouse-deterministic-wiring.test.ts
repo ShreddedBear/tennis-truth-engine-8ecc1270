@@ -29,7 +29,10 @@ describe("warehouse deterministic calculator wiring", () => {
 
   it("persists each paired finding atomically at the pipeline boundary", () => {
     expect(pipeline).toContain("constpaired=metricPairPatch(byCode.get(String(row[\"metric_code\"])),providerError,retrievedAt)");
-    expect(pipeline).toContain("constoriented=preserveSettledOppositeSide(paired,row,side)");
+    // The paired patch is oriented in two steps: a settled opposite side is left untouched,
+    // and the executing side does not claim a retrieval it never performed for the other
+    // player (claimRetrievalForExecutingSideOnly -- the per-row marker P2's resume needs).
+    expect(pipeline).toContain("constoriented=claimRetrievalForExecutingSideOnly(preserveSettledOppositeSide(paired,row,side),side)");
     expect(pipeline).toContain("p1_value:p1.value,p2_value:p2.value");
     expect(pipeline).toContain("p1_unavailable_reason:p1.reason,p2_unavailable_reason:p2.reason");
   });
