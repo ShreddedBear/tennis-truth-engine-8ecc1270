@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compareMetricRows, type MetricRowForComparison } from "./truth-engine-metric-comparison";
 import { decideTruthEngineSelection } from "./truth-engine-decision";
 import { runTruthEngineAudit } from "./truth-engine-audit";
+
 import { forensicsForMatch, type ForensicMatchInput } from "./truth-engine-refusal-forensics";
 
 const P1 = "Alpha Player";
@@ -53,19 +54,20 @@ describe("forensics is diagnostic only", () => {
   });
 });
 
-describe("the adverse stress case is not a symmetric erosion of a measured edge", () => {
-  // A one-materiality shift can only ever push a leader-favouring metric down to NEUTRAL
-  // (a metric favours the leader only when its edge already exceeds one materiality, and
-  // subtracting one leaves at most one). It can, however, push a metric the engine declared
-  // NEUTRAL -- "both players measured, no material difference" -- into a vote for the
-  // opponent. The adverse case therefore MANUFACTURES opposing evidence out of declared
-  // parity rather than only eroding the leader's own edge.
-  it("converts a NEUTRAL family into a vote for the opponent", () => {
+describe("the adverse stress case erodes only real edges, and judges both players", () => {
+  // REGRESSION. The original adverse case shifted EVERY comparison by one materiality
+  // toward the non-selected side. A comparison the engine had declared NEUTRAL -- "both
+  // players measured, no material difference" -- has |advantage| <= materiality, so the
+  // shift could push it past the floor into a vote for the opponent, manufacturing
+  // directional evidence out of measured parity. Erosion is now clamped at zero, so a
+  // comparison can never come to favour the player it did not already favour.
+  it("never manufactures a vote out of a NEUTRAL family", () => {
     const rows = [
       // Two clear P1 families (edges well beyond one materiality).
       row("001", "1700", "1500"),
       row("005", "last10_win_pct=80", "last10_win_pct=30"),
-      // A family the engine measures as NEUTRAL: 4 points apart, materiality 5.
+      // Two families the engine measures as NEUTRAL: 4 points apart, materiality 5, both
+      // leaning P2 below the floor. This is the exact shape the old shift converted.
       row("011", "match_win_pct=50", "match_win_pct=54"),
       row("027", "lead_protection_rate_pct=50", "lead_protection_rate_pct=54"),
     ];
@@ -74,13 +76,12 @@ describe("the adverse stress case is not a symmetric erosion of a measured edge"
     expect(base.neutral_families.sort()).toEqual(["CLOSING_ABILITY", "RESULTS_HISTORY"]);
 
     const f = forensics(rows);
-    // Stressing P1 turns those two declared-parity families into P2 votes.
-    expect(f.stress_p1.families_manufactured_for_opponent.sort()).toEqual(["CLOSING_ABILITY", "RESULTS_HISTORY"]);
-    // And no family that voted P1 was handed to P2 -- only neutralised, as the algebra requires.
+    expect(f.stress_p1.families_manufactured_for_opponent).toEqual([]);
+    expect(f.stress_p2.families_manufactured_for_opponent).toEqual([]);
     expect(f.stress_p1.families_flipped_to_opponent).toEqual([]);
   });
 
-  it("is applied only to the selected side: production never runs the mirror case", () => {
+  it("no longer withdraws a leader on a test the opponent was never made to take", () => {
     const rows = [
       row("001", "1700", "1500"),
       row("005", "last10_win_pct=80", "last10_win_pct=30"),
@@ -88,40 +89,37 @@ describe("the adverse stress case is not a symmetric erosion of a measured edge"
       row("027", "lead_protection_rate_pct=50", "lead_protection_rate_pct=54"),
     ];
     const audit = runTruthEngineAudit(compareMetricRows(rows), P1, P2);
-    // Production stresses the selected side and refuses when that case changes the winner.
     expect(audit.decision.outcome).toBe("P1");
-    expect(audit.stress.winner_before).toBe("P1");
-    expect(audit.stress.changed).toBe(true);
-    expect(audit.audit_winner_side).toBeNull();
+    // The leader's real edges survive their own erosion, so nothing is withdrawn.
+    expect(audit.stress.comparative_robustness).toBe("LEADER_ROBUST");
+    expect(audit.audit_winner_side).toBe("P1");
 
-    const f = forensics(rows);
-    // Only one side was ever stressed by production.
-    expect(f.stress_p1.evaluated_by_production).toBe(true);
-    expect(f.stress_p2.evaluated_by_production).toBe(false);
-    // Under the mirror case -- the same erosion applied to P2 instead -- P1 still leads.
-    expect(f.stress_p2.outcome_when_this_side_stressed).toBe("P1");
-    // Whatever the shape of the leader's own adverse case, the opponent never survives the
-    // mirror case here -- so the veto ranks nobody, it only removes the leader.
-    expect(f.symmetric_stress_verdict).not.toBe("CHALLENGER_MORE_ROBUST");
-    expect(["NON_DISCRIMINATING", "LEADER_MORE_ROBUST"]).toContain(f.symmetric_stress_verdict);
-    expect(f.classification).toBe("DOWNSTREAM_VETO_BUG");
-    expect(f.trace.after_lofo_initial_decision).toBe("P1");
-    expect(f.trace.after_stress).not.toBe("P1");
+    const f = forensics(rows, P1);
+    expect(f.classification).not.toBe("DOWNSTREAM_VETO_BUG");
   });
 
-  it("keeps ROBUSTNESS_UNRESOLVED available for a leader the opponent genuinely out-survives", () => {
-    // Constructed so that the challenger wins BOTH the adverse and the mirror case.
+  it("profiles BOTH players, always, and never infers one from the other", () => {
+    const rows = [row("001", "1700", "1500"), row("005", "last10_win_pct=80", "last10_win_pct=30")];
+    const audit = runTruthEngineAudit(compareMetricRows(rows), P1, P2);
+    expect(audit.stress.sides.map((s) => s.side)).toEqual(["P1", "P2"]);
+    expect(audit.stress.sides.map((s) => s.player)).toEqual([P1, P2]);
+    // Eroding a side can only ever weaken that side.
+    for (const side of audit.stress.sides) {
+      expect(side.support_percent_after).toBeLessThanOrEqual(side.support_percent_before);
+    }
+  });
+
+  it("still withdraws a leader the other player genuinely out-survives", () => {
     const rows = [
-      row("001", "1511", "1500"),          // P1 by 11, materiality 10 -> a one-floor erosion neutralises it
-      row("005", "last10_win_pct=56", "last10_win_pct=50"), // P1 by 6, materiality 5 -> likewise
-      row("051", "shrunk_win_probability_pct=40", "shrunk_win_probability_pct=60"), // P2 by 20, materiality 3
+      row("001", "1512", "1500"),
+      row("005", "last10_win_pct=56", "last10_win_pct=50"),
+      row("027", "lead_protection_rate_pct=56", "lead_protection_rate_pct=50"),
+      row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=95"),
     ];
-    const f = forensics(rows);
-    // Whatever the base call is, the verdict must be derived from both mirror cases, never
-    // from the leader's case alone.
-    expect(["NON_DISCRIMINATING", "LEADER_MORE_ROBUST", "CHALLENGER_MORE_ROBUST", "BOTH_SURVIVE", "NOT_APPLICABLE"]).toContain(f.symmetric_stress_verdict);
-    expect(f.stress_p1.initial_support_percent).toBeGreaterThanOrEqual(0);
-    expect(f.stress_p2.initial_support_percent).toBeGreaterThanOrEqual(0);
+    const audit = runTruthEngineAudit(compareMetricRows(rows), P1, P2);
+    expect(audit.decision.outcome).toBe("P1");
+    expect(audit.stress.comparative_robustness).toBe("CHALLENGER_MORE_ROBUST");
+    expect(audit.audit_winner_side).toBeNull();
   });
 });
 

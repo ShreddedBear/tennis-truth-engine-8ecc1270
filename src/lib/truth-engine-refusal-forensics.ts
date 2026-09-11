@@ -261,22 +261,20 @@ function supportFor(side: Side, families: FamilyEvidence[]): PerSideSupport {
 }
 
 /**
- * The adverse recomputation production runs, but pointed at a NAMED side rather than only
- * at whichever side happened to lead. Production's runStressTest can only ever stress the
- * selected side (it returns NOT_APPLICABLE when there is no selection), so this is how the
- * audit gets a like-for-like stress profile for BOTH players.
- *
- * The shift itself is production's own rule, restated here rather than imported because
- * production does not export it: move each comparison's P1-facing advantage by one of that
- * metric's declared materiality units against `side`, then re-derive `favours` from the
- * shifted number exactly as compareMetricRow does.
+ * The adverse recomputation, pointed at a NAMED side. Production now profiles both sides
+ * itself (runStressTest.sides), and this mirrors its rule so the forensic report can be
+ * regenerated over historical evidence: erode only the edges that already favour `side`,
+ * clamped at zero so a sign can never flip and a NEUTRAL comparison is never converted into
+ * a vote. Restated rather than imported because production does not export the helper.
  */
 function shiftAgainst(comparisons: MetricComparison[], side: Side): MetricComparison[] {
   return comparisons.map((c) => {
-    if (c.status !== "COMPARED" || c.differential === null || c.advantage_p1 === null) return c;
+    if (c.status !== "COMPARED" || c.advantage_p1 === null) return c;
+    if (c.favours !== side) return c;
     const spec = COMPARISON_SPECS[c.metric_code];
     if (!spec) return c;
-    const advantage = Number((c.advantage_p1 + spec.materiality * -1 * (side === "P1" ? 1 : -1)).toFixed(6));
+    const eroded = Math.max(0, Math.abs(c.advantage_p1) - spec.materiality);
+    const advantage = Number(((side === "P1" ? 1 : -1) * eroded).toFixed(6));
     const favours = Math.abs(advantage) <= spec.materiality ? "NEUTRAL" : advantage > 0 ? "P1" : "P2";
     return { ...c, advantage_p1: advantage, favours: favours as MetricComparison["favours"] };
   });
