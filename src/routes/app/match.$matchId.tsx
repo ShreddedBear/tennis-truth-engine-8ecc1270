@@ -83,7 +83,11 @@ function Provenance({ row }: { row: ResultRow }) {
       <div className="mt-2">
         <p className="text-muted-foreground">Sources/providers</p>
         {sources.length ? sources.map((source, index) => (
-          <p key={index}>{textValue(source["source_name"] ?? source["provider"])}{source["url"] ? ` · ${source["url"]}` : ""}{source["retrieved_at"] ? ` · ${source["retrieved_at"]}` : ""}</p>
+          // `sources` is one shared column on a two-sided row. An entry stamped with
+          // player_side was contributed by a side-specific write and describes only that
+          // player; an unstamped entry came from the paired researcher pass and genuinely
+          // covers both. Showing the stamp is what makes a merged array attributable.
+          <p key={index}>{source["player_side"] ? `${source["player_side"]} · ` : ""}{textValue(source["source_name"] ?? source["provider"])}{source["url"] ? ` · ${source["url"]}` : ""}{source["retrieved_at"] ? ` · ${source["retrieved_at"]}` : ""}</p>
         )) : <p>—</p>}
       </div>
     </details>
@@ -786,7 +790,7 @@ function Workspace() {
                     <Input className="h-8" defaultValue={s.winner_after ?? ""} onBlur={(e) => patch("stress_results", s.id, { winner_after: e.target.value }, "STRESS / REMOVAL TESTS")} />
                   </td>
                   <td className="px-2 py-1">
-                    <Select value={s.outcome} options={["NOT STARTED", "STABLE", "MOSTLY STABLE", "UNSTABLE", "FAILS"]} onChange={(v) => patch("stress_results", s.id, { outcome: v }, "STRESS / REMOVAL TESTS")} />
+                    <Select value={s.outcome} options={["NOT STARTED", "NOT EVALUATED", "STABLE", "MOSTLY STABLE", "UNSTABLE", "FAILS"]} onChange={(v) => patch("stress_results", s.id, { outcome: v }, "STRESS / REMOVAL TESTS")} />
                   </td>
                   <td className="px-2 py-1">
                     <Select value={s.status} options={STATUS_OPTIONS} onChange={(v) => patch("stress_results", s.id, { status: v }, "STRESS / REMOVAL TESTS")} />

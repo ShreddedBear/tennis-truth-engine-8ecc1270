@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compareMetricRows, type MetricRowForComparison } from "./truth-engine-metric-comparison";
 import { runTruthEngineAudit } from "./truth-engine-audit";
-import { underdogRowPatch, stressRowPatch, STRESS_NOT_RUN } from "./truth-engine-stage-mapping";
+import { underdogRowPatch, stressRowPatch, STRESS_OUTCOME_NOT_EVALUATED } from "./truth-engine-stage-mapping";
 
 const P1 = "Alpha Player";
 const P2 = "Beta Player";
@@ -115,7 +115,7 @@ describe("stressRowPatch — a test that never ran is not a failed test", () => 
     const patch = stressRowPatch(code, audit, NOW);
     expect(patch.evaluated).toBe(false);
     expect(patch.patch["status"]).toBe("UNAVAILABLE");
-    expect(patch.patch["outcome"]).toBe(STRESS_NOT_RUN);
+    expect(patch.patch["outcome"]).toBe(STRESS_OUTCOME_NOT_EVALUATED);
     expect(patch.patch["outcome"]).not.toBe("UNSTABLE");
   });
 

@@ -403,7 +403,7 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     // persisted UNAVAILABLE. They used to carry outcome "UNSTABLE", and the DOUBLE GREEN
     // predicate required EVERY stress row to read "STABLE" -- so DOUBLE GREEN was
     // structurally unreachable for every match, forever, whatever the evidence said.
-    const notRun = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT_RUN" });
+    const notRun = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT EVALUATED" });
 
     it("an unavailable, never-run test does not withhold DOUBLE GREEN", () => {
       const base = fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 });
@@ -557,5 +557,82 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
     expect(report.color).not.toBe("INCOMPLETE");
     expect(winnerDetail(report)).toBe("Mathys Erhard");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A STRESS TEST THAT NEVER RAN IS NOT A FAILED ONE
+// ---------------------------------------------------------------------------
+//
+// ST04/ST08/ST09/ST10 need evidence the active metric set cannot produce, so
+// truth-engine-stage-mapping.ts writes them status UNAVAILABLE. Their OUTCOME used to be
+// written "UNSTABLE" as well -- a never-run test recorded as an instability finding. Because
+// DOUBLE GREEN asks whether every stress test came back STABLE, those four permanent
+// "UNSTABLE" rows made DOUBLE GREEN unreachable for every match in every circumstance.
+// Production: 0 DOUBLE GREEN across 60 completed runs, with 240 such rows.
+describe("audit-engine: not-run stress tests are not counted as instability", () => {
+  const doubleGreenReady = (stress: EngineInput["stress"]): EngineInput => ({
+    ...input([]),
+    run: {
+      ...baseRun,
+      research_lock_at: "2026-04-12T09:00:00.000Z",
+      independent_decision_committed_at: "2026-04-12T09:30:00.000Z",
+      matrix_revealed_at: "2026-04-12T09:31:00.000Z",
+      calibration_version_id: "cal-1",
+      independent_winner: "Alpha",
+      effective_evidence_count: 6,
+    },
+    // Six independent families with two-sided usable evidence: enough for DOUBLE GREEN's
+    // effectiveEvidenceCount >= 5, and 100% coverage so no green-lock fires.
+    metrics: Array.from({ length: 6 }, (_, i) => ({
+      status: "COMPLETE", p1_status: "COMPLETE", p2_status: "COMPLETE",
+      p1_treatment: "DIRECT", p2_treatment: "DIRECT", matrix_derived: false,
+      evidence_family: `FAMILY_${i}`, metric_name: `Metric ${i}`, metric_code: `00${i + 1}`,
+      p1_value: "1", p2_value: "1", sources: [{ source_name: "s" }],
+    })),
+    verification: [{ status: "COMPLETE", outcome: "PASS", severity: "STANDARD" }],
+    disagreement: [{ status: "COMPLETE", contradiction_severity: "NONE" }],
+    underdog: [{ status: "COMPLETE", classification: "WEAK", player_side: "Beta" }],
+    stress,
+  });
+  const evaluated = (test_code: string, outcome: string) => ({ status: "COMPLETE", test_code, outcome });
+  const neverRan = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT EVALUATED" });
+  const ALL_EVALUATED_STABLE = ["ST01", "ST02", "ST03", "ST05", "ST06", "ST07"].map((code) => evaluated(code, "STABLE"));
+  const NEVER_RAN = ["ST04", "ST08", "ST09", "ST10"].map(neverRan);
+
+  it("DOUBLE GREEN is structurally reachable once its existing rules are genuinely satisfied", () => {
+    const report = evaluate(doubleGreenReady([...ALL_EVALUATED_STABLE, ...NEVER_RAN]));
+    expect(report.greenLockReasons).toEqual([]);
+    expect(report.color).toBe("DOUBLE GREEN");
+  });
+
+  it("an actually-unstable test still withholds DOUBLE GREEN", () => {
+    const report = evaluate(doubleGreenReady([
+      ...ALL_EVALUATED_STABLE.slice(1), evaluated("ST01", "UNSTABLE"), ...NEVER_RAN,
+    ]));
+    expect(report.color).not.toBe("DOUBLE GREEN");
+  });
+
+  it("a MOSTLY STABLE executed test still withholds DOUBLE GREEN, exactly as before", () => {
+    const report = evaluate(doubleGreenReady([
+      ...ALL_EVALUATED_STABLE.slice(1), evaluated("ST01", "MOSTLY STABLE"), ...NEVER_RAN,
+    ]));
+    expect(report.color).not.toBe("DOUBLE GREEN");
+  });
+
+  it("a stress stage where NOTHING ran cannot vacuously earn DOUBLE GREEN", () => {
+    const report = evaluate(doubleGreenReady(["ST01", "ST02", "ST03"].map(neverRan)));
+    expect(report.color).not.toBe("DOUBLE GREEN");
+    // ST01/ST02 never produced a matrix-removal result, so that lock still fires.
+    expect(report.greenLockReasons.join(" ")).toContain("Matrix-removal test not survived");
+  });
+
+  it("the matrix-removal and strongest-family locks still require a genuinely COMPLETE result", () => {
+    // Unchanged behaviour: these two already required status COMPLETE, and a not-run row
+    // must not satisfy either of them.
+    const report = evaluate(doubleGreenReady([neverRan("ST01"), neverRan("ST02"), neverRan("ST03"), ...NEVER_RAN]));
+    const reasons = report.greenLockReasons.join(" ");
+    expect(reasons).toContain("Matrix-removal test not survived");
+    expect(reasons).toContain("Strongest-family removal not survived");
   });
 });

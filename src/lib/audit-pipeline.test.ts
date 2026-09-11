@@ -5,9 +5,10 @@
 // Final Combination Gate". It FAILS if any audited section ends up 0/0,
 // which is the exact defect this pipeline was written to fix.
 import { describe, expect, it, vi } from "vitest";
-import { metricPairPatch, metricRowsForSideExecution, pass2WriteBackPatch, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
+import { claimRetrievalForExecutingSideOnly, metricPairPatch, metricRowsForSideExecution, pass2WriteBackPatch, preserveSettledOppositeSide, preserveUsableCurrentSide, runPipeline, preparePipelineRun, enforceStageDependencies, STAGES, type ChildTable, type PipelineDeps, type Researcher, type RunRow, type Stage } from "./audit-pipeline";
 import { compareMetricRows } from "./truth-engine-metric-comparison";
 import type { TruthEngineDecisionRecord } from "./truth-engine-decision-record";
+import { classifyMetricActivation, classifySideActivation, DENOMINATOR_EXCUSED_STATUSES } from "./metric-activation-status";
 import { unmetDependencies, canonicalizeStageRows, INVALIDATED_RUN_STATUS } from "./audit-stages";
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
@@ -33,6 +34,7 @@ vi.mock("./metric-classification", async (importOriginal) => {
 });
 
 const MATCH_ID = "11111111-1111-1111-1111-111111111111";
+const NOW = "2026-04-12T00:00:00.000Z";
 const P1 = "Carlos Alcaraz";
 const P2 = "Jannik Sinner";
 
@@ -695,19 +697,111 @@ describe("Run Audit pipeline", () => {
     }
   });
 
-  it("resumes P2 orientation after already processed batches instead of restarting them", () => {
-    // Synthetic codes are deliberately in the 9xx range, outside the real 001-081 catalog:
-    // this test is about resume-offset arithmetic only, and a fixture code like "M15"/"M22"
-    // would normalize onto a real MATRIX_SUMMARY_REQUIRED code and be filtered out by the
-    // quarantine guard, changing the offsets under test for reasons unrelated to resumption.
-    const rows = Array.from({ length: 34 }, (_, index) => ({
-      id: `row-${index}`,
-      metric_code: `M9${String(index).padStart(2, "0")}`,
-      p2_status: index < 2 ? "EXCLUDED" : "COMPLETE",
-    })).reverse();
-    const resumed = metricRowsForSideExecution(rows, "p2", 17);
-    expect(resumed.completedBefore).toBe(17);
-    expect(resumed.pending.map(row => row.id)).toEqual(Array.from({ length: 17 }, (_, index) => `row-${index + 17}`));
+  // ---- RESUME SYMMETRY ---------------------------------------------------------------
+  // The P2 stage used to resume from a POSITIONAL cursor -- slice(done_count) into a sorted
+  // array -- while P1 resumed from persisted per-row state. Position is not identity: any
+  // change in the row set or its ordering between two slices moves the window and skips P2
+  // rows for good. These tests pin the replacement's order-independence.
+  //
+  // Scope note: a read-only production check found 1,500 of 1,500 active metric-sides had
+  // p2_retrieved_at strictly later than p1_retrieved_at, so the cursor demonstrably skipped
+  // nothing in those 60 runs -- the 97-vs-25 one-sided gap the gap audit measured has a
+  // different, producer-coverage cause. What is fixed here is the fragility and the
+  // provenance falsehood, not that gap.
+  const P1_PASS = "2026-04-12T10:00:00.000Z";
+  const P2_PASS = "2026-04-12T11:00:00.000Z";
+  /**
+   * A row as it looks after each stage of the real write sequence.
+   *
+   * The P1 stage writes P2's VALUE from the paired finding but no longer stamps
+   * p2_retrieved_at (claimRetrievalForExecutingSideOnly), so `${side}_retrieved_at` means
+   * exactly "researched with this side as the subject". That is a presence check, not a
+   * timestamp comparison -- an earlier draft compared the two stamps and would have broken
+   * whenever both writes landed in the same millisecond.
+   */
+  const rowAfter = (id: string, phase: "fresh" | "p1" | "p2") => ({
+    id, metric_code: `M9${id.padStart(2, "0")}`,
+    p1_status: phase === "fresh" ? "NOT STARTED" : "COMPLETE",
+    p2_status: phase === "fresh" ? "NOT STARTED" : "COMPLETE",
+    p1_retrieved_at: phase === "fresh" ? null : P1_PASS,
+    p2_retrieved_at: phase === "p2" ? P2_PASS : null,
+  });
+  const pendingIds = (rows: Array<Record<string, unknown>>, side: "p1" | "p2") =>
+    metricRowsForSideExecution(rows, side).pending.map((row) => String(row["id"])).sort();
+
+  it("P1 interrupted then resumed picks up exactly the untreated rows", () => {
+    const rows = [rowAfter("01", "p1"), rowAfter("02", "fresh"), rowAfter("03", "p1"), rowAfter("04", "fresh")];
+    expect(pendingIds(rows, "p1")).toEqual(["02", "04"]);
+  });
+
+  it("P2 interrupted then resumed picks up exactly the rows not yet researched with P2 as the subject", () => {
+    // 01/03 already got their own P2-oriented pass; 02/04 still hold only what P1's paired
+    // pass left on them, which is not P2's independently obtained evidence.
+    const rows = [rowAfter("01", "p2"), rowAfter("02", "p1"), rowAfter("03", "p2"), rowAfter("04", "p1")];
+    expect(pendingIds(rows, "p2")).toEqual(["02", "04"]);
+  });
+
+  it("both sides interrupted resume independently and without interfering", () => {
+    const rows = [rowAfter("01", "p2"), rowAfter("02", "p1"), rowAfter("03", "fresh")];
+    expect(pendingIds(rows, "p1")).toEqual(["03"]);
+    expect(pendingIds(rows, "p2")).toEqual(["02", "03"]);
+  });
+
+  it("resume is driven by row identity, not array position -- reordering skips nothing", () => {
+    // THE REGRESSION. The positional cursor read slice(done_count) off a sorted array, so a
+    // different ordering (or a changed row count) between slices moved the window and
+    // silently dropped rows. Identity-based resume returns the same set either way.
+    const rows = [rowAfter("01", "p2"), rowAfter("02", "p1"), rowAfter("03", "p2"), rowAfter("04", "p1")];
+    expect(pendingIds([...rows].reverse(), "p2")).toEqual(pendingIds(rows, "p2"));
+    expect(pendingIds(rows, "p2")).toEqual(["02", "04"]);
+    // ...and a row appearing mid-stage does not push another out of the window.
+    expect(pendingIds([...rows, rowAfter("05", "fresh")], "p2")).toEqual(["02", "04", "05"]);
+  });
+
+  it("repeated resume is idempotent and never re-offers an already-treated row", () => {
+    const rows = [rowAfter("01", "p2"), rowAfter("02", "p2")];
+    for (let resume = 0; resume < 3; resume++) {
+      expect(pendingIds(rows, "p1")).toEqual([]);
+      expect(pendingIds(rows, "p2")).toEqual([]);
+    }
+  });
+
+  it("a fully fresh run offers every row to BOTH sides -- no side starts already 'done'", () => {
+    const rows = [rowAfter("01", "fresh"), rowAfter("02", "fresh"), rowAfter("03", "fresh")];
+    expect(pendingIds(rows, "p1")).toEqual(["01", "02", "03"]);
+    expect(pendingIds(rows, "p2")).toEqual(["01", "02", "03"]);
+  });
+
+  it("a settled EXCLUDED/NO_SOURCE side is withheld from research identically on both sides", () => {
+    const settled = (side: "p1" | "p2", status: string) => ({
+      ...rowAfter("07", "fresh"), [`${side}_status`]: status,
+    });
+    for (const status of ["EXCLUDED", "NO_SOURCE"]) {
+      expect(pendingIds([settled("p1", status)], "p1")).toEqual([]);
+      expect(pendingIds([settled("p2", status)], "p2")).toEqual([]);
+    }
+  });
+
+  it("preserving a better prior value still records that the side was re-attempted", () => {
+    // Without this the P2 marker could never advance for a row whose independent retry
+    // found nothing, and the stage would re-research it on every single resume.
+    const row = { p2_value: "shrunk_win_probability_pct=68", p2_treatment: "DIRECT", p2_status: "COMPLETE", p2_retrieved_at: null };
+    const patch = preserveUsableCurrentSide({ p2_value: null, p2_treatment: "UNAVAILABLE", p2_retrieved_at: P2_PASS }, row, "p2");
+    expect(patch["p2_value"]).toBeUndefined();      // the good value is kept
+    expect(patch["p2_retrieved_at"]).toBe(P2_PASS); // the attempt is still recorded
+  });
+
+  it("a P1-oriented pass never claims to have retrieved P2's side (and vice versa)", () => {
+    // The paired finding legitimately carries both players' values, but only one side was
+    // actually researched. Stamping the other side's retrieval is what erased the P2 stage's
+    // only record of its own work and forced the positional cursor.
+    const p1Pass = claimRetrievalForExecutingSideOnly({ p1_value: "a", p2_value: "b", p1_retrieved_at: P1_PASS, p2_retrieved_at: P1_PASS }, "p1");
+    expect(p1Pass["p1_retrieved_at"]).toBe(P1_PASS);
+    expect(p1Pass["p2_retrieved_at"]).toBeUndefined();
+    expect(p1Pass["p2_value"]).toBe("b"); // the value still lands; only the claim is withheld
+    const p2Pass = claimRetrievalForExecutingSideOnly({ p1_value: "a", p2_value: "b", p1_retrieved_at: P2_PASS, p2_retrieved_at: P2_PASS }, "p2");
+    expect(p2Pass["p2_retrieved_at"]).toBe(P2_PASS);
+    expect(p2Pass["p1_retrieved_at"]).toBeUndefined();
   });
 
   it("keeps prior usable P2 evidence when its independent retry genuinely finds no source", () => {
@@ -1689,25 +1783,37 @@ describe("Run-number monotonicity across an invalidated (not deleted) run", () =
 // BARE COUNT (0..915, 0..280) under treatment DIRECT, for two metrics whose
 // declared quantity is a percentage.
 describe("pass-2 dossier write-back is bound to each metric's declared field", () => {
-  const stat = (key: string, value: number, origin: "DIRECT" | "RECONSTRUCTED" = "RECONSTRUCTED") => ({
-    key, value, player: P1, origin, surface: null, window: null,
-    sources: [{ source_name: "dossier reconstruction" }],
+  const CTX = { p1Name: P1, p2Name: P2, retrievedAt: "2026-04-12T00:00:00.000Z" };
+  const statFor = (player: string) => (key: string, value: number, origin: "DIRECT" | "RECONSTRUCTED" = "RECONSTRUCTED") => ({
+    key, value, player, origin, surface: null, window: null,
+    sources: [{ source_name: `dossier reconstruction (${player})` }],
   }) as never;
+  const p1Stat = statFor(P1);
+  const p2Stat = statFor(P2);
 
-  it("refuses a same-family stat that is not the metric's declared quantity", () => {
+  it("refuses a same-family stat that is not the metric's declared quantity (008 is a percentage, not a count)", () => {
     // Catalogue family "008" holds sets_played/sets_won/set_win_pct; Truth Engine
     // metric 008 means "deciding-set win %". A raw count is not that measurement.
-    const families = new Map([["008", [stat("sets_played", 915), stat("sets_won", 259)]]]);
-    const patch = pass2WriteBackPatch({ id: "r1", metric_code: "M08", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, "2026-04-12T00:00:00.000Z");
+    const families = new Map([["008", [p1Stat("sets_played", 915), p1Stat("sets_won", 259)]]]);
+    const patch = pass2WriteBackPatch({ id: "r1", metric_code: "M08", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, CTX);
     expect(patch).toBeNull();
   });
 
-  it("writes the declared quantity in keyed form, so the comparison layer can actually read it", () => {
+  it("accepts 008's declared percentage when the dossier genuinely carries it", () => {
+    const families = new Map([["008", [p1Stat("sets_played", 915), p1Stat("deciding_set_win_pct", 64.5)]]]);
+    const patch = pass2WriteBackPatch({ id: "r1b", metric_code: "M08", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, CTX);
+    expect(patch!["p1_value"]).toBe("deciding_set_win_pct=64.5");
+    const [comparison] = compareMetricRows([{ metric_code: "008", p1_value: String(patch!["p1_value"]), p2_value: "deciding_set_win_pct=40", p1_treatment: "RECONSTRUCTED", p2_treatment: "DIRECT" }]);
+    expect(comparison.status).toBe("COMPARED");
+    expect(comparison.p1_number).toBe(64.5);
+  });
+
+  it("writes 010's declared percentage in keyed form, so the comparison layer can actually read it", () => {
     // straight_set_win_pct IS metric 010's declared fieldAlias. Persisting it keyed
     // (rather than as a bare number) is what lets COMPARISON_SPECS resolve it without
     // relying on a bareScalarFallback 010 deliberately withholds.
-    const families = new Map([["010", [stat("matches_won", 41), stat("straight_set_win_pct", 63.2)]]]);
-    const patch = pass2WriteBackPatch({ id: "r2", metric_code: "M10", p2_treatment: "UNAVAILABLE", p2_value: null }, "p2", families, "2026-04-12T00:00:00.000Z");
+    const families = new Map([["010", [p2Stat("matches_won", 41), p2Stat("straight_set_win_pct", 63.2)]]]);
+    const patch = pass2WriteBackPatch({ id: "r2", metric_code: "M10", p2_treatment: "UNAVAILABLE", p2_value: null }, "p2", families, CTX);
     expect(patch).not.toBeNull();
     expect(patch!["p2_value"]).toBe("straight_set_win_pct=63.2");
     expect(patch!["p2_treatment"]).toBe("RECONSTRUCTED");
@@ -1716,38 +1822,256 @@ describe("pass-2 dossier write-back is bound to each metric's declared field", (
     expect(comparison.p2_number).toBe(63.2);
   });
 
+  it("refuses 010's raw count even though it shares the metric's own family", () => {
+    const families = new Map([["010", [p2Stat("matches_won", 280)]]]);
+    expect(pass2WriteBackPatch({ id: "r2b", metric_code: "M10", p2_treatment: "UNAVAILABLE", p2_value: null }, "p2", families, CTX)).toBeNull();
+  });
+
   it("selects the declared field regardless of the order the producer emitted the family in", () => {
-    const forwards = new Map([["001", [stat("surface_elo", 1830), stat("surface_win_pct", 64)]]]);
-    const backwards = new Map([["001", [stat("surface_win_pct", 64), stat("surface_elo", 1830)]]]);
+    const forwards = new Map([["001", [p1Stat("surface_elo", 1830), p1Stat("surface_win_pct", 64)]]]);
+    const backwards = new Map([["001", [p1Stat("surface_win_pct", 64), p1Stat("surface_elo", 1830)]]]);
     const row = { id: "r3", metric_code: "M01", p1_treatment: "UNAVAILABLE", p1_value: null };
-    const a = pass2WriteBackPatch(row, "p1", forwards, "2026-04-12T00:00:00.000Z");
-    const b = pass2WriteBackPatch(row, "p1", backwards, "2026-04-12T00:00:00.000Z");
+    const a = pass2WriteBackPatch(row, "p1", forwards, CTX);
+    const b = pass2WriteBackPatch(row, "p1", backwards, CTX);
     expect(a!["p1_value"]).toBe("surface_elo=1830");
     expect(b!["p1_value"]).toBe(a!["p1_value"]);
   });
 
-  it("never overwrites a side that already carries usable evidence", () => {
-    const families = new Map([["001", [stat("surface_elo", 1200)]]]);
-    const patch = pass2WriteBackPatch({ id: "r4", metric_code: "M01", p1_treatment: "DIRECT", p1_value: "surface_elo=1900" }, "p1", families, "2026-04-12T00:00:00.000Z");
+  it("never overwrites a side that already carries usable evidence with a less authoritative value", () => {
+    const families = new Map([["001", [p1Stat("surface_elo", 1200)]]]);
+    const patch = pass2WriteBackPatch({ id: "r4", metric_code: "M01", p1_treatment: "DIRECT", p1_value: "surface_elo=1900" }, "p1", families, CTX);
     expect(patch).toBeNull();
   });
 
-  it("merges the row's existing sources instead of replacing the opposite side's provenance", () => {
-    const families = new Map([["001", [stat("surface_elo", 1830)]]]);
-    const patch = pass2WriteBackPatch(
-      { id: "r5", metric_code: "M01", p2_treatment: "UNAVAILABLE", p2_value: null, sources: [{ source_name: "P1 side source", url: "https://example.test/p1" }] },
-      "p2", families, "2026-04-12T00:00:00.000Z",
-    );
-    expect((patch!["sources"] as Array<{ source_name: string }>).map((s) => s.source_name)).toEqual(["P1 side source", "dossier reconstruction"]);
+  // ---- P1/P2 CROSS-CONTAMINATION -----------------------------------------------------
+  // Every SourcedStat names the player it was extracted for; that name must resolve to the
+  // side being written. Production showed 44 of 45 metric-001 rows attributing P1's number
+  // to P2's source, so this is the exact axis that failed.
+  it("refuses to populate P2 from a stat extracted for P1", () => {
+    const families = new Map([["001", [p1Stat("surface_elo", 1830)]]]);
+    expect(pass2WriteBackPatch({ id: "x1", metric_code: "M01", p2_treatment: "UNAVAILABLE", p2_value: null }, "p2", families, CTX)).toBeNull();
   });
 
+  it("refuses to populate P1 from a stat extracted for P2", () => {
+    const families = new Map([["001", [p2Stat("surface_elo", 1490)]]]);
+    expect(pass2WriteBackPatch({ id: "x2", metric_code: "M01", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, CTX)).toBeNull();
+  });
+
+  it("picks each side's own stat when the family carries both players", () => {
+    const families = new Map([["001", [p2Stat("surface_elo", 1490), p1Stat("surface_elo", 1830)]]]);
+    const p1Patch = pass2WriteBackPatch({ id: "x3", metric_code: "M01", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, CTX);
+    const p2Patch = pass2WriteBackPatch({ id: "x3", metric_code: "M01", p2_treatment: "UNAVAILABLE", p2_value: null }, "p2", families, CTX);
+    expect(p1Patch!["p1_value"]).toBe("surface_elo=1830");
+    expect(p2Patch!["p2_value"]).toBe("surface_elo=1490");
+  });
+
+  it("refuses the write when the stat's player cannot be attributed to one side without guessing", () => {
+    // Two players sharing a surname: matchSideForName returns null rather than picking one.
+    const ambiguous = { p1Name: "Alex Zverev", p2Name: "Mischa Zverev", retrievedAt: CTX.retrievedAt };
+    const families = new Map([["001", [statFor("Zverev")("surface_elo", 1830)]]]);
+    expect(pass2WriteBackPatch({ id: "x4", metric_code: "M01", p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, ambiguous)).toBeNull();
+  });
+
+  // ---- PROVENANCE ---------------------------------------------------------------------
+  it("merges the row's existing sources and stamps its own with the side they belong to", () => {
+    const families = new Map([["001", [p2Stat("surface_elo", 1490)]]]);
+    const patch = pass2WriteBackPatch(
+      { id: "r5", metric_code: "M01", p2_treatment: "UNAVAILABLE", p2_value: null, sources: [{ source_name: "P1 side source", url: "https://example.test/p1", player_side: "P1" }] },
+      "p2", families, CTX,
+    );
+    const sources = patch!["sources"] as Array<{ source_name: string; player_side?: string }>;
+    // P1's provenance survives, P2's is added, and each says which side it describes.
+    expect(sources).toEqual([
+      { source_name: "P1 side source", url: "https://example.test/p1", player_side: "P1" },
+      { source_name: `dossier reconstruction (${P2})`, player_side: "P2" },
+    ]);
+  });
+
+  // ---- TERMINAL STATES ----------------------------------------------------------------
   it("never resurrects a settled EXCLUDED/NO_SOURCE row for a code the Truth Engine cannot grade", () => {
     // 042 is quarantined and 048 is META_OR_NON_PLAYER: both are instantiated settled and
     // must never be handed player evidence by any path, including this one.
-    const families = new Map([["042", [stat("win_pct", 60)]], ["048", [stat("win_pct", 60)]]]);
+    const families = new Map([["042", [p1Stat("win_pct", 60)]], ["048", [p1Stat("win_pct", 60)]]]);
     for (const code of ["M42", "M48"]) {
-      expect(pass2WriteBackPatch({ id: code, metric_code: code, p1_treatment: "EXCLUDED", p1_value: null }, "p1", families, "2026-04-12T00:00:00.000Z")).toBeNull();
+      expect(pass2WriteBackPatch({ id: code, metric_code: code, p1_treatment: "EXCLUDED", p1_value: null }, "p1", families, CTX)).toBeNull();
     }
+  });
+
+  it("never resurrects a terminal EXCLUDED/NO_SOURCE side even on an active, gradeable code", () => {
+    // Independent of the registry: the terminal state itself is the barrier, so a future
+    // reclassification cannot quietly reopen this path.
+    const families = new Map([["001", [p1Stat("surface_elo", 1830)]]]);
+    for (const terminal of ["EXCLUDED", "NO_SOURCE"]) {
+      expect(pass2WriteBackPatch({ id: "t1", metric_code: "M01", p1_status: terminal, p1_treatment: "UNAVAILABLE", p1_value: null }, "p1", families, CTX)).toBeNull();
+      expect(pass2WriteBackPatch({ id: "t2", metric_code: "M01", p1_status: "NOT STARTED", p1_treatment: terminal, p1_value: null }, "p1", families, CTX)).toBeNull();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WORKER RESTART MUST NOT PRODUCE P1/P2 ASYMMETRY
+// ---------------------------------------------------------------------------
+//
+// The end-to-end counterpart to the resume-semantics unit tests above. A run is driven in
+// deliberately tiny slices so the metric-execution stages time out PARTIAL and resume many
+// times -- the worker-restart shape -- and both players must come out having been researched
+// identically. Note this suite passes against the OLD positional cursor too: with a stable
+// row set and ordering the cursor arithmetic is correct, which is exactly why the defect is
+// a latent fragility rather than something the fixture reproduces. The order-independence
+// unit test above is what actually distinguishes the two implementations.
+describe("interrupted-and-resumed runs treat both players identically", () => {
+  /** Drives the pipeline in small slices until it completes, recording every research call. */
+  async function driveInSlices(budgetMs: number) {
+    const { deps, tables } = makeMemoryDeps();
+    const calls: Array<{ side: string; code: string }> = [];
+    deps.research = {
+      ...researcher,
+      async metrics(input) {
+        for (const metric of input.metrics) calls.push({ side: String(input.researchSide), code: String(metric.code) });
+        // Real latency, so the stage deadline genuinely trips BETWEEN batches rather than
+        // the whole stage fitting inside one slice. With METRIC_BATCH=15 this makes each
+        // metric-execution stage go PARTIAL part-way through and resume -- the shape a
+        // worker restart produces.
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        return researcher.metrics(input);
+      },
+    };
+    let slices = 1;
+    let result = await runPipeline(deps, MATCH_ID, { budgetMs });
+    while (!result.complete && slices < 80) {
+      result = await runPipeline(deps, MATCH_ID, { budgetMs });
+      slices += 1;
+    }
+    return { deps, tables, calls, result, slices };
+  }
+
+  it("researches every eligible metric for BOTH sides across many interrupted slices", async () => {
+    const { tables, calls, result, slices } = await driveInSlices(40);
+    expect(result.complete).toBe(true);
+    expect(slices, "the run must actually have been interrupted, or this proves nothing").toBeGreaterThan(1);
+
+    const researchable = tables["metric_results"]!
+      .filter((row) => !["EXCLUDED", "NO_SOURCE"].includes(String(row["p1_status"])) && !["EXCLUDED", "NO_SOURCE"].includes(String(row["p2_status"])))
+      .map((row) => String(row["metric_code"]));
+    const seen = (side: string) => new Set(calls.filter((call) => call.side === side).map((call) => call.code));
+    const p1Seen = seen("p1");
+    const p2Seen = seen("p2");
+
+    // THE INVARIANT. Not "P2 got a similar number" -- exactly the same set of codes.
+    expect([...p2Seen].sort()).toEqual([...p1Seen].sort());
+    for (const code of researchable) {
+      expect(p1Seen.has(code), `${code} was never researched for P1`).toBe(true);
+      expect(p2Seen.has(code), `${code} was never researched for P2`).toBe(true);
+    }
+  }, 60_000);
+
+  it("leaves no side-asymmetric evidence gap once the interrupted run settles", async () => {
+    const { tables, result } = await driveInSlices(40);
+    expect(result.complete).toBe(true);
+    const usable = (row: Record<string, unknown>, side: "p1" | "p2") =>
+      ["DIRECT", "RECONSTRUCTED", "PARTIAL"].includes(String(row[`${side}_treatment`])) && String(row[`${side}_value`] ?? "").trim() !== "";
+    const oneSided = tables["metric_results"]!.filter((row) => usable(row, "p1") !== usable(row, "p2"));
+    expect(oneSided.map((row) => String(row["metric_code"]))).toEqual([]);
+  }, 60_000);
+
+  it("is idempotent: re-driving a settled run researches nothing further", async () => {
+    const { deps, calls, result } = await driveInSlices(300_000);
+    expect(result.complete).toBe(true);
+    const before = calls.length;
+    for (let again = 0; again < 3; again++) await runPipeline(deps, MATCH_ID, { budgetMs: 300_000 });
+    expect(calls.length).toBe(before);
+  }, 60_000);
+
+  it("a resumed slice never overwrites the other player's already-settled evidence", async () => {
+    const { tables } = await driveInSlices(40);
+    for (const row of tables["metric_results"]!) {
+      if (["EXCLUDED", "NO_SOURCE"].includes(String(row["p1_status"]))) continue;
+      // Each side ends carrying its own value, not a copy of the other's.
+      if (String(row["p1_value"] ?? "") && String(row["p2_value"] ?? "")) {
+        expect(String(row["p1_status"])).not.toBe("NOT STARTED");
+        expect(String(row["p2_status"])).not.toBe("NOT STARTED");
+      }
+    }
+  }, 60_000);
+});
+
+// ---------------------------------------------------------------------------
+// DENOMINATOR ELIGIBILITY: only a producer's own evidenced absence may excuse
+// ---------------------------------------------------------------------------
+//
+// metric-activation-status.ts is a correct classifier, but it can only be as right as the
+// reason the pipeline persists for it. Two fallbacks in metricPairPatch used to collapse
+// onto NO_SOURCE_FOUND -- which reads as SOURCE_EMPTY, one of the three denominator-excused
+// statuses -- for cases that proved nothing: a provider error, and a producer that returned
+// nothing and said nothing. These tests pin the persisted reason at the boundary where it is
+// actually decided.
+describe("metricPairPatch persists a reason that only excuses a genuinely evidenced absence", () => {
+  const finding = (over: Partial<Parameters<typeof metricPairPatch>[0] & object> = {}) => ({
+    metric_code: "011", p1_value: null, p2_value: null,
+    p1_treatment: "UNAVAILABLE" as const, p2_treatment: "UNAVAILABLE" as const,
+    differential: null, evidence_family: null, reliability: null, sample: null,
+    unavailable_reason: null, sources: [], ...over,
+  });
+  const classify = (patch: Record<string, unknown>, side: "p1" | "p2") =>
+    classifySideActivation({ executed: true, treatment: String(patch[`${side}_treatment`]), value: patch[`${side}_value`] as string | null, reason: patch[`${side}_unavailable_reason`] as string });
+
+  it("a producer's own evidenced absence still excuses the metric", () => {
+    const patch = metricPairPatch(finding({ unavailable_reason: "No source carried this metric." }), null, NOW);
+    expect(patch["p1_unavailable_reason"]).toBe("NO_SOURCE_FOUND");
+    expect(classify(patch, "p1")).toBe("SOURCE_EMPTY");
+    expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(true);
+  });
+
+  it("an insufficient-sample answer still excuses the metric", () => {
+    const patch = metricPairPatch(finding({ unavailable_reason: "Only 2 matches in the window; sample too small." }), null, NOW);
+    expect(classify(patch, "p1")).toBe("INSUFFICIENT_SAMPLE");
+    expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(true);
+  });
+
+  it("a provider failure cannot silently leave the denominator", () => {
+    // Previously: providerError -> generic placeholder text -> unavailableReason() default
+    // -> NO_SOURCE_FOUND -> SOURCE_EMPTY -> excused. A provider that errored never
+    // established that the source is empty.
+    const patch = metricPairPatch(finding(), "socket hang up while calling the research provider", NOW);
+    expect(patch["p1_unavailable_reason"]).toBe("PRODUCER_FAILED_WITHOUT_REASON");
+    expect(classify(patch, "p1")).toBe("PRODUCER_FAILURE");
+    expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(false);
+  });
+
+  it("a classifiable provider failure keeps its specific reason and still stays in the denominator", () => {
+    const patch = metricPairPatch(finding(), "401 Unauthorized: bad api key", NOW);
+    expect(patch["p1_unavailable_reason"]).toBe("PROVIDER_AUTH_FAILED");
+    expect(classify(patch, "p1")).toBe("PRODUCER_FAILURE");
+    expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(false);
+  });
+
+  it("a metric with no unavailable reason at all is not automatically excused", () => {
+    const patch = metricPairPatch(finding(), null, NOW);
+    expect(patch["p1_unavailable_reason"]).toBe("PRODUCER_FAILED_WITHOUT_REASON");
+    expect(classify(patch, "p1")).toBe("PRODUCER_FAILURE");
+    expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(false);
+  });
+
+  it("classifies P1 and P2 independently from their own per-side reasons", () => {
+    const patch = metricPairPatch(
+      finding({ p1_unavailable_reason: "No source carried this metric.", p2_unavailable_reason: "Parser could not read the provider payload." }),
+      null, NOW,
+    );
+    expect(classify(patch, "p1")).toBe("SOURCE_EMPTY");
+    expect(classify(patch, "p2")).toBe("PARSE_FAILURE");
+    // One excused side and one broken side keeps the metric IN the denominator.
+    expect(classifyMetricActivation("011",
+      { executed: true, treatment: "UNAVAILABLE", value: null, reason: patch["p1_unavailable_reason"] as string },
+      { executed: true, treatment: "UNAVAILABLE", value: null, reason: patch["p2_unavailable_reason"] as string },
+    ).countsTowardDenominator).toBe(true);
+  });
+
+  it("a field-contract miss is reported as such rather than as an empty source", () => {
+    // The producer DID return a value; it just wasn't the metric's declared quantity.
+    const patch = metricPairPatch(finding({ p1_value: "aces=7", p1_treatment: "DIRECT" }), null, NOW);
+    expect(patch["p1_value"]).toBeNull();
+    expect(patch["p1_treatment"]).toBe("UNAVAILABLE");
+    expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(false);
   });
 });
 
