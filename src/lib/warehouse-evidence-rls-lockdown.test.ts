@@ -21,7 +21,9 @@ import { describe, expect, it } from "vitest";
 //      so this is exactly the kind of break that ships unnoticed.
 
 const repoRoot = resolve(process.cwd());
-const migrationPath = resolve(repoRoot, "supabase/migrations/20260910230000_warehouse_evidence_rls_lockdown.sql");
+// Filename version is the PRODUCTION LEDGER version, so `supabase db push` recognises this
+// migration as already applied instead of replaying it under a second version.
+const migrationPath = resolve(repoRoot, "supabase/migrations/20260910213746_warehouse_evidence_rls_lockdown.sql");
 const sql = readFileSync(migrationPath, "utf8");
 // The "stays minimal" assertions below are about what the migration EXECUTES, not what its
 // header explains. That header deliberately quotes the whole-schema statements this file

@@ -1,3 +1,32 @@
+-- SUPERSEDED -- DELIBERATELY NOT IN supabase/migrations/.
+--
+-- This is the original whole-schema RLS overhaul. It was never applied to production (the
+-- ledger has no 20260826103000 row), and it must not be applied now, so it is kept here as
+-- reference rather than left where `supabase db push` would pick it up.
+--
+-- WHY IT WOULD BREAK PRODUCTION. Its section 2 runs
+--     revoke all on all tables in schema public from anon;
+-- and re-grants SELECT to `authenticated` only, gating every write behind
+-- has_role('admin'). Production has ZERO auth.users, so the live UI reaches Postgres as
+-- `anon`. Applying this takes the entire application offline -- every board, slate and match
+-- page goes blank -- and there is no admin account for the bootstrap in section 1 to find.
+-- Its section 3 also drops permissive policies by pattern, which would remove the scoped
+-- browser_read/browser_write policies the current posture depends on, and its section 5
+-- re-grants `authenticated` full DML on user-owned tables.
+--
+-- WHAT REPLACED IT. Three intentionally scoped migrations, all applied and verified:
+--   20260910213746 warehouse_evidence_rls_lockdown      (the four warehouse tables)
+--   20260911091646 decision_table_write_lockdown         (decision tables read-only to browser)
+--   20260911095459 security_definer_rpc_lockdown         (SECURITY DEFINER RPCs -> service_role)
+--   20260911104922 calibration_control_plane_lockdown    (calibration tables read-only)
+-- Together these close the same attack surface (browser roles cannot fabricate evidence,
+-- verdicts or calibration, and cannot execute privileged RPCs) while preserving the anonymous
+-- SELECT the UI currently requires.
+--
+-- Restoring this file to supabase/migrations/ is only correct AFTER a deliberate
+-- authentication migration: real auth.users exist, an admin role is assigned, and the UI
+-- signs in rather than reading as anon.
+
 -- Supabase security/RLS repair.
 -- Security-only migration: does not alter Evidence Coverage metrics, evidence classifications,
 -- identity logic, PBP logic, market logic, or coverage calculations.

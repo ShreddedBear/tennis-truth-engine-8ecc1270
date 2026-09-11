@@ -14,7 +14,9 @@ import { describe, expect, it } from "vitest";
 const repoRoot = resolve(process.cwd());
 const CALIBRATION_TABLES = ["calibration_ledger", "calibration_versions", "calibration_buckets"] as const;
 
-const lockdownSql = readFileSync(resolve(repoRoot, "supabase/migrations/20260911110000_calibration_control_plane_lockdown.sql"), "utf8");
+// Filename version is the PRODUCTION LEDGER version (see the reconciliation note in
+// docs/), so `supabase db push` treats this migration as applied rather than replaying it.
+const lockdownSql = readFileSync(resolve(repoRoot, "supabase/migrations/20260911104922_calibration_control_plane_lockdown.sql"), "utf8");
 const executable = lockdownSql
   .split("\n")
   .filter((line) => !line.trimStart().startsWith("--"))
