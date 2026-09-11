@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compareMetricRows, type MetricRowForComparison } from "./truth-engine-metric-comparison";
 import { runTruthEngineAudit } from "./truth-engine-audit";
-import { underdogRowPatch } from "./truth-engine-stage-mapping";
+import { underdogRowPatch, stressRowPatch, STRESS_NOT_RUN } from "./truth-engine-stage-mapping";
 
 const P1 = "Alpha Player";
 const P2 = "Beta Player";
@@ -105,5 +105,23 @@ describe("underdogRowPatch — side binding is unambiguous or it is refused", ()
     const patch = underdogRowPatch("SURFACE_TRANSITION", "Player", audit, "Same Player", "Same Player", NOW);
     expect(patch.evaluated).toBe(false);
     expect(patch.patch["status"]).toBe("UNAVAILABLE");
+  });
+});
+
+describe("stressRowPatch — a test that never ran is not a failed test", () => {
+  const audit = auditOf(MIXED);
+
+  it.each(["ST04", "ST08", "ST09", "ST10"])("%s persists NOT_RUN, never UNSTABLE", (code) => {
+    const patch = stressRowPatch(code, audit, NOW);
+    expect(patch.evaluated).toBe(false);
+    expect(patch.patch["status"]).toBe("UNAVAILABLE");
+    expect(patch.patch["outcome"]).toBe(STRESS_NOT_RUN);
+    expect(patch.patch["outcome"]).not.toBe("UNSTABLE");
+  });
+
+  it("a test that did run still reports its real outcome", () => {
+    const patch = stressRowPatch("ST05", audit, NOW);
+    expect(patch.patch["status"]).toBe("COMPLETE");
+    expect(["STABLE", "UNSTABLE"]).toContain(patch.patch["outcome"]);
   });
 });

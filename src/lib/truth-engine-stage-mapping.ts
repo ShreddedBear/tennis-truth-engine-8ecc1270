@@ -192,6 +192,21 @@ const FAMILY_TO_PATHWAY_CODE: Record<string, string> = {
   SET_PROFILE: "DECIDING_SET",
 };
 
+/**
+ * The outcome persisted for a stress test that never executed.
+ *
+ * ST04/ST08/ST09/ST10 have no deterministic evidence path, so they are always UNAVAILABLE --
+ * and they used to be written with outcome "UNSTABLE", i.e. a never-run test recorded as a
+ * failed one. 240 such rows existed in production (60 of each). Because the DOUBLE GREEN
+ * predicate required every stress row to read "STABLE", that made DOUBLE GREEN structurally
+ * unreachable for every match, permanently, regardless of the evidence.
+ *
+ * A distinct, non-failing value keeps "we did not run this" separate from "this failed".
+ * stress_results carries no CHECK constraint on `outcome` (verified against production), so
+ * the new value needs no migration.
+ */
+export const STRESS_NOT_RUN = "NOT_RUN";
+
 /** Pathways no active metric can establish, with the reason. Honest rather than silent. */
 const PATHWAY_MISSING_EVIDENCE: Record<string, string> = {
   SERVE_THROUGH: "serve-hold/point-level evidence (metrics 002/016 families) is not among the active comparable set for this match.",
@@ -374,7 +389,9 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
         evaluated: false,
         patch: {
           winner_before: null, winner_after: null, range_before: null, range_after: null,
-          outcome: "UNSTABLE", status: "UNAVAILABLE",
+          // NOT_RUN, never UNSTABLE: no selection existed to stress, which is not a finding
+          // of instability. See the note on STRESS_NOT_RUN below.
+          outcome: STRESS_NOT_RUN, status: "UNAVAILABLE",
           unavailable_reason: "MISSING_REQUIRED_INPUT",
           unavailable_detail: "No side was selected on the available evidence, so there is no selection to stress-test.",
           provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,
@@ -400,7 +417,7 @@ export function stressRowPatch(testCode: unknown, audit: TruthEngineAuditResult,
     evaluated: false,
     patch: {
       winner_before: rangeOf(before), winner_after: null, range_before: null, range_after: null,
-      outcome: "UNSTABLE", status: "UNAVAILABLE",
+      outcome: STRESS_NOT_RUN, status: "UNAVAILABLE",
       unavailable_reason: "MISSING_REQUIRED_INPUT",
       unavailable_detail: STRESS_MISSING_EVIDENCE[code] ?? "No deterministic evidence path for this stress test.",
       provider_error: null, missing_inputs: [], sources: [], source_attempts: [], reconstruction_attempted: false, retrieved_at: now,

@@ -254,6 +254,7 @@ export function evaluate(input: EngineInput): GateReport {
     (!!run.independent_decision_committed_at &&
       new Date(run.matrix_revealed_at).getTime() >= new Date(run.independent_decision_committed_at).getTime());
 
+  const completedStressTests = input.stress.filter((s) => s.status === "COMPLETE");
   const matrixRemoval = input.stress.filter((s) => s.test_code === "ST01" || s.test_code === "ST02");
   const matrixRemovalSurvived =
     matrixRemoval.length > 0 &&
@@ -262,8 +263,14 @@ export function evaluate(input: EngineInput): GateReport {
   const familyRemovalSurvived =
     !!familyRemoval && familyRemoval.status === "COMPLETE" && familyRemoval.outcome !== "FAILS";
 
+  // Strong pathways held by the player who was NOT selected. underdog_results.player_side
+  // stores a player name, so the comparison is normalised rather than exact -- and with
+  // both players now receiving a pathway census, this filter is what keeps the winner's own
+  // pathways from counting as opposition to itself.
+  const normaliseName = (value: string | null | undefined) => String(value ?? "").trim().toLowerCase();
+  const selectedName = normaliseName(run.independent_winner);
   const strongUnderdogPathways = input.underdog.filter(
-    (u) => u.classification === "STRONG" && u.player_side !== (run.independent_winner ?? ""),
+    (u) => u.classification === "STRONG" && (selectedName === "" || normaliseName(u.player_side) !== selectedName),
   ).length;
   const unresolvedCritical =
     input.verification.some((v) => v.outcome === "FAIL" && v.severity === "CRITICAL") ||
@@ -376,7 +383,13 @@ export function evaluate(input: EngineInput): GateReport {
     color = "YELLOW";
   } else if (
     effectiveEvidenceCount >= 5 &&
-    input.stress.every((s) => s.outcome === "STABLE") &&
+    // Only tests that ACTUALLY RAN can withhold DOUBLE GREEN. A row left UNAVAILABLE
+    // because no deterministic evidence path exists for it (ST04/08/09/10) is not a
+    // failure, and requiring it to read STABLE made DOUBLE GREEN unreachable for every
+    // match. At least one test must have run, so an all-unavailable set never qualifies
+    // vacuously.
+    completedStressTests.length > 0 &&
+    completedStressTests.every((s) => s.outcome === "STABLE") &&
     strongUnderdogPathways === 0 &&
     !input.underdog.some((u) => u.classification === "UNRESOLVED")
   ) {

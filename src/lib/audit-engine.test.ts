@@ -398,6 +398,38 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     };
   }
 
+  describe("DOUBLE GREEN is reachable when a stress test never ran", () => {
+    // REGRESSION. ST04/ST08/ST09/ST10 have no deterministic evidence path and are always
+    // persisted UNAVAILABLE. They used to carry outcome "UNSTABLE", and the DOUBLE GREEN
+    // predicate required EVERY stress row to read "STABLE" -- so DOUBLE GREEN was
+    // structurally unreachable for every match, forever, whatever the evidence said.
+    const notRun = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT_RUN" });
+
+    it("an unavailable, never-run test does not withhold DOUBLE GREEN", () => {
+      const base = fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 });
+      const withNotRun = evaluate({ ...base, stress: [...cleanStress, notRun("ST04"), notRun("ST08"), notRun("ST09"), notRun("ST10")] });
+      const withoutThem = evaluate(base);
+      expect(withNotRun.color).toBe(withoutThem.color);
+      expect(withNotRun.color).toBe("DOUBLE GREEN");
+    });
+
+    it("a test that DID run and failed still withholds DOUBLE GREEN", () => {
+      const report = evaluate({
+        ...fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 }),
+        stress: [...cleanStress, { status: "COMPLETE", test_code: "ST05", outcome: "UNSTABLE" }],
+      });
+      expect(report.color).not.toBe("DOUBLE GREEN");
+    });
+
+    it("a stress set with nothing completed never qualifies vacuously", () => {
+      const report = evaluate({
+        ...fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 }),
+        stress: [notRun("ST04"), notRun("ST08")],
+      });
+      expect(report.color).not.toBe("DOUBLE GREEN");
+    });
+  });
+
   // The persisted "committed" check detail is `run.independent_winner` verbatim
   // (see the checks array above) -- the reliable, color-independent way to read
   // back the actual Truth Engine winner regardless of what color/action say.
