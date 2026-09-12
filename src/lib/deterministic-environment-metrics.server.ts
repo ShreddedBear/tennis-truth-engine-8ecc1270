@@ -1,8 +1,11 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, eq, gte, lte } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import type { MetricFinding } from "./audit-pipeline";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
-const db = supabaseAdmin as any;
 const SUPPORTED = new Set(["021", "030", "060", "071"]);
 const KEYS = [
   "temperature_2m",
@@ -61,22 +64,24 @@ export async function deterministicEnvironmentMetric(args: {
   const tournament = String(args.tournament ?? "").trim();
   if (!tournament) return null;
 
-  const query = db
-    .from("source_observations")
-    .select("source_id,source_name,source_url,tournament,event_date,observation_type,observation_key,numeric_value,unit,raw_payload")
-    .eq("source_id", "open_meteo")
-    .eq("observation_type", "ENVIRONMENT")
-    .eq("tournament", tournament)
+  const query = () => db
+    .select()
+    .from(sourceObservationsTable)
+    .where(and(
+      eq(sourceObservationsTable.source_id, "open_meteo"),
+      eq(sourceObservationsTable.observation_type, "ENVIRONMENT"),
+      eq(sourceObservationsTable.tournament, tournament),
     // Upper bound is the match day itself, never after it (Phase 14 temporal sweep). The
     // match-day environment row is legitimately pre-match information -- venue weather is
     // forecast and published before play, and unlike a result it carries no outcome -- but
     // the day AFTER the match is not available to a pre-match audit under any reading, and
     // the previous `asOfDate + 1` bound admitted it. The -1 lower bound is retained: it
     // absorbs the feed's timezone boundary for late local starts recorded in UTC.
-    .gte("event_date", isoShift(args.asOfDate, -1))
-    .lte("event_date", args.asOfDate);
+      gte(sourceObservationsTable.event_date, isoShift(args.asOfDate, -1)),
+      lte(sourceObservationsTable.event_date, args.asOfDate),
+    ));
 
-  const { data, error } = await query;
+  const { data, error } = await tryQuery(query);
   if (error) return null;
 
   const rows = ((data ?? []) as EnvRow[]).filter((row) =>

@@ -40,8 +40,11 @@ const COLUMN_TYPE_TO_UDT: Record<string, string> = {
   PgNumeric: "numeric",
   PgJsonb: "jsonb",
   PgDateString: "date",
+  // String mode on both, deliberately -- see the driver type parsers in client.server.ts.
+  // PgTimestamp (Drizzle's Date-mode class) must NOT appear in this map: if a column ever
+  // regresses to Date mode, udtOf throws and the conformance test fails loudly rather than
+  // letting JS Dates leak into row shapes that ~200 call sites read as strings.
   PgTimestampString: "timestamptz",
-  PgTimestamp: "timestamptz",
   PgEnumColumn: "app_role",
 };
 

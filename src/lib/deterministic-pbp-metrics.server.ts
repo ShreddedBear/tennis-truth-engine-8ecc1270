@@ -1,4 +1,8 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, desc, gte, ilike, inArray, isNull, lt, lte } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { matchesTable, sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
@@ -16,7 +20,6 @@ import { isBeforeCutoff } from "./temporal-boundary";
 // the match, so it is excluded rather than assumed prior. This tier is shared by every
 // POINT_BY_POINT metric (002/003/009/016/018/032/034/053), so the fix applies to all of
 // them at once. See truth-engine-temporal-integrity.leakage.test.ts.
-const db = supabaseAdmin as any;
 const LEGACY_SUPPORTED = new Set(["016","024","025","033","042","043","044","060"]);
 // "034" and "053" added: both are computed by reconstructPbpScoreState (add("034",...)/
 // add("053",...)) and, once the matching bsd-*-pbp.server.ts PBP_CODES allowlist gap is
@@ -51,5 +54,5 @@ export function deterministicPbpMetricFromPacket(args:{metricCode:unknown;p1:str
 }
 
 export async function deterministicPbpMetric(args:{metricCode:unknown;p1:string;p2:string;asOfDate:string}):Promise<MetricFinding|null>{
- const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);const p1Aliases=safeEvidenceAliases(args.p1,args.p2),p2Aliases=safeEvidenceAliases(args.p2,args.p1),select="source_id,source_name,source_url,player_name,opponent_name,event_date,observation_type,observation_key,numeric_value,text_value,sample_label";const base=()=>db.from("source_observations").select(select).gte("event_date",start.toISOString().slice(0,10)).lt("event_date",args.asOfDate).in("observation_type",["POINT_BY_POINT","PBP"]).order("event_date",{ascending:false}).limit(1200);const[p1Result,p2Result]=await Promise.all([base().in("player_name",p1Aliases),base().in("player_name",p2Aliases)]);if(p1Result.error&&p2Result.error)return null;const rows=[...((p1Result.error?[]:p1Result.data??[])as Row[]),...((p2Result.error?[]:p2Result.data??[])as Row[])].filter(row=>metricAllowsObservation(code,row));if(!rows.length)return null;const p1=warehouseText(warehouseSummary(args.p1,args.p2,rows)),p2=warehouseText(warehouseSummary(args.p2,args.p1,rows));if(!p1&&!p2)return null;return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1?"PARTIAL":"UNAVAILABLE",p2_treatment:p2?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"POINT_BY_POINT",reliability:75,sample:`warehouse PBP through ${args.asOfDate}; metric-specific raw-field provenance not guaranteed`,unavailable_reason:"Persisted generic PBP remains PARTIAL unless a tour-scoped Task 18B packet proves the metric-specific raw-field contract.",sources:sourceRefs(rows)};
+ const code=codeOf(args.metricCode);if(!SUPPORTED.has(code))return null;const start=new Date(`${args.asOfDate}T00:00:00Z`);start.setUTCFullYear(start.getUTCFullYear()-2);const p1Aliases=safeEvidenceAliases(args.p1,args.p2),p2Aliases=safeEvidenceAliases(args.p2,args.p1),forSide=(aliases:string[])=>tryQuery(()=>db.select().from(sourceObservationsTable).where(and(gte(sourceObservationsTable.event_date,start.toISOString().slice(0,10)),lt(sourceObservationsTable.event_date,args.asOfDate),inArray(sourceObservationsTable.observation_type,["POINT_BY_POINT","PBP"]),inArray(sourceObservationsTable.player_name,aliases))).orderBy(desc(sourceObservationsTable.event_date)).limit(1200));const[p1Result,p2Result]=await Promise.all([forSide(p1Aliases),forSide(p2Aliases)]);if(p1Result.error&&p2Result.error)return null;const rows=[...((p1Result.error?[]:p1Result.data??[])as Row[]),...((p2Result.error?[]:p2Result.data??[])as Row[])].filter(row=>metricAllowsObservation(code,row));if(!rows.length)return null;const p1=warehouseText(warehouseSummary(args.p1,args.p2,rows)),p2=warehouseText(warehouseSummary(args.p2,args.p1,rows));if(!p1&&!p2)return null;return{metric_code:code,p1_value:p1,p2_value:p2,p1_treatment:p1?"PARTIAL":"UNAVAILABLE",p2_treatment:p2?"PARTIAL":"UNAVAILABLE",differential:null,evidence_family:"POINT_BY_POINT",reliability:75,sample:`warehouse PBP through ${args.asOfDate}; metric-specific raw-field provenance not guaranteed`,unavailable_reason:"Persisted generic PBP remains PARTIAL unless a tour-scoped Task 18B packet proves the metric-specific raw-field contract.",sources:sourceRefs(rows)};
 }

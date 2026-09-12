@@ -1,6 +1,5 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { enabledGeoTargets, markTargetIngested, upsertObservations } from "./warehouse-repo.server";
 
-const db = supabaseAdmin as any;
 const HOURLY = [
   "temperature_2m",
   "relative_humidity_2m",
@@ -30,14 +29,7 @@ function fiveYearsAgo() {
 }
 
 export async function ingestOpenMeteoHistorical() {
-  const { data: targets, error } = await db
-    .from("ingestion_targets")
-    .select("id,target_key,latitude,longitude,timezone,tournament,pullback_start,pullback_end")
-    .eq("source_id", "open_meteo")
-    .eq("enabled", true)
-    .not("latitude", "is", null)
-    .not("longitude", "is", null);
-  if (error) throw error;
+  const targets = await enabledGeoTargets("open_meteo");
 
   let written = 0;
   for (const target of (targets ?? []) as Target[]) {
@@ -82,11 +74,9 @@ export async function ingestOpenMeteoHistorical() {
     }
     for (let i = 0; i < rows.length; i += 1000) {
       const chunk = rows.slice(i, i + 1000);
-      const { error: insertError } = await db.from("source_observations").upsert(chunk, { onConflict: "source_id,source_record_key" });
-      if (insertError) throw insertError;
-      written += chunk.length;
+      written += await upsertObservations(chunk, { ignoreDuplicates: false });
     }
-    await db.from("ingestion_targets").update({ last_ingested_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", target.id);
+    await markTargetIngested(target.id);
   }
-  return { targets: targets?.length ?? 0, observations_written: written };
+  return { targets: targets.length, observations_written: written };
 }

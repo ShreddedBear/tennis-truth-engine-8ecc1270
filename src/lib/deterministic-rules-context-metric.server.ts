@@ -1,8 +1,10 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { desc, lte } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { metricAllowsObservation } from "./metric-source-family-policy";
-
-const db=supabaseAdmin as any;
 
 type Row={source_id:string|null;source_name:string|null;source_url:string|null;observation_type:string|null;observation_key:string|null;text_value:string|null;event_date:string|null;};
 
@@ -11,7 +13,7 @@ function sources(rows:Row[]):SourceRef[]{const seen=new Set<string>();const out:
 export async function deterministicRulesContextMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;context?:string|null}):Promise<MetricFinding|null>{
   const code=String(args.metricCode).match(/(\d{1,3})$/)?.[1]?.padStart(3,"0")??String(args.metricCode).padStart(3,"0");
   if(code!=="075")return null;
-  const {data,error}=await db.from("source_observations").select("source_id,source_name,source_url,observation_type,observation_key,text_value,event_date").lte("event_date",args.asOfDate).order("event_date",{ascending:false}).limit(300);
+  const {data,error}=await tryQuery(()=>db.select().from(sourceObservationsTable).where(lte(sourceObservationsTable.event_date,args.asOfDate)).orderBy(desc(sourceObservationsTable.event_date)).limit(300));
   if(error)return null;
   const rows=((data??[]) as Row[]).filter(r=>metricAllowsObservation(code,r));
   if(!rows.length)return null;

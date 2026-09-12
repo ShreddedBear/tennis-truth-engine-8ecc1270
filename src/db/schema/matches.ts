@@ -36,13 +36,13 @@ export const matchesTable = pgTable("matches", {
   result_status: text("result_status").notNull().default("UNKNOWN"),
   actual_winner: text("actual_winner"),
   final_score: text("final_score"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   tournament_timezone: text("tournament_timezone"),
-  scheduled_local_at: timestamp("scheduled_local_at", { withTimezone: true }),
-  scheduled_utc_at: timestamp("scheduled_utc_at", { withTimezone: true }),
-  actual_first_serve_at: timestamp("actual_first_serve_at", { withTimezone: true }),
-  result_recorded_at: timestamp("result_recorded_at", { withTimezone: true }),
+  scheduled_local_at: timestamp("scheduled_local_at", { withTimezone: true, mode: "string" }),
+  scheduled_utc_at: timestamp("scheduled_utc_at", { withTimezone: true, mode: "string" }),
+  actual_first_serve_at: timestamp("actual_first_serve_at", { withTimezone: true, mode: "string" }),
+  result_recorded_at: timestamp("result_recorded_at", { withTimezone: true, mode: "string" }),
   slate_id: uuid("slate_id"),
 });
 
@@ -57,7 +57,7 @@ export const playersTable = pgTable("players", {
   normalized_key: text("normalized_key").notNull(),
   tour: text("tour"),
   aliases: text("aliases").array().notNull().default(sql`'{}'::text[]`),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertPlayersSchema = createInsertSchema(playersTable);
@@ -72,7 +72,7 @@ export const tournamentsTable = pgTable("tournaments", {
   event_level: text("event_level"),
   surface: text("surface"),
   indoor: boolean("indoor"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertTournamentsSchema = createInsertSchema(tournamentsTable);
@@ -88,7 +88,7 @@ export const matchIdentityRecordsTable = pgTable("match_identity_records", {
   verified_value: text("verified_value"),
   status: text("status").notNull().default("NOT STARTED"),
   note: text("note"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertMatchIdentityRecordsSchema = createInsertSchema(matchIdentityRecordsTable);
@@ -100,8 +100,8 @@ export const predictionSlatesTable = pgTable("prediction_slates", {
   user_id: uuid("user_id").notNull().default("00000000-0000-0000-0000-000000000001"),
   slate_number: integer("slate_number").notNull(),
   label: text("label"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  retired_at: timestamp("retired_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  retired_at: timestamp("retired_at", { withTimezone: true, mode: "string" }),
   retired_reason: text("retired_reason"),
 });
 

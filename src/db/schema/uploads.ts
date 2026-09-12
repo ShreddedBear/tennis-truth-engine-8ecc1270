@@ -20,7 +20,7 @@ export const summaryUploadsTable = pgTable("summary_uploads", {
   page_count: integer("page_count"),
   parse_status: text("parse_status").notNull().default("NOT STARTED"),
   raw_text: text("raw_text"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   pages_processed: integer("pages_processed").notNull().default(0),
   pages_vision: integer("pages_vision").notNull().default(0),
   pages_failed: integer("pages_failed").notNull().default(0),
@@ -39,7 +39,7 @@ export const summaryVersionsTable = pgTable("summary_versions", {
   version_number: integer("version_number").notNull().default(1),
   page_number: integer("page_number"),
   is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSummaryVersionsSchema = createInsertSchema(summaryVersionsTable);
@@ -57,7 +57,7 @@ export const summaryPagesTable = pgTable("summary_pages", {
   status: text("status").notNull().default("COMPLETE"),
   note: text("note"),
   text_content: text("text_content"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSummaryPagesSchema = createInsertSchema(summaryPagesTable);
@@ -75,7 +75,7 @@ export const parsedSummaryFieldsTable = pgTable("parsed_summary_fields", {
   confidence: numeric("confidence"),
   corrected: boolean("corrected").notNull().default(false),
   page_number: integer("page_number"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertParsedSummaryFieldsSchema = createInsertSchema(parsedSummaryFieldsTable);

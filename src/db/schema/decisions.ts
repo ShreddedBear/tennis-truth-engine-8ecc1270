@@ -26,8 +26,8 @@ export const finalDecisionsTable = pgTable("final_decisions", {
   matrix_firewall_valid: boolean("matrix_firewall_valid").notNull().default(true),
   calibration_bucket: text("calibration_bucket"),
   verified_win_rate: numeric("verified_win_rate"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   selected_player_id: uuid("selected_player_id"),
 });
 
@@ -45,7 +45,7 @@ export const probabilityMethodsTable = pgTable("probability_methods", {
   description: text("description"),
   params: jsonb("params").notNull().default(sql`'{}'::jsonb`),
   is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertProbabilityMethodsSchema = createInsertSchema(probabilityMethodsTable);
@@ -65,7 +65,7 @@ export const probabilityProvenanceTable = pgTable("probability_provenance", {
   inputs: jsonb("inputs").notNull().default(sql`'{}'::jsonb`),
   source_refs: jsonb("source_refs").notNull().default(sql`'[]'::jsonb`),
   interpretation_note: text("interpretation_note"),
-  computed_at: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+  computed_at: timestamp("computed_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertProbabilityProvenanceSchema = createInsertSchema(probabilityProvenanceTable);
@@ -80,7 +80,7 @@ export const formulaVersionsTable = pgTable("formula_versions", {
   formula: text("formula").notNull(),
   notes: text("notes"),
   is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertFormulaVersionsSchema = createInsertSchema(formulaVersionsTable);
@@ -101,7 +101,7 @@ export const overrideRecordsTable = pgTable("override_records", {
   requires_admin: boolean("requires_admin").notNull().default(false),
   changed_by: uuid("changed_by").notNull().default(sql`auth.uid()`),
   active: boolean("active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertOverrideRecordsSchema = createInsertSchema(overrideRecordsTable);
@@ -114,7 +114,7 @@ export const generatedReportsTable = pgTable("generated_reports", {
   title: text("title").notNull(),
   report_type: text("report_type").notNull().default("PROVISIONAL"),
   payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   template_version: text("template_version").notNull().default("v1"),
   validation: jsonb("validation").notNull().default(sql`'{}'::jsonb`),
   validation_status: text("validation_status").notNull().default("NOT VALIDATED"),
@@ -144,9 +144,9 @@ export const resultGradesTable = pgTable("result_grades", {
   correction_pattern: text("correction_pattern").notNull().default("UNCLASSIFIED"),
   counted_in_matrix_calibration: boolean("counted_in_matrix_calibration").notNull().default(false),
   note: text("note"),
-  graded_at: timestamp("graded_at", { withTimezone: true }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  graded_at: timestamp("graded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertResultGradesSchema = createInsertSchema(resultGradesTable);

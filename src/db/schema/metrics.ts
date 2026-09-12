@@ -20,8 +20,8 @@ export const metricRegistryTable = pgTable("metric_registry", {
   lifecycle_status: text("lifecycle_status").notNull().default("ACTIVE"),
   tour_eligibility: text("tour_eligibility").array().notNull().default(sql`'{}'::text[]`),
   evidence_family: text("evidence_family"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   user_id: uuid("user_id"),
 });
 
@@ -49,7 +49,7 @@ export const metricResultsTable = pgTable("metric_results", {
   evidence_family: text("evidence_family"),
   matrix_derived: boolean("matrix_derived").notNull().default(false),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   p1_treatment: text("p1_treatment").notNull().default("UNAVAILABLE"),
   p2_treatment: text("p2_treatment").notNull().default("UNAVAILABLE"),
   unavailable_reason: text("unavailable_reason"),
@@ -60,13 +60,13 @@ export const metricResultsTable = pgTable("metric_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
   p1_unavailable_reason: text("p1_unavailable_reason"),
   p2_unavailable_reason: text("p2_unavailable_reason"),
   p1_provider_error: text("p1_provider_error"),
   p2_provider_error: text("p2_provider_error"),
-  p1_retrieved_at: timestamp("p1_retrieved_at", { withTimezone: true }),
-  p2_retrieved_at: timestamp("p2_retrieved_at", { withTimezone: true }),
+  p1_retrieved_at: timestamp("p1_retrieved_at", { withTimezone: true, mode: "string" }),
+  p2_retrieved_at: timestamp("p2_retrieved_at", { withTimezone: true, mode: "string" }),
 });
 
 export const insertMetricResultsSchema = createInsertSchema(metricResultsTable);
@@ -80,7 +80,7 @@ export const metricCoverageRatesTable = pgTable("metric_coverage_rates", {
   treatment: text("treatment").notNull(),
   audit_run_id: uuid("audit_run_id").notNull(),
   usable: boolean("usable").notNull().default(false),
-  recorded_at: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  recorded_at: timestamp("recorded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   user_id: uuid("user_id"),
 });
 
@@ -109,10 +109,10 @@ export const metricEvidenceStoreTable = pgTable("metric_evidence_store", {
   formula: text("formula"),
   unavailable_reason: text("unavailable_reason"),
   valid_from: date("valid_from"),
-  valid_until: timestamp("valid_until", { withTimezone: true }),
-  computed_at: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  valid_until: timestamp("valid_until", { withTimezone: true, mode: "string" }),
+  computed_at: timestamp("computed_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertMetricEvidenceStoreSchema = createInsertSchema(metricEvidenceStoreTable);
@@ -132,7 +132,7 @@ export const evidenceFamilyCoverageTable = pgTable("evidence_family_coverage", {
   p1_covered: integer("p1_covered").notNull().default(0),
   p2_covered: integer("p2_covered").notNull().default(0),
   coverage_status: text("coverage_status").notNull().default("MISSING"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertEvidenceFamilyCoverageSchema = createInsertSchema(evidenceFamilyCoverageTable);

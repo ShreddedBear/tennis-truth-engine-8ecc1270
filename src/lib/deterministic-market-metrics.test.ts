@@ -8,8 +8,8 @@ describe("deterministic market metrics", () => {
   it("is scoped only to market metrics 015 019 043 044", () => {
     expect(calc).toContain('new Set(["015", "019", "043", "044"])');
     expect(calc).toContain('metricAllowsObservation(code, row)');
-    expect(calc).toContain('.eq("source_id", "odds_api")');
-    expect(calc).toContain('.eq("observation_type", "MARKET")');
+    expect(calc).toContain('eq(sourceObservationsTable.source_id, "odds_api")');
+    expect(calc).toContain('eq(sourceObservationsTable.observation_type, "MARKET")');
   });
 
   it("uses the verified June 6 2020 historical floor and de-vig math", () => {

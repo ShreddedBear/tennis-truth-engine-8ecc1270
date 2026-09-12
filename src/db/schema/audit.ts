@@ -18,9 +18,9 @@ export const auditRunsTable = pgTable("audit_runs", {
   user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
   match_id: uuid("match_id").notNull(),
   run_number: integer("run_number").notNull().default(1),
-  research_lock_at: timestamp("research_lock_at", { withTimezone: true }),
-  independent_decision_committed_at: timestamp("independent_decision_committed_at", { withTimezone: true }),
-  matrix_revealed_at: timestamp("matrix_revealed_at", { withTimezone: true }),
+  research_lock_at: timestamp("research_lock_at", { withTimezone: true, mode: "string" }),
+  independent_decision_committed_at: timestamp("independent_decision_committed_at", { withTimezone: true, mode: "string" }),
+  matrix_revealed_at: timestamp("matrix_revealed_at", { withTimezone: true, mode: "string" }),
   independent_winner: text("independent_winner"),
   independent_low: numeric("independent_low"),
   independent_high: numeric("independent_high"),
@@ -34,14 +34,14 @@ export const auditRunsTable = pgTable("audit_runs", {
   disagreement_version_id: uuid("disagreement_version_id"),
   metrics_version_id: uuid("metrics_version_id"),
   calibration_version_id: uuid("calibration_version_id"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   independent_method_id: uuid("independent_method_id"),
   independent_method_version: text("independent_method_version"),
   independent_inputs: jsonb("independent_inputs").notNull().default(sql`'{}'::jsonb`),
   lease_owner: text("lease_owner"),
-  lease_expires_at: timestamp("lease_expires_at", { withTimezone: true }),
-  heartbeat_at: timestamp("heartbeat_at", { withTimezone: true }),
+  lease_expires_at: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
+  heartbeat_at: timestamp("heartbeat_at", { withTimezone: true, mode: "string" }),
   independent_winner_id: uuid("independent_winner_id"),
   independent_winner_side: text("independent_winner_side"),
 });
@@ -59,16 +59,16 @@ export const auditStageRunsTable = pgTable("audit_stage_runs", {
   stage_order: integer("stage_order").notNull().default(0),
   status: text("status").notNull().default("PENDING"),
   attempts: integer("attempts").notNull().default(0),
-  started_at: timestamp("started_at", { withTimezone: true }),
-  finished_at: timestamp("finished_at", { withTimezone: true }),
+  started_at: timestamp("started_at", { withTimezone: true, mode: "string" }),
+  finished_at: timestamp("finished_at", { withTimezone: true, mode: "string" }),
   error_code: text("error_code"),
   error_message: text("error_message"),
   detail: jsonb("detail").notNull().default(sql`'{}'::jsonb`),
   done_count: integer("done_count").notNull().default(0),
   total_count: integer("total_count").notNull().default(0),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  heartbeat_at: timestamp("heartbeat_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  heartbeat_at: timestamp("heartbeat_at", { withTimezone: true, mode: "string" }),
 });
 
 export const insertAuditStageRunsSchema = createInsertSchema(auditStageRunsTable);
@@ -87,7 +87,7 @@ export const auditCoverageTable = pgTable("audit_coverage", {
   total_count: integer("total_count").notNull().default(0),
   usable_coverage_percent: numeric("usable_coverage_percent").notNull().default("0"),
   execution_completion_percent: numeric("execution_completion_percent").notNull().default("0"),
-  recorded_at: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  recorded_at: timestamp("recorded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   user_id: uuid("user_id"),
 });
 
@@ -108,7 +108,7 @@ export const auditColorLedgerTable = pgTable("audit_color_ledger", {
   matrix_prediction_result: text("matrix_prediction_result"),
   counted: boolean("counted").notNull().default(true),
   note: text("note"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertAuditColorLedgerSchema = createInsertSchema(auditColorLedgerTable);
@@ -129,7 +129,7 @@ export const executionLogsTable = pgTable("execution_logs", {
   status: text("status").notNull(),
   matrix_visible: boolean("matrix_visible").notNull().default(false),
   rule_version: text("rule_version"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertExecutionLogsSchema = createInsertSchema(executionLogsTable);
@@ -146,7 +146,7 @@ export const batchIntegrityChecksTable = pgTable("batch_integrity_checks", {
   duplicates: jsonb("duplicates").notNull().default(sql`'[]'::jsonb`),
   unresolved: jsonb("unresolved").notNull().default(sql`'[]'::jsonb`),
   status: text("status").notNull().default("MISMATCH"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertBatchIntegrityChecksSchema = createInsertSchema(batchIntegrityChecksTable);

@@ -25,7 +25,7 @@ export const rulesTable = pgTable("rules", {
   blocking: boolean("blocking").notNull().default(false),
   mapping_status: text("mapping_status").notNull().default("REQUIRES HUMAN RULE MAPPING"),
   machine_logic: jsonb("machine_logic"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertRulesSchema = createInsertSchema(rulesTable);
@@ -38,7 +38,7 @@ export const ruleDocumentsTable = pgTable("rule_documents", {
   doc_type: text("doc_type").notNull(),
   title: text("title").notNull(),
   active_version_id: uuid("active_version_id"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertRuleDocumentsSchema = createInsertSchema(ruleDocumentsTable);
@@ -60,7 +60,7 @@ export const ruleDocumentVersionsTable = pgTable("rule_document_versions", {
   parser_confidence: numeric("parser_confidence"),
   activation_status: text("activation_status").notNull().default("BLOCKED"),
   is_active: boolean("is_active").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertRuleDocumentVersionsSchema = createInsertSchema(ruleDocumentVersionsTable);

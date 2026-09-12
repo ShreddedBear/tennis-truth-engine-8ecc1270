@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { completeIngestionRun, failIngestionRun, startIngestionRun } from "./warehouse-repo.server";
 import { ingestOpenMeteoHistorical } from "./open-meteo.server";
 import { ingestOddsHistorical } from "./odds-api.server";
 import { ingestTourResultsAndSchedules, type TourSource, type OfficialTourSnapshot } from "./tour-results-schedule.server";
@@ -6,7 +6,6 @@ import { ingestWtaOfficialMatchResults } from "./wta-official-match-results.serv
 import { ingestTourRankings, type RankingSource, type OfficialRankingSnapshot } from "./tour-rankings.server";
 import { ingestRulesContext, type RulesSource } from "./rules-context.server";
 
-const db = supabaseAdmin as any;
 
 type SourceId = "open_meteo" | "odds_api" | TourSource | RankingSource | RulesSource;
 export type OfficialSnapshot = OfficialTourSnapshot | OfficialRankingSnapshot;
@@ -53,16 +52,14 @@ function ingestionErrorMessage(err: unknown) {
 }
 
 async function runTracked<T extends IngestionResult>(sourceId: SourceId, jobType: string, fn: () => Promise<T>) {
-  const { data: run, error } = await db.from("source_ingestion_runs").insert({ source_id: sourceId, job_type: jobType, status: "RUNNING", started_at: new Date().toISOString() }).select("id").single();
-  if (error) throw error;
+  const runId = await startIngestionRun(sourceId, jobType);
   try {
     const result = await fn();
     assertMeaningfulIngestion(sourceId, result);
-    const written = Number(result.observations_written ?? 0);
-    await db.from("source_ingestion_runs").update({ status: "COMPLETE", records_seen: written, records_inserted: written, metadata: result, completed_at: new Date().toISOString() }).eq("id", run.id);
+    await completeIngestionRun(runId, Number(result.observations_written ?? 0), result);
     return result;
   } catch (err) {
-    await db.from("source_ingestion_runs").update({ status: "FAILED", error_message: ingestionErrorMessage(err), completed_at: new Date().toISOString() }).eq("id", run.id);
+    await failIngestionRun(runId, ingestionErrorMessage(err));
     throw err;
   }
 }

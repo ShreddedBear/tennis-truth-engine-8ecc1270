@@ -27,15 +27,15 @@ export const sourceDefinitionsTable = pgTable("source_definitions", {
   approved: boolean("approved").notNull().default(true),
   blacklisted: boolean("blacklisted").notNull().default(false),
   blacklist_reason: text("blacklist_reason"),
-  last_fetch_at: timestamp("last_fetch_at", { withTimezone: true }),
+  last_fetch_at: timestamp("last_fetch_at", { withTimezone: true, mode: "string" }),
   error_history: jsonb("error_history").notNull().default(sql`'[]'::jsonb`),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   access_method: text("access_method").notNull().default("MANUAL"),
   terms_status: text("terms_status").notNull().default("UNKNOWN"),
   terms_url: text("terms_url"),
   quota_per_day: integer("quota_per_day"),
   quota_used: integer("quota_used").notNull().default(0),
-  quota_reset_at: timestamp("quota_reset_at", { withTimezone: true }),
+  quota_reset_at: timestamp("quota_reset_at", { withTimezone: true, mode: "string" }),
   consecutive_failures: integer("consecutive_failures").notNull().default(0),
   health_status: text("health_status").notNull().default("HEALTHY"),
   fallback_source_id: uuid("fallback_source_id"),
@@ -65,11 +65,11 @@ export const sourceObservationsTable = pgTable("source_observations", {
   sample_label: text("sample_label"),
   window_start: date("window_start"),
   window_end: date("window_end"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }).notNull().defaultNow(),
-  source_published_at: timestamp("source_published_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  source_published_at: timestamp("source_published_at", { withTimezone: true, mode: "string" }),
   raw_payload: jsonb("raw_payload"),
   provenance: jsonb("provenance").notNull().default(sql`'{}'::jsonb`),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSourceObservationsSchema = createInsertSchema(sourceObservationsTable);
@@ -86,7 +86,7 @@ export const sourceConflictsTable = pgTable("source_conflicts", {
   resolution_status: text("resolution_status").notNull().default("UNRESOLVED"),
   resolution_reason: text("resolution_reason"),
   selected_value: text("selected_value"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSourceConflictsSchema = createInsertSchema(sourceConflictsTable);
@@ -103,11 +103,11 @@ export const sourceSnapshotsTable = pgTable("source_snapshots", {
   player_side: text("player_side"),
   raw_value: text("raw_value"),
   normalized_value: text("normalized_value"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }).notNull().defaultNow(),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   post_start: boolean("post_start").notNull().default(false),
   excluded: boolean("excluded").notNull().default(false),
   reliability: numeric("reliability"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSourceSnapshotsSchema = createInsertSchema(sourceSnapshotsTable);
@@ -126,9 +126,9 @@ export const sourceIngestionRunsTable = pgTable("source_ingestion_runs", {
   records_updated: integer("records_updated").notNull().default(0),
   error_message: text("error_message"),
   metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
-  started_at: timestamp("started_at", { withTimezone: true }),
-  completed_at: timestamp("completed_at", { withTimezone: true }),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  started_at: timestamp("started_at", { withTimezone: true, mode: "string" }),
+  completed_at: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSourceIngestionRunsSchema = createInsertSchema(sourceIngestionRunsTable);
@@ -150,7 +150,7 @@ export const sourceHealthEventsTable = pgTable("source_health_events", {
   temporary: boolean("temporary").notNull().default(true),
   fallback_used: text("fallback_used"),
   resolved: boolean("resolved").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertSourceHealthEventsSchema = createInsertSchema(sourceHealthEventsTable);
@@ -170,9 +170,9 @@ export const ingestionTargetsTable = pgTable("ingestion_targets", {
   tournament: text("tournament"),
   sport_key: text("sport_key"),
   config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
-  last_ingested_at: timestamp("last_ingested_at", { withTimezone: true }),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  last_ingested_at: timestamp("last_ingested_at", { withTimezone: true, mode: "string" }),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertIngestionTargetsSchema = createInsertSchema(ingestionTargetsTable);

@@ -27,7 +27,7 @@ export const verificationResultsTable = pgTable("verification_results", {
   decision_effect: text("decision_effect"),
   sources: jsonb("sources").notNull().default(sql`'[]'::jsonb`),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -36,7 +36,7 @@ export const verificationResultsTable = pgTable("verification_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
 });
 
 export const insertVerificationResultsSchema = createInsertSchema(verificationResultsTable);
@@ -57,7 +57,7 @@ export const disagreementResultsTable = pgTable("disagreement_results", {
   contradiction_severity: text("contradiction_severity"),
   final_effect: text("final_effect"),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -67,7 +67,7 @@ export const disagreementResultsTable = pgTable("disagreement_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
 });
 
 export const insertDisagreementResultsSchema = createInsertSchema(disagreementResultsTable);
@@ -85,7 +85,7 @@ export const underdogResultsTable = pgTable("underdog_results", {
   evidence: text("evidence"),
   repeatable: boolean("repeatable").notNull().default(false),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -95,7 +95,7 @@ export const underdogResultsTable = pgTable("underdog_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
 });
 
 export const insertUnderdogResultsSchema = createInsertSchema(underdogResultsTable);
@@ -114,7 +114,7 @@ export const stressResultsTable = pgTable("stress_results", {
   range_after: text("range_after"),
   outcome: text("outcome").notNull().default("NOT STARTED"),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -124,7 +124,7 @@ export const stressResultsTable = pgTable("stress_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
   p1_outcome_when_stressed: text("p1_outcome_when_stressed"),
   p2_outcome_when_stressed: text("p2_outcome_when_stressed"),
   p1_support_percent_before: numeric("p1_support_percent_before"),
@@ -150,7 +150,7 @@ export const reconstructionResultsTable = pgTable("reconstruction_results", {
   output: text("output"),
   reliability: numeric("reliability"),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   formula_version_id: uuid("formula_version_id"),
   formula_version_label: text("formula_version_label"),
   calculation: text("calculation"),
@@ -162,7 +162,7 @@ export const reconstructionResultsTable = pgTable("reconstruction_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(true),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true }),
+  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
 });
 
 export const insertReconstructionResultsSchema = createInsertSchema(reconstructionResultsTable);
@@ -180,11 +180,11 @@ export const autopsiesTable = pgTable("autopsies", {
   summary: text("summary"),
   status: text("status").notNull().default("OPEN"),
   leakage_check_status: text("leakage_check_status").notNull().default("PENDING"),
-  first_serve_at: timestamp("first_serve_at", { withTimezone: true }),
+  first_serve_at: timestamp("first_serve_at", { withTimezone: true, mode: "string" }),
   informs_rule_revision: boolean("informs_rule_revision").notNull().default(false),
   retroactive_change_blocked: boolean("retroactive_change_blocked").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertAutopsiesSchema = createInsertSchema(autopsiesTable);
@@ -199,12 +199,12 @@ export const autopsyFindingsTable = pgTable("autopsy_findings", {
   failure_label: text("failure_label").notNull(),
   evidence: text("evidence"),
   evidence_source: text("evidence_source"),
-  evidence_published_at: timestamp("evidence_published_at", { withTimezone: true }),
+  evidence_published_at: timestamp("evidence_published_at", { withTimezone: true, mode: "string" }),
   publicly_available_pre_match: boolean("publicly_available_pre_match").notNull().default(false),
   admissible: boolean("admissible").notNull().default(false),
   inadmissible_reason: text("inadmissible_reason"),
   severity: text("severity").notNull().default("MEDIUM"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertAutopsyFindingsSchema = createInsertSchema(autopsyFindingsTable);
@@ -221,8 +221,8 @@ export const blockReasonsTable = pgTable("block_reasons", {
   severity: text("severity").notNull().default("BLOCKING"),
   detail: text("detail"),
   resolved: boolean("resolved").notNull().default(false),
-  resolved_at: timestamp("resolved_at", { withTimezone: true }),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolved_at: timestamp("resolved_at", { withTimezone: true, mode: "string" }),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertBlockReasonsSchema = createInsertSchema(blockReasonsTable);

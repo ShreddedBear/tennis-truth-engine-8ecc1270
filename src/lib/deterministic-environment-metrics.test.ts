@@ -8,8 +8,8 @@ describe("deterministic environment metric layer", () => {
   it("is limited to environment-enabled metrics", () => {
     expect(calculator).toContain('new Set(["021", "030", "060", "071"])');
     expect(calculator).toContain('metricAllowsObservation(code, row)');
-    expect(calculator).toContain('.eq("source_id", "open_meteo")');
-    expect(calculator).toContain('.eq("observation_type", "ENVIRONMENT")');
+    expect(calculator).toContain('eq(sourceObservationsTable.source_id, "open_meteo")');
+    expect(calculator).toContain('eq(sourceObservationsTable.observation_type, "ENVIRONMENT")');
   });
 
   it("keeps shared environment evidence partial", () => {

@@ -21,7 +21,7 @@ export const calibrationVersionsTable = pgTable("calibration_versions", {
   master_sequence_count: integer("master_sequence_count").notNull().default(0),
   graded_sample_count: integer("graded_sample_count").notNull().default(0),
   is_active: boolean("is_active").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertCalibrationVersionsSchema = createInsertSchema(calibrationVersionsTable);
@@ -39,7 +39,7 @@ export const calibrationBucketsTable = pgTable("calibration_buckets", {
   wins: integer("wins").notNull().default(0),
   graded: integer("graded").notNull().default(0),
   small_sample: boolean("small_sample").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertCalibrationBucketsSchema = createInsertSchema(calibrationBucketsTable);
@@ -65,7 +65,7 @@ export const calibrationLedgerTable = pgTable("calibration_ledger", {
   calibration_version_before: uuid("calibration_version_before"),
   calibration_version_after: uuid("calibration_version_after"),
   note: text("note"),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertCalibrationLedgerSchema = createInsertSchema(calibrationLedgerTable);
@@ -79,7 +79,7 @@ export const truthEngineCalibrationObservationsTable = pgTable("truth_engine_cal
   audit_run_id: uuid("audit_run_id").notNull(),
   slate_id: uuid("slate_id"),
   run_number: integer("run_number").notNull().default(0),
-  predicted_at: timestamp("predicted_at", { withTimezone: true }),
+  predicted_at: timestamp("predicted_at", { withTimezone: true, mode: "string" }),
   scheduled_date: date("scheduled_date"),
   player1_name: text("player1_name").notNull(),
   player2_name: text("player2_name").notNull(),
@@ -108,9 +108,9 @@ export const truthEngineCalibrationObservationsTable = pgTable("truth_engine_cal
   prediction_outcome: text("prediction_outcome").notNull(),
   calibration_eligible: boolean("calibration_eligible").notNull().default(false),
   eligibility_reason: text("eligibility_reason"),
-  observed_at: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  observed_at: timestamp("observed_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   player1_id: uuid("player1_id"),
   player2_id: uuid("player2_id"),
   selected_player_id: uuid("selected_player_id"),

@@ -18,7 +18,7 @@ export const userRolesTable = pgTable("user_roles", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
   user_id: uuid("user_id").notNull(),
   role: appRoleEnum("role").notNull(),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
 export const insertUserRolesSchema = createInsertSchema(userRolesTable);

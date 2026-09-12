@@ -26,7 +26,7 @@ describe("deterministic results/schedule calculators", () => {
     expect(source).toContain("DIRECT_EVENT_SCHEDULE");
     expect(source).toContain("MATCH_HISTORY_SCHEDULE_CONTEXT");
     expect(source).toContain("UNAVAILABLE");
-    expect(source).toContain('from("matches")');
+    expect(source).toContain("from(matchesTable)");
     expect(source).toContain("scheduled_local_at");
     expect(source).toContain("scheduled_utc_at");
   });

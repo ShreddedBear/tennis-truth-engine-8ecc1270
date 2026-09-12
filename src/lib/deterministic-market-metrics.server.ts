@@ -1,11 +1,14 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, asc, eq, inArray } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import type { MetricFinding } from "./audit-pipeline";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, evidenceTourCompatible, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 import { certifyMetricFinding } from "./metric-certification";
 
-const db = supabaseAdmin as any;
 const MARKET_CODES = new Set(["015", "019", "043", "044"]);
 const from = "2020-06-06";
 
@@ -82,11 +85,15 @@ function expectedMarketFamily(args: { context?: string | null; tournament?: stri
 async function loadSide(player: string, opponent: string, matchDate: string, tournament?: string | null) {
   const playerAliases = safeEvidenceAliases(player, opponent);
   const opponentAliases = safeEvidenceAliases(opponent, player);
-  const { data, error } = await db.from("source_observations")
-    .select("source_id,source_name,source_url,source_record_key,player_name,opponent_name,tournament,event_date,observation_type,observation_key,numeric_value,source_published_at,sample_label,raw_payload,provenance")
-    .eq("source_id", "odds_api").eq("observation_type", "MARKET").eq("event_date", matchDate)
-    .in("player_name", playerAliases).in("opponent_name", opponentAliases)
-    .order("source_published_at", { ascending: true });
+  const { data, error } = await tryQuery(() => db.select().from(sourceObservationsTable)
+    .where(and(
+      eq(sourceObservationsTable.source_id, "odds_api"),
+      eq(sourceObservationsTable.observation_type, "MARKET"),
+      eq(sourceObservationsTable.event_date, matchDate),
+      inArray(sourceObservationsTable.player_name, playerAliases),
+      inArray(sourceObservationsTable.opponent_name, opponentAliases),
+    ))
+    .orderBy(asc(sourceObservationsTable.source_published_at)));
   if (error) return [] as MarketRow[];
   return ((data ?? []) as MarketRow[]).filter((row) => evidencePairMatches(row.player_name, row.opponent_name, player, opponent) && eventCompatible(row, tournament));
 }

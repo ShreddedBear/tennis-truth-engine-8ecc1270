@@ -55,8 +55,14 @@ describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
 
   it("confirms persistence after upsert before reporting writes", () => {
     const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
-    expect(adapter).toContain('.select("source_record_key")');
-    expect(adapter).toContain('.in("source_record_key",keys)');
+    const repo = readFileSync("src/lib/ingestion/warehouse-repo.server.ts", "utf8");
+    // The invariant: reported writes must come from reading the warehouse back, never
+    // from the number of rows submitted -- the upsert is DO NOTHING, so a re-ingest
+    // submits everything and writes nothing. The confirmation read now lives in the
+    // shared warehouse repository, so both halves are pinned: the producer must ask, and
+    // the repository must actually query by key.
+    expect(adapter).toContain("await confirmObservationKeys(sourceId,keys)");
+    expect(repo).toContain("inArray(sourceObservationsTable.source_record_key, keys as string[])");
     expect(adapter).toContain("persisted +=");
   });
 });

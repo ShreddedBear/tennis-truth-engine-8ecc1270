@@ -1,4 +1,8 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, desc, gte, ilike, inArray, isNull, lt, lte } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { matchesTable, sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { sameTournamentHistory } from "./tournament-history-reconstruction";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
@@ -17,7 +21,6 @@ import {
   type EvidenceTourFamily,
 } from "./evidence-match-identity";
 
-const db = supabaseAdmin as any;
 const SCHEDULE_SUPPORTED = new Set(["012", "028", "030", "064", "071", "076", "077", "081"]);
 const HISTORICAL_SUPPORTED = new Set<string>(TASK18A_HISTORICAL_RESULTS_CODES);
 
@@ -60,7 +63,7 @@ function value030(c:PlayerComponents,player:string,tournament:string|null,asOfDa
   return `same_tournament_matches_5y=${matches}; same_tournament_wins_5y=${wins}; same_tournament_win_pct=${pct??"NA"}; warehouse_matches_5y=${c.same_tournament_matches_5y}; reconstructed_matches_5y=${reconstructed.matches}`;
 }
 function valueFor(code:string,c:PlayerComponents,player:string,tournament:string|null,asOfDate:string){switch(code){case"012":case"077":return`matches_14d=${c.matches_14d}; matches_30d=${c.matches_30d}; matches_52w=${c.matches_52w}; days_since_last_match=${c.days_since_last_match??"NA"}`;case"028":return`matches_30d=${c.matches_30d}; distinct_tournaments_30d=${c.distinct_tournaments_30d}; days_since_last_match=${c.days_since_last_match??"NA"}`;case"030":return value030(c,player,tournament,asOfDate);case"064":return`qualifying_matches_14d=${c.qualifying_matches_14d}; current_event_schedule_rows=${c.scheduled_current_event_rows}; match_history_schedule_rows=${c.match_history_schedule_rows}; schedule_context=${c.schedule_context_kind}`;case"071":return`days_since_last_match=${c.days_since_last_match??"NA"}; current_event_schedule_rows=${c.scheduled_current_event_rows}; match_history_schedule_rows=${c.match_history_schedule_rows}; schedule_context=${c.schedule_context_kind}`;case"076":return`matches_14d=${c.matches_14d}; qualifying_matches_14d=${c.qualifying_matches_14d}; days_since_last_match=${c.days_since_last_match??"NA"}`;case"081":return`matches_30d=${c.matches_30d}; distinct_tournaments_30d=${c.distinct_tournaments_30d}; qualifying_matches_14d=${c.qualifying_matches_14d}`;default:return null;}}
-async function playerObservationRows(p1:string,p2:string,start:string,asOfDate:string,select:string){const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];const results=await Promise.all(aliases.map(alias=>db.from("source_observations").select(select).gte("event_date",start).lte("event_date",asOfDate).ilike("player_name",`%${alias}%`).order("event_date",{ascending:false}).limit(2500)));if(results.some(result=>result.error))return null;const dedup=new Map<string,Observation>();for(const result of results)for(const row of(result.data??[])as Observation[]){const key=String(row.id??[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|"));dedup.set(key,row);}return[...dedup.values()];}
+async function playerObservationRows(p1:string,p2:string,start:string,asOfDate:string,select:string){const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];const results=await Promise.all(aliases.map(alias=>tryQuery(()=>db.select().from(sourceObservationsTable).where(and(gte(sourceObservationsTable.event_date,start),lte(sourceObservationsTable.event_date,asOfDate),ilike(sourceObservationsTable.player_name,`%${alias}%`))).orderBy(desc(sourceObservationsTable.event_date)).limit(2500))));if(results.some(result=>result.error))return null;const dedup=new Map<string,Observation>();for(const result of results)for(const row of(result.data??[])as Observation[]){const key=String(row.id??[row.source_id,row.player_name,row.opponent_name,row.tournament,row.event_date,row.observation_key,row.text_value].join("|"));dedup.set(key,row);}return[...dedup.values()];}
 
 export async function deterministicResultsScheduleMetric(args:{metricCode:string;p1:string;p2:string;asOfDate:string;tournament?:string|null;round?:string|null;tour?:string|null;tourFamily?:EvidenceTourFamily|null;eventLevel?:string|null;context?:string|null;}):Promise<MetricFinding|null>{
   const code=codeOf(args.metricCode);
@@ -70,7 +73,7 @@ export async function deterministicResultsScheduleMetric(args:{metricCode:string
   const select="id,source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,sample_label,raw_payload,provenance";
   const aliases=[...new Set([...safeEvidenceAliases(args.p1,args.p2),...safeEvidenceAliases(args.p2,args.p1)])];
   const historySelect="id,canonical_key,player1_name,player2_name,player1_id,player2_id,tournament_name,event_level,round,scheduled_date,scheduled_local_at,scheduled_utc_at";
-  const[playerRowsResult,sharedResult,historyResult]=await Promise.all([playerObservationRows(args.p1,args.p2,startDate,args.asOfDate,select),db.from("source_observations").select(select).gte("event_date",startDate).lte("event_date",args.asOfDate).is("player_name",null).order("event_date",{ascending:false}).limit(2000),db.from("matches").select(historySelect).in("player1_name",aliases).in("player2_name",aliases).order("created_at",{ascending:false}).limit(2000)]);
+  const[playerRowsResult,sharedResult,historyResult]=await Promise.all([playerObservationRows(args.p1,args.p2,startDate,args.asOfDate,select),tryQuery(()=>db.select().from(sourceObservationsTable).where(and(gte(sourceObservationsTable.event_date,startDate),lte(sourceObservationsTable.event_date,args.asOfDate),isNull(sourceObservationsTable.player_name))).orderBy(desc(sourceObservationsTable.event_date)).limit(2000)),tryQuery(()=>db.select().from(matchesTable).where(and(inArray(matchesTable.player1_name,aliases),inArray(matchesTable.player2_name,aliases))).orderBy(desc(matchesTable.created_at)).limit(2000))]);
   if(!playerRowsResult||sharedResult.error||historyResult.error)return null;
   let rows=([...playerRowsResult,...(sharedResult.data??[])]as Observation[]).filter(row=>metricAllowsObservation(code,row));
   const repositoryContext=inferRepositoryMatchContext({p1:args.p1,p2:args.p2,asOfDate:args.asOfDate,tournament:args.tournament});

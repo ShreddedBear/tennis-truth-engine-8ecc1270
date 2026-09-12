@@ -1,6 +1,5 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { upsertObservations } from "./warehouse-repo.server";
 
-const db = supabaseAdmin as any;
 const HOST = "https://api.the-odds-api.com";
 const EARLIEST = "2020-06-06T00:00:00Z";
 
@@ -109,9 +108,7 @@ export async function ingestOddsHistorical(options: {
       }
       for (let i = 0; i < rows.length; i += 500) {
         const chunk = rows.slice(i, i + 500);
-        const { error } = await db.from("source_observations").upsert(chunk, { onConflict: "source_id,source_record_key" });
-        if (error) throw error;
-        observations += chunk.length;
+        observations += await upsertObservations(chunk, { ignoreDuplicates: false });
       }
       if (!snap.previous_timestamp) break;
       cursor = snap.previous_timestamp;

@@ -37,7 +37,7 @@ describe("ranking ingestion and deterministic Task 18C wiring", () => {
 
   it("blocks future ranking leakage and does not route unrelated 062/069 through this calculator", () => {
     const calculator = readFileSync("src/lib/deterministic-ranking-metrics.server.ts", "utf8");
-    expect(calculator).toContain('.lte("event_date", asOfDate)');
+    expect(calculator).toContain('lte(sourceObservationsTable.event_date, asOfDate)');
     expect(calculator).toContain("row.event_date <= args.asOfDate");
     expect(calculator).not.toContain('OWNED = new Set(["014", "062", "069"])');
   });

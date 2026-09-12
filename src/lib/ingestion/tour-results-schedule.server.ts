@@ -1,7 +1,6 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { confirmObservationKeys, enabledTargets, markTargetIngested, upsertObservations } from "./warehouse-repo.server";
 import { assertObservationFamily } from "../metric-source-family-policy";
 
-const db = supabaseAdmin as any;
 
 type TourSource = "atp" | "wta" | "atp_challenger";
 export type OfficialTourSnapshot = { source: "atp" | "atp_challenger"; url: string; html: string };
@@ -248,31 +247,27 @@ async function writeRows(rows:Observation[]) {
   let persisted=0;
   for (let i=0;i<rows.length;i+=500) {
     const chunk=rows.slice(i,i+500);
-    const {error}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:true});
-    if(error) throw error;
+    await upsertObservations(chunk,{ignoreDuplicates:true});
     const sourceId=chunk[0]?.source_id; if(!sourceId) continue;
     for (let j=0;j<chunk.length;j+=50) {
-      const confirmChunk=chunk.slice(j,j+50);
-      const keys=confirmChunk.map((row)=>row.source_record_key); if(!keys.length) continue;
-      const {data:confirmed,error:confirmError}=await db.from("source_observations").select("source_record_key").eq("source_id",sourceId).in("source_record_key",keys);
-      if(confirmError) throw confirmError;
-      persisted += new Set((confirmed??[]).map((row:any)=>row.source_record_key)).size;
+      const keys=chunk.slice(j,j+50).map((row)=>row.source_record_key); if(!keys.length) continue;
+      persisted += new Set(await confirmObservationKeys(sourceId,keys)).size;
     }
   }
   return persisted;
 }
 
 export async function ingestTourResultsAndSchedules(source:TourSource,snapshots:OfficialTourSnapshot[] = []) {
-  const {data:targets,error}=await db.from("ingestion_targets").select("id,source_id,target_key,pullback_start,pullback_end,config").eq("source_id",source).eq("enabled",true); if(error) throw error;
+  const targets=await enabledTargets(source);
   let observationsWritten=0,pagesRead=0,structuredObjectsSeen=0;
-  for (const target of (targets??[]) as Target[]) {
+  for (const target of targets as unknown as Target[]) {
     const config=target.config??{}; const configuredUrl=typeof config.url === "string" && config.url ? config.url : DEFAULT_URLS[source];
     const sourceSnapshots=snapshots.filter(snapshot=>snapshot.source===source);
     const fetched=source === "wta" ? await fetchWtaOfficial(target,configuredUrl) : await fetchAtpOfficial(source,target,sourceSnapshots);
     pagesRead+=fetched.pages; structuredObjectsSeen+=fetched.seen; observationsWritten+=await writeRows(fetched.rows);
-    await db.from("ingestion_targets").update({last_ingested_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",target.id);
+    await markTargetIngested(target.id);
   }
-  return {source,source_name:SOURCE_NAMES[source],targets:targets?.length??0,pages_read:pagesRead,structured_objects_seen:structuredObjectsSeen,observations_written:observationsWritten};
+  return {source,source_name:SOURCE_NAMES[source],targets:targets.length,pages_read:pagesRead,structured_objects_seen:structuredObjectsSeen,observations_written:observationsWritten};
 }
 
 export type { TourSource };
