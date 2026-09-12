@@ -27,7 +27,8 @@ on:
       - data/public/production-history/wta_challenger/**
       - data/public/tennismylife-challenger/normalized/**
       - .github/workflows/evidence-coverage-repair-diagnostic.yml
-      - supabase/migrations/*evidence*.sql
+      - docs/legacy-supabase/migrations/*evidence*.sql
+      - src/db/sql/*.sql
       - src/routes/api/evidence-coverage-diagnostic.ts
       - src/lib/evidence-availability-accounting.ts
       - src/lib/evidence-availability-accounting.test.ts
@@ -104,6 +105,6 @@ jobs:
         run: bunx vitest run
       - name: Explain production-data execution boundary
         run: |
-          echo "Production Supabase credentials are Lovable-managed and are intentionally not copied into GitHub Actions."
+          echo "Production database credentials live in the Replit deployment and are intentionally not copied into GitHub Actions."
           echo "Real production evidence counts/baselines are inspected through the production diagnostic endpoint without copying credentials into CI."
           echo "This workflow validates the diagnostic and downstream repair code without weakening credential boundaries."

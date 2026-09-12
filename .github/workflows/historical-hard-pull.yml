@@ -37,7 +37,7 @@ jobs:
       INGESTION_BRIDGE_URL: ${{ vars.APP_BASE_URL }}/api/warehouse-ingest
       OIDC_AUDIENCE: tennis-truth-engine-warehouse-ingestion
     steps:
-      - name: Trigger Lovable-managed warehouse ingestion
+      - name: Trigger warehouse ingestion on the deployed app
         shell: bash
         run: |
           set -euo pipefail

@@ -1,7 +1,7 @@
 name: Capture Match Results
 
 # Closes a real gap: captureAndResolveResults (match-result-capture.ts) and its live
-# Supabase wiring (runResultCapture, match-result-capture.server.ts) were both correct and
+# database wiring (runResultCapture, match-result-capture.server.ts) were both correct and
 # tested, but nothing ever invoked them -- no cron, no route, no button. A completed match
 # whose real result later appears in the runtime tennis index (rebuilt here from the
 # committed CSV sources, the same step drive-audit.yml already uses) would sit ungraded
