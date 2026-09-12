@@ -19,7 +19,9 @@ const repoRoot = resolve(process.cwd());
 
 /** Every pgTable exported from ./schema, keyed by its real Postgres table name. */
 const tables = new Map<string, PgTable>(
-  Object.values(schema)
+  // `schema` also exports zod schemas and the app_role pgEnum; is(PgTable) is the filter,
+  // and the cast is only so the predicate has something wide enough to narrow from.
+  Object.values(schema as Record<string, unknown>)
     .filter((value): value is PgTable => is(value, PgTable))
     .map((table) => [getTableName(table), table]),
 );

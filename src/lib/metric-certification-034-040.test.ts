@@ -88,6 +88,11 @@ describe("sequential certification guardrails for 034/036/038/039/040", () => {
 
   it("protects persistence of side-specific treatment coverage", () => {
     const repo = readFileSync("src/lib/audit-repo.server.ts", "utf8");
-    expect(repo).toContain('select("metric_code, metric_name, p1_treatment, p2_treatment")'); expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P1", treatment: metric.p1_treatment ?? "UNAVAILABLE"'); expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P2", treatment: metric.p2_treatment ?? "UNAVAILABLE"'); expect(repo).toContain('onConflict:"metric_code,player_side,audit_run_id"');
+    // The coverage writer must read all four columns off metric_results: the two identity
+    // columns and BOTH sides' treatments. Reading one side and reusing it for the other is
+    // the specific regression this guards, and it survives the move from PostgREST's
+    // comma-separated select string to a Drizzle projection.
+    expect(repo).toContain('metric_code: metricResultsTable.metric_code, metric_name: metricResultsTable.metric_name,');
+    expect(repo).toContain('p1_treatment: metricResultsTable.p1_treatment, p2_treatment: metricResultsTable.p2_treatment,'); expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P1", treatment: metric.p1_treatment ?? "UNAVAILABLE"'); expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P2", treatment: metric.p2_treatment ?? "UNAVAILABLE"'); expect(repo).toContain('target: [metricCoverageRatesTable.metric_code, metricCoverageRatesTable.player_side, metricCoverageRatesTable.audit_run_id]');
   });
 });
