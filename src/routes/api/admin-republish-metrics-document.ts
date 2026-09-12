@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, inArray, ne } from "drizzle-orm";
 
+import { checkApiKey } from "@/lib/api-key-auth";
 import { db } from "@/db/client.server";
 import { auditRunsTable, ruleDocumentVersionsTable, ruleDocumentsTable, rulesTable } from "@/db/schema";
 import { tryQuery } from "@/db/try-query";
@@ -11,8 +12,6 @@ import { parseRuleDocument, activationStatus } from "@/lib/rule-parser";
 // src/lib/bootstrap.ts only ever seeds rule_documents once, when the table is
 // empty — production's METRICS document already exists, so the corrected
 // seed file alone never reaches it without an explicit new version + activation.
-const ADMIN_KEY = "T19-REPUBLISH-9f2c7a1e";
-
 // Codes whose name is EXPECTED to change (the known parser-collision fix).
 // Any other changed code trips the safety refusal unless force=true.
 const EXPECTED_CHANGED_CODES = new Set(["004", "005", "006"]);
@@ -29,7 +28,8 @@ export const Route = createFileRoute("/api/admin-republish-metrics-document")({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        if (url.searchParams.get("key") !== ADMIN_KEY) return json({ ok: false }, 404);
+        const auth = checkApiKey("REPUBLISH_KEY", url.searchParams.get("key"));
+        if (!auth.ok) return json(auth.body, auth.status);
         const commit = url.searchParams.get("commit") === "true";
         const force = url.searchParams.get("force") === "true";
 

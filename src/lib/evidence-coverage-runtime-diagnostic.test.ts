@@ -186,8 +186,11 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(diagnostic).toContain("deterministicBatch");
   });
 
-  it("keeps the temporary endpoint obscure and no-store", () => {
-    expect(route).toContain("DIAGNOSTIC_KEY");
+  it("keeps the temporary endpoint key-gated and no-store", () => {
+    // The key used to be a literal in this route. It is an environment variable now, and
+    // checkApiKey fails closed when unset -- so the gate is stronger, not merely renamed.
+    expect(route).toContain('checkApiKey("EVIDENCE_COVERAGE_KEY"');
+    expect(route).not.toMatch(/DIAGNOSTIC_KEY\s*=\s*"/u);
     expect(route).toContain('cache-control\": \"no-store\"');
     expect(route).toContain("runEvidenceCoverageRuntimeDiagnostic");
   });
