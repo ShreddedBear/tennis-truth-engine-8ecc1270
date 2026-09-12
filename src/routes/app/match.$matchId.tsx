@@ -2,9 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { log } from "@/lib/audit-runs";
+import { fetchMatchWorkspace, fetchStageRows, patchAuditRowFn, setIdentityField } from "@/lib/match-workspace.functions";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
 import { activeMetricReadiness } from "@/lib/truth-engine-active-metrics";
@@ -147,65 +146,7 @@ function Workspace() {
     queryKey: ["match", matchId],
     refetchInterval: 3000,
     queryFn: async () => {
-      const { data: match, error: matchError } = await supabase.from("matches").select("*").eq("id", matchId).single();
-      if (matchError) throw new Error(`Could not load match: ${matchError.message}`);
-      const { data: runs, error: runsError } = await supabase
-        .from("audit_runs")
-        .select("*")
-        .eq("match_id", matchId)
-        .order("run_number", { ascending: false });
-      if (runsError) throw new Error(`Could not load audit runs: ${runsError.message}`);
-      // resolveActiveRun resolves straight through an INVALIDATED (Clear
-      // Slate, or a rule-version change) run to null -- exactly as if no run
-      // existed yet -- rather than falling through to the "No audit run yet"
-      // branch below with a dead run's stale diagnostics/report/progress
-      // still attached. That branch's own zero-state is what makes this a
-      // true clean slate: no report, no stage rows, no counts, until a
-      // genuinely new audit_run_id exists.
-      const run = resolveActiveRun(runs ?? []);
-      const wasInvalidated = !run && !!runs?.length;
-      if (!run) return { match, run: null, wasInvalidated };
-      const calibrationVersionQuery = run.calibration_version_id
-        ? supabase.from("calibration_versions").select("*").eq("id", run.calibration_version_id).maybeSingle()
-        : supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
-      const [metrics, verification, disagreement, underdog, stress, conflicts, reconstructions, decision, coverage, coverageRates, buckets, version, sv] =
-        await Promise.all([
-          supabase.from("metric_results").select("*").eq("audit_run_id", run.id).order("metric_code"),
-          supabase.from("verification_results").select("*").eq("audit_run_id", run.id).order("rule_code"),
-          supabase.from("disagreement_results").select("*").eq("audit_run_id", run.id).order("rule_code"),
-          supabase.from("underdog_results").select("*").eq("audit_run_id", run.id).order("pathway_code"),
-          supabase.from("stress_results").select("*").eq("audit_run_id", run.id).order("test_code"),
-          supabase.from("source_conflicts").select("*").eq("audit_run_id", run.id),
-          supabase.from("reconstruction_results").select("*").eq("audit_run_id", run.id),
-          supabase.from("final_decisions").select("*").eq("audit_run_id", run.id).maybeSingle(),
-          supabase.from("audit_coverage").select("*").eq("audit_run_id", run.id).order("player_side"),
-          supabase.from("metric_coverage_rates").select("*").eq("audit_run_id", run.id),
-          supabase.from("calibration_buckets").select("*").order("wp_min"),
-          calibrationVersionQuery,
-          supabase.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(),
-        ]);
-      const fields = sv.data
-        ? (await supabase.from("parsed_summary_fields").select("*").eq("summary_version_id", sv.data.id)).data ?? []
-        : [];
-      const activeVersion = version.data;
-      return {
-        match,
-        run,
-        wasInvalidated: false,
-        metrics: metrics.data ?? [],
-        verification: verification.data ?? [],
-        disagreement: disagreement.data ?? [],
-        underdog: underdog.data ?? [],
-        stress: stress.data ?? [],
-        conflicts: conflicts.data ?? [],
-        reconstructions: reconstructions.data ?? [],
-        decision: decision.data,
-        coverage: coverage.data ?? [],
-        coverageRates: coverageRates.data ?? [],
-        buckets: (buckets.data ?? []).filter((b) => b.calibration_version_id === activeVersion?.id),
-        version: activeVersion,
-        fields,
-      };
+      return fetchMatchWorkspace({ data: { matchId } });
     },
   });
 
@@ -227,12 +168,7 @@ function Workspace() {
     refetchInterval: 3000,
     enabled: !!currentRunId,
     queryFn: async () => {
-      const { data: rows } = await supabase
-        .from("audit_stage_runs")
-        .select("*")
-        .eq("audit_run_id", currentRunId as string)
-        .order("stage_order");
-      return rows ?? [];
+      return fetchStageRows({ data: { runId: currentRunId as string } });
     },
   });
 
@@ -325,13 +261,15 @@ function Workspace() {
   const committed = !!run.independent_decision_committed_at;
 
   const patch = async (table: "metric_results" | "verification_results" | "disagreement_results" | "underdog_results" | "stress_results", id: string, values: Record<string, unknown>, stage: string) => {
+    // Kept client-side so the UI still explains itself immediately. The same rule is
+    // enforced on the server, where it cannot be skipped by a caller that is not this page.
     if(run.status==="RUNNING"||run.status==="COMPLETE"){toast.error("Persisted audit evidence cannot be edited while an audit is running or after its final decision is complete.");return;}
-    const { error } = await supabase.from(table).update(values as never).eq("id", id);
-    if (error) {
-      toast.error(`Could not update ${table}: ${error.message}`);
+    try {
+      await patchAuditRowFn({ data: { table, id, values, runId: run.id, matchId, stage } });
+    } catch (error) {
+      toast.error(`Could not update ${table}: ${error instanceof Error ? error.message : String(error)}`);
       return;
     }
-    await log({ audit_run_id: run.id, match_id: matchId, stage, status: "COMPLETE", output: values, matrix_visible: !!run.matrix_revealed_at });
     refresh();
   };
 
@@ -397,8 +335,8 @@ function Workspace() {
 
         <div className="mt-3 flex flex-wrap gap-2">
           {[
-            { label: "Identity", value: match.identity_status, field: "identity_status" },
-            { label: "Surface", value: match.surface_status, field: "surface_status" },
+            { label: "Identity", value: match.identity_status, field: "identity_status" as const },
+            { label: "Surface", value: match.surface_status, field: "surface_status" as const },
           ].map((s) => (
             <div key={s.field} className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
               <span className="text-xs text-muted-foreground">{s.label}</span>
@@ -406,8 +344,7 @@ function Workspace() {
                 value={s.value}
                 options={["UNVERIFIED", "VERIFIED", "CONFLICT"]}
                 onChange={async (v) => {
-                  await supabase.from("matches").update({ [s.field]: v } as never).eq("id", matchId);
-                  await log({ audit_run_id: run.id, match_id: matchId, stage: "MATCH IDENTITY VERIFICATION", status: v });
+                  await setIdentityField({ data: { matchId, field: s.field, value: v, runId: run.id } });
                   refresh();
                 }}
               />
