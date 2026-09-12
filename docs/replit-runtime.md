@@ -131,7 +131,33 @@ The order that protects the work is: migrate → verify → run the app against 
 database → observe → *then* retire. Keep the export. `db:export` is repeatable, so a second
 export taken later can be diffed against the first to show exactly what changed in between.
 
-## 6. Verifying a migration end to end
+## 6. Verifying the APPLICATION after a cutover
+
+A passing database checksum says two databases hold the same bytes. It does not say the
+running application is on the new one. This does:
+
+```bash
+npm run verify:cutover
+```
+
+Sixteen checks in one pass, read-mostly, printing no secret: the target's host and database
+name, that it is not Supabase, that it is reachable, row counts across the operational
+tables, that the legacy 60-match slate is intact, the constraint/index/function/trigger
+counts, that no column still defaults to `auth.uid()`, foreign-key integrity across every
+relationship, both route secrets configured **and not still the leaked values**, no
+Supabase or Lovable package, the Supabase client gone, no committed data export, and the
+scheduler being Replit's rather than a GitHub cron.
+
+The lease check is the one worth calling out: it does not check that
+`claim_audit_run` / `renew_audit_run_lease` / `release_audit_run_lease` exist, it **uses**
+them — claims a lease, proves a second owner is refused, renews, releases, and leaves
+nothing held. That is the worker's entire concurrency safety, so it is exercised rather
+than assumed.
+
+Exits non-zero if anything fails, and reports what it found even when the database is
+unreachable.
+
+## 7. Verifying a migration end to end
 
 The whole sequence is tested, not just described. Against a stock PostgreSQL 16:
 
@@ -145,7 +171,7 @@ evidence percentage, family sets, stability, stress robustness, underdog viabili
 verification, disagreement and final reason. It is the test that answers the only question
 that matters about a persistence migration.
 
-## 7. Module boundaries
+## 8. Module boundaries
 
 The platform/engine split the long-term architecture wants is:
 

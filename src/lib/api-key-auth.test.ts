@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -105,6 +106,25 @@ describe("no credential is committed to this repository", () => {
       return /key=(?!\$\{)[A-Za-z0-9_-]{6,}/u.test(text);
     });
     expect(offenders).toEqual([]);
+  });
+
+  it("ignores the database migration export", () => {
+    // db:cutover writes a full dump of every application table into ./migration-export --
+    // the entire production dataset. It was NOT ignored, and a run in the Replit workspace
+    // duly committed all 50 tables into git. The export has to stay on disk until the new
+    // database has been observed, so the fix is an ignore rule, not a delete.
+    const ignore = readFileSync(resolve(repoRoot, ".gitignore"), "utf8");
+    expect(ignore).toContain("migration-export/");
+    // Scoped to that directory, NOT a blanket *.jsonl: data/audit/ and data/metrics/ hold
+    // tracked .jsonl evidence artifacts that belong in the repository.
+    expect(ignore).not.toMatch(/^\*\.jsonl$/mu);
+  });
+
+  it("tracks no exported production data", () => {
+    const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
+      .split("\n")
+      .filter((f) => f.startsWith("migration-export"));
+    expect(tracked, "the database export must never be committed").toEqual([]);
   });
 
   it("tracks no .env file carrying values", () => {

@@ -53,3 +53,16 @@ screenshots/*.tiff
 
 ⁠bucket-database_export_28_08_26-files.zip⁠
 tennis-truth-engine_260828.backup
+
+# Database migration working files.
+#
+# `npm run db:cutover` (and db:export / db:export:api) write a full dump of the
+# application's production data here -- every row of every table. That must never be
+# committed: it is the entire dataset, and a repository is not where it belongs.
+# The export is still needed on disk until the new database has been observed, so it is
+# ignored rather than deleted.
+#
+# Scoped to the export directory ONLY, not to *.jsonl: data/audit/ and data/metrics/ hold
+# tracked .jsonl evidence artifacts that belong in the repository.
+migration-export/
+migration-export-*/

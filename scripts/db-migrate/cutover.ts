@@ -112,6 +112,12 @@ async function main(): Promise<void> {
   run("db:push");
 
   step(3, "Export the source over its Data API (read-only)");
+  // The export is a full dump of every application table. .gitignore keeps it out of the
+  // repository; say so here too, because the directory appearing in a working tree is
+  // otherwise an invitation to commit it.
+  console.log(`  note: ${EXPORT_DIR} will hold a complete copy of the application's data.`);
+  console.log("        It is gitignored. Do not commit it, and remove it once the new");
+  console.log("        database has been observed working.");
   if (existsSync(EXPORT_DIR)) rmSync(EXPORT_DIR, { recursive: true, force: true });
   run("db:export:api", [EXPORT_DIR]);
 
