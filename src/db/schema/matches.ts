@@ -8,14 +8,15 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, date, integer, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, integer, text, uuid } from "drizzle-orm/pg-core";
+import { calendarDate, isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const matchesTable = pgTable("matches", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   canonical_key: text("canonical_key").notNull(),
   player1_name: text("player1_name").notNull(),
   player2_name: text("player2_name").notNull(),
@@ -25,7 +26,7 @@ export const matchesTable = pgTable("matches", {
   tournament_name: text("tournament_name"),
   event_level: text("event_level"),
   round: text("round"),
-  scheduled_date: date("scheduled_date"),
+  scheduled_date: calendarDate("scheduled_date"),
   surface: text("surface"),
   indoor: boolean("indoor"),
   best_of: integer("best_of"),
@@ -36,13 +37,13 @@ export const matchesTable = pgTable("matches", {
   result_status: text("result_status").notNull().default("UNKNOWN"),
   actual_winner: text("actual_winner"),
   final_score: text("final_score"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
   tournament_timezone: text("tournament_timezone"),
-  scheduled_local_at: timestamp("scheduled_local_at", { withTimezone: true, mode: "string" }),
-  scheduled_utc_at: timestamp("scheduled_utc_at", { withTimezone: true, mode: "string" }),
-  actual_first_serve_at: timestamp("actual_first_serve_at", { withTimezone: true, mode: "string" }),
-  result_recorded_at: timestamp("result_recorded_at", { withTimezone: true, mode: "string" }),
+  scheduled_local_at: isoTimestamp("scheduled_local_at"),
+  scheduled_utc_at: isoTimestamp("scheduled_utc_at"),
+  actual_first_serve_at: isoTimestamp("actual_first_serve_at"),
+  result_recorded_at: isoTimestamp("result_recorded_at"),
   slate_id: uuid("slate_id"),
 });
 
@@ -52,12 +53,12 @@ export type MatchesRow = typeof matchesTable.$inferSelect;
 
 export const playersTable = pgTable("players", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   canonical_name: text("canonical_name").notNull(),
   normalized_key: text("normalized_key").notNull(),
   tour: text("tour"),
   aliases: text("aliases").array().notNull().default(sql`'{}'::text[]`),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertPlayersSchema = createInsertSchema(playersTable);
@@ -66,13 +67,13 @@ export type PlayersRow = typeof playersTable.$inferSelect;
 
 export const tournamentsTable = pgTable("tournaments", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   name: text("name").notNull(),
   edition_year: integer("edition_year"),
   event_level: text("event_level"),
   surface: text("surface"),
   indoor: boolean("indoor"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertTournamentsSchema = createInsertSchema(tournamentsTable);
@@ -81,14 +82,14 @@ export type TournamentsRow = typeof tournamentsTable.$inferSelect;
 
 export const matchIdentityRecordsTable = pgTable("match_identity_records", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   match_id: uuid("match_id").notNull(),
   field: text("field").notNull(),
   claimed_value: text("claimed_value"),
   verified_value: text("verified_value"),
   status: text("status").notNull().default("NOT STARTED"),
   note: text("note"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertMatchIdentityRecordsSchema = createInsertSchema(matchIdentityRecordsTable);
@@ -100,8 +101,8 @@ export const predictionSlatesTable = pgTable("prediction_slates", {
   user_id: uuid("user_id").notNull().default("00000000-0000-0000-0000-000000000001"),
   slate_number: integer("slate_number").notNull(),
   label: text("label"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  retired_at: timestamp("retired_at", { withTimezone: true, mode: "string" }),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  retired_at: isoTimestamp("retired_at"),
   retired_reason: text("retired_reason"),
 });
 

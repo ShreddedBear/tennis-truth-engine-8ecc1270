@@ -9,7 +9,57 @@
 -- UNIQUE constraints below.
 
 -- ===========================================================================
--- 1. Foreign keys
+-- 1. CHECK and UNIQUE constraints
+--
+-- The CHECK constraints are the schema-level half of the engine's vocabulary: a
+-- treatment can only be DIRECT / RECONSTRUCTED / PARTIAL / UNAVAILABLE / EXCLUDED, a
+-- player_side only P1 / P2. They are the last line of defence against a writer
+-- inventing a value the audit layers do not understand, so they are not optional.
+--
+-- THESE COME BEFORE THE FOREIGN KEYS, and the order is load-bearing. A foreign key can
+-- only reference a column with a unique constraint on it, and
+-- metric_coverage_rates.metric_code references metric_registry.metric_code -- so creating
+-- the foreign keys first fails with "there is no unique constraint matching given keys"
+-- on any database where both do not already exist. Against the live database, where they
+-- did, the original order looked fine.
+-- ===========================================================================
+do $$
+declare
+  stmt text;
+begin
+  foreach stmt in array array[
+    'alter table public.audit_coverage add constraint audit_coverage_player_side_check check (player_side = any (array[''P1''::text, ''P2''::text]))',
+    'alter table public.audit_runs add constraint audit_runs_independent_winner_side_check check (independent_winner_side is null or independent_winner_side = any (array[''P1''::text, ''P2''::text]))',
+    'alter table public.metric_coverage_rates add constraint metric_coverage_rates_player_side_check check (player_side = any (array[''P1''::text, ''P2''::text]))',
+    'alter table public.metric_coverage_rates add constraint metric_coverage_rates_treatment_check check (treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
+    'alter table public.metric_evidence_store add constraint metric_evidence_store_treatment_check check (treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
+    'alter table public.metric_registry add constraint metric_registry_lifecycle_status_check check (lifecycle_status = any (array[''ACTIVE''::text, ''REVIEW FOR RETIREMENT''::text, ''RETIRED''::text]))',
+    'alter table public.metric_results add constraint metric_results_p1_treatment_check check (p1_treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
+    'alter table public.metric_results add constraint metric_results_p2_treatment_check check (p2_treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
+    'alter table public.source_ingestion_runs add constraint source_ingestion_runs_status_check check (status = any (array[''QUEUED''::text, ''RUNNING''::text, ''COMPLETE''::text, ''PARTIAL''::text, ''FAILED''::text]))',
+    'alter table public.truth_engine_calibration_observations add constraint truth_engine_calibration_observations_prediction_outcome_check check (prediction_outcome = any (array[''WIN''::text, ''LOSS''::text]))',
+    'alter table public.audit_coverage add constraint audit_coverage_audit_run_id_player_side_key unique (audit_run_id, player_side)',
+    'alter table public.audit_stage_runs add constraint audit_stage_runs_audit_run_id_stage_key unique (audit_run_id, stage)',
+    'alter table public.evidence_family_coverage add constraint evidence_family_coverage_audit_run_id_family_code_key unique (audit_run_id, family_code)',
+    'alter table public.formula_versions add constraint formula_versions_user_id_metric_code_version_number_key unique (user_id, metric_code, version_number)',
+    'alter table public.ingestion_targets add constraint ingestion_targets_source_id_target_key_key unique (source_id, target_key)',
+    'alter table public.metric_coverage_rates add constraint metric_coverage_rates_metric_code_player_side_audit_run_id_key unique (metric_code, player_side, audit_run_id)',
+    'alter table public.metric_registry add constraint metric_registry_metric_code_key unique (metric_code)',
+    'alter table public.probability_methods add constraint probability_methods_user_id_code_version_number_key unique (user_id, code, version_number)',
+    'alter table public.probability_provenance add constraint probability_provenance_audit_run_id_metric_key_key unique (audit_run_id, metric_key)',
+    'alter table public.summary_pages add constraint summary_pages_upload_id_page_number_key unique (upload_id, page_number)',
+    'alter table public.user_roles add constraint user_roles_user_id_role_key unique (user_id, role)'
+  ]
+  loop
+    begin
+      execute stmt;
+    exception when duplicate_object or duplicate_table then null;
+    end;
+  end loop;
+end $$;
+
+-- ===========================================================================
+-- 2. Foreign keys
 -- ===========================================================================
 do $$
 declare
@@ -73,49 +123,6 @@ begin
     'alter table public.underdog_results add constraint underdog_results_audit_run_id_fkey foreign key (audit_run_id) references public.audit_runs(id) on delete cascade',
     'alter table public.verification_results add constraint verification_results_audit_run_id_fkey foreign key (audit_run_id) references public.audit_runs(id) on delete cascade',
     'alter table public.verification_results add constraint verification_results_rule_id_fkey foreign key (rule_id) references public.rules(id) on delete set null'
-  ]
-  loop
-    begin
-      execute stmt;
-    exception when duplicate_object or duplicate_table then null;
-    end;
-  end loop;
-end $$;
-
--- ===========================================================================
--- 2. CHECK and UNIQUE constraints
---
--- The CHECK constraints are the schema-level half of the engine's vocabulary: a
--- treatment can only be DIRECT / RECONSTRUCTED / PARTIAL / UNAVAILABLE / EXCLUDED, a
--- player_side only P1 / P2. They are the last line of defence against a writer
--- inventing a value the audit layers do not understand, so they are not optional.
--- ===========================================================================
-do $$
-declare
-  stmt text;
-begin
-  foreach stmt in array array[
-    'alter table public.audit_coverage add constraint audit_coverage_player_side_check check (player_side = any (array[''P1''::text, ''P2''::text]))',
-    'alter table public.audit_runs add constraint audit_runs_independent_winner_side_check check (independent_winner_side is null or independent_winner_side = any (array[''P1''::text, ''P2''::text]))',
-    'alter table public.metric_coverage_rates add constraint metric_coverage_rates_player_side_check check (player_side = any (array[''P1''::text, ''P2''::text]))',
-    'alter table public.metric_coverage_rates add constraint metric_coverage_rates_treatment_check check (treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
-    'alter table public.metric_evidence_store add constraint metric_evidence_store_treatment_check check (treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
-    'alter table public.metric_registry add constraint metric_registry_lifecycle_status_check check (lifecycle_status = any (array[''ACTIVE''::text, ''REVIEW FOR RETIREMENT''::text, ''RETIRED''::text]))',
-    'alter table public.metric_results add constraint metric_results_p1_treatment_check check (p1_treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
-    'alter table public.metric_results add constraint metric_results_p2_treatment_check check (p2_treatment = any (array[''DIRECT''::text, ''RECONSTRUCTED''::text, ''PARTIAL''::text, ''UNAVAILABLE''::text, ''EXCLUDED''::text]))',
-    'alter table public.source_ingestion_runs add constraint source_ingestion_runs_status_check check (status = any (array[''QUEUED''::text, ''RUNNING''::text, ''COMPLETE''::text, ''PARTIAL''::text, ''FAILED''::text]))',
-    'alter table public.truth_engine_calibration_observations add constraint truth_engine_calibration_observations_prediction_outcome_check check (prediction_outcome = any (array[''WIN''::text, ''LOSS''::text]))',
-    'alter table public.audit_coverage add constraint audit_coverage_audit_run_id_player_side_key unique (audit_run_id, player_side)',
-    'alter table public.audit_stage_runs add constraint audit_stage_runs_audit_run_id_stage_key unique (audit_run_id, stage)',
-    'alter table public.evidence_family_coverage add constraint evidence_family_coverage_audit_run_id_family_code_key unique (audit_run_id, family_code)',
-    'alter table public.formula_versions add constraint formula_versions_user_id_metric_code_version_number_key unique (user_id, metric_code, version_number)',
-    'alter table public.ingestion_targets add constraint ingestion_targets_source_id_target_key_key unique (source_id, target_key)',
-    'alter table public.metric_coverage_rates add constraint metric_coverage_rates_metric_code_player_side_audit_run_id_key unique (metric_code, player_side, audit_run_id)',
-    'alter table public.metric_registry add constraint metric_registry_metric_code_key unique (metric_code)',
-    'alter table public.probability_methods add constraint probability_methods_user_id_code_version_number_key unique (user_id, code, version_number)',
-    'alter table public.probability_provenance add constraint probability_provenance_audit_run_id_metric_key_key unique (audit_run_id, metric_key)',
-    'alter table public.summary_pages add constraint summary_pages_upload_id_page_number_key unique (upload_id, page_number)',
-    'alter table public.user_roles add constraint user_roles_user_id_role_key unique (user_id, role)'
   ]
   loop
     begin

@@ -8,7 +8,8 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, integer, jsonb, numeric, text, uuid } from "drizzle-orm/pg-core";
+import { isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
@@ -16,12 +17,12 @@ import { z } from "zod/v4";
 
 export const auditRunsTable = pgTable("audit_runs", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   match_id: uuid("match_id").notNull(),
   run_number: integer("run_number").notNull().default(1),
-  research_lock_at: timestamp("research_lock_at", { withTimezone: true, mode: "string" }),
-  independent_decision_committed_at: timestamp("independent_decision_committed_at", { withTimezone: true, mode: "string" }),
-  matrix_revealed_at: timestamp("matrix_revealed_at", { withTimezone: true, mode: "string" }),
+  research_lock_at: isoTimestamp("research_lock_at"),
+  independent_decision_committed_at: isoTimestamp("independent_decision_committed_at"),
+  matrix_revealed_at: isoTimestamp("matrix_revealed_at"),
   independent_winner: text("independent_winner"),
   independent_low: numeric("independent_low", { mode: "number" }),
   independent_high: numeric("independent_high", { mode: "number" }),
@@ -35,14 +36,14 @@ export const auditRunsTable = pgTable("audit_runs", {
   disagreement_version_id: uuid("disagreement_version_id"),
   metrics_version_id: uuid("metrics_version_id"),
   calibration_version_id: uuid("calibration_version_id"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
   independent_method_id: uuid("independent_method_id"),
   independent_method_version: text("independent_method_version"),
   independent_inputs: jsonb("independent_inputs").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   lease_owner: text("lease_owner"),
-  lease_expires_at: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
-  heartbeat_at: timestamp("heartbeat_at", { withTimezone: true, mode: "string" }),
+  lease_expires_at: isoTimestamp("lease_expires_at"),
+  heartbeat_at: isoTimestamp("heartbeat_at"),
   independent_winner_id: uuid("independent_winner_id"),
   independent_winner_side: text("independent_winner_side"),
 });
@@ -53,23 +54,23 @@ export type AuditRunsRow = typeof auditRunsTable.$inferSelect;
 
 export const auditStageRunsTable = pgTable("audit_stage_runs", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   match_id: uuid("match_id"),
   stage: text("stage").notNull(),
   stage_order: integer("stage_order").notNull().default(0),
   status: text("status").notNull().default("PENDING"),
   attempts: integer("attempts").notNull().default(0),
-  started_at: timestamp("started_at", { withTimezone: true, mode: "string" }),
-  finished_at: timestamp("finished_at", { withTimezone: true, mode: "string" }),
+  started_at: isoTimestamp("started_at"),
+  finished_at: isoTimestamp("finished_at"),
   error_code: text("error_code"),
   error_message: text("error_message"),
   detail: jsonb("detail").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   done_count: integer("done_count").notNull().default(0),
   total_count: integer("total_count").notNull().default(0),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  heartbeat_at: timestamp("heartbeat_at", { withTimezone: true, mode: "string" }),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
+  heartbeat_at: isoTimestamp("heartbeat_at"),
 });
 
 export const insertAuditStageRunsSchema = createInsertSchema(auditStageRunsTable);
@@ -88,7 +89,7 @@ export const auditCoverageTable = pgTable("audit_coverage", {
   total_count: integer("total_count").notNull().default(0),
   usable_coverage_percent: numeric("usable_coverage_percent", { mode: "number" }).notNull().default(0),
   execution_completion_percent: numeric("execution_completion_percent", { mode: "number" }).notNull().default(0),
-  recorded_at: timestamp("recorded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  recorded_at: isoTimestamp("recorded_at").notNull().default(sql`now()`),
   user_id: uuid("user_id"),
 });
 
@@ -98,7 +99,7 @@ export type AuditCoverageRow = typeof auditCoverageTable.$inferSelect;
 
 export const auditColorLedgerTable = pgTable("audit_color_ledger", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   result_grade_id: uuid("result_grade_id"),
   match_id: uuid("match_id"),
   match_label: text("match_label").notNull(),
@@ -109,7 +110,7 @@ export const auditColorLedgerTable = pgTable("audit_color_ledger", {
   matrix_prediction_result: text("matrix_prediction_result"),
   counted: boolean("counted").notNull().default(true),
   note: text("note"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertAuditColorLedgerSchema = createInsertSchema(auditColorLedgerTable);
@@ -118,7 +119,7 @@ export type AuditColorLedgerRow = typeof auditColorLedgerTable.$inferSelect;
 
 export const executionLogsTable = pgTable("execution_logs", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id"),
   match_id: uuid("match_id"),
   stage: text("stage").notNull(),
@@ -130,7 +131,7 @@ export const executionLogsTable = pgTable("execution_logs", {
   status: text("status").notNull(),
   matrix_visible: boolean("matrix_visible").notNull().default(false),
   rule_version: text("rule_version"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertExecutionLogsSchema = createInsertSchema(executionLogsTable);
@@ -139,7 +140,7 @@ export type ExecutionLogsRow = typeof executionLogsTable.$inferSelect;
 
 export const batchIntegrityChecksTable = pgTable("batch_integrity_checks", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   label: text("label").notNull(),
   uploaded_count: integer("uploaded_count").notNull().default(0),
   canonical_count: integer("canonical_count").notNull().default(0),
@@ -147,7 +148,7 @@ export const batchIntegrityChecksTable = pgTable("batch_integrity_checks", {
   duplicates: jsonb("duplicates").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   unresolved: jsonb("unresolved").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   status: text("status").notNull().default("MISMATCH"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertBatchIntegrityChecksSchema = createInsertSchema(batchIntegrityChecksTable);

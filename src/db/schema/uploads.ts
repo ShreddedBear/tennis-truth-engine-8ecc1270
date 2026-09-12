@@ -8,19 +8,20 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, integer, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, integer, numeric, text, uuid } from "drizzle-orm/pg-core";
+import { isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const summaryUploadsTable = pgTable("summary_uploads", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   filename: text("filename").notNull(),
   page_count: integer("page_count"),
   parse_status: text("parse_status").notNull().default("NOT STARTED"),
   raw_text: text("raw_text"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   pages_processed: integer("pages_processed").notNull().default(0),
   pages_vision: integer("pages_vision").notNull().default(0),
   pages_failed: integer("pages_failed").notNull().default(0),
@@ -33,13 +34,13 @@ export type SummaryUploadsRow = typeof summaryUploadsTable.$inferSelect;
 
 export const summaryVersionsTable = pgTable("summary_versions", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   match_id: uuid("match_id").notNull(),
   upload_id: uuid("upload_id").notNull(),
   version_number: integer("version_number").notNull().default(1),
   page_number: integer("page_number"),
   is_active: boolean("is_active").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSummaryVersionsSchema = createInsertSchema(summaryVersionsTable);
@@ -48,7 +49,7 @@ export type SummaryVersionsRow = typeof summaryVersionsTable.$inferSelect;
 
 export const summaryPagesTable = pgTable("summary_pages", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   upload_id: uuid("upload_id").notNull(),
   page_number: integer("page_number").notNull(),
   extraction_method: text("extraction_method").notNull().default("TEXT"),
@@ -57,7 +58,7 @@ export const summaryPagesTable = pgTable("summary_pages", {
   status: text("status").notNull().default("COMPLETE"),
   note: text("note"),
   text_content: text("text_content"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSummaryPagesSchema = createInsertSchema(summaryPagesTable);
@@ -66,7 +67,7 @@ export type SummaryPagesRow = typeof summaryPagesTable.$inferSelect;
 
 export const parsedSummaryFieldsTable = pgTable("parsed_summary_fields", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   summary_version_id: uuid("summary_version_id").notNull(),
   field_key: text("field_key").notNull(),
   raw_value: text("raw_value"),
@@ -75,7 +76,7 @@ export const parsedSummaryFieldsTable = pgTable("parsed_summary_fields", {
   confidence: numeric("confidence", { mode: "number" }),
   corrected: boolean("corrected").notNull().default(false),
   page_number: integer("page_number"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertParsedSummaryFieldsSchema = createInsertSchema(parsedSummaryFieldsTable);

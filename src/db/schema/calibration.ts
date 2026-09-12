@@ -8,20 +8,21 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, date, integer, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, integer, numeric, text, uuid } from "drizzle-orm/pg-core";
+import { calendarDate, isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const calibrationVersionsTable = pgTable("calibration_versions", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   version_number: integer("version_number").notNull().default(1),
   label: text("label").notNull(),
   master_sequence_count: integer("master_sequence_count").notNull().default(0),
   graded_sample_count: integer("graded_sample_count").notNull().default(0),
   is_active: boolean("is_active").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertCalibrationVersionsSchema = createInsertSchema(calibrationVersionsTable);
@@ -30,7 +31,7 @@ export type CalibrationVersionsRow = typeof calibrationVersionsTable.$inferSelec
 
 export const calibrationBucketsTable = pgTable("calibration_buckets", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   calibration_version_id: uuid("calibration_version_id").notNull(),
   bucket_code: text("bucket_code").notNull(),
   bucket_label: text("bucket_label").notNull(),
@@ -39,7 +40,7 @@ export const calibrationBucketsTable = pgTable("calibration_buckets", {
   wins: integer("wins").notNull().default(0),
   graded: integer("graded").notNull().default(0),
   small_sample: boolean("small_sample").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertCalibrationBucketsSchema = createInsertSchema(calibrationBucketsTable);
@@ -48,12 +49,12 @@ export type CalibrationBucketsRow = typeof calibrationBucketsTable.$inferSelect;
 
 export const calibrationLedgerTable = pgTable("calibration_ledger", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   master_sequence: integer("master_sequence").notNull(),
   match_id: uuid("match_id"),
   match_label: text("match_label").notNull(),
   tournament: text("tournament"),
-  match_date: date("match_date"),
+  match_date: calendarDate("match_date"),
   surface: text("surface"),
   matrix_predicted_winner: text("matrix_predicted_winner"),
   matrix_wp: numeric("matrix_wp", { mode: "number" }),
@@ -65,7 +66,7 @@ export const calibrationLedgerTable = pgTable("calibration_ledger", {
   calibration_version_before: uuid("calibration_version_before"),
   calibration_version_after: uuid("calibration_version_after"),
   note: text("note"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertCalibrationLedgerSchema = createInsertSchema(calibrationLedgerTable);
@@ -79,8 +80,8 @@ export const truthEngineCalibrationObservationsTable = pgTable("truth_engine_cal
   audit_run_id: uuid("audit_run_id").notNull(),
   slate_id: uuid("slate_id"),
   run_number: integer("run_number").notNull().default(0),
-  predicted_at: timestamp("predicted_at", { withTimezone: true, mode: "string" }),
-  scheduled_date: date("scheduled_date"),
+  predicted_at: isoTimestamp("predicted_at"),
+  scheduled_date: calendarDate("scheduled_date"),
   player1_name: text("player1_name").notNull(),
   player2_name: text("player2_name").notNull(),
   selected_player: text("selected_player").notNull(),
@@ -108,9 +109,9 @@ export const truthEngineCalibrationObservationsTable = pgTable("truth_engine_cal
   prediction_outcome: text("prediction_outcome").notNull(),
   calibration_eligible: boolean("calibration_eligible").notNull().default(false),
   eligibility_reason: text("eligibility_reason"),
-  observed_at: timestamp("observed_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  observed_at: isoTimestamp("observed_at").notNull().default(sql`now()`),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
   player1_id: uuid("player1_id"),
   player2_id: uuid("player2_id"),
   selected_player_id: uuid("selected_player_id"),

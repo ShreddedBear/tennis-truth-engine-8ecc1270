@@ -8,7 +8,8 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, date, doublePrecision, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, doublePrecision, integer, jsonb, numeric, text, uuid } from "drizzle-orm/pg-core";
+import { calendarDate, isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
@@ -16,7 +17,7 @@ import { z } from "zod/v4";
 
 export const sourceDefinitionsTable = pgTable("source_definitions", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   source_name: text("source_name").notNull(),
   domain: text("domain"),
   category: text("category").notNull().default("TIER 2"),
@@ -28,15 +29,15 @@ export const sourceDefinitionsTable = pgTable("source_definitions", {
   approved: boolean("approved").notNull().default(true),
   blacklisted: boolean("blacklisted").notNull().default(false),
   blacklist_reason: text("blacklist_reason"),
-  last_fetch_at: timestamp("last_fetch_at", { withTimezone: true, mode: "string" }),
+  last_fetch_at: isoTimestamp("last_fetch_at"),
   error_history: jsonb("error_history").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   access_method: text("access_method").notNull().default("MANUAL"),
   terms_status: text("terms_status").notNull().default("UNKNOWN"),
   terms_url: text("terms_url"),
   quota_per_day: integer("quota_per_day"),
   quota_used: integer("quota_used").notNull().default(0),
-  quota_reset_at: timestamp("quota_reset_at", { withTimezone: true, mode: "string" }),
+  quota_reset_at: isoTimestamp("quota_reset_at"),
   consecutive_failures: integer("consecutive_failures").notNull().default(0),
   health_status: text("health_status").notNull().default("HEALTHY"),
   fallback_source_id: uuid("fallback_source_id"),
@@ -56,7 +57,7 @@ export const sourceObservationsTable = pgTable("source_observations", {
   player_name: text("player_name"),
   opponent_name: text("opponent_name"),
   tournament: text("tournament"),
-  event_date: date("event_date"),
+  event_date: calendarDate("event_date"),
   surface: text("surface"),
   observation_type: text("observation_type").notNull(),
   observation_key: text("observation_key").notNull(),
@@ -64,13 +65,13 @@ export const sourceObservationsTable = pgTable("source_observations", {
   text_value: text("text_value"),
   unit: text("unit"),
   sample_label: text("sample_label"),
-  window_start: date("window_start"),
-  window_end: date("window_end"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  source_published_at: timestamp("source_published_at", { withTimezone: true, mode: "string" }),
+  window_start: calendarDate("window_start"),
+  window_end: calendarDate("window_end"),
+  retrieved_at: isoTimestamp("retrieved_at").notNull().default(sql`now()`),
+  source_published_at: isoTimestamp("source_published_at"),
   raw_payload: jsonb("raw_payload").$type<JsonValue>(),
   provenance: jsonb("provenance").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSourceObservationsSchema = createInsertSchema(sourceObservationsTable);
@@ -79,7 +80,7 @@ export type SourceObservationsRow = typeof sourceObservationsTable.$inferSelect;
 
 export const sourceConflictsTable = pgTable("source_conflicts", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   data_key: text("data_key").notNull(),
   critical: boolean("critical").notNull().default(false),
@@ -87,7 +88,7 @@ export const sourceConflictsTable = pgTable("source_conflicts", {
   resolution_status: text("resolution_status").notNull().default("UNRESOLVED"),
   resolution_reason: text("resolution_reason"),
   selected_value: text("selected_value"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSourceConflictsSchema = createInsertSchema(sourceConflictsTable);
@@ -96,7 +97,7 @@ export type SourceConflictsRow = typeof sourceConflictsTable.$inferSelect;
 
 export const sourceSnapshotsTable = pgTable("source_snapshots", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   source_id: uuid("source_id"),
   source_name: text("source_name").notNull(),
@@ -104,11 +105,11 @@ export const sourceSnapshotsTable = pgTable("source_snapshots", {
   player_side: text("player_side"),
   raw_value: text("raw_value"),
   normalized_value: text("normalized_value"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  retrieved_at: isoTimestamp("retrieved_at").notNull().default(sql`now()`),
   post_start: boolean("post_start").notNull().default(false),
   excluded: boolean("excluded").notNull().default(false),
   reliability: numeric("reliability", { mode: "number" }),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSourceSnapshotsSchema = createInsertSchema(sourceSnapshotsTable);
@@ -119,17 +120,17 @@ export const sourceIngestionRunsTable = pgTable("source_ingestion_runs", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
   source_id: text("source_id").notNull(),
   job_type: text("job_type").notNull(),
-  requested_window_start: date("requested_window_start"),
-  requested_window_end: date("requested_window_end"),
+  requested_window_start: calendarDate("requested_window_start"),
+  requested_window_end: calendarDate("requested_window_end"),
   status: text("status").notNull().default("QUEUED"),
   records_seen: integer("records_seen").notNull().default(0),
   records_inserted: integer("records_inserted").notNull().default(0),
   records_updated: integer("records_updated").notNull().default(0),
   error_message: text("error_message"),
   metadata: jsonb("metadata").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
-  started_at: timestamp("started_at", { withTimezone: true, mode: "string" }),
-  completed_at: timestamp("completed_at", { withTimezone: true, mode: "string" }),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  started_at: isoTimestamp("started_at"),
+  completed_at: isoTimestamp("completed_at"),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSourceIngestionRunsSchema = createInsertSchema(sourceIngestionRunsTable);
@@ -138,7 +139,7 @@ export type SourceIngestionRunsRow = typeof sourceIngestionRunsTable.$inferSelec
 
 export const sourceHealthEventsTable = pgTable("source_health_events", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   source_id: uuid("source_id"),
   source_name: text("source_name").notNull(),
   audit_run_id: uuid("audit_run_id"),
@@ -151,7 +152,7 @@ export const sourceHealthEventsTable = pgTable("source_health_events", {
   temporary: boolean("temporary").notNull().default(true),
   fallback_used: text("fallback_used"),
   resolved: boolean("resolved").notNull().default(false),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertSourceHealthEventsSchema = createInsertSchema(sourceHealthEventsTable);
@@ -163,17 +164,17 @@ export const ingestionTargetsTable = pgTable("ingestion_targets", {
   source_id: text("source_id").notNull(),
   target_key: text("target_key").notNull(),
   enabled: boolean("enabled").notNull().default(true),
-  pullback_start: date("pullback_start"),
-  pullback_end: date("pullback_end"),
+  pullback_start: calendarDate("pullback_start"),
+  pullback_end: calendarDate("pullback_end"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
   timezone: text("timezone"),
   tournament: text("tournament"),
   sport_key: text("sport_key"),
   config: jsonb("config").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
-  last_ingested_at: timestamp("last_ingested_at", { withTimezone: true, mode: "string" }),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  last_ingested_at: isoTimestamp("last_ingested_at"),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
 });
 
 export const insertIngestionTargetsSchema = createInsertSchema(ingestionTargetsTable);

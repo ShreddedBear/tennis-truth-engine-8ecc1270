@@ -8,7 +8,8 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, date, doublePrecision, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, doublePrecision, integer, jsonb, numeric, text, uuid } from "drizzle-orm/pg-core";
+import { calendarDate, isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
@@ -21,8 +22,8 @@ export const metricRegistryTable = pgTable("metric_registry", {
   lifecycle_status: text("lifecycle_status").notNull().default("ACTIVE"),
   tour_eligibility: text("tour_eligibility").array().notNull().default(sql`'{}'::text[]`),
   evidence_family: text("evidence_family"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
   user_id: uuid("user_id"),
 });
 
@@ -32,7 +33,7 @@ export type MetricRegistryRow = typeof metricRegistryTable.$inferSelect;
 
 export const metricResultsTable = pgTable("metric_results", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   metric_code: text("metric_code").notNull(),
   metric_name: text("metric_name").notNull(),
@@ -50,7 +51,7 @@ export const metricResultsTable = pgTable("metric_results", {
   evidence_family: text("evidence_family"),
   matrix_derived: boolean("matrix_derived").notNull().default(false),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   p1_treatment: text("p1_treatment").notNull().default("UNAVAILABLE"),
   p2_treatment: text("p2_treatment").notNull().default("UNAVAILABLE"),
   unavailable_reason: text("unavailable_reason"),
@@ -61,13 +62,13 @@ export const metricResultsTable = pgTable("metric_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
+  retrieved_at: isoTimestamp("retrieved_at"),
   p1_unavailable_reason: text("p1_unavailable_reason"),
   p2_unavailable_reason: text("p2_unavailable_reason"),
   p1_provider_error: text("p1_provider_error"),
   p2_provider_error: text("p2_provider_error"),
-  p1_retrieved_at: timestamp("p1_retrieved_at", { withTimezone: true, mode: "string" }),
-  p2_retrieved_at: timestamp("p2_retrieved_at", { withTimezone: true, mode: "string" }),
+  p1_retrieved_at: isoTimestamp("p1_retrieved_at"),
+  p2_retrieved_at: isoTimestamp("p2_retrieved_at"),
 });
 
 export const insertMetricResultsSchema = createInsertSchema(metricResultsTable);
@@ -81,7 +82,7 @@ export const metricCoverageRatesTable = pgTable("metric_coverage_rates", {
   treatment: text("treatment").notNull(),
   audit_run_id: uuid("audit_run_id").notNull(),
   usable: boolean("usable").notNull().default(false),
-  recorded_at: timestamp("recorded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  recorded_at: isoTimestamp("recorded_at").notNull().default(sql`now()`),
   user_id: uuid("user_id"),
 });
 
@@ -98,7 +99,7 @@ export const metricEvidenceStoreTable = pgTable("metric_evidence_store", {
   opponent_name: text("opponent_name"),
   tournament: text("tournament"),
   surface: text("surface"),
-  as_of_date: date("as_of_date").notNull(),
+  as_of_date: calendarDate("as_of_date").notNull(),
   treatment: text("treatment").notNull(),
   value_text: text("value_text"),
   reliability: doublePrecision("reliability"),
@@ -109,11 +110,11 @@ export const metricEvidenceStoreTable = pgTable("metric_evidence_store", {
   input_observation_ids: uuid("input_observation_ids").array().notNull().default(sql`'{}'::uuid[]`),
   formula: text("formula"),
   unavailable_reason: text("unavailable_reason"),
-  valid_from: date("valid_from"),
-  valid_until: timestamp("valid_until", { withTimezone: true, mode: "string" }),
-  computed_at: timestamp("computed_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  valid_from: calendarDate("valid_from"),
+  valid_until: isoTimestamp("valid_until"),
+  computed_at: isoTimestamp("computed_at").notNull().default(sql`now()`),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
 });
 
 export const insertMetricEvidenceStoreSchema = createInsertSchema(metricEvidenceStoreTable);
@@ -122,7 +123,7 @@ export type MetricEvidenceStoreRow = typeof metricEvidenceStoreTable.$inferSelec
 
 export const evidenceFamilyCoverageTable = pgTable("evidence_family_coverage", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   family_code: text("family_code").notNull(),
   family_label: text("family_label").notNull(),
@@ -133,7 +134,7 @@ export const evidenceFamilyCoverageTable = pgTable("evidence_family_coverage", {
   p1_covered: integer("p1_covered").notNull().default(0),
   p2_covered: integer("p2_covered").notNull().default(0),
   coverage_status: text("coverage_status").notNull().default("MISSING"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertEvidenceFamilyCoverageSchema = createInsertSchema(evidenceFamilyCoverageTable);

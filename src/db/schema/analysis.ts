@@ -8,7 +8,8 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, boolean, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, boolean, jsonb, numeric, text, uuid } from "drizzle-orm/pg-core";
+import { isoTimestamp } from "../columns";
 import { sql } from "drizzle-orm";
 import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
@@ -16,7 +17,7 @@ import { z } from "zod/v4";
 
 export const verificationResultsTable = pgTable("verification_results", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   rule_id: uuid("rule_id"),
   rule_code: text("rule_code").notNull(),
@@ -28,7 +29,7 @@ export const verificationResultsTable = pgTable("verification_results", {
   decision_effect: text("decision_effect"),
   sources: jsonb("sources").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -37,7 +38,7 @@ export const verificationResultsTable = pgTable("verification_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
+  retrieved_at: isoTimestamp("retrieved_at"),
 });
 
 export const insertVerificationResultsSchema = createInsertSchema(verificationResultsTable);
@@ -46,7 +47,7 @@ export type VerificationResultsRow = typeof verificationResultsTable.$inferSelec
 
 export const disagreementResultsTable = pgTable("disagreement_results", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   rule_id: uuid("rule_id"),
   rule_code: text("rule_code").notNull(),
@@ -58,7 +59,7 @@ export const disagreementResultsTable = pgTable("disagreement_results", {
   contradiction_severity: text("contradiction_severity"),
   final_effect: text("final_effect"),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -68,7 +69,7 @@ export const disagreementResultsTable = pgTable("disagreement_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
+  retrieved_at: isoTimestamp("retrieved_at"),
 });
 
 export const insertDisagreementResultsSchema = createInsertSchema(disagreementResultsTable);
@@ -77,7 +78,7 @@ export type DisagreementResultsRow = typeof disagreementResultsTable.$inferSelec
 
 export const underdogResultsTable = pgTable("underdog_results", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   pathway_code: text("pathway_code").notNull(),
   pathway_name: text("pathway_name").notNull(),
@@ -86,7 +87,7 @@ export const underdogResultsTable = pgTable("underdog_results", {
   evidence: text("evidence"),
   repeatable: boolean("repeatable").notNull().default(false),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -96,7 +97,7 @@ export const underdogResultsTable = pgTable("underdog_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
+  retrieved_at: isoTimestamp("retrieved_at"),
 });
 
 export const insertUnderdogResultsSchema = createInsertSchema(underdogResultsTable);
@@ -105,7 +106,7 @@ export type UnderdogResultsRow = typeof underdogResultsTable.$inferSelect;
 
 export const stressResultsTable = pgTable("stress_results", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   test_code: text("test_code").notNull(),
   test_name: text("test_name").notNull(),
@@ -115,7 +116,7 @@ export const stressResultsTable = pgTable("stress_results", {
   range_after: text("range_after"),
   outcome: text("outcome").notNull().default("NOT STARTED"),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
@@ -125,7 +126,7 @@ export const stressResultsTable = pgTable("stress_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
+  retrieved_at: isoTimestamp("retrieved_at"),
   p1_outcome_when_stressed: text("p1_outcome_when_stressed"),
   p2_outcome_when_stressed: text("p2_outcome_when_stressed"),
   p1_support_percent_before: numeric("p1_support_percent_before", { mode: "number" }),
@@ -141,7 +142,7 @@ export type StressResultsRow = typeof stressResultsTable.$inferSelect;
 
 export const reconstructionResultsTable = pgTable("reconstruction_results", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id").notNull(),
   metric_code: text("metric_code").notNull(),
   player_side: text("player_side").notNull(),
@@ -151,7 +152,7 @@ export const reconstructionResultsTable = pgTable("reconstruction_results", {
   output: text("output"),
   reliability: numeric("reliability", { mode: "number" }),
   status: text("status").notNull().default("NOT STARTED"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
   formula_version_id: uuid("formula_version_id"),
   formula_version_label: text("formula_version_label"),
   calculation: text("calculation"),
@@ -163,7 +164,7 @@ export const reconstructionResultsTable = pgTable("reconstruction_results", {
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(true),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
-  retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }),
+  retrieved_at: isoTimestamp("retrieved_at"),
 });
 
 export const insertReconstructionResultsSchema = createInsertSchema(reconstructionResultsTable);
@@ -172,7 +173,7 @@ export type ReconstructionResultsRow = typeof reconstructionResultsTable.$inferS
 
 export const autopsiesTable = pgTable("autopsies", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   match_id: uuid("match_id"),
   result_grade_id: uuid("result_grade_id"),
   autopsy_type: text("autopsy_type").notNull(),
@@ -181,11 +182,11 @@ export const autopsiesTable = pgTable("autopsies", {
   summary: text("summary"),
   status: text("status").notNull().default("OPEN"),
   leakage_check_status: text("leakage_check_status").notNull().default("PENDING"),
-  first_serve_at: timestamp("first_serve_at", { withTimezone: true, mode: "string" }),
+  first_serve_at: isoTimestamp("first_serve_at"),
   informs_rule_revision: boolean("informs_rule_revision").notNull().default(false),
   retroactive_change_blocked: boolean("retroactive_change_blocked").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
+  updated_at: isoTimestamp("updated_at").notNull().default(sql`now()`),
 });
 
 export const insertAutopsiesSchema = createInsertSchema(autopsiesTable);
@@ -194,18 +195,18 @@ export type AutopsiesRow = typeof autopsiesTable.$inferSelect;
 
 export const autopsyFindingsTable = pgTable("autopsy_findings", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   autopsy_id: uuid("autopsy_id").notNull(),
   failure_code: text("failure_code").notNull(),
   failure_label: text("failure_label").notNull(),
   evidence: text("evidence"),
   evidence_source: text("evidence_source"),
-  evidence_published_at: timestamp("evidence_published_at", { withTimezone: true, mode: "string" }),
+  evidence_published_at: isoTimestamp("evidence_published_at"),
   publicly_available_pre_match: boolean("publicly_available_pre_match").notNull().default(false),
   admissible: boolean("admissible").notNull().default(false),
   inadmissible_reason: text("inadmissible_reason"),
   severity: text("severity").notNull().default("MEDIUM"),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertAutopsyFindingsSchema = createInsertSchema(autopsyFindingsTable);
@@ -214,7 +215,7 @@ export type AutopsyFindingsRow = typeof autopsyFindingsTable.$inferSelect;
 
 export const blockReasonsTable = pgTable("block_reasons", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
-  user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
+  user_id: uuid("user_id").notNull().default(sql`'00000000-0000-0000-0000-000000000001'::uuid`),
   audit_run_id: uuid("audit_run_id"),
   match_id: uuid("match_id"),
   code: text("code").notNull(),
@@ -222,8 +223,8 @@ export const blockReasonsTable = pgTable("block_reasons", {
   severity: text("severity").notNull().default("BLOCKING"),
   detail: text("detail"),
   resolved: boolean("resolved").notNull().default(false),
-  resolved_at: timestamp("resolved_at", { withTimezone: true, mode: "string" }),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  resolved_at: isoTimestamp("resolved_at"),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertBlockReasonsSchema = createInsertSchema(blockReasonsTable);

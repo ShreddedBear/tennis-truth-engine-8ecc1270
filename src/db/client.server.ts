@@ -18,46 +18,18 @@ import pg from "pg";
 const { Pool } = pg;
 
 // ---------------------------------------------------------------------------
-// DRIVER TYPE PARSERS -- these keep row shapes identical to what PostgREST returned.
+// ROW SHAPES
 //
-// This is not tuning. node-postgres and PostgREST disagree about three column types, and
-// every disagreement is a silent behaviour change across ~200 call sites that read these
-// values as strings:
+// node-postgres and PostgREST disagree about how several column types come back, and every
+// disagreement is a silent behaviour change across ~200 call sites. The conversions live in
+// the COLUMNS (src/db/columns.ts), not here, and that placement is deliberate:
+// drizzle-orm's node-postgres session overrides the driver's type parsers for TIMESTAMPTZ,
+// TIMESTAMP, DATE and INTERVAL to the identity function, so a pg.types.setTypeParser call
+// applies to a raw pool.query() and is bypassed by every query Drizzle issues.
 //
-//   timestamptz / timestamp  node-postgres returns a JS Date; PostgREST returned an ISO
-//                            string. Left alone, `row.created_at` stops being a string and
-//                            every comparison, sort and render against it changes.
-//   date                     node-postgres returns a JS Date at UTC midnight; PostgREST
-//                            returned "YYYY-MM-DD". Left alone, a date shifts by a day for
-//                            any reader west of UTC, which for scheduled_date and
-//                            as_of_date would move evidence across the pre-match boundary.
-//   int8 / numeric           returned as strings by default to avoid precision loss. That
-//                            matches PostgREST and is left as-is.
-//
-// So timestamps are normalised to ISO-8601 UTC and dates are handed back verbatim. The
-// Drizzle schema declares these columns `mode: "string"` to match.
-//
-// Milliseconds, not microseconds: Postgres stores microsecond precision and PostgREST
-// rendered it, while toISOString() truncates to milliseconds. Every value in the app is
-// both written and read through this parser, so it stays self-consistent, and the writers
-// already produce millisecond ISO strings via new Date().toISOString().
-const TIMESTAMPTZ_OID = 1184;
-const TIMESTAMP_OID = 1114;
-const DATE_OID = 1082;
-
-function toIsoString(value: string): string {
-  // Postgres emits "2026-09-11 10:49:22.123+00": a space separator, and a two-digit
-  // offset. Neither is valid ISO-8601, and V8's Date parser rejects the bare "+00"
-  // outright -- so both are normalised before parsing. A timestamp (not timestamptz)
-  // arrives with no offset at all and is read as UTC, which is what it was written as.
-  const isoish = value.replace(" ", "T").replace(/([+-]\d{2})$/u, "$1:00");
-  const parsed = new Date(isoish);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
-}
-
-pg.types.setTypeParser(TIMESTAMPTZ_OID, toIsoString);
-pg.types.setTypeParser(TIMESTAMP_OID, toIsoString);
-pg.types.setTypeParser(DATE_OID, (value: string) => value);
+// See src/db/driver-parity.test.ts, which asserts against the columns' own
+// mapFromDriverValue for exactly that reason.
+// ---------------------------------------------------------------------------
 
 function connectionString(): string {
   const url = process.env["DATABASE_URL"];

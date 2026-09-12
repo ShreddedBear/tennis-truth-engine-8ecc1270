@@ -43,16 +43,23 @@ const COLUMN_TYPE_TO_UDT: Record<string, string> = {
   // than silently changing comparisons against the Truth Engine's thresholds.
   PgNumericNumber: "numeric",
   PgJsonb: "jsonb",
-  PgDateString: "date",
-  // String mode on both, deliberately -- see the driver type parsers in client.server.ts.
-  // PgTimestamp (Drizzle's Date-mode class) must NOT appear in this map: if a column ever
-  // regresses to Date mode, udtOf throws and the conformance test fails loudly rather than
-  // letting JS Dates leak into row shapes that ~200 call sites read as strings.
-  PgTimestampString: "timestamptz",
+  // Dates and timestamps are CUSTOM columns (src/db/columns.ts), not Drizzle's built-ins,
+  // because Drizzle overrides the driver's type parsers for exactly these types to
+  // identity -- so the conversion has to happen in the column. Both report the same
+  // columnType, so they are distinguished by the SQL type the column declares (see
+  // udtOf). Drizzle's own PgTimestamp/PgTimestampString/PgDateString classes are
+  // deliberately absent: a column regressing to one of them fails loudly here.
   PgEnumColumn: "app_role",
 };
 
 function udtOf(column: { columnType: string; name: string }, table: string): string {
+  if (column.columnType === "PgCustomColumn") {
+    // getSQLType() is what the column will actually declare in DDL.
+    const sqlType = (column as unknown as { getSQLType(): string }).getSQLType();
+    if (sqlType === "timestamp with time zone") return "timestamptz";
+    if (sqlType === "date") return "date";
+    throw new Error(`unmapped custom column SQL type ${sqlType} on ${table}.${column.name}`);
+  }
   if (column.columnType === "PgArray") {
     // Element type is what distinguishes _text from _uuid.
     const element = (column as unknown as { baseColumn: { columnType: string } }).baseColumn;

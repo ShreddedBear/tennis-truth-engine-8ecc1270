@@ -8,7 +8,9 @@
 // PostgREST row byte-identical, so the migration changes how a query is BUILT without
 // changing what any consumer of the result sees.
 
-import { pgTable, pgEnum, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid } from "drizzle-orm/pg-core";
+import { isoTimestamp } from "../columns";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,7 +20,7 @@ export const userRolesTable = pgTable("user_roles", {
   id: uuid("id").notNull().defaultRandom().primaryKey(),
   user_id: uuid("user_id").notNull(),
   role: appRoleEnum("role").notNull(),
-  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  created_at: isoTimestamp("created_at").notNull().default(sql`now()`),
 });
 
 export const insertUserRolesSchema = createInsertSchema(userRolesTable);

@@ -1,6 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 import { resolve } from "node:path";
 
+// Paths are resolved from the working directory, not from import.meta.dirname: drizzle-kit
+// loads this file through its own bundler, where import.meta.dirname is undefined.
+const fromRoot = (relative: string) => resolve(process.cwd(), relative);
+
 if (!process.env["DATABASE_URL"]) {
   throw new Error("DATABASE_URL must be set before running drizzle-kit.");
 }
@@ -40,8 +44,8 @@ const DRIZZLE_MANAGED_TABLES = [
 ];
 
 export default defineConfig({
-  schema: resolve(import.meta.dirname, "./src/db/schema/index.ts"),
-  out: resolve(import.meta.dirname, "./src/db/drizzle"),
+  schema: fromRoot("./src/db/schema/index.ts"),
+  out: fromRoot("./src/db/drizzle"),
   dialect: "postgresql",
   dbCredentials: { url: process.env["DATABASE_URL"] },
   tablesFilter: DRIZZLE_MANAGED_TABLES,
