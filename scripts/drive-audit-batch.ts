@@ -3,29 +3,34 @@
 // .github/workflows/drive-audit.yml -- a separate, independent trigger path
 // from /api/drive-audit-batch (that one is armed via AUDIT_CRON_SECRET +
 // an external HTTP scheduler; this one runs the same pipeline code directly
-// inside a GitHub Actions runner via `bun run`, authenticated with the
-// Supabase service-role key instead of a bearer secret).
+// in a scheduler process, connecting to the database with DATABASE_URL
+// instead of presenting a bearer secret).
 //
 // Deliberately imports driveAuditBatch -- the exact fair, heartbeat-ordered
 // scheduling logic already used by the browser path and by
 // /api/drive-audit-batch -- rather than reimplementing any of it here. This
 // script's only job is discovering which matches are RUNNING and reporting
-// the outcome in a form GitHub Actions renders clearly.
+// the outcome in a form a scheduler renders clearly.
+import { eq } from "drizzle-orm";
+
 import { driveAuditBatch } from "../src/lib/audit-pipeline.functions";
-import { supabaseAdmin } from "../src/integrations/supabase/client.server";
+import { db } from "../src/db/client.server";
+import { auditRunsTable } from "../src/db/schema";
 
 async function main() {
   const startedAt = Date.now();
-  const db = supabaseAdmin as any;
 
-  const { data: runs, error } = await db.from("audit_runs").select("match_id").eq("status", "RUNNING").limit(100);
-  if (error) {
-    console.error(`::error::audit_runs lookup failed: ${error.message}`);
+  let runs: Array<{ match_id: string }>;
+  try {
+    runs = await db.select({ match_id: auditRunsTable.match_id }).from(auditRunsTable)
+      .where(eq(auditRunsTable.status, "RUNNING")).limit(100);
+  } catch (error) {
+    console.error(`::error::audit_runs lookup failed: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
     return;
   }
 
-  const matchIds: string[] = [...new Set<string>((runs ?? []).map((row: { match_id: string }) => row.match_id))];
+  const matchIds: string[] = [...new Set<string>(runs.map((row) => row.match_id))];
   if (!matchIds.length) {
     console.log("::notice::No RUNNING audits to drive. Nothing to do this run.");
     return;

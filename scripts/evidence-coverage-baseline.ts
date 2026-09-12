@@ -1,6 +1,9 @@
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { parseRuleDocument } from "../src/lib/rule-parser";
-import { supabaseAdmin } from "../src/integrations/supabase/client.server";
+import { and, eq, inArray, or } from "drizzle-orm";
+
+import { db } from "../src/db/client.server";
+import { matchesTable, metricEvidenceStoreTable } from "../src/db/schema";
 import { buildMetricObservationContext } from "../src/lib/source-observation-metric-bridge.server";
 import { resolveCanonicalEvidencePair } from "../src/lib/evidence-canonical-identity.server";
 import { evidencePairMatches, safeEvidenceAliases } from "../src/lib/evidence-player-alias";
@@ -28,7 +31,6 @@ type SideStatus = "AVAILABLE" | "PARTIAL" | "UNAVAILABLE" | "EXCLUDED";
 type Metric = { code:string; name:string; body?:string|null };
 
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
-const db = supabaseAdmin as any;
 
 function codeOf(v: unknown) {
   const m = String(v ?? "").match(/(\d{1,3})$/);
@@ -61,18 +63,34 @@ async function deterministic(metric:Metric,p1:string,p2:string,asOfDate:string,c
 
 async function exactPairIdentity(p1:string,p2:string){
   return safe(async()=>{
-    const {data,error}=await db.from("matches").select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface").or(`and(player1_name.eq.${p1},player2_name.eq.${p2}),and(player1_name.eq.${p2},player2_name.eq.${p1})`).limit(5);
-    if(error)throw new Error(error.message);
-    return data??[];
+    // Parameterised, unlike the PostgREST `.or()` filter string this replaces: that one
+    // interpolated player names straight into the query grammar.
+    return db.select({
+      id:matchesTable.id,player1_name:matchesTable.player1_name,player2_name:matchesTable.player2_name,
+      tournament_name:matchesTable.tournament_name,event_level:matchesTable.event_level,
+      scheduled_date:matchesTable.scheduled_date,surface:matchesTable.surface,
+    }).from(matchesTable).where(or(
+      and(eq(matchesTable.player1_name,p1),eq(matchesTable.player2_name,p2)),
+      and(eq(matchesTable.player1_name,p2),eq(matchesTable.player2_name,p1)),
+    )).limit(5);
   });
 }
 
 async function storedEvidence(codes:string[],p1:string,p2:string,asOfDate:string){
   const aliases=[...new Set([...safeEvidenceAliases(p1,p2),...safeEvidenceAliases(p2,p1)])];
   return safe(async()=>{
-    const {data,error}=await db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason").in("metric_code",codes).eq("as_of_date",asOfDate).in("player_name",aliases).in("opponent_name",aliases);
-    if(error)throw new Error(error.message);
-    return data??[];
+    return db.select({
+      metric_code:metricEvidenceStoreTable.metric_code,player_name:metricEvidenceStoreTable.player_name,
+      opponent_name:metricEvidenceStoreTable.opponent_name,treatment:metricEvidenceStoreTable.treatment,
+      value_text:metricEvidenceStoreTable.value_text,reliability:metricEvidenceStoreTable.reliability,
+      sample_label:metricEvidenceStoreTable.sample_label,evidence_family:metricEvidenceStoreTable.evidence_family,
+      sources:metricEvidenceStoreTable.sources,unavailable_reason:metricEvidenceStoreTable.unavailable_reason,
+    }).from(metricEvidenceStoreTable).where(and(
+      inArray(metricEvidenceStoreTable.metric_code,codes),
+      eq(metricEvidenceStoreTable.as_of_date,asOfDate),
+      inArray(metricEvidenceStoreTable.player_name,aliases),
+      inArray(metricEvidenceStoreTable.opponent_name,aliases),
+    ));
   });
 }
 

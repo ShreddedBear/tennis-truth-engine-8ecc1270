@@ -16,7 +16,7 @@ const CALIBRATION_TABLES = ["calibration_ledger", "calibration_versions", "calib
 
 // Filename version is the PRODUCTION LEDGER version (see the reconciliation note in
 // docs/), so `supabase db push` treats this migration as applied rather than replaying it.
-const lockdownSql = readFileSync(resolve(repoRoot, "supabase/migrations/20260911104922_calibration_control_plane_lockdown.sql"), "utf8");
+const lockdownSql = readFileSync(resolve(repoRoot, "docs/legacy-supabase/migrations/20260911104922_calibration_control_plane_lockdown.sql"), "utf8");
 const executable = lockdownSql
   .split("\n")
   .filter((line) => !line.trimStart().startsWith("--"))
@@ -89,7 +89,7 @@ describe("supabase/config.toml points at the verified production project", () =>
   // The file named teblxzfqdqzwwooswncc while the live project -- the one every migration in
   // this branch was applied to and verified against -- is qyovnrkiknsiqjybxubf. A local
   // `supabase` CLI run would have targeted the wrong project entirely.
-  const config = readFileSync(resolve(repoRoot, "supabase/config.toml"), "utf8");
+  const config = readFileSync(resolve(repoRoot, "docs/legacy-supabase/config.toml"), "utf8");
 
   it("names the live project ref", () => {
     expect(config).toMatch(/^project_id\s*=\s*"qyovnrkiknsiqjybxubf"/m);

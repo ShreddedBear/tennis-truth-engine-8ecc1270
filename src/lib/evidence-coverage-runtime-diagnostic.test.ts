@@ -10,7 +10,7 @@ const pbp = readFileSync("src/lib/deterministic-pbp-metrics.server.ts", "utf8");
 const bridge = readFileSync("src/lib/source-observation-metric-bridge.server.ts", "utf8");
 const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8").replace(/\s+/g, "");
 const canonical = readFileSync("src/lib/evidence-canonical-identity.server.ts", "utf8");
-const hotPathIndexes = readFileSync("supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
+const hotPathIndexes = readFileSync("docs/legacy-supabase/migrations/20260825152500_evidence_lookup_hotpath_indexes.sql", "utf8");
 
 describe("runtime evidence coverage diagnostic", () => {
   it("is read-only and provider-independent", () => {

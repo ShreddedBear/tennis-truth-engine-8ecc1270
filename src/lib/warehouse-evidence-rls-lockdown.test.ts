@@ -23,7 +23,7 @@ import { describe, expect, it } from "vitest";
 const repoRoot = resolve(process.cwd());
 // Filename version is the PRODUCTION LEDGER version, so `supabase db push` recognises this
 // migration as already applied instead of replaying it under a second version.
-const migrationPath = resolve(repoRoot, "supabase/migrations/20260910213746_warehouse_evidence_rls_lockdown.sql");
+const migrationPath = resolve(repoRoot, "docs/legacy-supabase/migrations/20260910213746_warehouse_evidence_rls_lockdown.sql");
 const sql = readFileSync(migrationPath, "utf8");
 // The "stays minimal" assertions below are about what the migration EXECUTES, not what its
 // header explains. That header deliberately quotes the whole-schema statements this file
@@ -95,26 +95,41 @@ describe("warehouse evidence RLS lockdown migration", () => {
 });
 
 describe("no browser-bundled module may reach the evidence warehouse", () => {
-  const browserFiles = BROWSER_DIRS.flatMap(sourceFilesUnder);
+  // This suite was written when the browser held a publishable key and the four warehouse
+  // tables were one anon GRANT away from being writable from a page. It asserted (a) that
+  // no browser file named one of those tables, and (b) that any module which did reach them
+  // used the service-role client rather than the anon one.
+  //
+  // (b) no longer has a subject: there is no anon client and no service-role client. The
+  // equivalent question now is whether any client-reachable module can reach the database
+  // AT ALL, which src/db/server-only.test.ts answers against the import graph and
+  // src/db/bundle-secrets.test.ts answers against the shipped bytes. What is kept here is
+  // (a), in the form the tables are named today.
+  const browserFiles = BROWSER_DIRS.flatMap(sourceFilesUnder)
+    .filter((file) => !file.includes("/routes/api/"));
 
   it("finds browser source files to check (guards against a vacuous sweep)", () => {
     expect(browserFiles.length).toBeGreaterThan(10);
   });
 
-  it.each(WAREHOUSE_TABLES)("no browser file queries %s", (table) => {
-    const offenders = browserFiles.filter((file) => readFileSync(file, "utf8").includes(table));
+  it.each(WAREHOUSE_TABLES)("no browser file names %s", (table) => {
+    const camel = `${table.replace(/_(.)/gu, (_m, c: string) => c.toUpperCase())}Table`;
+    const offenders = browserFiles.filter((file) => {
+      const text = readFileSync(file, "utf8");
+      return text.includes(`"${table}"`) || text.includes(camel);
+    });
     expect(offenders.map((file) => file.replace(`${repoRoot}/`, ""))).toEqual([]);
   });
 
-  it("every module that does reach the warehouse uses the server-only service-role client", () => {
+  it("every module that does reach the warehouse is server-only", () => {
     const libFiles = sourceFilesUnder("src/lib");
     const offenders = libFiles.filter((file) => {
       const text = readFileSync(file, "utf8");
-      const queriesWarehouse = WAREHOUSE_TABLES.some((table) => text.includes(`from("${table}")`));
-      if (!queriesWarehouse) return false;
-      // client.server.ts exports supabaseAdmin (SUPABASE_SERVICE_ROLE_KEY); the plain
-      // client module is the browser's anon-key client and must never appear here.
-      return !text.includes("integrations/supabase/client.server");
+      const reachesWarehouse = WAREHOUSE_TABLES.some((table) =>
+        text.includes(`${table.replace(/_(.)/gu, (_m, c: string) => c.toUpperCase())}Table`));
+      if (!reachesWarehouse) return false;
+      // .server.ts by name, and it must reach the database through the server-only client.
+      return !/\.server\.ts$/.test(file) || !text.includes("@/db/client.server");
     });
     expect(offenders.map((file) => file.replace(`${repoRoot}/`, ""))).toEqual([]);
   });

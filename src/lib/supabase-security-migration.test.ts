@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 //
 // These assertions are kept as a record of what the file contains -- if it is ever revived
 // behind a real authentication migration, its content must still be what was reviewed.
-const migrationPath = resolve(process.cwd(), "supabase/security/superseded-20260826103000_supabase_security_rls_repair.sql");
+const migrationPath = resolve(process.cwd(), "docs/legacy-supabase/security/superseded-20260826103000_supabase_security_rls_repair.sql");
 const sql = readFileSync(migrationPath, "utf8");
 
 const backendOnly = [
