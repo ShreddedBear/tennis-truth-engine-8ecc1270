@@ -72,6 +72,21 @@ does not process more matches**, and nothing here widens the batch size or concu
 
 Three commands, and the third is the one that matters.
 
+### The short version
+
+```bash
+npm run db:cutover -- --dry-run   # check everything, change nothing
+npm run db:cutover                # schema, export, import, verify
+```
+
+`db:cutover` runs the whole sequence with the checks that make it safe unattended. It
+refuses to start if `DATABASE_URL`, `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` is
+missing, if the target already holds application rows, or if `DATABASE_URL` points at the
+Supabase source itself. It stops at the first failing step, because a half-applied data
+migration is worse than one that never started, and it never writes to the source.
+
+### The same thing, step by step
+
 There are two ways to read the source, and **the second is usually the right one on
 Replit** because it needs no new secret:
 

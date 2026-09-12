@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "db:cutover": "tsx scripts/db-migrate/cutover.ts",
     "db:export": "tsx scripts/db-migrate/export.ts",
     "db:export:api": "tsx scripts/db-migrate/export-postgrest.ts",
     "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
