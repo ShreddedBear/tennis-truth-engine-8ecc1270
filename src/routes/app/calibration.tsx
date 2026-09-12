@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { fetchCalibrationScreen } from "@/lib/screen-queries.functions";
-import { gradeResult } from "@/lib/calibration";
-import { loadMatrixCalibrationInputs } from "@/lib/calibration-matrix-autofill";
+import { gradeCalibrationResult, loadMatrixAutofill } from "@/lib/calibration.functions";
 import { winRate } from "@/lib/audit-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +42,7 @@ function Calibration() {
     if (!matchId.trim()) return;
     setAutofillBusy(true);
     try {
-      const result = await loadMatrixCalibrationInputs(matchId.trim());
+      const result = await loadMatrixAutofill({ data: { matchId: matchId.trim() } });
       if (!result) {
         toast.error("No match found for that ID, or it has no parsed summary yet.");
         return;
@@ -71,7 +70,7 @@ function Calibration() {
 
   const grade = useMutation({
     mutationFn: () =>
-      gradeResult({
+      gradeCalibrationResult({ data: {
         matchId: matchId.trim() || null,
         matchLabel: form.matchLabel,
         tournament: form.tournament || null,
@@ -82,9 +81,9 @@ function Calibration() {
         actualWinner: form.actualWinner || null,
         resultType: form.resultType,
         note: form.note,
-      }),
+      } }),
     onSuccess: (v) => {
-      toast.success(`Result graded — ${v.label} is now active`);
+      toast.success(`Result graded — Calibration v${v.versionNumber} is now active`);
       setForm({ ...form, matchLabel: "", matrixWp: "", actualWinner: "", note: "" });
       qc.invalidateQueries();
     },

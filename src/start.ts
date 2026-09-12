@@ -1,7 +1,6 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next, context }) => {
   try {
@@ -31,7 +30,19 @@ const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
+// NO FUNCTION MIDDLEWARE.
+//
+// This used to carry attachSupabaseAuth, which read a Supabase session in the browser and
+// attached its access token as a bearer header on every server-function call. There is no
+// Supabase session to read any more, and there never was one in practice: production holds
+// zero auth.users, so getSession() always returned null and the header was never attached.
+//
+// The application's ownership model is a single constant, LOCAL_WORKSPACE_ID, applied
+// server-side -- not a per-request identity. Adding an authentication system to replace a
+// token that was never issued would change how the app behaves for its one user without
+// protecting anything, so the access model is stated rather than invented: every request is
+// the workspace owner, and the security boundary is the server/client split, which the
+// CSRF middleware below and the server-only import rules enforce.
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [errorMiddleware, csrfMiddleware],
 }));

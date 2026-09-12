@@ -49,45 +49,39 @@ describe("calibration control-plane lockdown migration", () => {
 });
 
 describe("no browser code writes the calibration control plane", () => {
-  // Once the lockdown is live a browser write fails at runtime rather than at build time, so
-  // a reintroduced call site would ship unnoticed. grep the client-reachable surface.
+  // This suite used to pin two KNOWN LEGACY WRITERS -- calibration.ts's manual grade button
+  // and bootstrap.ts's first-run seeder -- which wrote the calibration control plane from
+  // the browser with the publishable key. The database lockdown revoked their grants, so
+  // they were non-functional, but the call sites were still there and were listed here
+  // rather than deleted because removing them changed UI behaviour that could not be
+  // verified at the time.
+  //
+  // Both are now gone for real: grading moved to calibration.server.ts behind
+  // gradeCalibrationResult, and seeding to bootstrap.server.ts behind ensureBootstrapped.
+  // The expected list is therefore EMPTY, and that is the assertion -- not a relaxation of
+  // the old one, but the state the old one was waiting for.
   const clientWrites = execFileSync(
     "bash",
-    ["-lc", `grep -rnoE 'from\\("(${CALIBRATION_TABLES.join("|")})"\\)\\.(insert|update|delete|upsert)' --include=*.ts --include=*.tsx src | grep -v '\\.server\\.' | grep -v '\\.test\\.' || true`],
+    ["-lc", `grep -rnoE '(from\\("(${CALIBRATION_TABLES.join("|")})"\\)|${CALIBRATION_TABLES.map((t) => `${t.replace(/_(.)/g, (_m, c) => c.toUpperCase())}Table`).join("|")})' --include=*.ts --include=*.tsx src | grep -v '\\.server\\.' | grep -v '\\.test\\.' | grep -v 'src/db/' || true`],
     { cwd: repoRoot, encoding: "utf8" },
   ).trim();
 
-  // The two legacy browser writers, pinned explicitly. Both are duplicates of the scheduled
-  // server-side path (capture-match-results workflow -> truth-engine-calibration.ts) and are
-  // now non-functional against the database:
-  //
-  //   calibration.ts  gradeResult()        -- the calibration page's manual grade button.
-  //                                          Fails on its FIRST write (calibration_versions),
-  //                                          so it cannot leave a half-applied version.
-  //   bootstrap.ts    ensureCalibration()  -- first-run seeder. Already short-circuits when a
-  //                                          calibration_versions row exists, and production
-  //                                          holds one, so it never fires there.
-  //
-  // They are listed rather than deleted because removing them changes UI behaviour that
-  // cannot be verified from this environment. The point of the test is that NO NEW call site
-  // appears: once the lockdown is live a browser write fails at runtime, not at build time.
-  const KNOWN_LEGACY_WRITERS = [
-    'src/lib/calibration.ts:from("calibration_versions").update',
-    'src/lib/calibration.ts:from("calibration_buckets").insert',
-    'src/lib/calibration.ts:from("calibration_ledger").insert',
-    'src/lib/bootstrap.ts:from("calibration_buckets").insert',
-  ];
-
-  it("introduces no NEW client-side writer against a calibration table", () => {
-    const found = (clientWrites ? clientWrites.split("\n") : [])
-      .map((line) => line.replace(/:(\d+):/, ":"))
-      .sort();
-    expect(found).toEqual([...KNOWN_LEGACY_WRITERS].sort());
+  it("has no client-reachable module naming a calibration table at all", () => {
+    const found = (clientWrites ? clientWrites.split("\n") : []).map((line) => line.replace(/:(\d+):/, ":")).sort();
+    expect(found).toEqual([]);
   });
 
-  it("the legacy writers are confined to the two known files", () => {
-    const files = new Set((clientWrites ? clientWrites.split("\n") : []).map((line) => line.split(":")[0]));
-    expect([...files].sort()).toEqual(["src/lib/bootstrap.ts", "src/lib/calibration.ts"]);
+  it("keeps the grading and seeding writers server-only", () => {
+    for (const file of ["src/lib/calibration.server.ts", "src/lib/bootstrap.server.ts"]) {
+      const text = readFileSync(resolve(repoRoot, file), "utf8");
+      expect(text, `${file} must reach the database through the server-only client`).toContain('@/db/client.server');
+    }
+    // And the browser halves must not import them.
+    for (const file of ["src/lib/calibration.ts", "src/lib/calibration.functions.ts", "src/lib/bootstrap.functions.ts"]) {
+      const text = readFileSync(resolve(repoRoot, file), "utf8");
+      expect(text.split("\n").filter((line) => line.startsWith("import")).join("\n"),
+        `${file} must not import the database client at module scope`).not.toContain("@/db/client.server");
+    }
   });
 });
 

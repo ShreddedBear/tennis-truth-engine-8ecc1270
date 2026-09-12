@@ -35,11 +35,24 @@ interface ClearOperationalSlateRpcRow {
   deleted_calibration_observations: number;
 }
 
-export async function clearOperationalSlate(db: {
-  rpc(fn: "clear_operational_slate", args: { p_user_id: string }): PromiseLike<{ data: unknown; error: { message: string } | null }>;
-}): Promise<ClearSlateResult> {
-  const { data: raw, error } = await db.rpc("clear_operational_slate", { p_user_id: LOCAL_WORKSPACE_ID });
-  if (error) throw new Error(`Clear Slate failed: ${error.message}`);
+/**
+ * Runs the authoritative deletion for one owner and returns its jsonb payload.
+ *
+ * A function rather than a client object, so this module stays free of any database
+ * import and the tests can drive it directly. The production implementation is
+ * clearSlateViaDatabase in reset-slate.server.ts, which calls
+ * public.clear_operational_slate -- the ONE path; there must never be a second scattered
+ * DELETE reimplementing it.
+ */
+export type SlateClearer = (userId: string) => Promise<unknown>;
+
+export async function clearOperationalSlate(runClear: SlateClearer): Promise<ClearSlateResult> {
+  let raw: unknown;
+  try {
+    raw = await runClear(LOCAL_WORKSPACE_ID);
+  } catch (error) {
+    throw new Error(`Clear Slate failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
   if (!raw || typeof raw !== "object") throw new Error("Clear Slate failed: the database returned no result.");
   const data = raw as ClearOperationalSlateRpcRow;
 
@@ -80,8 +93,8 @@ export const resetOperationalSlate = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async () => {
-    const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
-    const deleted = await clearOperationalSlate(db);
+    const { clearSlateViaDatabase } = await import("./reset-slate.server");
+    const deleted = await clearOperationalSlate(clearSlateViaDatabase);
 
     return {
       ok: true as const,

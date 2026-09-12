@@ -58,12 +58,8 @@ function deterministicEventLevel(tournament:string|null|undefined,tour:Tour|null
 
 async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{fields:Fields;sources:string[]}> {
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin.from("matches")
-      .select("player1_name,player2_name,tournament_name,event_level,round,scheduled_date,surface,best_of,updated_at")
-      .order("updated_at",{ascending:false})
-      .limit(1000);
-    const rows=(data??[]) as Array<{player1_name:string;player2_name:string;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;best_of:number|null;updated_at:string|null}>;
+    const { loadMatchContextHistory } = await import("./match-context.server");
+    const rows = await loadMatchContextHistory();
     const pairRows=rows.filter(r=>samePair(p1,p2,r.player1_name,r.player2_name));
     const tournamentHint=hints.tournament;
     const contextual=pairRows.filter(r=>compatible(r.tournament_name,tournamentHint));

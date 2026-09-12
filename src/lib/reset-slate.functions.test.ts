@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { clearOperationalSlate } from "./reset-slate.functions";
 import { LOCAL_WORKSPACE_ID } from "./constants";
@@ -7,15 +8,18 @@ import { LOCAL_WORKSPACE_ID } from "./constants";
 // it must refuse to report success unless the function's own AFTER snapshot proves every
 // row is actually gone -- never trust a bare "no error" as proof of deletion.
 
-function fakeDb(result: { before: Record<string, number>; after: Record<string, number>; deleted_matches: number; deleted_uploads: number; deleted_slates: number; deleted_calibration_observations: number } | null, error: string | null = null) {
-  const calls: Array<{ fn: string; args: unknown }> = [];
-  return {
-    calls,
-    rpc(fn: string, args: unknown) {
-      calls.push({ fn, args });
-      return Promise.resolve({ data: result, error: error ? { message: error } : null });
-    },
+type SlatePayload = { before: Record<string, number>; after: Record<string, number>; deleted_matches: number; deleted_uploads: number; deleted_slates: number; deleted_calibration_observations: number };
+
+// The seam is now the deletion call itself rather than a database client, so a failure is
+// a rejection instead of an { error } value -- which is what the real driver does too.
+function fakeDb(result: SlatePayload | null, error: string | null = null) {
+  const calls: Array<{ userId: string }> = [];
+  const run = async (userId: string) => {
+    calls.push({ userId });
+    if (error) throw new Error(error);
+    return result;
   };
+  return Object.assign(run, { calls });
 }
 
 const CLEAN_AFTER = {
@@ -30,7 +34,12 @@ describe("clearOperationalSlate", () => {
   it("A/D. calls the single authoritative RPC, scoped to this app's operational owner", async () => {
     const db = fakeDb({ before: POPULATED_BEFORE, after: CLEAN_AFTER, deleted_matches: 50, deleted_uploads: 3, deleted_slates: 1, deleted_calibration_observations: 0 });
     await clearOperationalSlate(db);
-    expect(db.calls).toEqual([{ fn: "clear_operational_slate", args: { p_user_id: LOCAL_WORKSPACE_ID } }]);
+    expect(db.calls).toEqual([{ userId: LOCAL_WORKSPACE_ID }]);
+    // The function NAME is now part of the production adapter rather than of this seam, so
+    // it is pinned there: clear_operational_slate stays the one authoritative deletion path.
+    const adapter = readFileSync("src/lib/reset-slate.server.ts", "utf8");
+    expect(adapter).toContain("public.clear_operational_slate(");
+    expect(adapter).toContain("::uuid");
   });
 
   it("reports the real deleted counts, not a soft-clear count", async () => {
