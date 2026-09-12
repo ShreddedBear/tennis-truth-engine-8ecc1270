@@ -1,0 +1,4028 @@
+{
+ "capturedFrom": "supabase project qyovnrkiknsiqjybxubf (public schema)",
+ "capturedOn": "2026-09-12",
+ "tableCount": 50,
+ "columnCount": 784,
+ "tables": {
+  "audit_color_ledger": {
+   "audit_color": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "counted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "final_selection": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "final_selection_result": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "independent_audit_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "matrix_prediction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "note": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "result_grade_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "audit_coverage": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "direct_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "excluded_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "execution_completion_percent": {
+    "udt": "numeric",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "partial_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "player_side": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "reconstructed_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "recorded_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "total_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "unavailable_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "usable_coverage_percent": {
+    "udt": "numeric",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "audit_runs": {
+   "calibrated_high": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "calibrated_low": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "calibration_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "disagreement_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "effective_evidence_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "heartbeat_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "independent_decision_committed_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_high": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "independent_low": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_method_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_method_version": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_winner_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_winner_side": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "lease_expires_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "lease_owner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "matrix_revealed_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "metrics_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "raw_signal_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "research_lock_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "run_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "stale_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "verification_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "audit_stage_runs": {
+   "attempts": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "detail": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "done_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "error_code": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "error_message": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "finished_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "heartbeat_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "stage": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "stage_order": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "started_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "total_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "autopsies": {
+   "audit_color": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "autopsy_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "first_serve_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "informs_rule_revision": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "leakage_check_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "result_grade_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retroactive_change_blocked": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "summary": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "trigger_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "autopsy_findings": {
+   "admissible": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "autopsy_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "evidence": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_published_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_source": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "failure_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "failure_label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "inadmissible_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "publicly_available_pre_match": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "severity": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "batch_integrity_checks": {
+   "board_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "canonical_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "duplicates": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "unresolved": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "uploaded_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "block_reasons": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "detail": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "resolved": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "resolved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "severity": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "calibration_buckets": {
+   "bucket_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "bucket_label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "calibration_version_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "graded": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "small_sample": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "wins": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "wp_max": {
+    "udt": "numeric",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "wp_min": {
+    "udt": "numeric",
+    "notNull": true,
+    "hasDefault": false
+   }
+  },
+  "calibration_ledger": {
+   "actual_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "bucket_code": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "calibration_version_after": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "calibration_version_before": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "counted_in_bucket": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "master_sequence": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "match_date": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "matrix_predicted_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "matrix_wp": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "note": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "result_grading_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "result_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "surface": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "calibration_versions": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "graded_sample_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "is_active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "master_sequence_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "version_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "disagreement_results": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "contradiction_severity": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "final_effect": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "missing_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "opposing_evidence": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p1_risk": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_risk": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_attempted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reconstruction_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "rule_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "rule_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "rule_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "source_attempts": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sources": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "supporting_evidence": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_detail": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "evidence_family_coverage": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "coverage_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "covered_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "critical": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "family_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "family_label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p1_covered": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p2_covered": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "required_min": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "unavailable_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "execution_logs": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "input": {
+    "udt": "jsonb",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "matrix_visible": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "output": {
+    "udt": "jsonb",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player_side": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "rule_code": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "rule_version": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "stage": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "final_decisions": {
+   "action": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "audit_complete": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "calibration_bucket": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "completion_percent": {
+    "udt": "numeric",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "final_audit_color": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "final_selection": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "gate_report": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "matrix_firewall_valid": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "selected_player_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "verified_win_rate": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "formula_versions": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "formula": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "is_active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "metric_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "notes": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "version_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "generated_reports": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "payload": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "report_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "template_version": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "title": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "validation": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "validation_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "ingestion_targets": {
+   "config": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "enabled": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "last_ingested_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "latitude": {
+    "udt": "float8",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "longitude": {
+    "udt": "float8",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "pullback_end": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "pullback_start": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_id": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "sport_key": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "target_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "timezone": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "match_identity_records": {
+   "claimed_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "field": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "note": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "verified_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "matches": {
+   "active_summary_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "actual_first_serve_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "actual_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "best_of": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "canonical_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "event_level": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "final_score": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "identity_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "indoor": {
+    "udt": "bool",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "player1_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player1_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "player2_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player2_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "result_recorded_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "result_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "round": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "scheduled_date": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "scheduled_local_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "scheduled_utc_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "slate_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "surface": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "surface_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "tournament_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament_name": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament_timezone": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "metric_coverage_rates": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "metric_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "player_side": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "recorded_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "treatment": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "usable": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "metric_evidence_store": {
+   "as_of_date": {
+    "udt": "date",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "computed_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "evidence_family": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "formula": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "input_observation_ids": {
+    "udt": "_uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "metric_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "metric_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "opponent_name": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "reliability": {
+    "udt": "float8",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "sample_label": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_ids": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sources": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "surface": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "treatment": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "valid_from": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "valid_until": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "value_text": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "metric_registry": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "evidence_family": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "lifecycle_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "metric_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "metric_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "tour_eligibility": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "metric_results": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "category": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "differential": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_family": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "matrix_derived": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "metric_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "metric_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "missing_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p1_provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p1_retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p1_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p1_treatment": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p1_unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p1_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p2_treatment": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p2_unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_attempted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reconstruction_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reliability": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "sample": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_attempts": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sources": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "surface_adjusted_diff": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "treatment": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_detail": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "override_records": {
+   "active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "changed_by": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "entity_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "entity_table": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "field": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "override_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reason": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "requires_admin": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "system_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "parsed_summary_fields": {
+   "confidence": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "corrected": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "extraction_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "field_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "normalized_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "page_number": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "raw_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "summary_version_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "players": {
+   "aliases": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "canonical_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "normalized_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "tour": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "prediction_slates": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "label": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retired_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retired_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "slate_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "probability_methods": {
+   "code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "description": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "formula": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "is_active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "label": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "params": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "version_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "probability_provenance": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "computed_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "display_value": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "formula": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "interpretation_note": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "method_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "method_version": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "metric_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "numeric_value": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_refs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "reconstruction_results": {
+   "assumptions": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "calculation": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "formula": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "formula_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "formula_version_label": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "metric_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "missing_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "output": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player_side": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_attempted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reconstruction_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reliability": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_attempts": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "source_refs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "result_grades": {
+   "actual_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "audit_color": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "correction_pattern": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "counted_in_matrix_calibration": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "final_selection": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "final_selection_result": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "graded_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "independent_audit_result": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "independent_high": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_low": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "independent_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "matrix_predicted_winner": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "matrix_prediction_result": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "matrix_wp": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "note": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "result_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "rule_document_versions": {
+   "activation_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "document_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "expected_rules": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "headings_detected": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "is_active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "pages_detected": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "parsed_rules": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "parser_confidence": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "raw_text": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_filename": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unmapped_rules": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "version_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "rule_documents": {
+   "active_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "doc_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "title": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "rules": {
+   "blocking": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "body": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "category": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "machine_logic": {
+    "udt": "jsonb",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "mapping_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "rule_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "rule_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "severity": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "version_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   }
+  },
+  "source_conflicts": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "critical": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "data_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "resolution_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "resolution_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "selected_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "values": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "source_definitions": {
+   "access_method": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "approved": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "blacklist_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "blacklisted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "category": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "consecutive_failures": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "domain": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "error_history": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "fallback_source_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "health_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "last_fetch_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "priority": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "quota_per_day": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "quota_reset_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "quota_used": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "refresh_minutes": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reliability": {
+    "udt": "numeric",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "source_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "supported_data": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "terms_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "terms_url": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "source_health_events": {
+   "attempt": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "backoff_ms": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "data_key": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "event_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "fallback_used": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "http_status": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "message": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "resolved": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "source_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "temporary": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "source_ingestion_runs": {
+   "completed_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "error_message": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "job_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "metadata": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "records_inserted": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "records_seen": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "records_updated": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "requested_window_end": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "requested_window_start": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_id": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "started_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "source_observations": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "event_date": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "numeric_value": {
+    "udt": "float8",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "observation_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "observation_type": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "opponent_name": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player_name": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "provenance": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "raw_payload": {
+    "udt": "jsonb",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sample_label": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_id": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "source_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "source_published_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_record_key": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_url": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "surface": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "text_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unit": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "window_end": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "window_start": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "source_snapshots": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "data_key": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "excluded": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "normalized_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player_side": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "post_start": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "raw_value": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reliability": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "source_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "stress_results": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "comparative_robustness": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "missing_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "outcome": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p1_outcome_when_stressed": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p1_support_percent_after": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p1_support_percent_before": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_outcome_when_stressed": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_support_percent_after": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_support_percent_before": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "range_after": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "range_before": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_attempted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reconstruction_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_attempts": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sources": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "test_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "test_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "unavailable_detail": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "winner_after": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "winner_before": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "summary_pages": {
+   "char_count": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "confidence": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "extraction_method": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "note": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "page_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "text_content": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "upload_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "summary_uploads": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "extraction_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "filename": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "page_count": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "pages_failed": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "pages_processed": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "pages_vision": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "parse_status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "raw_text": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "summary_versions": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "is_active": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "page_number": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "upload_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "version_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "tournaments": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "edition_year": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "event_level": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "indoor": {
+    "udt": "bool",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "surface": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "truth_engine_calibration_observations": {
+   "actual_winner": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "actual_winner_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "calibration_eligible": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "calibration_model_version": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "conflicted_families": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "contradicting_families": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "contradicting_family_count": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "corroborated": {
+    "udt": "bool",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "decision_outcome": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "directional_families": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "disagreement_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "disagreement_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "eligibility_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "event_level": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_coverage_expected": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_coverage_percent": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_coverage_usable": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "evidence_support_percent": {
+    "udt": "numeric",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "feature_version": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "final_score": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "match_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "metrics_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "neutral_families": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "observed_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "player1_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player1_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "player2_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "player2_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "predicted_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "prediction_outcome": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "result_status": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "run_number": {
+    "udt": "int4",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "scheduled_date": {
+    "udt": "date",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "selected_player": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "selected_player_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "slate_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "stability": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "stress_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "supporting_families": {
+    "udt": "_text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "supporting_family_count": {
+    "udt": "int4",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "surface": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "tournament_name": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "underdog_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "updated_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "verification_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "verification_version_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   }
+  },
+  "underdog_results": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "classification": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "evidence": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "missing_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "pathway_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "pathway_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "player_side": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_attempted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reconstruction_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "repeatable": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_attempts": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sources": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "unavailable_detail": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  },
+  "user_roles": {
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "role": {
+    "udt": "app_role",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   }
+  },
+  "verification_results": {
+   "audit_run_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "created_at": {
+    "udt": "timestamptz",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "decision_effect": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "missing_inputs": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "outcome": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "p1_finding": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "p2_finding": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "provider_error": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_attempted": {
+    "udt": "bool",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "reconstruction_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "reconstruction_result": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "retrieved_at": {
+    "udt": "timestamptz",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "rule_code": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "rule_id": {
+    "udt": "uuid",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "rule_name": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": false
+   },
+   "severity": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "source_attempts": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "sources": {
+    "udt": "jsonb",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "status": {
+    "udt": "text",
+    "notNull": true,
+    "hasDefault": true
+   },
+   "unavailable_detail": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "unavailable_reason": {
+    "udt": "text",
+    "notNull": false,
+    "hasDefault": false
+   },
+   "user_id": {
+    "udt": "uuid",
+    "notNull": true,
+    "hasDefault": true
+   }
+  }
+ }
+}
