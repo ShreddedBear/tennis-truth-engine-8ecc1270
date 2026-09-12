@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchBoardScreen } from "@/lib/screen-queries.functions";
 import { AuditColorBadge, BucketBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { buildBoardPdf } from "@/lib/report-pdf";
@@ -43,26 +43,12 @@ export function useBoardRows() {
   return useQuery({
     queryKey: ["board"],
     queryFn: async (): Promise<BoardRow[]> => {
-      const [decisionResult, runResult, matchResult, fieldResult, versionResult] = await Promise.all([
-        supabase.from("final_decisions").select("*"),
-        supabase.from("audit_runs").select("*"),
-        supabase.from("matches").select("*"),
-        supabase.from("parsed_summary_fields").select("summary_version_id, field_key, normalized_value"),
-        supabase.from("summary_versions").select("id, match_id, is_active"),
-      ]);
-      const failed = [
-        ["final decisions", decisionResult.error],
-        ["audit runs", runResult.error],
-        ["matches", matchResult.error],
-        ["summary fields", fieldResult.error],
-        ["summary versions", versionResult.error],
-      ].find(([, error]) => error);
-      if (failed) throw new Error(`Could not load ${failed[0]}: ${(failed[1] as { message: string }).message}`);
-      const decisions = decisionResult.data ?? [];
-      const runs = runResult.data ?? [];
-      const matches = matchResult.data ?? [];
-      const fields = fieldResult.data ?? [];
-      const versions = versionResult.data ?? [];
+      // The five per-table error checks this replaced existed because PostgREST returned
+      // errors as values, so a failed read arrived as an empty list and the board would
+      // silently rank fewer matches. A server function rejects instead, which react-query
+      // surfaces as a query error -- the same "never render a partial board" guarantee,
+      // reached without five separate checks.
+      const { decisions, runs, matches, fields, versions } = await fetchBoardScreen();
 
       const matrixFor = (matchId: string, key: string) => {
         const sv = versions?.find((v) => v.match_id === matchId && v.is_active);

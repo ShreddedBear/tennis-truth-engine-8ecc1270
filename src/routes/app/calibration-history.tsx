@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchCalibrationHistoryScreen } from "@/lib/screen-queries.functions";
 import { winRate } from "@/lib/audit-engine";
 import { BucketBadge } from "@/components/StatusBadge";
 
@@ -20,16 +20,7 @@ function History() {
   const { data } = useQuery({
     queryKey: ["calibration-history"],
     queryFn: async () => {
-      const { data: versions } = await supabase
-        .from("calibration_versions")
-        .select("*")
-        .order("version_number", { ascending: false })
-        .limit(40);
-      const ids = (versions ?? []).map((v) => v.id);
-      const { data: buckets } = ids.length
-        ? await supabase.from("calibration_buckets").select("*").in("calibration_version_id", ids).order("wp_min")
-        : { data: [] };
-      return { versions: versions ?? [], buckets: buckets ?? [] };
+      return fetchCalibrationHistoryScreen();
     },
   });
 

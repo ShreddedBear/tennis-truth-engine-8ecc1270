@@ -10,6 +10,7 @@
 
 import { pgTable, boolean, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -24,7 +25,7 @@ export const rulesTable = pgTable("rules", {
   severity: text("severity").notNull().default("STANDARD"),
   blocking: boolean("blocking").notNull().default(false),
   mapping_status: text("mapping_status").notNull().default("REQUIRES HUMAN RULE MAPPING"),
-  machine_logic: jsonb("machine_logic"),
+  machine_logic: jsonb("machine_logic").$type<JsonValue>(),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
@@ -57,7 +58,7 @@ export const ruleDocumentVersionsTable = pgTable("rule_document_versions", {
   expected_rules: integer("expected_rules").notNull().default(0),
   parsed_rules: integer("parsed_rules").notNull().default(0),
   unmapped_rules: integer("unmapped_rules").notNull().default(0),
-  parser_confidence: numeric("parser_confidence"),
+  parser_confidence: numeric("parser_confidence", { mode: "number" }),
   activation_status: text("activation_status").notNull().default("BLOCKED"),
   is_active: boolean("is_active").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchCalibrationScreen } from "@/lib/screen-queries.functions";
 import { gradeResult } from "@/lib/calibration";
 import { loadMatrixCalibrationInputs } from "@/lib/calibration-matrix-autofill";
 import { winRate } from "@/lib/audit-engine";
@@ -65,16 +65,7 @@ function Calibration() {
   const { data } = useQuery({
     queryKey: ["calibration"],
     queryFn: async () => {
-      const { data: version } = await supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
-      const { data: buckets } = version
-        ? await supabase.from("calibration_buckets").select("*").eq("calibration_version_id", version.id).order("wp_min")
-        : { data: [] };
-      const { data: ledger } = await supabase
-        .from("calibration_ledger")
-        .select("*")
-        .order("master_sequence", { ascending: false })
-        .limit(100);
-      return { version, buckets: buckets ?? [], ledger: ledger ?? [] };
+      return fetchCalibrationScreen();
     },
   });
 

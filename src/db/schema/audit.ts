@@ -10,6 +10,7 @@
 
 import { pgTable, boolean, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -22,10 +23,10 @@ export const auditRunsTable = pgTable("audit_runs", {
   independent_decision_committed_at: timestamp("independent_decision_committed_at", { withTimezone: true, mode: "string" }),
   matrix_revealed_at: timestamp("matrix_revealed_at", { withTimezone: true, mode: "string" }),
   independent_winner: text("independent_winner"),
-  independent_low: numeric("independent_low"),
-  independent_high: numeric("independent_high"),
-  calibrated_low: numeric("calibrated_low"),
-  calibrated_high: numeric("calibrated_high"),
+  independent_low: numeric("independent_low", { mode: "number" }),
+  independent_high: numeric("independent_high", { mode: "number" }),
+  calibrated_low: numeric("calibrated_low", { mode: "number" }),
+  calibrated_high: numeric("calibrated_high", { mode: "number" }),
   effective_evidence_count: integer("effective_evidence_count").notNull().default(0),
   raw_signal_count: integer("raw_signal_count").notNull().default(0),
   status: text("status").notNull().default("RUNNING"),
@@ -38,7 +39,7 @@ export const auditRunsTable = pgTable("audit_runs", {
   updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   independent_method_id: uuid("independent_method_id"),
   independent_method_version: text("independent_method_version"),
-  independent_inputs: jsonb("independent_inputs").notNull().default(sql`'{}'::jsonb`),
+  independent_inputs: jsonb("independent_inputs").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   lease_owner: text("lease_owner"),
   lease_expires_at: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
   heartbeat_at: timestamp("heartbeat_at", { withTimezone: true, mode: "string" }),
@@ -63,7 +64,7 @@ export const auditStageRunsTable = pgTable("audit_stage_runs", {
   finished_at: timestamp("finished_at", { withTimezone: true, mode: "string" }),
   error_code: text("error_code"),
   error_message: text("error_message"),
-  detail: jsonb("detail").notNull().default(sql`'{}'::jsonb`),
+  detail: jsonb("detail").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   done_count: integer("done_count").notNull().default(0),
   total_count: integer("total_count").notNull().default(0),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
@@ -85,8 +86,8 @@ export const auditCoverageTable = pgTable("audit_coverage", {
   unavailable_count: integer("unavailable_count").notNull().default(0),
   excluded_count: integer("excluded_count").notNull().default(0),
   total_count: integer("total_count").notNull().default(0),
-  usable_coverage_percent: numeric("usable_coverage_percent").notNull().default("0"),
-  execution_completion_percent: numeric("execution_completion_percent").notNull().default("0"),
+  usable_coverage_percent: numeric("usable_coverage_percent", { mode: "number" }).notNull().default(0),
+  execution_completion_percent: numeric("execution_completion_percent", { mode: "number" }).notNull().default(0),
   recorded_at: timestamp("recorded_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   user_id: uuid("user_id"),
 });
@@ -123,8 +124,8 @@ export const executionLogsTable = pgTable("execution_logs", {
   stage: text("stage").notNull(),
   rule_code: text("rule_code"),
   player_side: text("player_side"),
-  input: jsonb("input"),
-  output: jsonb("output"),
+  input: jsonb("input").$type<JsonValue>(),
+  output: jsonb("output").$type<JsonValue>(),
   source: text("source"),
   status: text("status").notNull(),
   matrix_visible: boolean("matrix_visible").notNull().default(false),
@@ -143,8 +144,8 @@ export const batchIntegrityChecksTable = pgTable("batch_integrity_checks", {
   uploaded_count: integer("uploaded_count").notNull().default(0),
   canonical_count: integer("canonical_count").notNull().default(0),
   board_count: integer("board_count").notNull().default(0),
-  duplicates: jsonb("duplicates").notNull().default(sql`'[]'::jsonb`),
-  unresolved: jsonb("unresolved").notNull().default(sql`'[]'::jsonb`),
+  duplicates: jsonb("duplicates").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
+  unresolved: jsonb("unresolved").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   status: text("status").notNull().default("MISMATCH"),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });

@@ -37,7 +37,11 @@ const COLUMN_TYPE_TO_UDT: Record<string, string> = {
   PgBoolean: "bool",
   PgInteger: "int4",
   PgDoublePrecision: "float8",
-  PgNumeric: "numeric",
+  // Number mode, deliberately -- PostgREST serialised numeric to a JSON number, and all 28
+  // numeric columns here are bounded rates. PgNumeric (Drizzle's string-mode class) must NOT
+  // appear in this map: a column regressing to string mode then fails loudly here rather
+  // than silently changing comparisons against the Truth Engine's thresholds.
+  PgNumericNumber: "numeric",
   PgJsonb: "jsonb",
   PgDateString: "date",
   // String mode on both, deliberately -- see the driver type parsers in client.server.ts.

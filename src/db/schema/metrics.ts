@@ -10,6 +10,7 @@
 
 import { pgTable, boolean, date, doublePrecision, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -43,9 +44,9 @@ export const metricResultsTable = pgTable("metric_results", {
   differential: text("differential"),
   surface_adjusted_diff: text("surface_adjusted_diff"),
   treatment: text("treatment"),
-  reliability: numeric("reliability"),
+  reliability: numeric("reliability", { mode: "number" }),
   sample: text("sample"),
-  sources: jsonb("sources").notNull().default(sql`'[]'::jsonb`),
+  sources: jsonb("sources").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   evidence_family: text("evidence_family"),
   matrix_derived: boolean("matrix_derived").notNull().default(false),
   status: text("status").notNull().default("NOT STARTED"),
@@ -55,8 +56,8 @@ export const metricResultsTable = pgTable("metric_results", {
   unavailable_reason: text("unavailable_reason"),
   unavailable_detail: text("unavailable_detail"),
   provider_error: text("provider_error"),
-  missing_inputs: jsonb("missing_inputs").notNull().default(sql`'[]'::jsonb`),
-  source_attempts: jsonb("source_attempts").notNull().default(sql`'[]'::jsonb`),
+  missing_inputs: jsonb("missing_inputs").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
+  source_attempts: jsonb("source_attempts").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   reconstruction_attempted: boolean("reconstruction_attempted").notNull().default(false),
   reconstruction_reason: text("reconstruction_reason"),
   reconstruction_result: text("reconstruction_result"),
@@ -104,7 +105,7 @@ export const metricEvidenceStoreTable = pgTable("metric_evidence_store", {
   sample_label: text("sample_label"),
   evidence_family: text("evidence_family"),
   source_ids: text("source_ids").array().notNull().default(sql`'{}'::text[]`),
-  sources: jsonb("sources").notNull().default(sql`'[]'::jsonb`),
+  sources: jsonb("sources").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   input_observation_ids: uuid("input_observation_ids").array().notNull().default(sql`'{}'::uuid[]`),
   formula: text("formula"),
   unavailable_reason: text("unavailable_reason"),

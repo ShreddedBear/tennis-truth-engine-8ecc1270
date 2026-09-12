@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchSourcesScreen, resolveConflict } from "@/lib/screen-queries.functions";
 import { Button } from "@/components/ui/button";
 import { StateText } from "@/components/StatusBadge";
 
@@ -22,19 +22,12 @@ function Sources() {
   const { data } = useQuery({
     queryKey: ["sources"],
     queryFn: async () => {
-      const [{ data: snapshots }, { data: conflicts }] = await Promise.all([
-        supabase.from("source_snapshots").select("*").order("retrieved_at", { ascending: false }).limit(200),
-        supabase.from("source_conflicts").select("*").order("created_at", { ascending: false }).limit(200),
-      ]);
-      return { snapshots: snapshots ?? [], conflicts: conflicts ?? [] };
+      return fetchSourcesScreen();
     },
   });
 
   const resolve = async (id: string, resolution: string) => {
-    await supabase
-      .from("source_conflicts")
-      .update({ resolution_status: resolution } as never)
-      .eq("id", id);
+    await resolveConflict({ data: { id, resolution } });
     toast.success(`Conflict marked ${resolution}`);
     qc.invalidateQueries({ queryKey: ["sources"] });
   };

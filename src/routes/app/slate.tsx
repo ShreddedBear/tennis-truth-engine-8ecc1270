@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchSlateBase, fetchSlateRunDetail } from "@/lib/screen-queries.functions";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
 import { normalizeName } from "@/lib/summary-parser";
 import { activeRunExecutionPercent } from "@/lib/audit-progress";
@@ -35,12 +35,8 @@ function Slate(){
     queryKey:["slate"],
     refetchInterval:3000,
     queryFn:async()=>{
-      const[{data:matches},{data:runs},{data:versions}]=await Promise.all([
-        supabase.from("matches").select("*").order("created_at",{ascending:false}),
-        supabase.from("audit_runs").select("id, match_id, status, run_number, heartbeat_at, lease_expires_at"),
-        supabase.from("summary_versions").select("match_id, upload_id, created_at, is_active"),
-      ]);
-      const raw=matches??[],runRows=runs??[],groups:any[][]=[];
+      const{matches,runs,versions}=await fetchSlateBase();
+      const raw=matches,runRows=runs,groups:any[][]=[];
       for(const match of raw){const index=groups.findIndex(group=>samePair(group[0],match));if(index<0)groups.push([match]);else groups[index].push(match);}
       // The active slate = matches with an active summary_version -- the
       // same definition Dashboard and the Master Ranked Board use (reused
@@ -70,12 +66,8 @@ function Slate(){
       // id directly; Active Slate previously read 0% because its global
       // fetch could stop containing this run's rows once the table grew
       // past the cap).
-      const[{data:decisions},{data:stages},{data:coverage}]=activeRunIdList.length?await Promise.all([
-        supabase.from("final_decisions").select("audit_run_id, final_audit_color, completion_percent, audit_complete").in("audit_run_id",activeRunIdList),
-        supabase.from("audit_stage_runs").select("audit_run_id, stage, stage_order, status, done_count, total_count, started_at, finished_at, heartbeat_at").in("audit_run_id",activeRunIdList),
-        supabase.from("audit_coverage").select("audit_run_id, player_side, usable_coverage_percent, total_count").in("audit_run_id",activeRunIdList),
-      ]):[{data:[]},{data:[]},{data:[]}] as const;
-      return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions:decisions??[],stages:stages??[],coverage:coverage??[],activeMatchIds:[...activeMatchIds]};
+      const{decisions,stages,coverage}=await fetchSlateRunDetail({data:{runIds:activeRunIdList}});
+      return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions,stages,coverage,activeMatchIds:[...activeMatchIds]};
     },
   });
   const drive=useMutation({

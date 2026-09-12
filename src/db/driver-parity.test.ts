@@ -1,5 +1,8 @@
+import { getTableColumns } from "drizzle-orm";
 import pg from "pg";
 import { describe, expect, it } from "vitest";
+
+import { auditCoverageTable } from "./schema";
 
 // Importing the client installs the driver type parsers. It must not open a connection --
 // the pool is lazy -- so this import is safe with no DATABASE_URL set, and that is itself
@@ -56,10 +59,27 @@ describe("date columns stay calendar dates", () => {
   });
 });
 
-describe("numeric and bigint keep their string form", () => {
-  it("does not coerce numeric to a float", () => {
-    // Left at the driver default deliberately: PostgREST also returned these as strings,
-    // and coercing loses precision.
+describe("numeric arrives as a number, as PostgREST delivered it", () => {
+  it("is still a string at the driver level", () => {
+    // node-postgres leaves numeric as a string to avoid precision loss, and that default is
+    // kept. The conversion happens one level up, in the Drizzle column.
     expect(typeof parse(1700, "1234.5678")).toBe("string");
+  });
+
+  it("is a number by the time it leaves the schema", () => {
+    // PostgREST serialised numeric to a JSON number. All 28 numeric columns in this schema
+    // are bounded rates -- percentages, probabilities, reliabilities -- and several are
+    // compared directly against the Truth Engine's thresholds, so they must stay numbers.
+    const column = getTableColumns(auditCoverageTable).usable_coverage_percent;
+    expect(column.columnType).toBe("PgNumericNumber");
+    expect(column.mapFromDriverValue("59.9")).toBe(59.9);
+  });
+
+  it("keeps a threshold comparison arithmetic rather than lexicographic", () => {
+    // The failure this guards: with a string, `value + 1` concatenates and `.toFixed()`
+    // throws. Both appear in the coverage and completion surfaces.
+    const value = getTableColumns(auditCoverageTable).usable_coverage_percent.mapFromDriverValue("60") as number;
+    expect(value + 1).toBe(61);
+    expect(value.toFixed(1)).toBe("60.0");
   });
 });

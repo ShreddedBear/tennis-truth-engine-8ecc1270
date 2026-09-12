@@ -10,6 +10,7 @@
 
 import { pgTable, boolean, date, doublePrecision, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,7 +21,7 @@ export const sourceDefinitionsTable = pgTable("source_definitions", {
   domain: text("domain"),
   category: text("category").notNull().default("TIER 2"),
   priority: integer("priority").notNull().default(100),
-  reliability: numeric("reliability").notNull().default("0.8"),
+  reliability: numeric("reliability", { mode: "number" }).notNull().default(0.8),
   supported_data: text("supported_data").array().notNull().default(sql`'{}'::text[]`),
   refresh_minutes: integer("refresh_minutes").notNull().default(1440),
   active: boolean("active").notNull().default(true),
@@ -28,7 +29,7 @@ export const sourceDefinitionsTable = pgTable("source_definitions", {
   blacklisted: boolean("blacklisted").notNull().default(false),
   blacklist_reason: text("blacklist_reason"),
   last_fetch_at: timestamp("last_fetch_at", { withTimezone: true, mode: "string" }),
-  error_history: jsonb("error_history").notNull().default(sql`'[]'::jsonb`),
+  error_history: jsonb("error_history").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   access_method: text("access_method").notNull().default("MANUAL"),
   terms_status: text("terms_status").notNull().default("UNKNOWN"),
@@ -67,8 +68,8 @@ export const sourceObservationsTable = pgTable("source_observations", {
   window_end: date("window_end"),
   retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   source_published_at: timestamp("source_published_at", { withTimezone: true, mode: "string" }),
-  raw_payload: jsonb("raw_payload"),
-  provenance: jsonb("provenance").notNull().default(sql`'{}'::jsonb`),
+  raw_payload: jsonb("raw_payload").$type<JsonValue>(),
+  provenance: jsonb("provenance").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
@@ -82,7 +83,7 @@ export const sourceConflictsTable = pgTable("source_conflicts", {
   audit_run_id: uuid("audit_run_id").notNull(),
   data_key: text("data_key").notNull(),
   critical: boolean("critical").notNull().default(false),
-  values: jsonb("values").notNull().default(sql`'[]'::jsonb`),
+  values: jsonb("values").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   resolution_status: text("resolution_status").notNull().default("UNRESOLVED"),
   resolution_reason: text("resolution_reason"),
   selected_value: text("selected_value"),
@@ -106,7 +107,7 @@ export const sourceSnapshotsTable = pgTable("source_snapshots", {
   retrieved_at: timestamp("retrieved_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   post_start: boolean("post_start").notNull().default(false),
   excluded: boolean("excluded").notNull().default(false),
-  reliability: numeric("reliability"),
+  reliability: numeric("reliability", { mode: "number" }),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
@@ -125,7 +126,7 @@ export const sourceIngestionRunsTable = pgTable("source_ingestion_runs", {
   records_inserted: integer("records_inserted").notNull().default(0),
   records_updated: integer("records_updated").notNull().default(0),
   error_message: text("error_message"),
-  metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+  metadata: jsonb("metadata").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   started_at: timestamp("started_at", { withTimezone: true, mode: "string" }),
   completed_at: timestamp("completed_at", { withTimezone: true, mode: "string" }),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
@@ -169,7 +170,7 @@ export const ingestionTargetsTable = pgTable("ingestion_targets", {
   timezone: text("timezone"),
   tournament: text("tournament"),
   sport_key: text("sport_key"),
-  config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
+  config: jsonb("config").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   last_ingested_at: timestamp("last_ingested_at", { withTimezone: true, mode: "string" }),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),

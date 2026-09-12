@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchLogsScreen } from "@/lib/screen-queries.functions";
 import { StateText } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { activeSlateMatchIds, activeRunIds } from "@/lib/current-audit-state";
@@ -23,18 +23,14 @@ function Logs() {
   const { data } = useQuery({
     queryKey: ["logs"],
     queryFn: async () => {
-      const [{ data: logs }, { data: runs }, { data: versions }] = await Promise.all([
-        supabase.from("execution_logs").select("*").order("created_at", { ascending: false }).limit(300),
-        supabase.from("audit_runs").select("id, match_id, run_number, status"),
-        supabase.from("summary_versions").select("match_id, is_active"),
-      ]);
+      const { logs, runs, versions } = await fetchLogsScreen();
       // Operational execution data must be scoped to active/current runs --
       // the same activeSlateMatchIds + resolveActiveRun-backed definition
       // every other operational page reuses. A cleared match's (or an
       // invalidated run's) log rows are real history, never deleted, but
       // they must not read as current operational output by default.
-      const activeIds = activeRunIds(runs ?? [], activeSlateMatchIds(versions ?? []));
-      return { logs: logs ?? [], activeRunIds: [...activeIds] };
+      const activeIds = activeRunIds(runs, activeSlateMatchIds(versions));
+      return { logs, activeRunIds: [...activeIds] };
     },
   });
 

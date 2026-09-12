@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchDashboardScreen } from "@/lib/screen-queries.functions";
 import { BucketBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { winRate } from "@/lib/audit-engine";
@@ -28,30 +28,17 @@ function Dashboard() {
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
-      const [matches, runs, decisions, version, uploads, slateVersions] = await Promise.all([
-        supabase.from("matches").select("id, match_status, identity_status, surface_status"),
-        supabase.from("audit_runs").select("id, match_id, run_number, status"),
-        supabase.from("final_decisions").select("audit_run_id, final_audit_color, audit_complete"),
-        supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle(),
-        supabase.from("summary_uploads").select("id"),
-        supabase.from("summary_versions").select("match_id, upload_id, is_active"),
-      ]);
-      const buckets = version.data
-        ? (await supabase.from("calibration_buckets").select("*").eq("calibration_version_id", version.data.id).order("wp_min")).data ?? []
-        : [];
-      const slateMatchIds = activeSlateMatchIds(slateVersions.data ?? []);
-      const slateUploadIds = new Set((slateVersions.data ?? []).filter((row) => row.is_active === true).map((row) => row.upload_id));
-      const currentRows = currentAuditRows(
-        (matches.data ?? []).filter((match) => slateMatchIds.has(match.id)),
-        runs.data ?? [],
-        decisions.data ?? [],
-      );
+      const { matches, runs, decisions, version, uploads, slateVersions, buckets } = await fetchDashboardScreen();
+      const slateMatchIds = activeSlateMatchIds(slateVersions);
+      const slateUploadIds = new Set(slateVersions.filter((row) => row.is_active === true).map((row) => row.upload_id));
+      const slateMatches = matches.filter((match) => slateMatchIds.has(match.id));
+      const currentRows = currentAuditRows(slateMatches, runs, decisions);
       return {
-        matches: (matches.data ?? []).filter((match) => slateMatchIds.has(match.id)),
+        matches: slateMatches,
         currentRows,
-        version: version.data,
+        version,
         buckets,
-        uploads: [...slateUploadIds].filter((id) => (uploads.data ?? []).some((upload) => upload.id === id)).length,
+        uploads: [...slateUploadIds].filter((id) => uploads.some((upload) => upload.id === id)).length,
       };
     },
   });

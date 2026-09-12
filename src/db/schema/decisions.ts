@@ -10,6 +10,7 @@
 
 import { pgTable, boolean, integer, jsonb, numeric, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { JsonValue } from "../json";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,12 +21,12 @@ export const finalDecisionsTable = pgTable("final_decisions", {
   final_audit_color: text("final_audit_color").notNull().default("INCOMPLETE"),
   final_selection: text("final_selection"),
   action: text("action"),
-  gate_report: jsonb("gate_report").notNull().default(sql`'{}'::jsonb`),
-  completion_percent: numeric("completion_percent").notNull().default("0"),
+  gate_report: jsonb("gate_report").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
+  completion_percent: numeric("completion_percent", { mode: "number" }).notNull().default(0),
   audit_complete: boolean("audit_complete").notNull().default(false),
   matrix_firewall_valid: boolean("matrix_firewall_valid").notNull().default(true),
   calibration_bucket: text("calibration_bucket"),
-  verified_win_rate: numeric("verified_win_rate"),
+  verified_win_rate: numeric("verified_win_rate", { mode: "number" }),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   selected_player_id: uuid("selected_player_id"),
@@ -43,7 +44,7 @@ export const probabilityMethodsTable = pgTable("probability_methods", {
   label: text("label").notNull(),
   formula: text("formula").notNull(),
   description: text("description"),
-  params: jsonb("params").notNull().default(sql`'{}'::jsonb`),
+  params: jsonb("params").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   is_active: boolean("is_active").notNull().default(true),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
@@ -58,12 +59,12 @@ export const probabilityProvenanceTable = pgTable("probability_provenance", {
   audit_run_id: uuid("audit_run_id").notNull(),
   metric_key: text("metric_key").notNull(),
   display_value: text("display_value").notNull(),
-  numeric_value: numeric("numeric_value"),
+  numeric_value: numeric("numeric_value", { mode: "number" }),
   method_code: text("method_code").notNull(),
   method_version: text("method_version").notNull(),
   formula: text("formula").notNull(),
-  inputs: jsonb("inputs").notNull().default(sql`'{}'::jsonb`),
-  source_refs: jsonb("source_refs").notNull().default(sql`'[]'::jsonb`),
+  inputs: jsonb("inputs").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
+  source_refs: jsonb("source_refs").$type<JsonValue>().notNull().default(sql`'[]'::jsonb`),
   interpretation_note: text("interpretation_note"),
   computed_at: timestamp("computed_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
@@ -113,10 +114,10 @@ export const generatedReportsTable = pgTable("generated_reports", {
   user_id: uuid("user_id").notNull().default(sql`COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000001'::uuid)`),
   title: text("title").notNull(),
   report_type: text("report_type").notNull().default("PROVISIONAL"),
-  payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+  payload: jsonb("payload").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   template_version: text("template_version").notNull().default("v1"),
-  validation: jsonb("validation").notNull().default(sql`'{}'::jsonb`),
+  validation: jsonb("validation").$type<JsonValue>().notNull().default(sql`'{}'::jsonb`),
   validation_status: text("validation_status").notNull().default("NOT VALIDATED"),
 });
 
@@ -132,11 +133,11 @@ export const resultGradesTable = pgTable("result_grades", {
   actual_winner: text("actual_winner"),
   result_type: text("result_type").notNull().default("WIN"),
   matrix_predicted_winner: text("matrix_predicted_winner"),
-  matrix_wp: numeric("matrix_wp"),
+  matrix_wp: numeric("matrix_wp", { mode: "number" }),
   matrix_prediction_result: text("matrix_prediction_result").notNull().default("NOT GRADED"),
   independent_winner: text("independent_winner"),
-  independent_low: numeric("independent_low"),
-  independent_high: numeric("independent_high"),
+  independent_low: numeric("independent_low", { mode: "number" }),
+  independent_high: numeric("independent_high", { mode: "number" }),
   independent_audit_result: text("independent_audit_result").notNull().default("NOT GRADED"),
   final_selection: text("final_selection"),
   final_selection_result: text("final_selection_result").notNull().default("NOT GRADED"),
