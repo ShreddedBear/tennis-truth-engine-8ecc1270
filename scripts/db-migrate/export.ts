@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import QueryStream from "pg-query-stream";
 
 import {
-  TABLE_NAMES, checksumOf, columnsOf, connect, countOf, describeConnection,
+  TABLE_NAMES, checksumOf, columnsOf, connect, contentChecksum, countOf, describeConnection,
   insertionOrder, quote, requireEnv, type Manifest, type TableManifest,
 } from "./shared";
 
@@ -44,6 +44,10 @@ async function main(): Promise<void> {
       const client = await pool.connect();
       const file = createWriteStream(join(outDir, `${table}.jsonl`), { encoding: "utf8" });
       let written = 0;
+      // Held for the JS content checksum, which is what db:verify compares -- the SQL
+      // checksum above is exact but only computable with a direct connection, and the
+      // Supabase source can also be read over HTTP.
+      const exported: Array<Record<string, unknown>> = [];
       try {
         const stream = client.query(new QueryStream(
           `select row_to_json(t) as row from public.${quote(table)} t order by t.id`,
@@ -54,6 +58,7 @@ async function main(): Promise<void> {
           if (!file.write(`${JSON.stringify(record.row)}\n`)) {
             await new Promise((r) => file.once("drain", r));
           }
+          exported.push(record.row as Record<string, unknown>);
           written++;
         }
       } finally {
@@ -64,7 +69,7 @@ async function main(): Promise<void> {
       if (written !== rows) {
         throw new Error(`${table}: counted ${rows} rows but exported ${written}. The source changed mid-export; re-run it.`);
       }
-      tables.push({ table, rows, checksum, columns });
+      tables.push({ table, rows, checksum, contentChecksum: contentChecksum(exported), columns });
       total += rows;
       console.log(`  ${table.padEnd(42)} ${String(rows).padStart(7)} rows  ${checksum.slice(0, 12)}`);
     }
@@ -72,6 +77,7 @@ async function main(): Promise<void> {
     const manifest: Manifest = {
       capturedAt: new Date().toISOString(),
       source: describeConnection(url),
+      transport: "postgres",
       tableCount: tables.length,
       rowCount: total,
       order,

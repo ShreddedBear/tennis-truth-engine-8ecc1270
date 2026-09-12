@@ -10,7 +10,10 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { connect, countOf, checksumOf, describeConnection, quote, requireEnv, type Manifest } from "./shared";
+import {
+  connect, contentChecksum, countOf, checksumOf, describeConnection, quote, requireEnv,
+  type Manifest,
+} from "./shared";
 
 /**
  * The operational tables whose populations the Truth Engine's integrity depends on. They
@@ -36,18 +39,34 @@ async function main(): Promise<void> {
   const failures: Failure[] = [];
 
   try {
-    console.log(`Verifying ${describeConnection(url)} against ${manifest.source} (captured ${manifest.capturedAt})\n`);
+    console.log(`Verifying ${describeConnection(url)} against ${manifest.source} via ${manifest.transport} (captured ${manifest.capturedAt})\n`);
 
     // 1. Row counts and content checksums, per table.
+    //
+    // The JS content checksum is the one that is always comparable: the SQL checksum is
+    // Postgres hashing its own row text, which the HTTP export path cannot produce. When
+    // the manifest carries both AND the export came over a direct connection, both are
+    // checked; otherwise the content checksum alone decides.
     for (const expected of manifest.tables) {
       const rows = await countOf(pool, expected.table);
-      const checksum = await checksumOf(pool, expected.table);
+      const target = await pool.query<Record<string, unknown>>(`select row_to_json(t) as row from public.${quote(expected.table)} t`);
+      const targetRows = target.rows.map((r) => r["row"] as Record<string, unknown>);
+      const content = contentChecksum(targetRows);
+
       const countOk = rows === expected.rows;
-      const sumOk = checksum === expected.checksum;
+      const contentOk = content === expected.contentChecksum;
       if (!countOk) failures.push({ check: `${expected.table} row count`, detail: `expected ${expected.rows}, found ${rows}` });
-      if (!sumOk) failures.push({ check: `${expected.table} content checksum`, detail: `expected ${expected.checksum}, found ${checksum}` });
-      const mark = countOk && sumOk ? "ok  " : "FAIL";
-      console.log(`  ${mark} ${expected.table.padEnd(42)} ${String(rows).padStart(7)}/${String(expected.rows).padEnd(7)} ${checksum.slice(0, 12)}`);
+      if (!contentOk) failures.push({ check: `${expected.table} content checksum`, detail: `expected ${expected.contentChecksum}, found ${content}` });
+
+      let sqlOk = true;
+      if (manifest.transport === "postgres" && expected.checksum) {
+        const checksum = await checksumOf(pool, expected.table);
+        sqlOk = checksum === expected.checksum;
+        if (!sqlOk) failures.push({ check: `${expected.table} row-text checksum`, detail: `expected ${expected.checksum}, found ${checksum}` });
+      }
+
+      const mark = countOk && contentOk && sqlOk ? "ok  " : "FAIL";
+      console.log(`  ${mark} ${expected.table.padEnd(42)} ${String(rows).padStart(7)}/${String(expected.rows).padEnd(7)} ${content.slice(0, 12)}`);
     }
 
     // 2. The operational populations must actually be populated.

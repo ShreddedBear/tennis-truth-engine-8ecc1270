@@ -3,6 +3,7 @@
 // These move APPLICATION data between two PostgreSQL servers. They never touch Supabase's
 // platform schemas (auth, storage, realtime, vault, ...) -- only the tables this
 // application defines, taken from the Drizzle schema itself so the list cannot drift.
+import { createHash } from "node:crypto";
 import pg from "pg";
 
 import { TABLE_NAMES } from "../../src/db/table-registry";
@@ -132,6 +133,48 @@ export async function checksumOf(pool: pg.Pool, table: string): Promise<string> 
   return rows[0]?.checksum ?? "empty";
 }
 
+/**
+ * A transport-independent content checksum, computed in JavaScript from the rows
+ * themselves.
+ *
+ * checksumOf() above asks Postgres to hash its own row text, which is exact but only
+ * available when the exporter holds a direct connection. The Supabase-hosted source can
+ * also be read over its HTTP Data API, where no such connection exists -- so this second
+ * checksum is computed identically on both sides of a migration regardless of how the rows
+ * were fetched, and it is the one db:verify compares.
+ *
+ * Order-independent by the same trick: hash each row, sort the hashes, hash the result.
+ * Keys are sorted so that two JSON encodings of the same row agree.
+ */
+export function contentChecksum(rows: ReadonlyArray<Record<string, unknown>>): string {
+  if (!rows.length) return "empty";
+  const rowHashes = rows
+    .map((row) => createHash("md5").update(canonicalJson(row)).digest("hex"))
+    .sort();
+  return createHash("md5").update(rowHashes.join("")).digest("hex");
+}
+
+/**
+ * Deterministic JSON for hashing: keys sorted at every level.
+ *
+ * Values are normalised the way BOTH transports deliver them -- a Date becomes an ISO
+ * string, a bigint becomes its decimal text -- so the same row hashes identically whether
+ * it arrived through the pg driver or as JSON over HTTP.
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (value instanceof Date) return JSON.stringify(value.toISOString());
+  if (typeof value === "bigint") return JSON.stringify(value.toString());
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 export function quote(identifier: string): string {
   if (!/^[a-z_][a-z0-9_]*$/u.test(identifier)) throw new Error(`Refusing to use "${identifier}" as an identifier.`);
   return `"${identifier}"`;
@@ -140,13 +183,21 @@ export function quote(identifier: string): string {
 export interface TableManifest {
   table: string;
   rows: number;
-  checksum: string;
+  /**
+   * Postgres' own md5 over its row text. Exact, but only computable with a direct
+   * connection -- absent when the source was read over the HTTP Data API.
+   */
+  checksum?: string;
+  /** Computed in JavaScript from the rows. Always present, and what db:verify compares. */
+  contentChecksum: string;
   columns: string[];
 }
 
 export interface Manifest {
   capturedAt: string;
   source: string;
+  /** How the rows were read: a direct connection, or the Supabase HTTP Data API. */
+  transport: "postgres" | "postgrest";
   tableCount: number;
   rowCount: number;
   order: string[];

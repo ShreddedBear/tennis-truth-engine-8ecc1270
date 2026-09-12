@@ -7,6 +7,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "db:export": "tsx scripts/db-migrate/export.ts",
+    "db:export:api": "tsx scripts/db-migrate/export-postgrest.ts",
     "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
     "db:import": "tsx scripts/db-migrate/import.ts",
     "db:push": "drizzle-kit push --config ./drizzle.config.ts && npm run db:sql-extras",

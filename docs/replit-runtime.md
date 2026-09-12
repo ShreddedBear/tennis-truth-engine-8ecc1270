@@ -72,8 +72,15 @@ does not process more matches**, and nothing here widens the batch size or concu
 
 Three commands, and the third is the one that matters.
 
+There are two ways to read the source, and **the second is usually the right one on
+Replit** because it needs no new secret:
+
 ```bash
-# 1. Export from the current database. Read-only; safe while the app is live.
+# 1a. Over the Supabase Data API, using credentials the deployment already has.
+#     Read-only; safe while the app is live.
+npm run db:export:api -- ./migration-export        # uses SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+
+# 1b. Or over a direct PostgreSQL connection, if you have the source database password.
 SOURCE_DATABASE_URL='postgresql://...supabase...' npm run db:export -- ./migration-export
 
 # 2. Build the schema on the Replit database, then load.
@@ -89,6 +96,12 @@ order-independent content checksums (counts match perfectly while a column arriv
 that is the failure mode checksums exist for), walks all 57 foreign keys for orphaned rows,
 counts constraints, indexes, functions and triggers, and fails if any column still depends
 on Supabase's `auth.uid()`.
+
+The content checksum is computed in JavaScript from the rows themselves, so it means the
+same thing whichever export path produced them. When the export came over a direct
+connection the manifest also carries Postgres' own row-text hash, and both are checked.
+Proven to have teeth: changing one jsonb value in one row out of 589 fails verification on
+both checksums and exits 1.
 
 Only application tables move. The list comes from the Drizzle schema itself, so Supabase's
 `auth`, `storage` and `realtime` schemas are not read and cannot be migrated by accident.
