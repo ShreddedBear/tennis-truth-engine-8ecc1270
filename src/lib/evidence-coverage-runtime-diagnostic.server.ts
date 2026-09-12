@@ -1,4 +1,11 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import {
+  matchesTable, metricEvidenceStoreTable, parsedSummaryFieldsTable, ruleDocumentsTable,
+  rulesTable, sourceObservationsTable,
+} from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import { buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
@@ -16,7 +23,6 @@ import { certifyMetricFinding } from "./metric-certification";
 import { classifyMetric, playerEvidenceDenominatorCodes } from "./metric-classification";
 import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 
-const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 const DIAGNOSTIC_QUERY_CONCURRENCY = 6;
 
@@ -42,7 +48,7 @@ function classifyTour(row:MatchCandidate){return classifyText(row.event_level ??
 async function hydrateParsedHints(rows:MatchCandidate[]) {
   const ids=[...new Set(rows.map(r=>r.active_summary_version_id).filter((v):v is string=>Boolean(v)))];
   if(!ids.length)return rows;
-  const {data,error}=await db.from("parsed_summary_fields").select("summary_version_id,field_key,normalized_value,raw_value").in("summary_version_id",ids);
+  const {data,error}=await tryQuery(()=>db.select({summary_version_id:parsedSummaryFieldsTable.summary_version_id,field_key:parsedSummaryFieldsTable.field_key,normalized_value:parsedSummaryFieldsTable.normalized_value,raw_value:parsedSummaryFieldsTable.raw_value}).from(parsedSummaryFieldsTable).where(inArray(parsedSummaryFieldsTable.summary_version_id,ids)));
   if(error)throw new Error(`representative parsed-field sampling: ${error.message}`);
   const byVersion=new Map<string,Map<string,string>>();
   for(const field of data??[]){const value=String(field.normalized_value??field.raw_value??"").trim();if(!value)continue;const map=byVersion.get(field.summary_version_id)??new Map<string,string>();map.set(String(field.field_key).toLowerCase(),value);byVersion.set(field.summary_version_id,map);}
@@ -79,7 +85,7 @@ async function classifyPairFromExactRankingEvidence(p1:string,p2:string):Promise
   const identities=await resolveCanonicalEvidencePair(p1,p2);
   if([identities.p1.status,identities.p2.status].some(status=>status==="AMBIGUOUS"||status==="QUERY_FAILED"||status==="UNRESOLVED"))return null;
   const names=[identities.p1.canonical,identities.p2.canonical];
-  const {data,error}=await db.from("source_observations").select("player_name,source_name,source_id,observation_type").eq("observation_type","RANKING").in("player_name",names).limit(100);
+  const {data,error}=await tryQuery(()=>db.select({player_name:sourceObservationsTable.player_name,source_name:sourceObservationsTable.source_name,source_id:sourceObservationsTable.source_id,observation_type:sourceObservationsTable.observation_type}).from(sourceObservationsTable).where(and(eq(sourceObservationsTable.observation_type,"RANKING"),inArray(sourceObservationsTable.player_name,names))).limit(100));
   if(error)return null;
   const sideTour=(name:string):"ATP_MAIN"|"WTA_MAIN"|null=>{const tours=[...new Set((data??[]).filter((r:any)=>r.player_name===name).map((r:any)=>rankingTour(`${r.source_id??""} ${r.source_name??""}`)).filter(Boolean))] as ("ATP_MAIN"|"WTA_MAIN")[];return tours.length===1?tours[0]!:null;};
   const p1Tour=sideTour(names[0]),p2Tour=sideTour(names[1]);
@@ -93,7 +99,7 @@ async function classifyFromExactRankingEvidence(row:MatchCandidate):Promise<"ATP
 
 async function representativeMatches():Promise<{matches:RepresentativeMatch[];missing_classes:RepresentativeId[];missing_class_reasons:Partial<Record<RepresentativeId,string>>;class_proof:Partial<Record<RepresentativeId,unknown>>}> {
   const wanted:RepresentativeId[]=["ATP_MAIN","WTA_MAIN","ATP_CHALLENGER","WTA_CHALLENGER"],selected:RepresentativeMatch[]=[];
-  const primary=await db.from("matches").select("id,player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round,created_at,active_summary_version_id").not("player1_name","is",null).not("player2_name","is",null).order("created_at", { ascending: false }).limit(1500);
+  const primary=await tryQuery(()=>db.select().from(matchesTable).where(and(isNotNull(matchesTable.player1_name),isNotNull(matchesTable.player2_name))).orderBy(desc(matchesTable.created_at)).limit(1500));
   let candidates:MatchCandidate[]=[];
   if(!primary.error){candidates=await hydrateParsedHints(((primary.data??[]) as MatchCandidate[]).filter(r=>r.player1_name&&r.player2_name));for(const id of wanted){const row=candidates.find(candidate=>classifyTour(candidate)===id);if(row)selected.push(toRepresentative(id,row));}}
   const missing=()=>wanted.filter(id=>!selected.some(m=>m.id===id));
@@ -101,14 +107,14 @@ async function representativeMatches():Promise<{matches:RepresentativeMatch[];mi
     for(const row of candidates){if(!missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN"))break;if(classifyTour(row))continue;const inferred=await classifyFromExactRankingEvidence(row);if(inferred&&missing().includes(inferred))selected.push(toRepresentative(inferred,row,"matches_plus_rankings"));}
   }
   if(missing().length){
-    const fallback=await db.from("source_observations").select("source_id,source_name,player_name,opponent_name,tournament,event_date,surface,observation_type,sample_label").not("player_name","is",null).not("opponent_name","is",null).not("event_date","is",null).order("event_date",{ascending:false}).limit(5000);
+    const fallback=await tryQuery(()=>db.select().from(sourceObservationsTable).where(and(isNotNull(sourceObservationsTable.player_name),isNotNull(sourceObservationsTable.opponent_name),isNotNull(sourceObservationsTable.event_date))).orderBy(desc(sourceObservationsTable.event_date)).limit(5000));
     if(fallback.error&&primary.error)throw new Error(`production sampling failed: matches=${primary.error.message}; source_observations=${fallback.error.message}`);
     if(!fallback.error){const rows=(fallback.data??[]) as ObservationCandidate[];for(const id of missing()){const row=rows.find(r=>r.player_name&&r.opponent_name&&r.event_date&&r.player_name!==r.opponent_name&&classifyText(r.sample_label,r.tournament,`${r.source_id} ${r.source_name}`)===id);if(row)selected.push(observationRepresentative(id,row,rows.indexOf(row)));}}
   }
   // Current persisted evidence snapshots are the primary coverage sample for main tours.
   // Real verified-index matches are retained separately below as independent class proof and as the fallback when no current snapshot exists.
   if(missing().some(id=>id==="ATP_MAIN"||id==="WTA_MAIN")){
-    const persisted=await db.from("metric_evidence_store").select("player_name,opponent_name,as_of_date,metric_code,value_text,evidence_family").not("player_name","is",null).not("opponent_name","is",null).not("as_of_date","is",null).order("as_of_date",{ascending:false}).limit(2000);
+    const persisted=await tryQuery(()=>db.select({player_name:metricEvidenceStoreTable.player_name,opponent_name:metricEvidenceStoreTable.opponent_name,as_of_date:metricEvidenceStoreTable.as_of_date,metric_code:metricEvidenceStoreTable.metric_code,value_text:metricEvidenceStoreTable.value_text,evidence_family:metricEvidenceStoreTable.evidence_family}).from(metricEvidenceStoreTable).where(and(isNotNull(metricEvidenceStoreTable.player_name),isNotNull(metricEvidenceStoreTable.opponent_name),isNotNull(metricEvidenceStoreTable.as_of_date))).orderBy(desc(metricEvidenceStoreTable.as_of_date)).limit(2000));
     if(!persisted.error){
       const grouped=new Map<string,PersistedPairCandidate[]>();
       for(const row of ((persisted.data??[]) as PersistedPairCandidate[])){const p1=String(row.player_name??"").trim(),p2=String(row.opponent_name??"").trim(),date=String(row.as_of_date??"").trim();if(!p1||!p2||!date||p1===p2)continue;const key=`${[p1,p2].sort().join("|")}|${date}`;const group=grouped.get(key)??[];group.push(row);grouped.set(key,group);}
@@ -142,7 +148,7 @@ function chooseEvidenceSide(stored:any,deterministic:any,repositoryPbp:any,inter
   return candidates.find(candidate=>usableEvidenceSide(candidate.treatment,candidate.value))??candidates.find(candidate=>candidate.treatment!==null&&candidate.treatment!==undefined)??{treatment:"UNAVAILABLE",value:null,source:"none"};
 }
 function codeOf(value:unknown){const match=String(value??"").match(/(\d{1,3})$/);return match?match[1].padStart(3,"0"):String(value??"").padStart(3,"0");}
-async function activeMetrics():Promise<Metric[]>{const {data:doc,error:docError}=await db.from("rule_documents").select("active_version_id").eq("doc_type","METRICS").maybeSingle();if(docError)throw new Error(`metric document lookup: ${docError.message}`);if(!doc?.active_version_id)throw new Error("No active METRICS rule document version");const {data,error}=await db.from("rules").select("rule_code,rule_name,body").eq("version_id",doc.active_version_id).order("rule_code");if(error)throw new Error(`metric rules lookup: ${error.message}`);
+async function activeMetrics():Promise<Metric[]>{const {data:docRows,error:docError}=await tryQuery(()=>db.select({active_version_id:ruleDocumentsTable.active_version_id}).from(ruleDocumentsTable).where(eq(ruleDocumentsTable.doc_type,"METRICS")).limit(1));if(docError)throw new Error(`metric document lookup: ${docError.message}`);const activeVersionId=docRows?.[0]?.active_version_id;if(!activeVersionId)throw new Error("No active METRICS rule document version");const {data,error}=await tryQuery(()=>db.select({rule_code:rulesTable.rule_code,rule_name:rulesTable.rule_name,body:rulesTable.body}).from(rulesTable).where(eq(rulesTable.version_id,activeVersionId)).orderBy(asc(rulesTable.rule_code)));if(error)throw new Error(`metric rules lookup: ${error.message}`);
   // Task 20/21 canonical classification reconciliation: this diagnostic measures
   // PLAYER-LEVEL evidence coverage. META_OR_NON_PLAYER codes (see
   // metric-classification.ts) describe how to test/calibrate the model's own
@@ -166,8 +172,8 @@ export async function runEvidenceCoverageRuntimeDiagnostic(){const metrics=await
     const identities=await resolveCanonicalEvidencePair(sampled.p1,sampled.p2);
     const match:RepresentativeMatch={...sampled,p1:identities.p1.canonical,p2:identities.p2.canonical};
     const aliases=[...new Set([...safeEvidenceAliases(match.p1,match.p2),...safeEvidenceAliases(match.p2,match.p1)])];
-    const identityBackedByMatch=match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings";const identityPromise=identityBackedByMatch?db.from("matches").select("id,player1_name,player2_name,event_level,scheduled_date,surface").eq("id",match.match_id).limit(1):Promise.resolve({data:[],error:null});
-    const [identityResult,storedResult,packetResult]=await Promise.allSettled([identityPromise,db.from("metric_evidence_store").select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family,sources,reliability,sample_label").eq("as_of_date",match.date).in("metric_code",metrics.map(m=>codeOf(m.code))).in("player_name",aliases).in("opponent_name",aliases),buildMetricObservationContext({metrics,p1:match.p1,p2:match.p2,asOfDate:match.date,context:match.context})]);
+    const identityBackedByMatch=match.sampling_source==="matches"||match.sampling_source==="matches_plus_rankings";const identityPromise=identityBackedByMatch?tryQuery(()=>db.select({id:matchesTable.id,player1_name:matchesTable.player1_name,player2_name:matchesTable.player2_name,event_level:matchesTable.event_level,scheduled_date:matchesTable.scheduled_date,surface:matchesTable.surface}).from(matchesTable).where(eq(matchesTable.id,match.match_id)).limit(1)):Promise.resolve({data:[],error:null});
+    const [identityResult,storedResult,packetResult]=await Promise.allSettled([identityPromise,tryQuery(()=>db.select({metric_code:metricEvidenceStoreTable.metric_code,player_name:metricEvidenceStoreTable.player_name,opponent_name:metricEvidenceStoreTable.opponent_name,treatment:metricEvidenceStoreTable.treatment,value_text:metricEvidenceStoreTable.value_text,evidence_family:metricEvidenceStoreTable.evidence_family,sources:metricEvidenceStoreTable.sources,reliability:metricEvidenceStoreTable.reliability,sample_label:metricEvidenceStoreTable.sample_label}).from(metricEvidenceStoreTable).where(and(eq(metricEvidenceStoreTable.as_of_date,match.date),inArray(metricEvidenceStoreTable.metric_code,metrics.map(m=>codeOf(m.code))),inArray(metricEvidenceStoreTable.player_name,aliases),inArray(metricEvidenceStoreTable.opponent_name,aliases)))),buildMetricObservationContext({metrics,p1:match.p1,p2:match.p2,asOfDate:match.date,context:match.context})]);
     const identityError=identityResult.status==="rejected"?String(identityResult.reason):(identityResult.value as any).error?.message??null,identityRows=identityResult.status==="fulfilled"?(identityResult.value as any).data??[]:[],storedError=storedResult.status==="rejected"?String(storedResult.reason):(storedResult.value as any).error?.message??null,storedRows=storedResult.status==="fulfilled"?(storedResult.value as any).data??[]:[],packetError=packetResult.status==="rejected"?String(packetResult.reason):null,packet=packetResult.status==="fulfilled"?packetResult.value as Record<string,any>:{};
     const localByCode=await deterministicBatch(metrics,match);
     const repositoryPbpByCode=new Map(metrics.map(metric=>{const code=codeOf(metric.code);return [code,deterministicPbpMetricFromPacket({metricCode:code,p1:match.p1,p2:match.p2,asOfDate:match.date,packet})] as const;}));

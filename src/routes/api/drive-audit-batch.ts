@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { eq } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { auditRunsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 
 // Unattended continuation for audits: everything else that drives the
 // pipeline (Upload's commit flow, Active Slate's poll loop) is triggered
@@ -15,7 +19,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 // Fails closed: with no AUDIT_CRON_SECRET configured, every request is
 // refused rather than silently accepted, so this can never become an open
 // "run any audit for free" endpoint by omission.
-const db = supabaseAdmin as any;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -41,14 +44,14 @@ export const Route = createFileRoute("/api/drive-audit-batch")({
           return json({ ok: false, error: "Request body must be JSON" }, 400);
         }
 
-        const { data: runs, error } = await db
-          .from("audit_runs")
-          .select("match_id")
-          .eq("status", "RUNNING")
-          .limit(100);
+        const { data: runs, error } = await tryQuery(() => db
+          .select({ match_id: auditRunsTable.match_id })
+          .from(auditRunsTable)
+          .where(eq(auditRunsTable.status, "RUNNING"))
+          .limit(100));
         if (error) return json({ ok: false, error: `audit_runs lookup: ${error.message}` }, 500);
 
-        const matchIds: string[] = [...new Set<string>((runs ?? []).map((row: { match_id: string }) => row.match_id))];
+        const matchIds: string[] = [...new Set<string>((runs ?? []).map((row) => row.match_id))];
         if (!matchIds.length) return json({ ok: true, total: 0, note: "No RUNNING audits to drive." });
 
         const { driveAuditBatch } = await import("@/lib/audit-pipeline.functions");

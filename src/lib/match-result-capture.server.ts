@@ -13,7 +13,13 @@
 // exactly one purpose -- grading a prediction after the fact -- and for no other. It must
 // never be reachable from an evidence, metric or research path; that is enforced by a test.
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { eq, inArray } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { dbCall } from "@/db/query-errors";
+import {
+  auditRunsTable, executionLogsTable, finalDecisionsTable, matchesTable, resultGradesTable,
+} from "@/db/schema";
 import { LOCAL_WORKSPACE_ID } from "./constants";
 import { repositoryResultsRows } from "./repository-results-history.server";
 import { evidencePairMatches } from "./evidence-player-alias";
@@ -99,56 +105,63 @@ export function repositoryFinalResult(match: Pick<CaptureMatchRow, "player1_name
   };
 }
 
-export function makeResultCaptureDeps(db = supabaseAdmin): ResultCaptureDeps {
+export function makeResultCaptureDeps(): ResultCaptureDeps {
   const user_id = LOCAL_WORKSPACE_ID;
   return {
     now: () => new Date(),
     async listMatches() {
-      const { data, error } = await db.from("matches").select("id, player1_name, player2_name, tournament_name, scheduled_date, surface, actual_winner, result_status, final_score");
-      if (error) throw new Error(`Database read failed (matches): ${error.message}`);
-      return (data ?? []) as CaptureMatchRow[];
+      const rows = await dbCall("read", "matches", () => db.select({
+        id: matchesTable.id, player1_name: matchesTable.player1_name,
+        player2_name: matchesTable.player2_name, tournament_name: matchesTable.tournament_name,
+        scheduled_date: matchesTable.scheduled_date, surface: matchesTable.surface,
+        actual_winner: matchesTable.actual_winner, result_status: matchesTable.result_status,
+        final_score: matchesTable.final_score,
+      }).from(matchesTable));
+      return rows as CaptureMatchRow[];
     },
     async updateMatch(matchId, patch) {
-      const { error } = await db.from("matches").update(patch as never).eq("id", matchId);
-      if (error) throw new Error(`Database update failed (matches): ${error.message}`);
+      await dbCall("update", "matches", () => db.update(matchesTable).set(patch as never).where(eq(matchesTable.id, matchId)));
     },
     async lookupResult(match) { return repositoryFinalResult(match); },
     async listDecidedRuns() {
-      const { data: decided, error: decidedError } = await db.from("final_decisions").select("audit_run_id");
-      if (decidedError) throw new Error(`Database read failed (final_decisions): ${decidedError.message}`);
-      const ids = [...new Set((decided ?? []).map((row) => String(row.audit_run_id)).filter(Boolean))];
+      const decided = await dbCall("read", "final_decisions", () => db
+        .select({ audit_run_id: finalDecisionsTable.audit_run_id }).from(finalDecisionsTable));
+      const ids = [...new Set(decided.map((row) => String(row.audit_run_id)).filter(Boolean))];
       if (!ids.length) return [];
       const out = [];
       for (let i = 0; i < ids.length; i += 200) {
-        const { data, error } = await db.from("audit_runs").select("id, match_id, run_number, independent_winner").in("id", ids.slice(i, i + 200));
-        if (error) throw new Error(`Database read failed (audit_runs): ${error.message}`);
-        out.push(...(data ?? []));
+        const rows = await dbCall("read", "audit_runs", () => db.select({
+          id: auditRunsTable.id, match_id: auditRunsTable.match_id,
+          run_number: auditRunsTable.run_number, independent_winner: auditRunsTable.independent_winner,
+        }).from(auditRunsTable).where(inArray(auditRunsTable.id, ids.slice(i, i + 200))));
+        out.push(...rows);
       }
       return out as never;
     },
     async listDecisions() {
-      const { data, error } = await db.from("final_decisions").select("audit_run_id, gate_report");
-      if (error) throw new Error(`Database read failed (final_decisions): ${error.message}`);
-      return (data ?? []) as never;
+      const rows = await dbCall("read", "final_decisions", () => db.select({
+        audit_run_id: finalDecisionsTable.audit_run_id, gate_report: finalDecisionsTable.gate_report,
+      }).from(finalDecisionsTable));
+      return rows as never;
     },
     async listGrades() {
-      const { data, error } = await db.from("result_grades").select("id, match_id, audit_run_id");
-      if (error) throw new Error(`Database read failed (result_grades): ${error.message}`);
-      return (data ?? []) as never;
+      const rows = await dbCall("read", "result_grades", () => db.select({
+        id: resultGradesTable.id, match_id: resultGradesTable.match_id,
+        audit_run_id: resultGradesTable.audit_run_id,
+      }).from(resultGradesTable));
+      return rows as never;
     },
     async saveGrade(existingId, row) {
       if (existingId) {
-        const { error } = await db.from("result_grades").update(row as never).eq("id", existingId);
-        if (error) throw new Error(`Database update failed (result_grades): ${error.message}`);
+        await dbCall("update", "result_grades", () => db.update(resultGradesTable).set(row as never).where(eq(resultGradesTable.id, existingId)));
         return;
       }
-      const { error } = await db.from("result_grades").insert({ ...row, user_id } as never);
-      if (error) throw new Error(`Database insert failed (result_grades): ${error.message}`);
+      await dbCall("insert", "result_grades", () => db.insert(resultGradesTable).values({ ...row, user_id } as never));
     },
-    async log(entry) { await db.from("execution_logs").insert({ ...entry, user_id } as never); },
+    async log(entry) { await db.insert(executionLogsTable).values({ ...entry, user_id } as never); },
   };
 }
 
-export async function runResultCapture(db = supabaseAdmin): Promise<ResultCaptureSummary> {
-  return captureAndResolveResults(makeResultCaptureDeps(db));
+export async function runResultCapture(): Promise<ResultCaptureSummary> {
+  return captureAndResolveResults(makeResultCaptureDeps());
 }

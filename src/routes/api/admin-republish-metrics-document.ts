@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, eq, inArray, ne } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { auditRunsTable, ruleDocumentVersionsTable, ruleDocumentsTable, rulesTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import { parseRuleDocument, activationStatus } from "@/lib/rule-parser";
 
 // One-off admin endpoint to republish the canonical METRICS rule document
@@ -8,7 +12,6 @@ import { parseRuleDocument, activationStatus } from "@/lib/rule-parser";
 // empty — production's METRICS document already exists, so the corrected
 // seed file alone never reaches it without an explicit new version + activation.
 const ADMIN_KEY = "T19-REPUBLISH-9f2c7a1e";
-const db = supabaseAdmin as any;
 
 // Codes whose name is EXPECTED to change (the known parser-collision fix).
 // Any other changed code trips the safety refusal unless force=true.
@@ -31,28 +34,36 @@ export const Route = createFileRoute("/api/admin-republish-metrics-document")({
         const force = url.searchParams.get("force") === "true";
 
         try {
-          const { data: doc, error: docError } = await db
-            .from("rule_documents")
-            .select("id, active_version_id")
-            .eq("doc_type", "METRICS")
-            .maybeSingle();
-          if (docError) return json({ ok: false, error: `rule_documents lookup: ${docError.message}` }, 500);
+          const docResult = await tryQuery(() => db
+            .select({ id: ruleDocumentsTable.id, active_version_id: ruleDocumentsTable.active_version_id })
+            .from(ruleDocumentsTable)
+            .where(eq(ruleDocumentsTable.doc_type, "METRICS"))
+            .limit(1));
+          if (docResult.error) return json({ ok: false, error: `rule_documents lookup: ${docResult.error.message}` }, 500);
+          const doc = docResult.data?.[0];
           if (!doc) return json({ ok: false, error: "No METRICS rule_documents row found" }, 500);
 
-          const { data: activeVersion, error: versionError } = await db
-            .from("rule_document_versions")
-            .select("id, version_number, user_id")
-            .eq("id", doc.active_version_id)
-            .maybeSingle();
-          if (versionError) return json({ ok: false, error: `active version lookup: ${versionError.message}` }, 500);
+          // active_version_id is nullable, and a null one means "no active version" --
+          // the same outcome the old .eq(id, null) produced (PostgREST matched nothing),
+          // just reached without issuing a query.
+          const activeVersionId = doc.active_version_id;
+          const versionResult = activeVersionId
+            ? await tryQuery(() => db
+                .select({ id: ruleDocumentVersionsTable.id, version_number: ruleDocumentVersionsTable.version_number, user_id: ruleDocumentVersionsTable.user_id })
+                .from(ruleDocumentVersionsTable)
+                .where(eq(ruleDocumentVersionsTable.id, activeVersionId))
+                .limit(1))
+            : { data: [], error: null };
+          if (versionResult.error) return json({ ok: false, error: `active version lookup: ${versionResult.error.message}` }, 500);
+          const activeVersion = versionResult.data?.[0];
           if (!activeVersion) return json({ ok: false, error: "No active METRICS version found" }, 500);
 
-          const { data: currentRules, error: rulesError } = await db
-            .from("rules")
-            .select("rule_code, rule_name")
-            .eq("version_id", activeVersion.id);
+          const { data: currentRules, error: rulesError } = await tryQuery(() => db
+            .select({ rule_code: rulesTable.rule_code, rule_name: rulesTable.rule_name })
+            .from(rulesTable)
+            .where(eq(rulesTable.version_id, activeVersion.id)));
           if (rulesError) return json({ ok: false, error: `current rules lookup: ${rulesError.message}` }, 500);
-          const currentByCode = new Map<string, string>((currentRules ?? []).map((r: any) => [r.rule_code, r.rule_name]));
+          const currentByCode = new Map<string, string>((currentRules ?? []).map((r) => [r.rule_code, r.rule_name]));
 
           const seedUrl = new URL("/seed/metrics.txt", request.url);
           const seedRes = await fetch(seedUrl);
@@ -105,9 +116,9 @@ export const Route = createFileRoute("/api/admin-republish-metrics-document")({
           }
 
           const nextNumber = (activeVersion.version_number ?? 0) + 1;
-          const { data: newVersion, error: insertVersionError } = await db
-            .from("rule_document_versions")
-            .insert({
+          const insertVersionResult = await tryQuery(() => db
+            .insert(ruleDocumentVersionsTable)
+            .values({
               document_id: doc.id,
               version_number: nextNumber,
               source_filename: "/seed/metrics.txt",
@@ -121,14 +132,14 @@ export const Route = createFileRoute("/api/admin-republish-metrics-document")({
               activation_status: status,
               is_active: false,
               user_id: activeVersion.user_id,
-            })
-            .select()
-            .single();
-          if (insertVersionError || !newVersion) return json({ ok: false, error: `version insert failed: ${insertVersionError?.message}` }, 500);
+            } as never)
+            .returning());
+          const newVersion = insertVersionResult.data?.[0];
+          if (insertVersionResult.error || !newVersion) return json({ ok: false, error: `version insert failed: ${insertVersionResult.error?.message}` }, 500);
 
           const CHUNK = 200;
           for (let i = 0; i < report.rules.length; i += CHUNK) {
-            const { error: rulesInsertError } = await db.from("rules").insert(
+            const { error: rulesInsertError } = await tryQuery(() => db.insert(rulesTable).values(
               report.rules.slice(i, i + CHUNK).map((r) => ({
                 version_id: newVersion.id,
                 rule_code: r.rule_code,
@@ -138,19 +149,26 @@ export const Route = createFileRoute("/api/admin-republish-metrics-document")({
                 blocking: r.blocking,
                 mapping_status: r.mapping_status,
                 user_id: activeVersion.user_id,
-              })),
-            );
+              })) as never,
+            ).returning({ id: rulesTable.id }));
             if (rulesInsertError) return json({ ok: false, error: `rules insert failed: ${rulesInsertError.message}`, new_version_id: newVersion.id, activated: false }, 500);
           }
 
-          await db.from("rule_document_versions").update({ is_active: false }).eq("document_id", doc.id);
-          await db.from("rule_document_versions").update({ is_active: true }).eq("id", newVersion.id);
-          await db.from("rule_documents").update({ active_version_id: newVersion.id }).eq("id", doc.id);
-          const { error: invalidateError } = await db
-            .from("audit_runs")
-            .update({ status: "INVALIDATED — RERUN REQUIRED", stale_reason: "METRICS rule version changed" })
-            .neq("metrics_version_id", newVersion.id)
-            .in("status", ["RUNNING", "COMPLETE"]);
+          await db.update(ruleDocumentVersionsTable).set({ is_active: false }).where(eq(ruleDocumentVersionsTable.document_id, doc.id));
+          await db.update(ruleDocumentVersionsTable).set({ is_active: true }).where(eq(ruleDocumentVersionsTable.id, newVersion.id));
+          await db.update(ruleDocumentsTable).set({ active_version_id: newVersion.id }).where(eq(ruleDocumentsTable.id, doc.id));
+          // .neq() on a NULLABLE column: PostgREST emitted `metrics_version_id <> $1`,
+          // which is NULL -- and therefore NOT matched -- for runs whose metrics_version_id
+          // is null. ne() emits the same comparison, so runs with no recorded metrics
+          // version stay untouched exactly as before.
+          const { error: invalidateError } = await tryQuery(() => db
+            .update(auditRunsTable)
+            .set({ status: "INVALIDATED — RERUN REQUIRED", stale_reason: "METRICS rule version changed" })
+            .where(and(
+              ne(auditRunsTable.metrics_version_id, newVersion.id),
+              inArray(auditRunsTable.status, ["RUNNING", "COMPLETE"]),
+            ))
+            .returning({ id: auditRunsTable.id }));
 
           return json({
             ok: true,

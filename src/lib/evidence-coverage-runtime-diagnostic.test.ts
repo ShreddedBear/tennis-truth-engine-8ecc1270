@@ -16,7 +16,7 @@ describe("runtime evidence coverage diagnostic", () => {
   it("is read-only and provider-independent", () => {
     expect(diagnostic).not.toContain("finalMetricWiringResearcher");
     expect(diagnostic).not.toMatch(/\.(insert|update|delete|upsert)\(/);
-    expect(diagnostic).toContain('from("metric_evidence_store")');
+    expect(diagnostic).toContain("from(metricEvidenceStoreTable)");
     expect(diagnostic).toContain("buildMetricObservationContext");
   });
 
@@ -94,7 +94,7 @@ describe("runtime evidence coverage diagnostic", () => {
   it("samples real production matches even when event_level or scheduled_date is null", () => {
     expect(diagnostic).toContain("representativeMatches");
     expect(diagnostic).toContain("hydrateParsedHints");
-    expect(diagnostic).toContain('order("created_at", { ascending: false })');
+    expect(diagnostic).toContain("orderBy(desc(matchesTable.created_at))");
     expect(diagnostic).not.toContain('.not("scheduled_date", "is", null)');
     expect(diagnostic).toContain("row.scheduled_date ?? row.parsed_date ?? row.created_at.slice(0, 10)");
     expect(diagnostic).toContain("row.event_level ?? row.parsed_event_level");
@@ -104,8 +104,8 @@ describe("runtime evidence coverage diagnostic", () => {
   it("uses exact canonical ranking evidence only as a conservative main-tour sampling fallback", () => {
     expect(diagnostic).toContain("classifyFromExactRankingEvidence");
     expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");
-    expect(diagnostic).toContain('eq("observation_type","RANKING")');
-    expect(diagnostic).toContain('in("player_name",names)');
+    expect(diagnostic).toContain('eq(sourceObservationsTable.observation_type,"RANKING")');
+    expect(diagnostic).toContain("inArray(sourceObservationsTable.player_name,names)");
     expect(diagnostic).toContain('"matches_plus_rankings"');
     expect(diagnostic).toContain("status===\"AMBIGUOUS\"");
     expect(diagnostic).toContain("status===\"QUERY_FAILED\"");
@@ -114,7 +114,7 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("falls back to ranking-proven persisted metric-evidence pairs when match tables have no pairs", () => {
-    expect(diagnostic).toContain('from("metric_evidence_store").select("player_name,opponent_name,as_of_date,metric_code,value_text,evidence_family")');
+    expect(diagnostic).toContain("player_name:metricEvidenceStoreTable.player_name,opponent_name:metricEvidenceStoreTable.opponent_name,as_of_date:metricEvidenceStoreTable.as_of_date,metric_code:metricEvidenceStoreTable.metric_code,value_text:metricEvidenceStoreTable.value_text,evidence_family:metricEvidenceStoreTable.evidence_family");
     expect(diagnostic).toContain("classifyPairFromExactRankingEvidence");
     expect(diagnostic).toContain('sampling_source:"metric_evidence_store"');
     expect(diagnostic).toContain('date_source:"persisted_as_of_date"');
@@ -126,10 +126,10 @@ describe("runtime evidence coverage diagnostic", () => {
 
   it("separates current evidence coverage sampling from verified historical class proof", () => {
     expect(diagnostic).toContain("Current persisted evidence snapshots are the primary coverage sample for main tours.");
-    expect(diagnostic).toContain('select("player_name,opponent_name,as_of_date,metric_code,value_text,evidence_family")');
+    expect(diagnostic).toContain("player_name:metricEvidenceStoreTable.player_name,opponent_name:metricEvidenceStoreTable.opponent_name,as_of_date:metricEvidenceStoreTable.as_of_date,metric_code:metricEvidenceStoreTable.metric_code,value_text:metricEvidenceStoreTable.value_text,evidence_family:metricEvidenceStoreTable.evidence_family");
     expect(diagnostic).toContain("persistedSurface(rows)");
     expect(diagnostic).toContain("class_proof");
-    const persistedPriority = diagnostic.indexOf('const persisted=await db.from("metric_evidence_store")');
+    const persistedPriority = diagnostic.indexOf("const persisted=await tryQuery(");
     const verifiedFallback = diagnostic.indexOf('const row=await sampleVerifiedEvidenceIndexMatch(id);', persistedPriority);
     expect(persistedPriority).toBeGreaterThan(-1);
     expect(verifiedFallback).toBeGreaterThan(persistedPriority);
@@ -174,7 +174,7 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("surfaces persisted evidence provenance for coverage validation", () => {
-    expect(diagnostic).toContain('value_text,evidence_family,sources,reliability,sample_label');
+    expect(diagnostic).toContain("value_text:metricEvidenceStoreTable.value_text,evidence_family:metricEvidenceStoreTable.evidence_family,sources:metricEvidenceStoreTable.sources,reliability:metricEvidenceStoreTable.reliability,sample_label:metricEvidenceStoreTable.sample_label");
     expect(diagnostic).toContain('stored_p1_family:p1Stored?.evidence_family??null');
     expect(diagnostic).toContain('stored_p2_family:p2Stored?.evidence_family??null');
     expect(diagnostic).toContain('stored_p1_source_count:Array.isArray(p1Stored?.sources)?p1Stored.sources.length:0');
@@ -215,7 +215,7 @@ describe("coverage fallback precedence requires real side values", () => {
   it("does not let an unavailable deterministic row block certified local evidence", () => {
     expect(diagnostic).toContain('function chooseEvidenceSide(');
     expect(diagnostic).toContain('candidates.find(candidate=>usableEvidenceSide(candidate.treatment,candidate.value))');
-    expect(diagnostic).toContain('select("metric_code,player_name,opponent_name,treatment,value_text,evidence_family,sources,reliability,sample_label")');
+    expect(diagnostic).toContain("metric_code:metricEvidenceStoreTable.metric_code,player_name:metricEvidenceStoreTable.player_name,opponent_name:metricEvidenceStoreTable.opponent_name,treatment:metricEvidenceStoreTable.treatment,value_text:metricEvidenceStoreTable.value_text,evidence_family:metricEvidenceStoreTable.evidence_family,sources:metricEvidenceStoreTable.sources,reliability:metricEvidenceStoreTable.reliability,sample_label:metricEvidenceStoreTable.sample_label");
     expect(diagnostic).toContain('p1Usable=usableEvidenceSide(p1Treatment,p1Chosen.value)');
     expect(diagnostic).toContain('credited_source_p1:p1Usable?p1Chosen.source:null');
   });
