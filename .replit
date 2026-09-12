@@ -6,7 +6,7 @@ channel = "stable-25_05"
 [agent]
 expertMode = true
 
-run = "bun run dev"
+run = "npm run dev"
 
 [[ports]]
 localPort = 5000
@@ -26,7 +26,7 @@ author = 64742427
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bun run dev"
+args = "npm run dev"
 
 [[workflows.workflow]]
 name = "typecheck"
@@ -34,15 +34,48 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bun run typecheck"
+args = "npm run typecheck"
 
 [workflows.workflow.metadata]
 isValidation = true
 
+[[workflows.workflow]]
+name = "test"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm test"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "db push"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run db:push"
+
+[[workflows.workflow]]
+name = "drive audits once"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run worker:drive-audit:once"
+
+# A plain Node server, not Cloudflare Workers.
+#
+# This used to be `npx wrangler dev --config .output/server/wrangler.json`, from the Vite
+# config's Cloudflare default preset. The data layer holds a PostgreSQL connection pool --
+# a long-lived TCP socket -- which a Workers runtime cannot keep, so the build now targets
+# nitro's node-server preset and this runs the result directly.
 [deployment]
 deploymentTarget = "autoscale"
-run = ["npx", "wrangler", "dev", "--config", ".output/server/wrangler.json", "--local", "--ip", "0.0.0.0", "--port", "5000"]
-build = ["bun", "run", "build"]
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
 
 [postMerge]
 path = "scripts/post-merge.sh"

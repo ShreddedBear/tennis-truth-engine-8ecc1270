@@ -1,19 +1,17 @@
 name: Drive Audit Batch
 
-# Unattended continuation for in-flight audits, independent of
-# /api/drive-audit-batch (that path is armed via AUDIT_CRON_SECRET and an
-# external HTTP scheduler; this one runs the same pipeline code directly in
-# the runner via `bun run`, authenticated with the Supabase service-role key
-# instead). Every audit-driving path outside this workflow is triggered from
-# a browser tab (Upload's commit flow, Active Slate's poll loop), so the
-# moment that tab closes or backgrounds, every RUNNING audit freezes exactly
-# where it was -- confirmed in production, where a real batch sat with zero
-# heartbeat activity for over an hour once nobody was watching the page.
-# This workflow keeps RUNNING audits advancing regardless.
+# MANUAL BACKSTOP ONLY. This is no longer the production scheduler.
+#
+# Production scheduling is Replit-owned: scripts/drive-audit-worker.ts, run either as a
+# Replit Scheduled Deployment (RUN_ONCE=true) or as a Reserved VM. Normal operation does
+# not depend on GitHub Actions, which is the point -- see docs/replit-runtime.md.
+#
+# The cron is removed rather than the workflow, so this stays available to drive audits by
+# hand from the Actions tab when that is useful, without silently competing with the
+# Replit worker on a schedule. Both paths claim work through the same database leases, so
+# running them together is safe; running them together CONSTANTLY is just noise.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
 
 permissions:
   contents: read
@@ -41,9 +39,7 @@ jobs:
 
       - name: Drive every RUNNING audit one wave forward
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RESEARCH_FALLBACK_API_KEY: ${{ secrets.RESEARCH_FALLBACK_API_KEY }}
           RESEARCH_FALLBACK_URL: ${{ secrets.RESEARCH_FALLBACK_URL }}
           # The repo secret is actually named OPEN_API, not OPENAI_API_KEY --

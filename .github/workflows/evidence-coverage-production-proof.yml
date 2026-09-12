@@ -31,7 +31,7 @@ jobs:
       - name: Wait for production diagnostic and prove sampling/firewalls/accounting
         shell: bash
         env:
-          URL: https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1
+          URL: ${{ vars.APP_BASE_URL }}/api/evidence-coverage-diagnostic?key=${{ secrets.EVIDENCE_COVERAGE_KEY }}
         run: |
           set -euo pipefail
           response="$(mktemp)"

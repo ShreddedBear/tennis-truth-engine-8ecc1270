@@ -18,7 +18,11 @@
     "db:push": "drizzle-kit push --config ./drizzle.config.ts && npm run db:sql-extras",
     "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
     "db:sql-extras": "tsx src/db/apply-sql-extras.ts",
-    "db:studio": "drizzle-kit studio --config ./drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config ./drizzle.config.ts",
+    "start": "node .output/server/index.mjs",
+    "worker:drive-audit": "tsx scripts/drive-audit-worker.ts",
+    "worker:drive-audit:once": "RUN_ONCE=true tsx scripts/drive-audit-worker.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

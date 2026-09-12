@@ -16,10 +16,13 @@ jobs:
     steps:
       - name: Probe production route once
         shell: bash
+        env:
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+          EVIDENCE_COVERAGE_KEY: ${{ secrets.EVIDENCE_COVERAGE_KEY }}
         run: |
           set -u
           body="$(mktemp)"
-          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 'https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1' || true)"
+          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 "${APP_BASE_URL}/api/evidence-coverage-diagnostic?key=${EVIDENCE_COVERAGE_KEY}" || true)"
           echo "HTTP_STATUS=$status"
           head -c 20000 "$body" || true
           echo

@@ -16,10 +16,13 @@ jobs:
     steps:
       - name: Summarize current production evidence coverage
         shell: bash
+        env:
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+          EVIDENCE_COVERAGE_KEY: ${{ secrets.EVIDENCE_COVERAGE_KEY }}
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 'https://tennis-truth-engine.lovable.app/api/evidence-coverage-diagnostic?key=ECOV-20260825-b6f1')"
+          status="$(curl -L -sS -o "$body" -w '%{http_code}' --max-time 90 "${APP_BASE_URL}/api/evidence-coverage-diagnostic?key=${EVIDENCE_COVERAGE_KEY}")"
           echo "HTTP_STATUS=$status"
           test "$status" = "200"
           jq -r '

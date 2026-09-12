@@ -1,4 +1,4 @@
-// Live Supabase wrapper for metrics #036/#037 (Loss/Win Autopsy) and #039
+// Live audit-database source for metrics #036/#037 (Loss/Win Autopsy) and #039
 // (Performance Surprise Rating). Pulls the audit DB's own
 // parsed_summary_fields-scored, completed-match population and turns it
 // into the pure ScoredOutcome/SurpriseInput shapes those modules already
@@ -12,7 +12,7 @@
 // Metric 036 continues to use audit-metric-036-loss-autopsy.ts and the static
 // four-tour history; this file owns only the audit-DB-dependent 037/039 path.
 //
-// Follows the same supabaseAdmin/ownerId/LOCAL_WORKSPACE_ID convention as
+// Follows the same server-only db / LOCAL_WORKSPACE_ID ownership convention as
 // audit-repo.server.ts, and the same summary_versions(match_id, is_active)
 // -> parsed_summary_fields(summary_version_id) join it already uses for
 // getParsedFields (not matches.active_summary_version_id, which

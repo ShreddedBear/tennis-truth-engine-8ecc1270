@@ -24,7 +24,7 @@ jobs:
           import { parseRuleDocument } from "../src/lib/rule-parser";
           import { finalMetricWiringResearcher } from "../src/lib/metric-wiring-078-081.server";
 
-          for (const k of ["LOVABLE_API_KEY","RESEARCH_FALLBACK_API_KEY","OPENAI_API_KEY","RESEARCH_FALLBACK_URL","OPENAI_BASE_URL"]) delete process.env[k];
+          for (const k of ["RESEARCH_API_KEY","RESEARCH_URL","RESEARCH_FALLBACK_API_KEY","RESEARCH_FALLBACK_URL","OPENAI_API_KEY","OPENAI_BASE_URL"]) delete process.env[k];
 
           const text = readFileSync("public/seed/metrics.txt", "utf8");
           const parsed = parseRuleDocument(text);

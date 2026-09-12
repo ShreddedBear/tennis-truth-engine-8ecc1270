@@ -200,19 +200,25 @@ export const extractMatchupsFromPdf = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }): Promise<{ matchups: AiMatchup[] }> => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("AI extraction is not configured (missing API key).");
+    // Vision extraction is the LAST tier: a PDF only reaches it after embedded-text
+    // extraction and on-device OCR have both found nothing. Any OpenAI-compatible endpoint
+    // whose model accepts a PDF part works here; RESEARCH_VISION_* exists so the vision
+    // model can differ from the research model, since they are different jobs.
+    const apiKey = process.env["RESEARCH_VISION_API_KEY"] ?? process.env["RESEARCH_API_KEY"] ?? process.env["OPENAI_API_KEY"];
+    const baseUrl = process.env["RESEARCH_VISION_URL"] ?? process.env["RESEARCH_URL"] ?? process.env["OPENAI_BASE_URL"] ?? (process.env["OPENAI_API_KEY"] ? "https://api.openai.com/v1" : undefined);
+    if (!apiKey || !baseUrl) throw new Error("AI extraction is not configured (set RESEARCH_VISION_API_KEY and RESEARCH_VISION_URL, or OPENAI_API_KEY).");
+    const model = process.env["RESEARCH_VISION_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "gpt-4o-mini";
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), EXTRACTION_TIMEOUT_MS);
     let res: Response;
     try {
-      res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      res = await fetch(`${baseUrl.replace(/\/$/u, "")}/chat/completions`, {
         method: "POST",
-        headers: { "content-type": "application/json", "Lovable-API-Key": apiKey },
+        headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
         signal: controller.signal,
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model,
           messages: [{
             role: "user",
             content: [

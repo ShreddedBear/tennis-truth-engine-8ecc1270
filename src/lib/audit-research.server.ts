@@ -1,7 +1,7 @@
 // Independent research provider for the audit pipeline.
-// Talks to the Lovable AI Gateway with web-grounded search where the model
-// supports it. Nothing here decides completion or colour — it only returns
-// findings, and it is required to return UNAVAILABLE rather than invent data.
+// Talks to an OpenAI-compatible chat-completions endpoint, with web-grounded search where
+// the configured model supports it. Nothing here decides completion or colour — it only
+// returns findings, and it is required to return UNAVAILABLE rather than invent data.
 
 import type {
   ConclusionFinding,
@@ -16,7 +16,6 @@ import type {
 import { STAT_CATALOG, type StatDef } from "./reconstruction/stat-catalog";
 import type { SourcedStat } from "./reconstruction/engine";
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 // api.openai.com is the one sane default for OPENAI_API_KEY specifically --
 // unlike RESEARCH_FALLBACK_API_KEY (which names no particular vendor and
 // must always come with an explicit URL), OPENAI_API_KEY only ever means
@@ -33,7 +32,7 @@ const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
 // never returns before something (the platform's own request timeout or the
 // browser tab) gives up on it, over and over, with no error surfaced to
 // explain why. Kept safely under half the slice budget so even a two-provider
-// fallback sequence (Lovable + a configured fallback) finishes inside it.
+// fallback sequence finishes inside it.
 const PROVIDER_TIMEOUT_MS = 9_000;
 
 const HOUSE_RULES = `You are the independent research branch of a tennis match audit.
@@ -50,41 +49,57 @@ interface ProviderAttempt {
   name: string;
   url: string;
   key: string;
-  auth: "lovable" | "bearer";
   model: string;
-  // Only Lovable's gateway (a Gemini proxy) understands the "google_search"
-  // tool shape used for grounding below; sending it to a plain OpenAI-
-  // compatible endpoint is a guaranteed 400 on every grounded call, wasting
-  // the retry-without-tools round trip that exists for genuine edge cases.
+  // Whether this endpoint understands the "google_search" tool shape used for grounding
+  // below. Gemini-compatible gateways do; a plain OpenAI-compatible endpoint does not, and
+  // sending it there is a guaranteed 400 on every grounded call, wasting the
+  // retry-without-tools round trip that exists for genuine edge cases.
+  //
+  // This used to be hardcoded true for one vendor's gateway and false for everything else.
+  // It is configuration now (RESEARCH_GROUNDED_SEARCH / RESEARCH_FALLBACK_GROUNDED_SEARCH),
+  // so grounding is a property of the endpoint you point at rather than of a particular
+  // supplier -- which is what makes removing that supplier a change of provider and not a
+  // silent loss of capability.
   supportsGoogleSearchTool: boolean;
 }
 
-// Model IDs are provider-specific, not global: Lovable's gateway proxies to
-// Gemini and expects "google/..." IDs, while a plain OpenAI-compatible
-// endpoint expects its own model names ("gpt-4o-mini" etc.) -- a single
-// shared MODEL constant only ever worked because Lovable was the only
-// configured provider. Read live (like every other setting here) rather
-// than cached at module load, so an env change takes effect on the very
-// next call instead of needing a process restart.
+// Model IDs are provider-specific, not global: a Gemini-compatible gateway expects
+// "google/..." IDs while a plain OpenAI-compatible endpoint expects its own model names
+// ("gpt-4o-mini" etc.), so each provider carries its own. Read live (like every other
+// setting here) rather than cached at module load, so an env change takes effect on the
+// very next call instead of needing a process restart.
 function providers(): ProviderAttempt[] {
   const configured: ProviderAttempt[] = [];
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  if (lovableKey) {
-    const model = process.env["LOVABLE_RESEARCH_MODEL"] ?? "google/gemini-3-flash-preview";
-    configured.push({ name: "Lovable AI", url: GATEWAY, key: lovableKey, auth: "lovable", model, supportsGoogleSearchTool: true });
+
+  const primaryKey = process.env["RESEARCH_API_KEY"];
+  const primaryUrl = process.env["RESEARCH_URL"];
+  if (primaryKey && primaryUrl) {
+    configured.push({
+      name: "Research provider",
+      url: `${primaryUrl.replace(/\/$/u, "")}/chat/completions`,
+      key: primaryKey,
+      model: process.env["RESEARCH_MODEL"] ?? "gpt-4o-mini",
+      supportsGoogleSearchTool: process.env["RESEARCH_GROUNDED_SEARCH"] === "true",
+    });
   }
+
   const fallbackKey = process.env["RESEARCH_FALLBACK_API_KEY"] ?? process.env["OPENAI_API_KEY"];
   const fallbackUrl = process.env["RESEARCH_FALLBACK_URL"] ?? process.env["OPENAI_BASE_URL"] ?? (process.env["OPENAI_API_KEY"] ? OPENAI_DEFAULT_BASE_URL : undefined);
   if (fallbackKey && fallbackUrl) {
-    const model = process.env["RESEARCH_FALLBACK_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "gpt-4o-mini";
-    configured.push({ name: "Configured fallback provider", url: fallbackUrl.replace(/\/$/, "") + "/chat/completions", key: fallbackKey, auth: "bearer", model, supportsGoogleSearchTool: false });
+    configured.push({
+      name: "Configured fallback provider",
+      url: `${fallbackUrl.replace(/\/$/u, "")}/chat/completions`,
+      key: fallbackKey,
+      model: process.env["RESEARCH_FALLBACK_MODEL"] ?? process.env["OPENAI_MODEL"] ?? "gpt-4o-mini",
+      supportsGoogleSearchTool: process.env["RESEARCH_FALLBACK_GROUNDED_SEARCH"] === "true",
+    });
   }
   return configured;
 }
 
 async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Promise<T> {
   const attempts = providers();
-  if (!attempts.length) throw new Error("Research providers are not configured: set LOVABLE_API_KEY or a fallback provider.");
+  if (!attempts.length) throw new Error("Research providers are not configured: set RESEARCH_API_KEY and RESEARCH_URL, or OPENAI_API_KEY.");
   const errors: string[] = [];
   for (const provider of attempts) {
     const body: Record<string, unknown> = {
@@ -109,9 +124,7 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
     try {
       let res = await fetch(provider.url, {
         method: "POST",
-        headers: provider.auth === "lovable"
-          ? { "content-type": "application/json", "Lovable-API-Key": provider.key }
-          : { "content-type": "application/json", Authorization: `Bearer ${provider.key}` },
+        headers: { "content-type": "application/json", Authorization: `Bearer ${provider.key}` },
         signal: controller.signal,
         body: JSON.stringify(body),
       });
@@ -120,9 +133,7 @@ async function ask<T>(prompt: string, shapeHint: string, grounded: boolean): Pro
         delete retryBody["tools"];
         res = await fetch(provider.url, {
           method: "POST",
-          headers: provider.auth === "lovable"
-            ? { "content-type": "application/json", "Lovable-API-Key": provider.key }
-            : { "content-type": "application/json", Authorization: `Bearer ${provider.key}` },
+          headers: { "content-type": "application/json", Authorization: `Bearer ${provider.key}` },
           signal: controller.signal,
           body: JSON.stringify(retryBody),
         });
