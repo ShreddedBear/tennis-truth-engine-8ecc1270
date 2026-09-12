@@ -1,4 +1,8 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { metricEvidenceStoreTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
 import { auditCutoff } from "./temporal-boundary";
 import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
@@ -29,7 +33,6 @@ import { BoundedPromiseCache } from "./bounded-promise-cache";
 import { BoundedOperationPool } from "./async-time-budget";
 import { auditDbCompositeMetric, isAuditDbCompositeMetric } from "./audit-metric-036-037-039-live.server";
 
-const db = supabaseAdmin as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 const metricCallCache = new BoundedPromiseCache<MetricFinding[]>(256, 15 * 60_000);
 const SOURCE_PACKET_BUDGET_MS = 7_000;
@@ -184,12 +187,13 @@ function unambiguousStoredRow(rows:StoredEvidence[]) {
 async function lookup(metricCodes: string[], player: string, opponent: string, date: string, context: string | null | undefined, tournament: string | null, surface: string | null): Promise<Map<string, StoredEvidence>> {
   if (!metricCodes.length) return new Map<string, StoredEvidence>();
   const tourFamily = classifyEvidenceTourFamily(context, tournament);
-  const { data, error } = await db.from("metric_evidence_store")
-    .select("metric_code,player_name,opponent_name,tournament,surface,as_of_date,treatment,value_text,reliability,sample_label,evidence_family,sources,unavailable_reason,valid_until,computed_at,updated_at")
-    .in("metric_code", metricCodes)
-    .lte("as_of_date", date)
-    .order("as_of_date", { ascending: false })
-    .limit(5000);
+  const { data, error } = await tryQuery(() => db.select().from(metricEvidenceStoreTable)
+    .where(and(
+      inArray(metricEvidenceStoreTable.metric_code, metricCodes),
+      lte(metricEvidenceStoreTable.as_of_date, date),
+    ))
+    .orderBy(desc(metricEvidenceStoreTable.as_of_date))
+    .limit(5000));
   if (error) return new Map<string, StoredEvidence>();
 
   const byCode = new Map<string, StoredEvidence[]>();
@@ -222,10 +226,27 @@ async function saveSide(args: { code: string; name: string; player: string; oppo
   const sourceIds = (sources ?? []).map(source => source.source_name).filter(Boolean);
   const sampleLabel = [sample, tourFamily ? `tour_family=${tourFamily}` : null].filter(Boolean).join(" | ") || null;
   const payload = { metric_code: code, metric_name: name, player_name: player, opponent_name: opponent, tournament, surface, as_of_date: date, treatment, value_text: value, reliability, sample_label: sampleLabel, evidence_family: family, source_ids: sourceIds, sources: sources ?? [], unavailable_reason: unavailableReason, valid_until: validUntil, updated_at: new Date().toISOString() };
-  const persisted = await db.rpc("upsert_metric_evidence_side", { p_payload: payload });
-  if (persisted.error || !persisted.data?.id) throw new Error(`[metric_evidence_store] write failed for ${code} ${player} vs ${opponent} (${date}): ${persisted.error?.message ?? "persisted row was not returned"}`);
-  const verification = await db.from("metric_evidence_store").select("id,treatment,value_text").eq("id", persisted.data.id).maybeSingle();
-  if (verification.error || !verification.data || verification.data.treatment !== treatment || verification.data.value_text !== value) {
+  // upsert_metric_evidence_side is unchanged plpgsql (src/db/sql/01-functions.sql). It is
+  // the ONLY writer of metric_evidence_store, because its ON CONFLICT target is the
+  // six-part expression index that defines evidence identity -- reproducing that as an
+  // inline upsert here is how a second, subtly different identity rule gets introduced.
+  // Only the transport changed, from POST /rpc/ to SELECT.
+  const persisted = await tryQuery(() => db.execute(
+    sql`select (public.upsert_metric_evidence_side(${JSON.stringify(payload)}::jsonb)).id as id`,
+  ).then((result) => result.rows as Array<{ id: string | null }>));
+  const persistedId = persisted.data?.[0]?.id ?? null;
+  if (persisted.error || !persistedId) throw new Error(`[metric_evidence_store] write failed for ${code} ${player} vs ${opponent} (${date}): ${persisted.error?.message ?? "persisted row was not returned"}`);
+
+  // Read-back verification is not ceremony: it is what proves the row that landed carries
+  // the treatment and value THIS side computed, rather than a concurrent write for the
+  // other player's side of the same metric.
+  const verification = await tryQuery(() => db.select({
+    id: metricEvidenceStoreTable.id,
+    treatment: metricEvidenceStoreTable.treatment,
+    value_text: metricEvidenceStoreTable.value_text,
+  }).from(metricEvidenceStoreTable).where(eq(metricEvidenceStoreTable.id, persistedId)).limit(1));
+  const verified = verification.data?.[0];
+  if (verification.error || !verified || verified.treatment !== treatment || verified.value_text !== value) {
     throw new Error(`[metric_evidence_store] verification failed for ${code} ${player} vs ${opponent} (${date}): ${verification.error?.message ?? "persisted row does not match the computed side"}`);
   }
 }

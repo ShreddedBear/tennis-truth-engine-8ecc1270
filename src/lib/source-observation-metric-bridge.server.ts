@@ -1,4 +1,13 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, type SQL } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { matchesTable, sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
+
+// `.not("observation_type", "in", "(...)")` excluded these families and, because SQL's
+// NOT IN is NULL-valued for a NULL column, also excluded NULL observation types.
+// notInArray generates the same NOT (col IN (...)), so that carries over unchanged.
+const EXCLUDED_OBSERVATION_TYPES = ["POINT_BY_POINT", "PBP", "MARKET"];
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
@@ -8,7 +17,6 @@ import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
 import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
 
-const db = supabaseAdmin as any;
 
 type MetricLike = { code: string; name: string };
 type ObservationRow = {
@@ -42,14 +50,20 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   const start = new Date(`${asOfDate}T00:00:00Z`);
   start.setUTCFullYear(start.getUTCFullYear() - 5);
   const aliases = unique([...safeEvidenceAliases(player, opponent), ...safeEvidenceAliases(opponent, player)]);
-  const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
-  const datedBase = () => db.from("source_observations").select(select)
-    .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
-    .order("event_date", { ascending: false });
-  const marketBase = () => db.from("source_observations").select(select)
-    .eq("event_date", asOfDate).eq("observation_type", "MARKET")
-    .order("event_date", { ascending: false });
-  const nullDateBase = () => db.from("source_observations").select(select).is("event_date", null);
+  const observations = (where: SQL | undefined, ordered: boolean) => tryQuery(() => {
+    const query = db.select().from(sourceObservationsTable).where(where);
+    return (ordered ? query.orderBy(desc(sourceObservationsTable.event_date)) : query).limit(1000);
+  });
+  const datedWindow = and(
+    gte(sourceObservationsTable.event_date, start.toISOString().slice(0, 10)),
+    lte(sourceObservationsTable.event_date, asOfDate),
+  );
+  const marketWindow = and(
+    eq(sourceObservationsTable.event_date, asOfDate),
+    eq(sourceObservationsTable.observation_type, "MARKET"),
+  );
+  const notExcluded = notInArray(sourceObservationsTable.observation_type, EXCLUDED_OBSERVATION_TYPES);
+  const playerIsAlias = inArray(sourceObservationsTable.player_name, aliases);
 
   // PBP is intentionally excluded from the generic warehouse lane. Evidence Coverage
   // receives PBP only through the tour-scoped BSD bridges below, so quarantined or
@@ -58,10 +72,10 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   // NULL-date rows are accepted only when attached to one of the matchup aliases;
   // a shared row with neither player identity nor date cannot be safely joined.
   const [otherResult, marketResult, sharedResult, nullDatePlayerResult] = await Promise.all([
-    datedBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    marketBase().in("player_name", aliases).limit(1000),
-    datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    nullDateBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
+    observations(and(datedWindow, playerIsAlias, notExcluded), true),
+    observations(and(marketWindow, playerIsAlias), true),
+    observations(and(datedWindow, isNull(sourceObservationsTable.player_name), notExcluded), true),
+    observations(and(isNull(sourceObservationsTable.event_date), playerIsAlias, notExcluded), false),
   ]);
   const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult];
   if (results.some((result) => result.error)) return [] as ObservationRow[];
@@ -96,9 +110,8 @@ async function inferCanonicalMatchContext(args: { p1: string; p2: string; asOfDa
   if (fromRows) return fromRows;
   const fromRepository = inferRepositoryMatchContext(args);
   if (fromRepository) return fromRepository;
-  const { data, error } = await db.from("matches")
-    .select("player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round")
-    .eq("scheduled_date", args.asOfDate).limit(250);
+  const { data, error } = await tryQuery(() => db.select().from(matchesTable)
+    .where(eq(matchesTable.scheduled_date, args.asOfDate)).limit(250));
   if (error) return null;
   const matches = (data ?? []).filter((row: any) =>
     evidencePairMatches(row.player1_name, row.player2_name, args.p1, args.p2) ||

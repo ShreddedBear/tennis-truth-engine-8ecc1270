@@ -66,9 +66,12 @@ describe("runtime evidence coverage diagnostic", () => {
 
   it("resolves surname-only identities from warehouse evidence only and propagates canonical names through every evidence lane", () => {
     expect(canonical).toContain("uniqueCanonicalWarehouseIdentity");
-    expect(canonical).toContain('from("source_observations")');
-    expect(canonical).toContain('from("metric_evidence_store")');
-    expect(canonical).not.toContain('from("matches")');
+    // Identity may be resolved from the evidence warehouse ONLY. Reading `matches` here
+    // would let the match table teach the resolver a name it is supposed to derive
+    // independently, so the negative assertion is the load-bearing one.
+    expect(canonical).toContain("from(sourceObservationsTable)");
+    expect(canonical).toContain("from(metricEvidenceStoreTable)");
+    expect(canonical).not.toContain("from(matchesTable)");
     expect(canonical).toContain("MAX_PAGES_PER_LANE");
     expect(canonical).toContain('status: "QUERY_FAILED"');
     expect(canonical).toContain('status: candidates.length > 1 ? "AMBIGUOUS" : "UNRESOLVED"');
@@ -149,9 +152,13 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
-    expect(bridge).toContain('eq("observation_type", "MARKET")');
-    expect(bridge).toContain('not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")');
-    expect(bridge).not.toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
+    // The market lane stays scoped to MARKET, every other lane excludes PBP and MARKET,
+    // and no lane may pull PBP in positively -- PBP reaches coverage only through the
+    // tour-scoped BSD bridges, never because rows happen to exist in the table.
+    expect(bridge).toContain('eq(sourceObservationsTable.observation_type, "MARKET")');
+    expect(bridge).toContain("notInArray(sourceObservationsTable.observation_type, EXCLUDED_OBSERVATION_TYPES)");
+    expect(bridge).toContain('EXCLUDED_OBSERVATION_TYPES = ["POINT_BY_POINT", "PBP", "MARKET"]');
+    expect(bridge).not.toContain('inArray(sourceObservationsTable.observation_type, ["POINT_BY_POINT"');
     expect(bridge).toContain("approvedPbpPacket");
     expect(bridge).toContain("buildBsdAtpMainPbpContext");
     expect(bridge).toContain("buildBsdWtaMainPbpContext");

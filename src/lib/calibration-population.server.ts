@@ -3,7 +3,11 @@
 // It writes nothing -- no new table, no schema change. Calibrated probabilities are a later,
 // separate job; this only establishes which observations are allowed to feed one.
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { inArray } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { auditRunsTable, matchesTable, resultGradesTable } from "@/db/schema";
+import { dbCall } from "@/db/query-errors";
 import {
   selectCalibrationPopulation, summarizeCalibrationPopulation,
   type CalibrationCandidate, type CalibrationPopulationResult, type CalibrationPopulationSummary,
@@ -16,28 +20,39 @@ export interface CalibrationPopulationReport {
   excluded: CalibrationPopulationResult["excluded"];
 }
 
-export async function buildCalibrationPopulationReport(db = supabaseAdmin): Promise<CalibrationPopulationReport> {
-  const { data: grades, error: gradesError } = await db.from("result_grades").select("match_id, audit_run_id, final_selection_result, actual_winner");
-  if (gradesError) throw new Error(`Database read failed (result_grades): ${gradesError.message}`);
+export async function buildCalibrationPopulationReport(): Promise<CalibrationPopulationReport> {
+  const grades = await dbCall("read", "result_grades", () => db.select({
+    match_id: resultGradesTable.match_id,
+    audit_run_id: resultGradesTable.audit_run_id,
+    final_selection_result: resultGradesTable.final_selection_result,
+    actual_winner: resultGradesTable.actual_winner,
+  }).from(resultGradesTable));
 
-  const runIds = [...new Set((grades ?? []).map((g) => String(g.audit_run_id)).filter(Boolean))];
-  const matchIds = [...new Set((grades ?? []).map((g) => String(g.match_id)).filter(Boolean))];
+  const runIds = [...new Set(grades.map((g) => String(g.audit_run_id)).filter(Boolean))];
+  const matchIds = [...new Set(grades.map((g) => String(g.match_id)).filter(Boolean))];
 
+  // Still chunked at 200. The old limit came from PostgREST's URL length, which no longer
+  // applies, but the chunking also bounds the statement's parameter count and keeps the
+  // query plan stable, so it stays.
   const runsById = new Map<string, { run_number: number; independent_decision_committed_at: string | null }>();
   for (let i = 0; i < runIds.length; i += 200) {
-    const { data, error } = await db.from("audit_runs").select("id, run_number, independent_decision_committed_at").in("id", runIds.slice(i, i + 200));
-    if (error) throw new Error(`Database read failed (audit_runs): ${error.message}`);
-    for (const row of data ?? []) runsById.set(String(row.id), { run_number: Number(row.run_number), independent_decision_committed_at: row.independent_decision_committed_at });
+    const rows = await dbCall("read", "audit_runs", () => db.select({
+      id: auditRunsTable.id,
+      run_number: auditRunsTable.run_number,
+      independent_decision_committed_at: auditRunsTable.independent_decision_committed_at,
+    }).from(auditRunsTable).where(inArray(auditRunsTable.id, runIds.slice(i, i + 200))));
+    for (const row of rows) runsById.set(String(row.id), { run_number: Number(row.run_number), independent_decision_committed_at: row.independent_decision_committed_at });
   }
 
   const scheduledByMatch = new Map<string, string | null>();
   for (let i = 0; i < matchIds.length; i += 200) {
-    const { data, error } = await db.from("matches").select("id, scheduled_date").in("id", matchIds.slice(i, i + 200));
-    if (error) throw new Error(`Database read failed (matches): ${error.message}`);
-    for (const row of data ?? []) scheduledByMatch.set(String(row.id), row.scheduled_date);
+    const rows = await dbCall("read", "matches", () => db.select({
+      id: matchesTable.id, scheduled_date: matchesTable.scheduled_date,
+    }).from(matchesTable).where(inArray(matchesTable.id, matchIds.slice(i, i + 200))));
+    for (const row of rows) scheduledByMatch.set(String(row.id), row.scheduled_date);
   }
 
-  const candidates: CalibrationCandidate[] = (grades ?? []).map((g) => {
+  const candidates: CalibrationCandidate[] = grades.map((g) => {
     const run = runsById.get(String(g.audit_run_id));
     const status = String(g.final_selection_result ?? "");
     return {

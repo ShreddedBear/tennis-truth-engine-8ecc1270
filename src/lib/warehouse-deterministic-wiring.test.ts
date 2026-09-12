@@ -45,7 +45,10 @@ describe("warehouse deterministic calculator wiring", () => {
   });
 
   it("uses the normalized evidence uniqueness key for conflict-safe refreshes", () => {
-    expect(compact).toContain('db.rpc("upsert_metric_evidence_side",{p_payload:payload})');
+    // The database function must remain the only writer. Its ON CONFLICT target is the
+    // six-part expression index below, which IS the definition of evidence identity --
+    // an inline upsert at the call site would be a second, divergent definition.
+    expect(compact).toContain("public.upsert_metric_evidence_side(");
     expect(atomicUpsert).toContain("on conflict (");
     expect(atomicUpsert).toContain("(lower(player_name))");
     expect(atomicUpsert).toContain("(coalesce(lower(opponent_name), ''))");

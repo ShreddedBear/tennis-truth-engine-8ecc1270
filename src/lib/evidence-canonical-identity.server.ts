@@ -1,11 +1,24 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, asc, ilike, notInArray } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { metricEvidenceStoreTable, playersTable, sourceObservationsTable } from "@/db/schema";
+import { tryQuery } from "@/db/try-query";
+
+// PostgREST's .range(from, to) is INCLUSIVE at both ends; limit/offset is not. Getting this
+// wrong drops or duplicates one row per page, which in an identity resolver means a name
+// silently disappearing from the candidate set.
+const pageSlice = (from: number, to: number) => ({ limit: to - from + 1, offset: from });
+
+// `.not("observation_type", "in", "(...)")` excluded these families AND excluded NULLs,
+// because SQL's NOT IN is NULL-valued for a NULL column. notInArray generates the same
+// NOT (col IN (...)), so the NULL behaviour carries over unchanged.
+const EXCLUDED_OBSERVATION_TYPES = ["POINT_BY_POINT", "PBP", "MARKET"];
 import {
   isSurnameOnlyEvidenceIdentity,
   normalizeEvidenceIdentity,
   uniqueCanonicalWarehouseIdentity,
 } from "./evidence-player-alias";
 
-const db = supabaseAdmin as any;
 const PAGE_SIZE = 1000;
 const MAX_PAGES_PER_LANE = 20;
 const MAX_PLAYER_PAGES = 50;
@@ -63,10 +76,12 @@ async function loadPlayerDirectory(): Promise<DirectoryResult> {
       const from = page * PAGE_SIZE;
       let result: any;
       try {
-        result = await db.from("players")
-          .select("id,canonical_name,normalized_key,aliases,tour")
-          .order("id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1);
+        const slice = pageSlice(from, from + PAGE_SIZE - 1);
+        result = await tryQuery(() => db.select({
+          id: playersTable.id, canonical_name: playersTable.canonical_name,
+          normalized_key: playersTable.normalized_key, aliases: playersTable.aliases,
+          tour: playersTable.tour,
+        }).from(playersTable).orderBy(asc(playersTable.id)).limit(slice.limit).offset(slice.offset));
       } catch (error) {
         return { rows, errors: [error instanceof Error ? error.message : String(error)], truncated: false };
       }
@@ -153,16 +168,36 @@ async function queryEvidenceCandidates(input: string) {
   if (!token || !/^[a-z0-9]+$/.test(token)) return { names: [] as string[], errors: ["Identity token is not query-safe."], truncated: false };
   const pattern = `%${token}%`;
   const lanes = await Promise.all([
-    pagedLane(input, ["player_name"], (from, to) => db.from("source_observations")
-      .select("id,player_name").not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")
-      .ilike("player_name", pattern).order("id", { ascending: true }).range(from, to)),
-    pagedLane(input, ["opponent_name"], (from, to) => db.from("source_observations")
-      .select("id,opponent_name").not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")
-      .ilike("opponent_name", pattern).order("id", { ascending: true }).range(from, to)),
-    pagedLane(input, ["player_name"], (from, to) => db.from("metric_evidence_store")
-      .select("id,player_name").ilike("player_name", pattern).order("id", { ascending: true }).range(from, to)),
-    pagedLane(input, ["opponent_name"], (from, to) => db.from("metric_evidence_store")
-      .select("id,opponent_name").ilike("opponent_name", pattern).order("id", { ascending: true }).range(from, to)),
+    pagedLane(input, ["player_name"], (from, to) => tryQuery(() => db
+      .select({ id: sourceObservationsTable.id, player_name: sourceObservationsTable.player_name })
+      .from(sourceObservationsTable)
+      .where(and(
+        notInArray(sourceObservationsTable.observation_type, EXCLUDED_OBSERVATION_TYPES),
+        ilike(sourceObservationsTable.player_name, pattern),
+      ))
+      .orderBy(asc(sourceObservationsTable.id))
+      .limit(pageSlice(from, to).limit).offset(pageSlice(from, to).offset))),
+    pagedLane(input, ["opponent_name"], (from, to) => tryQuery(() => db
+      .select({ id: sourceObservationsTable.id, opponent_name: sourceObservationsTable.opponent_name })
+      .from(sourceObservationsTable)
+      .where(and(
+        notInArray(sourceObservationsTable.observation_type, EXCLUDED_OBSERVATION_TYPES),
+        ilike(sourceObservationsTable.opponent_name, pattern),
+      ))
+      .orderBy(asc(sourceObservationsTable.id))
+      .limit(pageSlice(from, to).limit).offset(pageSlice(from, to).offset))),
+    pagedLane(input, ["player_name"], (from, to) => tryQuery(() => db
+      .select({ id: metricEvidenceStoreTable.id, player_name: metricEvidenceStoreTable.player_name })
+      .from(metricEvidenceStoreTable)
+      .where(ilike(metricEvidenceStoreTable.player_name, pattern))
+      .orderBy(asc(metricEvidenceStoreTable.id))
+      .limit(pageSlice(from, to).limit).offset(pageSlice(from, to).offset))),
+    pagedLane(input, ["opponent_name"], (from, to) => tryQuery(() => db
+      .select({ id: metricEvidenceStoreTable.id, opponent_name: metricEvidenceStoreTable.opponent_name })
+      .from(metricEvidenceStoreTable)
+      .where(ilike(metricEvidenceStoreTable.opponent_name, pattern))
+      .orderBy(asc(metricEvidenceStoreTable.id))
+      .limit(pageSlice(from, to).limit).offset(pageSlice(from, to).offset))),
   ]);
   return {
     names: lanes.flatMap((lane) => lane.names),

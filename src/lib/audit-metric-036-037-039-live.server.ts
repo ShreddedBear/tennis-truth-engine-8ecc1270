@@ -17,7 +17,13 @@
 // -> parsed_summary_fields(summary_version_id) join it already uses for
 // getParsedFields (not matches.active_summary_version_id, which
 // calibration-matrix-autofill.ts uses for a different, single-match UI path).
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+
+import { db } from "@/db/client.server";
+import { matchesTable, parsedSummaryFieldsTable, summaryVersionsTable } from "@/db/schema";
+
+// PostgREST's .range(from, to) is inclusive at both ends; limit/offset is not.
+const pageSlice = (from: number, to: number) => ({ limit: to - from + 1, offset: from });
 import { LOCAL_WORKSPACE_ID } from "./constants";
 import {
   computeLossWinAutopsy,
@@ -106,37 +112,42 @@ export async function loadAuditDbScoredMatches(): Promise<ScoredMatchRow[]> {
 }
 
 async function fetchAuditDbScoredMatches(): Promise<ScoredMatchRow[]> {
-  const db = supabaseAdmin as any;
   type MatchRow = Pick<ScoredMatchRow, "id" | "final_score" | "best_of" | "actual_winner" | "player1_name" | "player2_name" | "result_recorded_at">;
   type VersionRow = { id: string; match_id: string };
   type FieldRow = { id: string; summary_version_id: string; field_key: string; normalized_value: string | null; created_at: string };
 
   const matches = await collectPaged<MatchRow>(async (from, to) => {
-    const { data, error } = await db
-      .from("matches")
-      .select("id, final_score, best_of, actual_winner, player1_name, player2_name, result_recorded_at")
-      .eq("user_id", OWNER)
-      .not("actual_winner", "is", null)
-      .order("id", { ascending: true })
-      .range(from, to);
-    if (error) throw new Error(`Audit DB scored-match query failed: ${error.message}`);
-    return data ?? [];
+    const slice = pageSlice(from, to);
+    try {
+      return await db.select({
+        id: matchesTable.id, final_score: matchesTable.final_score, best_of: matchesTable.best_of,
+        actual_winner: matchesTable.actual_winner, player1_name: matchesTable.player1_name,
+        player2_name: matchesTable.player2_name, result_recorded_at: matchesTable.result_recorded_at,
+      }).from(matchesTable)
+        .where(and(eq(matchesTable.user_id, OWNER), isNotNull(matchesTable.actual_winner)))
+        .orderBy(asc(matchesTable.id)).limit(slice.limit).offset(slice.offset);
+    } catch (error) {
+      throw new Error(`Audit DB scored-match query failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
   if (!matches.length) return [];
 
   const versions: VersionRow[] = [];
   for (const matchBatch of batches(matches)) {
     versions.push(...await collectPaged<VersionRow>(async (from, to) => {
-      const { data, error } = await db
-        .from("summary_versions")
-        .select("id, match_id")
-        .eq("user_id", OWNER)
-        .eq("is_active", true)
-        .in("match_id", matchBatch.map(match => match.id))
-        .order("id", { ascending: true })
-        .range(from, to);
-      if (error) throw new Error(`Audit DB summary-version query failed: ${error.message}`);
-      return data ?? [];
+      const slice = pageSlice(from, to);
+      try {
+        return await db.select({ id: summaryVersionsTable.id, match_id: summaryVersionsTable.match_id })
+          .from(summaryVersionsTable)
+          .where(and(
+            eq(summaryVersionsTable.user_id, OWNER),
+            eq(summaryVersionsTable.is_active, true),
+            inArray(summaryVersionsTable.match_id, matchBatch.map(match => match.id)),
+          ))
+          .orderBy(asc(summaryVersionsTable.id)).limit(slice.limit).offset(slice.offset);
+      } catch (error) {
+        throw new Error(`Audit DB summary-version query failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }));
   }
   if (!versions.length) return [];
@@ -145,15 +156,22 @@ async function fetchAuditDbScoredMatches(): Promise<ScoredMatchRow[]> {
   const fields: FieldRow[] = [];
   for (const versionBatch of batches(versions)) {
     fields.push(...await collectPaged<FieldRow>(async (from, to) => {
-      const { data, error } = await db
-        .from("parsed_summary_fields")
-        .select("id, summary_version_id, field_key, normalized_value, created_at")
-        .in("summary_version_id", versionBatch.map(version => version.id))
-        .in("field_key", ["matrix_wp", "matrix_predicted_winner"])
-        .order("id", { ascending: true })
-        .range(from, to);
-      if (error) throw new Error(`Audit DB prediction-field query failed: ${error.message}`);
-      return data ?? [];
+      const slice = pageSlice(from, to);
+      try {
+        return await db.select({
+          id: parsedSummaryFieldsTable.id, summary_version_id: parsedSummaryFieldsTable.summary_version_id,
+          field_key: parsedSummaryFieldsTable.field_key,
+          normalized_value: parsedSummaryFieldsTable.normalized_value,
+          created_at: parsedSummaryFieldsTable.created_at,
+        }).from(parsedSummaryFieldsTable)
+          .where(and(
+            inArray(parsedSummaryFieldsTable.summary_version_id, versionBatch.map(version => version.id)),
+            inArray(parsedSummaryFieldsTable.field_key, ["matrix_wp", "matrix_predicted_winner"]),
+          ))
+          .orderBy(asc(parsedSummaryFieldsTable.id)).limit(slice.limit).offset(slice.offset);
+      } catch (error) {
+        throw new Error(`Audit DB prediction-field query failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }));
   }
   if (!fields.length) return [];
