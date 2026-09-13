@@ -14,10 +14,35 @@ const norm=(v:unknown)=>String(v??"").normalize("NFKD").replace(/[\u0300-\u036f]
 function explicitContext(c:string|null|undefined){const s=norm(c);return Boolean(s&&/(^| )atp( |$)/.test(s)&&s.includes("challenger")&&!/(^| )wta( |$)/.test(s)&&!["atp main","masters 1000","atp 250","atp 500"].some(x=>s.includes(x)));}
 function strictRow(r:IndexRow){const b=norm(`${r.category??""} ${r.tournament??""}`);return String(r.circuit??"").toUpperCase()==="ATP"&&r.structurally_present===true&&b.includes("challenger")&&!["wta","itf","futures","utr","satellite","exhibition"].some(x=>b.includes(x));}
 async function loadIndex(y:number):Promise<IndexRow[]>{try{const p=JSON.parse(await readFile(join(process.cwd(),"data","audit","bsd-atp-challenger-pbp-history",String(y),"results.json"),"utf8"));return Array.isArray(p)?p:[];}catch{return[];}}
-async function fetchPbp(id:string|number){const token=process.env.BSD_TENNIS_API_KEY;if(!token)return null;try{const r=await fetch(`${BASE}/matches/${encodeURIComponent(String(id))}/point-by-point/`,{headers:{Authorization:`Token ${token}`,"User-Agent":"tennis-truth-engine-task18b-atp-challenger/1.0"},signal:AbortSignal.timeout(12000)});if(!r.ok)return null;const p=await r.json();return p&&typeof p==="object"&&(p as any).available===true?p:null;}catch{return null;}}
+// A live PBP fetch that fails and one that genuinely has no data look identical unless the
+// reason is captured: a 402 (payment/credits exhausted) means the account cannot reach this
+// paid API at all right now, which is a producer/billing failure, not evidence the source
+// lacks this match's point-by-point record. classifyPbpFetchFailure is exported so this
+// mapping is directly unit-testable without a live network call.
+export type PbpFetchResult={ok:true;payload:unknown}|{ok:false;reason:string};
+export function classifyPbpFetchFailure(input:{status?:number;parseError?:boolean;networkError?:string;availableFalse?:boolean}):string{
+ if(input.networkError)return`BSD/Bzzoiro point-by-point request failed: ${input.networkError}`;
+ if(input.status===402)return"BSD/Bzzoiro API returned HTTP 402 (payment/credits required) -- a provider billing failure, not evidence this match's point-by-point data is absent.";
+ if(input.status===401||input.status===403)return`BSD/Bzzoiro API returned HTTP ${input.status} (authentication/authorization failed).`;
+ if(input.status===429)return"BSD/Bzzoiro API returned HTTP 429 (rate limited).";
+ if(typeof input.status==="number")return`BSD/Bzzoiro API returned HTTP ${input.status}.`;
+ if(input.parseError)return"BSD/Bzzoiro point-by-point response was not valid JSON.";
+ if(input.availableFalse)return"BSD/Bzzoiro reported this match's point-by-point data as unavailable.";
+ return"BSD/Bzzoiro point-by-point request failed for an unspecified reason.";
+}
+async function fetchPbp(id:string|number):Promise<PbpFetchResult>{
+ const token=process.env.BSD_TENNIS_API_KEY;if(!token)return{ok:false,reason:"BSD_TENNIS_API_KEY is not configured."};
+ try{
+  const r=await fetch(`${BASE}/matches/${encodeURIComponent(String(id))}/point-by-point/`,{headers:{Authorization:`Token ${token}`,"User-Agent":"tennis-truth-engine-task18b-atp-challenger/1.0"},signal:AbortSignal.timeout(12000)});
+  if(!r.ok)return{ok:false,reason:classifyPbpFetchFailure({status:r.status})};
+  let p:unknown;try{p=await r.json();}catch{return{ok:false,reason:classifyPbpFetchFailure({parseError:true})};}
+  if(p&&typeof p==="object"&&(p as any).available===true)return{ok:true,payload:p};
+  return{ok:false,reason:classifyPbpFetchFailure({availableFalse:true})};
+ }catch(error){return{ok:false,reason:classifyPbpFetchFailure({networkError:error instanceof Error?error.message:String(error)})};}
+}
 function candidates(rows:IndexRow[],p1:string,p2:string){const s=[...rows].sort((a,b)=>String(b.date??"").localeCompare(String(a.date??""))),seen=new Set<string>();return[...s.filter(r=>(r.players??[]).map(norm).includes(p1)).slice(0,12),...s.filter(r=>(r.players??[]).map(norm).includes(p2)).slice(0,12)].filter(r=>{const k=String(r.match_id??"");if(!k||seen.has(k))return false;seen.add(k);return true;}).sort((a,b)=>String(b.date??"").localeCompare(String(a.date??"")));}
 
-type ObservationStatus={eligible:boolean;reason:string;matches_used:number;rejected_pbp:number;coverage_start:string;source:string};
+type ObservationStatus={eligible:boolean;reason:string;matches_used:number;rejected_pbp:number;coverage_start:string;source:string;fetch_failures:number;fetch_failure_sample:string|null};
 // See the matching comment in bsd-atp-main-pbp.server.ts: this runs once per metric
 // batch (~17 per side), but the live-fetch candidate search depends only on
 // (p1, p2, asOfDate, context), so it's memoized for the process lifetime instead of
@@ -27,7 +52,7 @@ async function computeObservations(args:{p1:string;p2:string;asOfDate:string;con
  const key=`${norm(args.p1)}|${norm(args.p2)}|${args.asOfDate}|${args.context??""}`;
  const cached=observationCache.get(key);if(cached)return cached;
  const promise=(async():Promise<{status:ObservationStatus;observations:any[]}>=>{
-  const status:ObservationStatus={eligible:false,reason:"",matches_used:0,rejected_pbp:0,coverage_start:COVERAGE_START,source:"BSD/Bzzoiro ATP Challenger PBP"};
+  const status:ObservationStatus={eligible:false,reason:"",matches_used:0,rejected_pbp:0,coverage_start:COVERAGE_START,source:"BSD/Bzzoiro ATP Challenger PBP",fetch_failures:0,fetch_failure_sample:null};
   if(!explicitContext(args.context)){status.reason="Fail-closed tour guard: context is not explicitly ATP Challenger.";return{status,observations:[]};}
   if(args.asOfDate<COVERAGE_START){status.reason="Outside confirmed BSD ATP Challenger PBP coverage.";return{status,observations:[]};}
   status.eligible=true;
@@ -40,7 +65,14 @@ async function computeObservations(args:{p1:string;p2:string;asOfDate:string;con
    claimed.push({row,names,identity:identity!});
   }
   await Promise.all(claimed.map(async({row,names,identity})=>{
-   const payload=await fetchPbp(row.match_id!);if(!payload)return;const recovery=reconstructPbpScoreState(payload);if(!recovery.valid){status.rejected_pbp++;return;}
+   // A failed fetch is not the same as "this match has no PBP" -- distinguishing them is
+   // the whole point of capturing `fetched.reason` here instead of the old silent `if(!
+   // payload)return;`. A 402/429/5xx/network failure means the live call itself broke;
+   // only a successful fetch whose reconstruction rejects the payload as structurally
+   // incomplete increments rejected_pbp.
+   const fetched=await fetchPbp(row.match_id!);
+   if(!fetched.ok){status.fetch_failures++;status.fetch_failure_sample??=fetched.reason;return;}
+   const payload=fetched.payload;const recovery=reconstructPbpScoreState(payload);if(!recovery.valid){status.rejected_pbp++;return;}
    for(const target of[args.p1,args.p2]){const idx=names.findIndex(n=>norm(n)===norm(target));if(idx<0)continue;const side:PbpSide=idx===0?"player1":"player2",derived=recovery.derived[side];if(!Object.keys(derived).length)continue;observations.push({family:"POINT_BY_POINT",source:"BSD/Bzzoiro ATP Challenger PBP",url:`${BASE}/matches/${row.match_id}/point-by-point/`,player:target,opponent:names[idx===0?1:0],tournament:row.tournament??null,event_date:String(row.date).slice(0,10),surface:row.surface??null,key:"task18b_approved_pbp_score_state",value:{match_id:row.match_id,totalPoints:recovery.point_count,gamesObserved:recovery.game_count,derived,field_support:recovery.field_support},sample:`${recovery.point_count} parsed points; ${recovery.game_count} complete games`,provenance:{tour:"ATP_CHALLENGER",match_id:String(row.match_id),canonical_match_key:identity.key,player_orientation:side,approved_only:true,approval_source:"BSD ATP Challenger historical structural PBP audit",raw_pbp_ref:`${BASE}/matches/${row.match_id}/point-by-point/`,parsed_point_state:true,transformation:"pbp-score-state-recovery",duplicate_match_guard:true,one_match_one_pbp:true}});status.matches_used++;}
   }));
   status.reason=observations.length?"Approved ATP Challenger PBP reconstructed through canonical match identity where metric-specific raw fields are satisfied.":"No matching approved ATP Challenger PBP satisfied Task 18B field requirements.";

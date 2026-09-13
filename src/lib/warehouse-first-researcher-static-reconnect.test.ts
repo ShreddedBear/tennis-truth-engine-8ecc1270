@@ -48,3 +48,36 @@ describe("warehouse-first-researcher.server.ts reconnects the static CSV/WTA-off
     expect(collapsed).toContain("fullyUsableFinding(wta) ? wta : fullyUsableFinding(local) ? local : null");
   });
 });
+
+// Live production finding: every real BSD/Bzzoiro PBP fetch for 002/003/009/018/032
+// returned HTTP 402 (payment/credits required), but the packet-building layer only ever
+// saw "no observations" -- fetchPbp() collapsed every failure into a bare null, so a real
+// producer/billing failure was indistinguishable from "this match's PBP genuinely doesn't
+// exist". This guards the fix: when the PBP packet recovery comes back null for a
+// TASK18B-owned code, a real recorded fetch failure (never a mere absence of candidates)
+// must still surface as an UNAVAILABLE finding carrying that reason.
+describe("warehouse-first-researcher.server.ts surfaces a real BSD PBP fetch failure instead of silence", () => {
+  it("imports TASK18B_METRIC_CODES and checks each lane's fetch_failures before staying silent", () => {
+    expect(collapsed).toContain('import { TASK18B_METRIC_CODES } from "./pbp-score-state-recovery"');
+    expect(collapsed).toContain("TASK18B_METRIC_CODES.has(code)");
+    expect(collapsed).toContain("fetch_failures");
+    expect(collapsed).toContain("fetch_failure_sample");
+  });
+
+  it("only fires the fetch-failure fallback when recovered is null (never overrides a real recovery)", () => {
+    const idx = collapsed.indexOf("if (recovered) {");
+    expect(idx).toBeGreaterThan(-1);
+    const block = collapsed.slice(idx, idx + 400);
+    expect(block).toContain("} else if (TASK18B_METRIC_CODES.has(code)) {");
+  });
+
+  it("checks all three fetch-capable lanes (challenger, ATP main, WTA main), never the WTA Challenger lane which never fetches", () => {
+    const idx = collapsed.indexOf("const lanes = [");
+    expect(idx).toBeGreaterThan(-1);
+    const block = collapsed.slice(idx, idx + 200);
+    expect(block).toContain("bsdAtpChallengerPbp.status");
+    expect(block).toContain("bsdAtpMainPbp.status");
+    expect(block).toContain("bsdWtaMainPbp.status");
+    expect(block).not.toContain("bsdWtaChallengerPbp.status");
+  });
+});

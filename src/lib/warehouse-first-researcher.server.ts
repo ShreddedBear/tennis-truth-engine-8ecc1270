@@ -8,6 +8,7 @@ import type { MetricFinding, Researcher } from "./audit-pipeline";
 import { deterministicEnvironmentMetric } from "./deterministic-environment-metrics.server";
 import { deterministicMarketMetric } from "./deterministic-market-metrics.server";
 import { deterministicPbpMetricFromPacket } from "./deterministic-pbp-metrics.server";
+import { TASK18B_METRIC_CODES } from "./pbp-score-state-recovery";
 import { deterministicRankingMetric } from "./deterministic-ranking-metrics.server";
 import { deterministicResultsScheduleMetric } from "./deterministic-results-schedule-metrics.server";
 import { deterministicRulesContextMetric } from "./deterministic-rules-context-metric.server";
@@ -424,7 +425,32 @@ export const warehouseFirstResearcher: Researcher = {
         // below still gates actual usability through fullyUsableFinding(deterministicByCode.
         // get(code)), so a one-sided recovery here still leaves the code in liveMissing/
         // remainingLiveMissing for the live-AI tier to try, exactly as before.
-        if (recovered) deterministicByCode.set(code, recovered);
+        if (recovered) {
+          deterministicByCode.set(code, recovered);
+        } else if (TASK18B_METRIC_CODES.has(code)) {
+          // The packet had nothing usable for this code. Before letting that read as "no
+          // reason at all" downstream, check whether the reason is a REAL producer failure
+          // rather than an absence: bsd-*-pbp.server.ts's fetch_failures/fetch_failure_sample
+          // (e.g. "BSD/Bzzoiro API returned HTTP 402 ...") means the live provider call
+          // itself broke -- a billing/auth/network failure, never proof the source lacks
+          // this match's point-by-point record. Only fires when a real failure was recorded;
+          // a match with zero candidates in the local index (a genuine absence) leaves every
+          // lane's fetch_failures at 0 and this stays silent, exactly as before.
+          const lanes = [bsdAtpChallengerPbp.status, bsdAtpMainPbp.status, bsdWtaMainPbp.status].filter(
+            (s): s is { fetch_failures: number; fetch_failure_sample: string | null; source: string } =>
+              Boolean(s) && typeof (s as { fetch_failures?: unknown }).fetch_failures === "number",
+          );
+          const failedLane = lanes.find((s) => s.fetch_failures > 0);
+          if (failedLane) {
+            deterministicByCode.set(code, {
+              metric_code: code, p1_value: null, p2_value: null,
+              p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE",
+              differential: null, evidence_family: "POINT_BY_POINT", reliability: null, sample: null,
+              unavailable_reason: `${failedLane.source}: ${failedLane.fetch_failure_sample} (${failedLane.fetch_failures} candidate match(es) affected).`,
+              sources: [],
+            });
+          }
+        }
       }
 
       for (const [code, row] of deterministicByCode) {
