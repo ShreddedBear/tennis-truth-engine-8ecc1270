@@ -114,8 +114,25 @@ function ttlHours(code: string) {
   if (["015", "019"].includes(code)) return 6;
   return 168;
 }
-function fullyUsableFinding(row: MetricFinding | undefined) {
+export function fullyUsableFinding(row: MetricFinding | undefined) {
   return Boolean(row && USABLE.has(row.p1_treatment) && USABLE.has(row.p2_treatment) && row.p1_value && row.p2_value);
+}
+
+/**
+ * A concrete, upstream provider failure (a real HTTP status/error, e.g. "BSD/Bzzoiro API
+ * returned HTTP 402 ...") must survive to the persisted reason even though the live-AI
+ * tier's own guaranteed-non-null generic fallback text ("No sourced result survived the
+ * final metric wiring guard.") would otherwise always win mergeMetricFindingSides's
+ * `primary.unavailable_reason ?? fallback.unavailable_reason` precedence -- `live` is
+ * always `primary` there, and finalMetricWiringResearcher.metrics() never returns a row
+ * with a null reason, so a specific failure was always silently replaced by a vague one.
+ *
+ * Never applied when `chosen` already resolved to real, usable evidence on both sides --
+ * a genuine successful result is never relabeled as a failure.
+ */
+export function applyProviderFailurePrecedence(chosen: MetricFinding, providerFailureReason: string | undefined): MetricFinding {
+  if (!providerFailureReason || fullyUsableFinding(chosen)) return chosen;
+  return { ...chosen, unavailable_reason: providerFailureReason };
 }
 
 function usableSide(row: MetricFinding | undefined, side: "p1" | "p2") {
@@ -363,6 +380,11 @@ export const warehouseFirstResearcher: Researcher = {
     const deterministicRows = deterministicResult.filter((row): row is MetricFinding => Boolean(row));
     console.log(`[research-timing] deterministic tier ${Date.now()-callStartedAt}ms`);
     const deterministicByCode = new Map(deterministicRows.map(row => [codeOf(row.metric_code), row]));
+    // A concrete upstream provider failure (real HTTP status, real error) for a code, kept
+    // separate from deterministicByCode's own reason so it can outrank whatever generic
+    // fallback text the live-AI tier produces later -- see where this is populated and
+    // where it overrides `chosen` below.
+    const pbpProviderFailureByCode = new Map<string, string>();
     const liveMissing = missing.filter(metric => {
       const code = codeOf(metric.code);
       return !isAuditDbCompositeMetric(code) && !fullyUsableFinding(deterministicByCode.get(code));
@@ -442,13 +464,25 @@ export const warehouseFirstResearcher: Researcher = {
           );
           const failedLane = lanes.find((s) => s.fetch_failures > 0);
           if (failedLane) {
+            const reason = `${failedLane.source}: ${failedLane.fetch_failure_sample} (${failedLane.fetch_failures} candidate match(es) affected).`;
             deterministicByCode.set(code, {
               metric_code: code, p1_value: null, p2_value: null,
               p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE",
               differential: null, evidence_family: "POINT_BY_POINT", reliability: null, sample: null,
-              unavailable_reason: `${failedLane.source}: ${failedLane.fetch_failure_sample} (${failedLane.fetch_failures} candidate match(es) affected).`,
+              unavailable_reason: reason,
               sources: [],
             });
+            // Recorded separately from deterministicByCode because a concrete provider
+            // failure (a real HTTP status) must outrank whatever generic fallback message
+            // the live-AI tier produces below -- and it always produces ONE: final
+            // MetricWiringResearcher.metrics() never returns nothing, its own fallback row
+            // always carries a non-null unavailable_reason ("No sourced result survived the
+            // final metric wiring guard."). Since mergeMetricFindingSides(live, deterministic)
+            // treats `live` as primary, that guaranteed-non-null generic text would otherwise
+            // always win the `primary.unavailable_reason ?? fallback.unavailable_reason`
+            // coalesce, silently replacing a specific, real failure with a vague one. See the
+            // override applied to `chosen` in the final per-metric loop below.
+            pbpProviderFailureByCode.set(code, reason);
           }
         }
       }
@@ -532,8 +566,9 @@ export const warehouseFirstResearcher: Researcher = {
         sources: [...sourcesOf(a), ...sourcesOf(b)],
       };
       const computed = mergeMetricFindingSides(live, deterministic);
-      const chosen = mergeMetricFindingSides(cached, computed);
-      if (!chosen) continue;
+      const merged = mergeMetricFindingSides(cached, computed);
+      if (!merged) continue;
+      const chosen = applyProviderFailurePrecedence(merged, pbpProviderFailureByCode.get(code));
       output.push(chosen);
       await Promise.all([
         saveSide({ code, name: metric.name, player: p1, opponent: p2, date, treatment: chosen.p1_treatment, value: chosen.p1_value, reliability: chosen.reliability, sample: chosen.sample, family: chosen.evidence_family, sources: chosen.sources ?? [], unavailableReason: chosen.unavailable_reason, tournament, surface, tourFamily }),

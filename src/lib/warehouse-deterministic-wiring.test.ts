@@ -24,7 +24,7 @@ describe("warehouse deterministic calculator wiring", () => {
 
   it("does not let a live unavailable result erase deterministic warehouse evidence", () => {
     expect(compact).toContain("constcomputed=mergeMetricFindingSides(live,deterministic)");
-    expect(compact).toContain("constchosen=mergeMetricFindingSides(cached,computed)");
+    expect(compact).toContain("constmerged=mergeMetricFindingSides(cached,computed)");
   });
 
   it("persists each paired finding atomically at the pipeline boundary", () => {
