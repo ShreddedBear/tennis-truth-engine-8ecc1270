@@ -1,0 +1,1 @@
+python -c "import secrets; print('EVIDENCE_COVERAGE_KEY=' + secrets.token_urlsafe(32)); print('REPUBLISH_KEY=' + secrets.token_urlsafe(32))"
