@@ -67,6 +67,7 @@ describe.skipIf(!TEST_URL)("the Truth Engine decides identically through Postgre
   let closePool: typeof import("./client.server")["closePool"];
   let schema: typeof import("./schema");
   let runId: string;
+  let matchId: string;
 
   beforeAll(async () => {
     process.env["DATABASE_URL"] = TEST_URL;
@@ -78,11 +79,19 @@ describe.skipIf(!TEST_URL)("the Truth Engine decides identically through Postgre
     // One throwaway match and run to hang the evidence off, so the real foreign keys and
     // CHECK constraints apply to every row written below. Evidence that cannot satisfy the
     // live schema is evidence the engine would never have seen.
+    //
+    // THIS TEST CAN RUN AGAINST A LIVE PRODUCTION DATABASE (TEST_DATABASE_URL is deliberately
+    // a separate variable from DATABASE_URL, precisely so it can be pointed at production for
+    // a cutover proof without the app itself switching targets). A throwaway row left behind
+    // in production is not acceptable merely because it isn't in the 60-match historical
+    // slate -- it would still be a synthetic match sitting in real data, visible on the
+    // Board/Slate/Dashboard. So it is deleted in afterAll, not just the pool closed.
     const [match] = await db.insert(schema.matchesTable).values({
       canonical_key: `parity-${Date.now()}`,
       player1_name: "Parity P1",
       player2_name: "Parity P2",
     } as never).returning({ id: schema.matchesTable.id });
+    matchId = match!.id;
 
     const [run] = await db.insert(schema.auditRunsTable).values({
       match_id: match!.id, run_number: 1, status: "RUNNING",
@@ -91,7 +100,19 @@ describe.skipIf(!TEST_URL)("the Truth Engine decides identically through Postgre
   }, 120_000);
 
   afterAll(async () => {
-    if (closePool) await closePool();
+    // Deleting the match cascades to audit_runs and metric_results (both FKs are
+    // ON DELETE CASCADE -- see src/db/sql/02-constraints-indexes.sql), so this is the
+    // single statement that removes everything this test wrote, in any database it ran
+    // against. Best-effort: if it fails, the pool is still closed so the process can exit,
+    // but the failure is surfaced rather than swallowed, because a leftover row in
+    // production is exactly the outcome this exists to prevent.
+    try {
+      if (db && matchId) {
+        await db.delete(schema.matchesTable).where(eq(schema.matchesTable.id, matchId));
+      }
+    } finally {
+      if (closePool) await closePool();
+    }
   });
 
   it("has real frozen evidence to test with", () => {
