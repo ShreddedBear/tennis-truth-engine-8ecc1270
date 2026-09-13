@@ -2088,6 +2088,27 @@ describe("metricPairPatch persists a reason that only excuses a genuinely eviden
     expect(DENOMINATOR_EXCUSED_STATUSES.has(classify(patch, "p1"))).toBe(false);
   });
 
+  // Live production finding: metrics 027/029/045/052 all report the exact same real,
+  // evidence-based structural-absence reason for ATP_MAIN/WTA_CHALLENGER ("...structural
+  // schema gap, not sparse data.") -- and every one of them was misclassified as
+  // PARSING_FAILED. Nothing here ever attempted to parse anything; unavailableReason()'s
+  // classifier used a plain substring check (`message.includes("parse")`), which matches
+  // "parse" inside the unrelated word "sparse". A genuine, correctly-stated structural
+  // absence must never be mislabeled as a producer/parsing defect it isn't.
+  it("a reason string containing 'sparse' is never misclassified as PARSING_FAILED", () => {
+    const patch = metricPairPatch(finding({
+      unavailable_reason: "ATP_MAIN has no set-sequence (set_scores) data in the static history index -- structural schema gap, not sparse data.",
+    }), null, NOW);
+    expect(patch["p1_unavailable_reason"]).not.toBe("PARSING_FAILED");
+    expect(classify(patch, "p1")).not.toBe("PARSE_FAILURE");
+  });
+
+  it("a genuine parsing failure is still classified as PARSING_FAILED", () => {
+    const patch = metricPairPatch(finding({ unavailable_reason: "Failed to parse the producer's JSON response." }), null, NOW);
+    expect(patch["p1_unavailable_reason"]).toBe("PARSING_FAILED");
+    expect(classify(patch, "p1")).toBe("PARSE_FAILURE");
+  });
+
   it("a classifiable provider failure keeps its specific reason and still stays in the denominator", () => {
     const patch = metricPairPatch(finding(), "401 Unauthorized: bad api key", NOW);
     expect(patch["p1_unavailable_reason"]).toBe("PROVIDER_AUTH_FAILED");
