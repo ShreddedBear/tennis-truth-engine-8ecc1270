@@ -151,6 +151,19 @@ export function mergeMetricFindingSides(primary: MetricFinding | undefined, fall
     evidence_family: p1.evidence_family ?? p2.evidence_family ?? primary.evidence_family ?? fallback.evidence_family,
     reliability: reliabilities.length ? Math.min(...reliabilities) : null,
     sources,
+    // A real, stated reason from either tier must survive even when the OTHER tier also
+    // failed but recorded nothing -- `{...fallback,...primary}` above lets primary's own
+    // absence of an explanation silently erase a real one from fallback, since object
+    // spread takes a key's presence, not its truthiness. That is what turned every genuine
+    // producer-stated reason (PBP one-sidedness, insufficient sample, historical-index gap,
+    // ...) into an unexplained PRODUCER_FAILED_WITHOUT_REASON miss whenever the stored-
+    // evidence cache row (which always sets unavailable_reason: null, see `cached` below)
+    // was passed as primary. Only ever a real, already-stated reason -- nothing here
+    // invents one.
+    unavailable_reason: primary.unavailable_reason ?? fallback.unavailable_reason ?? null,
+    p1_unavailable_reason: primary.p1_unavailable_reason ?? fallback.p1_unavailable_reason ?? null,
+    p2_unavailable_reason: primary.p2_unavailable_reason ?? fallback.p2_unavailable_reason ?? null,
+    provider_error: primary.provider_error ?? fallback.provider_error ?? null,
   };
 }
 function rowTime(row: StoredEvidence) {
@@ -402,7 +415,16 @@ export const warehouseFirstResearcher: Researcher = {
           continue;
         }
         const recovered=deterministicPbpMetricFromPacket({metricCode:code,p1,p2,asOfDate:date,packet:observationPacket});
-        if (fullyUsableFinding(recovered ?? undefined)) deterministicByCode.set(code, recovered!);
+        // Stored whenever non-null, not only when fully usable: a one-sided recovery still
+        // carries a real, stated reason and real sources (deterministic-pbp-metrics.server.ts
+        // sets both even when the pair isn't complete) -- discarding it here lost that
+        // reason/sources entirely, leaving nothing for the final merge to find later and
+        // turning a genuine "PBP evidence is one-sided" explanation into an unexplained
+        // PRODUCER_FAILED_WITHOUT_REASON miss. This does not widen eligibility: every caller
+        // below still gates actual usability through fullyUsableFinding(deterministicByCode.
+        // get(code)), so a one-sided recovery here still leaves the code in liveMissing/
+        // remainingLiveMissing for the live-AI tier to try, exactly as before.
+        if (recovered) deterministicByCode.set(code, recovered);
       }
 
       for (const [code, row] of deterministicByCode) {

@@ -44,9 +44,14 @@ describe("deterministicBatch1StandaloneMetric (live pipeline wiring for 027/029/
     expect(result!.sources.length).toBeGreaterThan(0);
   });
 
-  it("027: falls through to null on a lane with no set-sequence data (ATP_MAIN)", async () => {
+  it("027: returns an UNAVAILABLE finding carrying the real reason on a lane with no set-sequence data (ATP_MAIN), never a guessed value", async () => {
     const result = await deterministicBatch1StandaloneMetric({ metricCode: "027", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: "ATP_MAIN" });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.p1_value).toBeNull();
+    expect(result!.p2_value).toBeNull();
+    expect(result!.p1_treatment).toBe("UNAVAILABLE");
+    expect(result!.p2_treatment).toBe("UNAVAILABLE");
+    expect(result!.unavailable_reason).toMatch(/set-sequence|set_scores/);
   });
 
   it("029 Psychological Response Proxy: produces a real, non-fabricated close-set-loss response finding for a data-rich ATP_CHALLENGER pair", async () => {
@@ -60,9 +65,14 @@ describe("deterministicBatch1StandaloneMetric (live pipeline wiring for 027/029/
     expect(result!.sources.length).toBeGreaterThan(0);
   });
 
-  it("029: falls through to null on a lane with no set-sequence data (ATP_MAIN)", async () => {
+  it("029: returns an UNAVAILABLE finding carrying the real reason on a lane with no set-sequence data (ATP_MAIN), never a guessed value", async () => {
     const result = await deterministicBatch1StandaloneMetric({ metricCode: "029", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: "ATP_MAIN" });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.p1_value).toBeNull();
+    expect(result!.p2_value).toBeNull();
+    expect(result!.p1_treatment).toBe("UNAVAILABLE");
+    expect(result!.p2_treatment).toBe("UNAVAILABLE");
+    expect(result!.unavailable_reason).toMatch(/set-sequence|set_scores/);
   });
 
   it("031 Common-Opponent Point Differential: produces a real finding with matching common_opponents_n on both sides", async () => {
@@ -95,8 +105,14 @@ describe("deterministicBatch1StandaloneMetric (live pipeline wiring for 027/029/
     expect(result!.p2_value).toMatch(/shrunk_win_probability_pct=/);
   });
 
-  it("returns null for an unknown/nonexistent player pair (honest NOT_ENOUGH_DATA fall-through, never a guessed value)", async () => {
+  it("returns an UNAVAILABLE finding with the real NOT_ENOUGH_DATA reason for an unknown/nonexistent player pair, never a guessed value", async () => {
     const result = await deterministicBatch1StandaloneMetric({ metricCode: "046", p1: "totally fictional player one", p2: "totally fictional player two", asOfDate: AS_OF, tourFamily: LANE });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.p1_value).toBeNull();
+    expect(result!.p2_value).toBeNull();
+    expect(result!.p1_treatment).toBe("UNAVAILABLE");
+    expect(result!.p2_treatment).toBe("UNAVAILABLE");
+    expect(result!.unavailable_reason).toEqual(expect.any(String));
+    expect(result!.unavailable_reason!.length).toBeGreaterThan(0);
   });
 });

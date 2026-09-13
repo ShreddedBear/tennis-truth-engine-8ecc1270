@@ -64,13 +64,27 @@ function expectedWinProbability(a: number, b: number): number {
   return 100 / (1 + 10 ** ((b - a) / 400));
 }
 
-type FoundValues = { p1Value: string; p2Value: string; n: number } | null;
+// A discriminated union rather than the old `T | null`: `null` carried zero information
+// about WHY a side wasn't GO, which is exactly what turned every genuine
+// `LaneOutcome`-stated NOT_ENOUGH_DATA `reason` (audit-metrics-shared.ts's `laneOutcome()`
+// already computes one, evidence-based, per side) into an indistinguishable-from-nothing
+// PRODUCER_FAILED_WITHOUT_REASON miss downstream. This never changes WHICH matches get a
+// usable value -- still strictly both-sides-GO, nothing partial or guessed -- it only
+// keeps the real reason instead of discarding it.
+type FoundValues =
+  | { ok: true; p1Value: string; p2Value: string; n: number }
+  | { ok: false; p1Reason: string | null; p2Reason: string | null };
+
+function notEnoughDataReason<T extends { status: string }>(outcome: T): string | null {
+  return outcome.status === "NOT_ENOUGH_DATA" ? (outcome as unknown as { reason: string }).reason : null;
+}
 
 function finishingAbility027(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
   const a = computeOpponentFinishingAbility({ player: p1, lane, asOfDate });
   const b = computeOpponentFinishingAbility({ player: p2, lane, asOfDate });
-  if (a.status !== "GO" || b.status !== "GO") return null;
+  if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   return {
+    ok: true,
     p1Value: fmt({ lead_protection_n: a.value.lead_protection.n, lead_protection_rate_pct: a.value.lead_protection.rate, closing_as_underdog_n: a.value.closing_as_underdog.n, closing_as_underdog_rate_pct: a.value.closing_as_underdog.rate, trailing_n_used: a.value.trailing_n_used }),
     p2Value: fmt({ lead_protection_n: b.value.lead_protection.n, lead_protection_rate_pct: b.value.lead_protection.rate, closing_as_underdog_n: b.value.closing_as_underdog.n, closing_as_underdog_rate_pct: b.value.closing_as_underdog.rate, trailing_n_used: b.value.trailing_n_used }),
     n: Math.min(a.n, b.n),
@@ -80,7 +94,7 @@ function finishingAbility027(p1: string, p2: string, lane: TourLane, asOfDate: s
 function psychologicalResponseProxy029(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
   const a = computePsychologicalResponseProxy({ player: p1, lane, asOfDate });
   const b = computePsychologicalResponseProxy({ player: p2, lane, asOfDate });
-  if (a.status !== "GO" || b.status !== "GO") return null;
+  if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   const fmtSide = (r: typeof a.value) => fmt({
     trailing_n_used: r.trailing_n_used,
     baseline_match_win_rate_n: r.baseline_match_win_rate.n,
@@ -89,14 +103,18 @@ function psychologicalResponseProxy029(p1: string, p2: string, lane: TourLane, a
     after_close_set_loss_next_set_win_pct: r.after_close_set_loss.next_set_win_rate,
     after_close_set_loss_match_win_pct: r.after_close_set_loss.match_win_rate,
   });
-  return { p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
+  return { ok: true, p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }
 
 function commonOpponentDifferential031(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
   const result = computeCommonOpponentPointDifferential({ player: p1, reference: p2, lane, asOfDate });
-  if (result.status !== "GO") return null;
+  if (result.status !== "GO") {
+    const reason = notEnoughDataReason(result);
+    return { ok: false, p1Reason: reason, p2Reason: reason };
+  }
   const v = result.value;
   return {
+    ok: true,
     p1Value: fmt({ common_opponents_n: v.common_opponents_n, adjusted_set_differential: v.player_adjusted_set_differential, opponent_adjusted_set_differential: v.reference_adjusted_set_differential, differential_vs_opponent: v.differential }),
     p2Value: fmt({ common_opponents_n: v.common_opponents_n, adjusted_set_differential: v.reference_adjusted_set_differential, opponent_adjusted_set_differential: v.player_adjusted_set_differential, differential_vs_opponent: -v.differential }),
     n: v.common_opponents_n,
@@ -106,16 +124,17 @@ function commonOpponentDifferential031(p1: string, p2: string, lane: TourLane, a
 function hiddenImprovement041(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
   const a = computeHiddenImprovementDetector({ player: p1, lane, asOfDate });
   const b = computeHiddenImprovementDetector({ player: p2, lane, asOfDate });
-  if (a.status !== "GO" || b.status !== "GO") return null;
+  if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   const fmtSide = (r: typeof a.value) => fmt({ flag: r.flag, earlier_n: r.earlier_half.n, earlier_win_rate_pct: r.earlier_half.raw_win_rate, earlier_elo_adjusted_surplus: r.earlier_half.mean_elo_adjusted_surplus, recent_n: r.recent_half.n, recent_win_rate_pct: r.recent_half.raw_win_rate, recent_elo_adjusted_surplus: r.recent_half.mean_elo_adjusted_surplus });
-  return { p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
+  return { ok: true, p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }
 
 function matchStateElo046(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
   const a = computeMatchStateElo({ player: p1, lane, asOfDate });
   const b = computeMatchStateElo({ player: p2, lane, asOfDate });
-  if (a.status !== "GO" || b.status !== "GO") return null;
+  if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   return {
+    ok: true,
     p1Value: fmt({ elo_after_winning_set1: a.value.after_winning_set1, elo_after_losing_set1: a.value.after_losing_set1 }),
     p2Value: fmt({ elo_after_winning_set1: b.value.after_winning_set1, elo_after_losing_set1: b.value.after_losing_set1 }),
     n: Math.min(a.n, b.n),
@@ -140,16 +159,25 @@ function opponentSpecificProbability051(p1: string, p2: string, lane: TourLane, 
   const p2GeneralProb = expectedWinProbability(eloP2, eloP1);
   const a = computeOpponentSpecificProbability({ player: p1, opponent: p2, lane, asOfDate, generalWinProbabilityPct: p1GeneralProb });
   const b = computeOpponentSpecificProbability({ player: p2, opponent: p1, lane, asOfDate, generalWinProbabilityPct: p2GeneralProb });
-  if (a.status !== "GO" || b.status !== "GO") return null;
+  if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   const fmtSide = (r: typeof a.value) => fmt({ n_h2h: r.n_h2h, raw_h2h_win_pct: r.raw_h2h_win_pct, general_win_probability_pct: r.general_win_probability_pct, shrinkage_weight: r.shrinkage_weight, shrunk_win_probability_pct: r.shrunk_win_probability_pct });
-  return { p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
+  return { ok: true, p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }
 
 /**
  * Live wrapper for the deterministic-*-metrics.server.ts tier chain in
- * warehouse-first-researcher.server.ts. Returns null (fall through to the
- * next tier) unless BOTH players resolve to a GO lane outcome -- this tier
- * never emits a partial/one-sided finding for these codes.
+ * warehouse-first-researcher.server.ts. Never emits a usable value unless BOTH
+ * players resolve to a GO lane outcome -- this tier never emits a partial/
+ * one-sided VALUE for these codes. When neither side is GO (or the underlying
+ * computation throws), it returns an UNAVAILABLE finding carrying the real,
+ * already-computed reason instead of bare `null`, so the reason is not lost --
+ * but this still does not stop the pipeline from trying later tiers: an
+ * UNAVAILABLE finding is not `fullyUsableFinding`, so warehouse-first-
+ * researcher.server.ts's `liveMissing` filter still includes this code and the
+ * live-AI tier still gets a chance to find real evidence. Only bare `null` (no
+ * evidence-based reason at all) is returned when there is truly nothing to
+ * report, letting the caller's `if (batch1) return batch1;` fall through as
+ * before.
  */
 export async function deterministicBatch1StandaloneMetric(args: { metricCode: string; p1: string; p2: string; asOfDate: string; tourFamily?: EvidenceTourFamily | null }): Promise<MetricFinding | null> {
   const code = codeOf(args.metricCode);
@@ -157,8 +185,10 @@ export async function deterministicBatch1StandaloneMetric(args: { metricCode: st
   const lane = args.tourFamily as TourLane | null | undefined;
   if (!lane) return null;
   const { p1, p2, asOfDate } = args;
-  let found: FoundValues = null;
+  const source = { source_name: "Four-tour static history index (data/generated/tennis-runtime-index.json)", url: null, retrieved_at: null };
+  let found: FoundValues | null = null;
   let evidenceFamily = "";
+  let caughtReason: string | null = null;
   try {
     if (code === "027") { found = finishingAbility027(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_OPPONENT_FINISHING_ABILITY"; }
     else if (code === "029") { found = psychologicalResponseProxy029(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_PSYCHOLOGICAL_RESPONSE_PROXY"; }
@@ -166,12 +196,35 @@ export async function deterministicBatch1StandaloneMetric(args: { metricCode: st
     else if (code === "041") { found = hiddenImprovement041(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_HIDDEN_IMPROVEMENT"; }
     else if (code === "046") { found = matchStateElo046(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_MATCH_STATE_ELO"; }
     else if (code === "051") { found = opponentSpecificProbability051(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_OPPONENT_SPECIFIC_PROBABILITY"; }
-  } catch {
-    // A malformed/unavailable static-index lane should fall through to the
-    // next tier, never fabricate or crash the whole live audit call.
-    return null;
+  } catch (error) {
+    // Previously a silent `return null` -- indistinguishable from "no data" downstream,
+    // even though a thrown exception here means the static index/computation genuinely
+    // broke. Falling through to the next tier is still correct (never fabricate a value
+    // from a broken lane), but the real error is now carried along instead of discarded,
+    // so it is classified as a producer failure rather than an unexplained one.
+    caughtReason = error instanceof Error ? error.message : String(error);
+    found = null;
   }
-  if (!found) return null;
+  if (!found) {
+    if (!caughtReason) return null; // no lane at all for this code -- genuinely nothing to report, next tier decides
+    return certifyMetricFinding({
+      metric_code: code, p1_value: null, p2_value: null, p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE",
+      differential: null, evidence_family: evidenceFamily, reliability: null,
+      sample: `standalone metric #${code} deterministic replay through ${asOfDate}; tour_lane=${lane}; computation error`,
+      unavailable_reason: caughtReason, sources: [],
+    });
+  }
+  if (!found.ok) {
+    if (!found.p1Reason && !found.p2Reason) return null; // GO/GO impossible here, but no evidence-based reason either -- let the next tier try
+    return certifyMetricFinding({
+      metric_code: code, p1_value: null, p2_value: null, p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE",
+      differential: null, evidence_family: evidenceFamily, reliability: null,
+      sample: `standalone metric #${code} deterministic replay through ${asOfDate}; tour_lane=${lane}; insufficient data`,
+      unavailable_reason: [found.p1Reason, found.p2Reason].filter(Boolean).join(" | ") || null,
+      p1_unavailable_reason: found.p1Reason, p2_unavailable_reason: found.p2Reason,
+      sources: [source],
+    });
+  }
   return certifyMetricFinding({
     metric_code: code,
     p1_value: found.p1Value,
@@ -183,6 +236,6 @@ export async function deterministicBatch1StandaloneMetric(args: { metricCode: st
     reliability: 82,
     sample: `standalone metric #${code} deterministic replay through ${asOfDate}; tour_lane=${lane}; n=${found.n}`,
     unavailable_reason: null,
-    sources: [{ source_name: "Four-tour static history index (data/generated/tennis-runtime-index.json)", url: null, retrieved_at: null }],
+    sources: [source],
   });
 }

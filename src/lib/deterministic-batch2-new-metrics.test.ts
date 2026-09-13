@@ -39,9 +39,14 @@ describe("deterministicBatch2NewMetric (live pipeline wiring for 020/036/045/052
     expect(result!.p1_value).toMatch(/eligible_matches_n=/);
   });
 
-  it("045: falls through to null on ATP_MAIN (no set_scores)", async () => {
+  it("045: returns an UNAVAILABLE finding carrying the real reason on ATP_MAIN (no set_scores), never a guessed value", async () => {
     const result = await deterministicBatch2NewMetric({ metricCode: "045", p1: P1, p2: P2, asOfDate: AS_OF, tourFamily: "ATP_MAIN" });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.p1_value).toBeNull();
+    expect(result!.p2_value).toBeNull();
+    expect(result!.p1_treatment).toBe("UNAVAILABLE");
+    expect(result!.p2_treatment).toBe("UNAVAILABLE");
+    expect(result!.unavailable_reason).toMatch(/set-sequence|set_scores/);
   });
 
   it("052 Entropy & Lead Durability: produces a real finding on an eligible lane", async () => {
@@ -50,8 +55,14 @@ describe("deterministicBatch2NewMetric (live pipeline wiring for 020/036/045/052
     expect(result!.p1_value).toMatch(/set_score_entropy_bits=/);
   });
 
-  it("returns null for a nonexistent player pair (honest fall-through)", async () => {
+  it("returns an UNAVAILABLE finding with the real NOT_ENOUGH_DATA reason for a nonexistent player pair, never a guessed value", async () => {
     const result = await deterministicBatch2NewMetric({ metricCode: "020", p1: "totally fictional one", p2: "totally fictional two", asOfDate: AS_OF, tourFamily: LANE });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.p1_value).toBeNull();
+    expect(result!.p2_value).toBeNull();
+    expect(result!.p1_treatment).toBe("UNAVAILABLE");
+    expect(result!.p2_treatment).toBe("UNAVAILABLE");
+    expect(result!.unavailable_reason).toEqual(expect.any(String));
+    expect(result!.unavailable_reason!.length).toBeGreaterThan(0);
   });
 });
