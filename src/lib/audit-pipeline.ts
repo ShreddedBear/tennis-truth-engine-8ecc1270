@@ -847,7 +847,14 @@ async function persistCoverage(deps:PipelineDeps,matchId:string,runId:string):Pr
   const missingUpstream=await requireUpstreamComplete(deps,runId,"COVERAGE PERSISTENCE / EVIDENCE VALIDATION");
   if(missingUpstream.length)return{status:"BLOCKED",done:0,total:1,errorCode:"UPSTREAM_DEPENDENCY_INCOMPLETE",message:`Coverage Persistence / Evidence Validation blocked: upstream stage(s) not complete: ${missingUpstream.join(", ")}.`};
   const report=await buildReport(deps,matchId,runId);
-  await deps.saveCoverage(runId,[{player_side:"P1",...report.coverage.p1},{player_side:"P2",...report.coverage.p2}]);
+  // usablePercent below is overridden to report.coverage.usablePercent (the active/eligible-only
+  // number the color gate itself already reads, per the greenLockReasons comment above buildReport's
+  // caller) rather than each side's own CoverageReport.usablePercent, which ranges over all 81
+  // instantiated codes -- including the 56 the Truth Engine never grades on -- and so is not the
+  // same quantity a real winner's color was already computed from. Persisting the untouched 81-code
+  // number here is what let Active Slate's Evidence column show a lower number than the match's own
+  // color implies for exactly the reason greenLockReasons stopped trusting it.
+  await deps.saveCoverage(runId,[{player_side:"P1",...report.coverage.p1,usablePercent:report.coverage.usablePercent},{player_side:"P2",...report.coverage.p2,usablePercent:report.coverage.usablePercent}]);
   await deps.saveCoverageRates(runId,[{player_side:"P1",metric_family:"ALL",direct_count:report.coverage.p1.direct,reconstructed_count:report.coverage.p1.reconstructed,partial_count:report.coverage.p1.partial,unavailable_count:report.coverage.p1.unavailable,excluded_count:report.coverage.p1.excluded,total_count:report.coverage.p1.total,usable_percent:report.coverage.p1.usablePercent},{player_side:"P2",metric_family:"ALL",direct_count:report.coverage.p2.direct,reconstructed_count:report.coverage.p2.reconstructed,partial_count:report.coverage.p2.partial,unavailable_count:report.coverage.p2.unavailable,excluded_count:report.coverage.p2.excluded,total_count:report.coverage.p2.total,usable_percent:report.coverage.p2.usablePercent}]);
   return{status:"COMPLETE",done:1,total:1,detail:{evidence_coverage:report.coverage.usablePercent,p1_total:report.coverage.p1.total,p2_total:report.coverage.p2.total}};
 }
