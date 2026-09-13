@@ -91,7 +91,14 @@ async function main(): Promise<void> {
     // The worker's concurrency safety rests entirely on these three. Verified by using
     // them, not by checking they exist: claim, prove a second owner is refused, renew,
     // release. Any run will do -- the lease is released before this returns.
-    const { rows: runRows } = await pool.query<{ id: string }>(`select id from public.audit_runs order by created_at desc limit 1`);
+    // Must match claim_audit_run's own WHERE clause (status in ('RUNNING','COMPLETE')) --
+    // picking merely "the most recent run" can land on a BLOCKED/INVALIDATED row, which is
+    // correctly unclaimable by design, and would misreport the lease mechanism as broken
+    // when it is the row selection that is wrong. Found exactly this way: the most recent
+    // row was a stray BLOCKED test artifact, and claim=false was scored as a failure.
+    const { rows: runRows } = await pool.query<{ id: string }>(
+      `select id from public.audit_runs where status in ('RUNNING','COMPLETE') order by created_at desc limit 1`,
+    );
     if (runRows.length) {
       const runId = runRows[0]!.id;
       const me = `verify-cutover:${Date.now()}`;
@@ -109,7 +116,7 @@ async function main(): Promise<void> {
       // Leave nothing held, whatever happened above.
       await pool.query(`update public.audit_runs set lease_owner=null, lease_expires_at=null where id=$1 and lease_owner in ($2,$3)`, [runId, me, other]);
     } else {
-      add("lease functions work", false, "no audit_runs row to test against");
+      add("lease functions work", false, "no RUNNING/COMPLETE audit_runs row exists to test against");
     }
 
     // ------------------------------------------------ 6. foreign key integrity
