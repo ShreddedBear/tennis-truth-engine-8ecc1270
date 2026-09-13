@@ -20,6 +20,7 @@ describe("pipeline client error handling", () => {
 describe("isRecoverablePipelineTransportError",()=>{
   it.each([
     "Failed to fetch",
+    "read ECONNRESET",
     "expected content-type header to be set",
     '{"error":{"code":"SERVER_FUNCTION_FAILED"}}',
   ])("recognizes recoverable audit transport failures: %s",message=>{

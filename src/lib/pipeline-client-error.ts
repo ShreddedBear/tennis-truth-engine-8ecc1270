@@ -8,6 +8,8 @@ const RECOVERABLE_TRANSPORT_MARKERS = [
   "expected content-type header",
   "server_function_failed",
   "before returning a valid result",
+  "econnreset",
+  "read econnreset",
 ];
 
 function rawMessage(error: unknown) {

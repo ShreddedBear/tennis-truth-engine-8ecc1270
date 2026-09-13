@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapBounded, normalizeBatchMatchIds } from "./audit-batch";
+import { mapBounded, normalizeBatchMatchIds, waitForBoundedResult } from "./audit-batch";
 
 describe("audit batch coordinator",()=>{
   it("deduplicates duplicate clicks before any run is scheduled",()=>{
@@ -24,5 +24,21 @@ describe("audit batch coordinator",()=>{
   it("preserves completed work when a later item returns a persisted blocker",async()=>{
     const results=await mapBounded(["a","b","c"],2,async item=>item==="b"?{status:"BLOCKED",reason:"provider timeout"}:{status:"COMPLETE"});
     expect(results).toEqual([{status:"COMPLETE"},{status:"BLOCKED",reason:"provider timeout"},{status:"COMPLETE"}]);
+  });
+
+  it("returns before long-running browser work exceeds its response window",async()=>{
+    let finish!:()=>void;
+    const work=new Promise<string>(resolve=>{finish=()=>resolve("persisted");});
+    const result=await waitForBoundedResult(work,5);
+    expect(result).toEqual({timedOut:true});
+    finish();
+    await expect(work).resolves.toBe("persisted");
+  });
+
+  it("returns completed work without waiting for the timeout",async()=>{
+    await expect(waitForBoundedResult(Promise.resolve("done"),1_000)).resolves.toEqual({
+      timedOut:false,
+      value:"done",
+    });
   });
 });

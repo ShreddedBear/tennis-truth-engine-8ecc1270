@@ -15,3 +15,17 @@ export async function mapBounded<T,R>(items:readonly T[],concurrency:number,work
   await Promise.all(Array.from({length:Math.min(items.length,Math.max(1,Math.floor(concurrency)))},run));
   return results;
 }
+
+export async function waitForBoundedResult<T>(
+  work:Promise<T>,
+  maxWaitMs:number,
+):Promise<{timedOut:false;value:T}|{timedOut:true}>{
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  const timeout=new Promise<{timedOut:true}>(resolve=>{
+    timer=setTimeout(()=>resolve({timedOut:true}),Math.max(1,Math.floor(maxWaitMs)));
+  });
+  const completed=work.then(value=>({timedOut:false as const,value}));
+  const result=await Promise.race([completed,timeout]);
+  if(timer)clearTimeout(timer);
+  return result;
+}

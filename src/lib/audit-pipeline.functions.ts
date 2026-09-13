@@ -4,6 +4,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { matchResultIsFinal } from "./match-result-resolution";
 
 const BROWSER_SAFE_BUDGET_MS = 20_000;
+const BROWSER_BATCH_PIPELINE_BUDGET_MS = 7_500;
+const BROWSER_BATCH_RESPONSE_BUDGET_MS = 12_000;
+const BROWSER_BATCH_CONCURRENCY = 2;
 
 export interface PreparedAuditMatch { matchId: string; [key: string]: unknown; }
 export interface AuditBatchInput { matches: PreparedAuditMatch[]; concurrency?: number; budgetMs?: number; }
@@ -71,12 +74,20 @@ export const runAuditPipeline = createServerFn({ method: "POST" })
     }
   });
 
-export interface DriveAuditBatchInput { matchIds: string[]; budgetMs?: number; concurrency?: number; }
+export interface DriveAuditBatchInput {
+  matchIds:string[];
+  budgetMs?:number;
+  concurrency?:number;
+  maxResponseWaitMs?:number;
+}
 
 function validateDriveAuditBatchInput(data: DriveAuditBatchInput) {
   const matchIds=Array.isArray(data?.matchIds)?[...new Set(data.matchIds.filter(id=>typeof id==="string"&&id.length>=10))].slice(0,100):[];
   if(!matchIds.length)throw new Error("At least one matchId is required");
-  return{matchIds,budgetMs:data.budgetMs,concurrency:Math.min(4,Math.max(1,Math.floor(data.concurrency??3)))};
+  const maxResponseWaitMs=Number.isFinite(data.maxResponseWaitMs)
+    ? Math.min(60_000,Math.max(1_000,Math.floor(Number(data.maxResponseWaitMs))))
+    : undefined;
+  return{matchIds,budgetMs:data.budgetMs,concurrency:Math.min(4,Math.max(1,Math.floor(data.concurrency??3))),maxResponseWaitMs};
 }
 
 // Shared core behind both the browser-triggered runAuditBatch server function
@@ -88,7 +99,7 @@ export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
     const data=validateDriveAuditBatchInput(rawData);
     const batchId=`batch-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
     const startedAt=Date.now();
-    const[{makeDeps},pipeline,{mapBounded}]=await Promise.all([import("./audit-repo.server"),import("./audit-pipeline"),import("./audit-batch")]);
+    const[{makeDeps},pipeline,{mapBounded,waitForBoundedResult}]=await Promise.all([import("./audit-repo.server"),import("./audit-pipeline"),import("./audit-batch")]);
     const deps=await makeDeps();
     const applyMetaIfReady=async(matchId:string,runId:string)=>{
       const stages=await deps.getStages(runId);
@@ -160,8 +171,22 @@ export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
       .filter(item=>item.run&&item.run.status!=="COMPLETE")
       .sort((a,b)=>(Date.parse(String(a.run?.heartbeat_at??""))||0)-(Date.parse(String(b.run?.heartbeat_at??""))||0))
       .slice(0,data.concurrency);
-    const driven=await mapBounded(scheduled,data.concurrency,async({matchId})=>{
+    const completedDriven:Array<{
+      matchId:string;
+      ok:boolean;
+      runId:string|null;
+      complete:boolean;
+      nextStage:string|null;
+      leaseHeld:boolean;
+      failures:Array<{stage:string;message:string}>;
+      color:string|null;
+      completionPercent:number|null;
+      auditComplete:boolean;
+      durationMs:number;
+    }>=[];
+    const drivenWork=mapBounded(scheduled,data.concurrency,async({matchId})=>{
         const itemStarted=Date.now();
+        let completed;
         try{
           const result=await pipeline.runPipeline(deps,matchId,{budgetMs:data.budgetMs??BROWSER_SAFE_BUDGET_MS});
           let reopened=false;
@@ -172,12 +197,21 @@ export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
               finally{await deps.releaseRunLease(result.runId,metaOwner);}
             }
           }
-          return{matchId,ok:true as const,runId:result.runId,complete:reopened?false:result.complete,nextStage:reopened?"COVERAGE PERSISTENCE / EVIDENCE VALIDATION":result.nextStage,leaseHeld:result.leaseHeld??false,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:reopened?false:(result.report?.auditComplete??false),durationMs:Date.now()-itemStarted};
+          completed={matchId,ok:true as const,runId:result.runId,complete:reopened?false:result.complete,nextStage:reopened?"COVERAGE PERSISTENCE / EVIDENCE VALIDATION":result.nextStage,leaseHeld:result.leaseHeld??false,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:reopened?false:(result.report?.auditComplete??false),durationMs:Date.now()-itemStarted};
         }catch(error){
           const latest=await deps.getLatestRun(matchId).catch(()=>null);
-          return{matchId,ok:false as const,runId:latest?.id??null,complete:false,nextStage:null,leaseHeld:false,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false,durationMs:Date.now()-itemStarted};
+          completed={matchId,ok:false as const,runId:latest?.id??null,complete:false,nextStage:null,leaseHeld:false,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false,durationMs:Date.now()-itemStarted};
         }
+        completedDriven.push(completed);
+        return completed;
     });
+    const bounded=data.maxResponseWaitMs
+      ? await waitForBoundedResult(drivenWork,data.maxResponseWaitMs)
+      : {timedOut:false as const,value:await drivenWork};
+    // Pipeline writes are persisted stage-by-stage. If the browser response
+    // window expires, return the completed subset now; leased work continues
+    // safely and the next Slate poll resumes from persisted progress.
+    const driven=bounded.timedOut?[...completedDriven]:bounded.value;
     const drivenByMatch=new Map(driven.map(item=>[item.matchId,item]));
     const results=prepared.map(item=>{
       const completed=drivenByMatch.get(item.matchId);
@@ -192,4 +226,9 @@ export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
 
 export const runAuditBatch = createServerFn({ method: "POST" })
   .inputValidator((data: DriveAuditBatchInput) => data)
-  .handler(async ({ data }) => driveAuditBatch(data));
+  .handler(async ({ data }) => driveAuditBatch({
+    ...data,
+    concurrency:Math.min(data.concurrency??BROWSER_BATCH_CONCURRENCY,BROWSER_BATCH_CONCURRENCY),
+    budgetMs:Math.min(data.budgetMs??BROWSER_BATCH_PIPELINE_BUDGET_MS,BROWSER_BATCH_PIPELINE_BUDGET_MS),
+    maxResponseWaitMs:BROWSER_BATCH_RESPONSE_BUDGET_MS,
+  }));
