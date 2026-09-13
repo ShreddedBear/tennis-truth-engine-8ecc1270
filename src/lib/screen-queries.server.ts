@@ -177,6 +177,7 @@ export async function loadSlateRunDetail(runIds: string[]) {
       final_audit_color: finalDecisionsTable.final_audit_color,
       completion_percent: finalDecisionsTable.completion_percent,
       audit_complete: finalDecisionsTable.audit_complete,
+      final_selection: finalDecisionsTable.final_selection,
     }).from(finalDecisionsTable).where(inArray(finalDecisionsTable.audit_run_id, runIds)),
     db.select({
       audit_run_id: auditStageRunsTable.audit_run_id, stage: auditStageRunsTable.stage,

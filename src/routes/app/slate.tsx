@@ -118,7 +118,7 @@ function Slate(){
     </div>
     <div className="panel overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
+        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Winner","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
         <tbody>
           {visible.map((match:any)=>{
             const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id),activeStage=activeStageFor(run);
@@ -131,6 +131,7 @@ function Slate(){
               <td className="px-3 py-2"><StateText state={match.surface_status}/></td>
               <td className="mono-num px-3 py-2 text-xs">{run?<div>{`RUN ${run.run_number} · ${run.status}`}{activeStage&&<div className="mt-1 text-[10px] text-muted-foreground">{activeStage.stage} · {activeStage.done_count??0}/{activeStage.total_count??0}</div>}</div>:"—"}</td>
               <td className="px-3 py-2"><AuditColorBadge color={decision?.final_audit_color??"INCOMPLETE"}/></td>
+              <td className="px-3 py-2">{decision?.final_selection??"—"}</td>
               <td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td>
               <td className="mono-num px-3 py-2 text-xs">{evidence===null?"—":`${evidence}%`}</td>
               <td className="px-3 py-2 text-right"><div className="flex justify-end gap-2">
@@ -139,7 +140,7 @@ function Slate(){
               </div></td>
             </tr>;
           })}
-          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
+          {!visible.length&&<tr><td colSpan={12} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
         </tbody>
       </table>
     </div>
