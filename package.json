@@ -26,6 +26,7 @@
     "start": "node .output/server/index.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "verify:app-data": "tsx scripts/verify-app-data.ts",
     "verify:cutover": "tsx scripts/verify-cutover.ts",
     "worker:drive-audit": "tsx scripts/drive-audit-worker.ts",
     "worker:drive-audit:once": "RUN_ONCE=true tsx scripts/drive-audit-worker.ts"
