@@ -90,33 +90,48 @@ async function main(): Promise<void> {
     //
     // The worker's concurrency safety rests entirely on these three. Verified by using
     // them, not by checking they exist: claim, prove a second owner is refused, renew,
-    // release. Any run will do -- the lease is released before this returns.
-    // Must match claim_audit_run's own WHERE clause (status in ('RUNNING','COMPLETE')) --
-    // picking merely "the most recent run" can land on a BLOCKED/INVALIDATED row, which is
-    // correctly unclaimable by design, and would misreport the lease mechanism as broken
-    // when it is the row selection that is wrong. Found exactly this way: the most recent
-    // row was a stray BLOCKED test artifact, and claim=false was scored as a failure.
-    const { rows: runRows } = await pool.query<{ id: string }>(
-      `select id from public.audit_runs where status in ('RUNNING','COMPLETE') order by created_at desc limit 1`,
-    );
-    if (runRows.length) {
+    // release.
+    //
+    // Against a THROWAWAY row this script creates and deletes, not against any real
+    // audit_runs row. Two real attempts against real rows both misfired for reasons that
+    // had nothing to do with the lease functions: the newest row by created_at was once a
+    // stray BLOCKED test artifact (unclaimable by claim_audit_run's own design), and once a
+    // COMPLETE row (claimable, but renew_audit_run_lease's own WHERE clause requires
+    // status = 'RUNNING' specifically -- narrower than claim's). Depending on production
+    // happening to currently have a RUNNING row is exactly the kind of flakiness a
+    // verification tool should not have, and touching a real row's lease columns at all
+    // risks colliding with a genuinely active worker. A self-contained row sidesteps both.
+    const owner = `verify-cutover:${Date.now()}`;
+    const other = `verify-cutover-other:${Date.now()}`;
+    let leaseTestMatchId: string | null = null;
+    try {
+      const { rows: matchRows } = await pool.query<{ id: string }>(
+        `insert into public.matches (canonical_key, player1_name, player2_name) values ($1, 'Lease Self-Test P1', 'Lease Self-Test P2') returning id`,
+        [`verify-cutover-lease-${Date.now()}`],
+      );
+      leaseTestMatchId = matchRows[0]!.id;
+      const { rows: runRows } = await pool.query<{ id: string }>(
+        `insert into public.audit_runs (match_id, run_number, status) values ($1, 1, 'RUNNING') returning id`,
+        [leaseTestMatchId],
+      );
       const runId = runRows[0]!.id;
-      const me = `verify-cutover:${Date.now()}`;
-      const other = `verify-cutover-other:${Date.now()}`;
-      const claim = await pool.query<{ ok: boolean }>(`select public.claim_audit_run($1::uuid,$2::text,60) as ok`, [runId, me]);
+
+      const claim = await pool.query<{ ok: boolean }>(`select public.claim_audit_run($1::uuid,$2::text,60) as ok`, [runId, owner]);
       const stolen = await pool.query<{ ok: boolean }>(`select public.claim_audit_run($1::uuid,$2::text,60) as ok`, [runId, other]);
-      const renew = await pool.query<{ ok: boolean }>(`select public.renew_audit_run_lease($1::uuid,$2::text,60) as ok`, [runId, me]);
-      const release = await pool.query<{ ok: boolean }>(`select public.release_audit_run_lease($1::uuid,$2::text) as ok`, [runId, me]);
+      const renew = await pool.query<{ ok: boolean }>(`select public.renew_audit_run_lease($1::uuid,$2::text,60) as ok`, [runId, owner]);
+      const release = await pool.query<{ ok: boolean }>(`select public.release_audit_run_lease($1::uuid,$2::text) as ok`, [runId, owner]);
       const claimed = claim.rows[0]!.ok === true;
       const refused = stolen.rows[0]!.ok === false;
       const renewed = renew.rows[0]!.ok === true;
       const released = release.rows[0]!.ok === true;
       add("lease functions work", claimed && refused && renewed && released,
         `claim=${claimed} second-owner-refused=${refused} renew=${renewed} release=${released}`);
-      // Leave nothing held, whatever happened above.
-      await pool.query(`update public.audit_runs set lease_owner=null, lease_expires_at=null where id=$1 and lease_owner in ($2,$3)`, [runId, me, other]);
-    } else {
-      add("lease functions work", false, "no RUNNING/COMPLETE audit_runs row exists to test against");
+    } finally {
+      // Cascades to the audit_runs row (ON DELETE CASCADE). Best-effort and unconditional:
+      // this must never leave a synthetic row behind, whatever happened above.
+      if (leaseTestMatchId) {
+        await pool.query(`delete from public.matches where id = $1`, [leaseTestMatchId]).catch(() => {});
+      }
     }
 
     // ------------------------------------------------ 6. foreign key integrity
