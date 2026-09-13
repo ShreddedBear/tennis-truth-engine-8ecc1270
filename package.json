@@ -23,6 +23,7 @@
     "prebuild:dev": "node scripts/build-runtime-tennis-index.mjs",
     "predev": "node scripts/build-runtime-tennis-index.mjs",
     "preview": "vite preview",
+    "reaudit:active-slate": "tsx scripts/reaudit-active-slate.ts",
     "report:metric-coverage": "tsx scripts/metric-coverage-report.ts",
     "start": "node .output/server/index.mjs",
     "test": "vitest run",

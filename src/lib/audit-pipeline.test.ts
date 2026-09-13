@@ -1775,6 +1775,50 @@ describe("Run-number monotonicity across an invalidated (not deleted) run", () =
   }, 60_000);
 });
 
+// ----------------------------------------------------------------------------
+// forceNewRun: the mechanism a controlled re-audit (e.g. after fixing a
+// producer/classification bug) relies on to reprocess an already-COMPLETE
+// match. Untested until now -- these lock in the exact guarantees a re-audit
+// script depends on: a genuinely new row is created, the prior COMPLETE run's
+// own row is never mutated, and no second `matches` row is ever created.
+// ----------------------------------------------------------------------------
+describe("runPipeline({ forceNewRun: true }) on an already-COMPLETE match", () => {
+  it("creates a brand-new audit_runs row (new id, run_number + 1) rather than resuming the completed one", async () => {
+    const { deps, runsById } = makeMultiRunMemoryDeps();
+    const first = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    expect(first.complete).toBe(true);
+    expect(runsById.get(first.runId)!.run_number).toBe(1);
+
+    const second = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000, forceNewRun: true });
+    expect(second.runId).not.toBe(first.runId);
+    expect(runsById.get(second.runId)!.run_number).toBe(2);
+    expect(second.complete).toBe(true);
+    expect([...runsById.keys()].length).toBe(2);
+  }, 60_000);
+
+  it("never mutates the prior COMPLETE run's own row", async () => {
+    const { deps, runsById } = makeMultiRunMemoryDeps();
+    const first = await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    const beforeSnapshot = JSON.stringify(runsById.get(first.runId));
+
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000, forceNewRun: true });
+
+    expect(JSON.stringify(runsById.get(first.runId))).toBe(beforeSnapshot);
+  }, 60_000);
+
+  it("never creates a second matches row -- getMatch still resolves to the same single match object", async () => {
+    const { deps } = makeMultiRunMemoryDeps();
+    const before = await deps.getMatch(MATCH_ID);
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000 });
+    await runPipeline(deps, MATCH_ID, { budgetMs: 120_000, forceNewRun: true });
+    const after = await deps.getMatch(MATCH_ID);
+    // Same object identity: PipelineDeps exposes no operation that could have
+    // constructed a second match row, so this is the same in-memory record
+    // throughout, not merely two objects with equal fields.
+    expect(after).toBe(before);
+  }, 60_000);
+});
+
 // ---------------------------------------------------------------------------
 // PASS-2 WRITE-BACK: a family stat may never masquerade as a different metric
 // ---------------------------------------------------------------------------

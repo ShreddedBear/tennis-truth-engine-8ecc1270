@@ -66,3 +66,8 @@ tennis-truth-engine_260828.backup
 # tracked .jsonl evidence artifacts that belong in the repository.
 migration-export/
 migration-export-*/
+
+# scripts/reaudit-active-slate.ts's own local idempotency manifest (which matches it has
+# already forced a new run for, across invocations). Run-tracking state, not application
+# data or evidence -- never committed.
+.reaudit-manifests/
