@@ -1,0 +1,13 @@
+{
+  "year": 2025,
+  "matches_listed_all_tours": 13037,
+  "wta_main_matches": 4820,
+  "wta_main_pbp_requests": 4820,
+  "pbp_available": 4725,
+  "no_pbp_or_unusable": 95,
+  "list_failures": [],
+  "scan_valid_for_boundary": true,
+  "earliest_confirmed_pbp_date": "2025-01-01T00:20:00+00:00",
+  "latest_confirmed_pbp_date": "2025-12-14T14:30:00+00:00",
+  "generated_at_utc": "2026-08-24T01:53:02.891979+00:00"
+}

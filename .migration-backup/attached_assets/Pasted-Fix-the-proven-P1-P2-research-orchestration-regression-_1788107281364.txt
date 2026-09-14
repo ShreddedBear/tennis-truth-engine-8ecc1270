@@ -1,0 +1,97 @@
+Fix the proven P1/P2 research orchestration regression. Do not redesign the audit system and do not remove the existing paired-persistence, alias-resolution, reconstruction, fail-closed, or evidence-integrity fixes.
+
+ROOT CAUSE:
+Commit 6a7d416 changed the pipeline so the P1 research call persists paired P1/P2 results and marks both sides terminal. The later P2 stage then sees no pending rows and skips its independent P2-oriented research/source-selection pass.
+
+This must be fixed.
+
+REQUIRED BEHAVIOR:
+
+1. P1 and P2 must each receive an independent research/source-selection opportunity.
+2. P1-oriented research must not suppress or replace the P2-oriented research pass.
+3. Keep paired P1/P2 persistence atomic where appropriate.
+4. Never copy P1 evidence into P2 or infer P2 evidence from P1.
+5. P1 and P2 must retain their own player IDs, orientation, source selection, evidence, values, treatment, and failure reason.
+6. If paired research already produced valid evidence for P2, the P2 pass may reuse/validate that evidence, but it must not be skipped merely because P2 was marked terminal by the P1 pass.
+7. Reconstruction must remain independent for each player.
+8. Preserve fail-closed behavior: NO_SOURCE/UNAVAILABLE must remain truthful and must never be converted into usable evidence.
+9. Do not change the 60-metric denominator or evidence thresholds.
+10. Do not use generic substitutes, opponent evidence, fabricated values, or later/post-match information.
+11. Do not change unrelated metric definitions, calibration rules, or evidence policies.
+
+PERMANENT REGRESSION INVARIANT:
+
+Add a permanent automated invariant test:
+
+Every audit metric that requires player-level evidence must have an independently executed P1 and P2 research/source-selection path.
+
+A paired P1 response may contribute to P2 only after the P2 orientation has been independently validated. P2 must NEVER be marked terminal solely because P1 returned a paired result.
+
+If a future code change suppresses, removes, or bypasses the independent P2 research/source-selection path, the regression test must fail.
+
+This invariant must remain in the permanent test suite after this task is complete.
+
+REGRESSION TEST:
+
+Add a focused test where:
+
+* P1-oriented research finds usable evidence for P1 but no usable evidence for P2.
+* The P2-oriented source-selection/research pass MUST still execute.
+* If P2 evidence is available from the P2-oriented pass, it must be independently persisted and counted.
+* If P2 evidence is genuinely unavailable, the final result must remain P2 NO_SOURCE/UNAVAILABLE.
+* Verify that metrics 002 and 003 follow this behavior.
+* Verify that paired P1/P2 persistence does not cause P2 execution to be skipped.
+* Verify that P2 retains its own orientation, player identity, evidence, treatment, and failure reason.
+
+AUDIT SNAPSHOT SAFETY:
+
+Before running a new full audit, ensure completed audit metric/evidence snapshots cannot silently disappear through slate cleanup.
+
+Preserve immutable run-level metric results and evidence references so future audits can be compared row-by-row.
+
+Do not delete historical audit snapshots as part of normal slate cleanup unless there is an explicit, separate retention policy.
+
+VALIDATION:
+
+1. Run focused regression tests first.
+2. Confirm the permanent P1/P2 invariant test passes.
+3. Run the full test suite.
+4. Run typecheck.
+5. Build the production app.
+6. Confirm the production build passes.
+7. Do NOT modify database evidence or fabricate missing evidence just to improve coverage.
+8. Do NOT run an expensive full historical audit until the code tests prove the P1/P2 orchestration is fixed.
+9. Do NOT change the denominator or thresholds to make coverage appear better.
+10. Do NOT delete or reset existing evidence to make the tests pass.
+
+BEFORE/AFTER VERIFICATION:
+
+Before declaring the task complete, trace the actual execution path and demonstrate:
+
+P1-oriented research
+→ P1 result persisted
+→ P2 is NOT incorrectly marked complete merely because a paired response exists
+→ P2-oriented research/source selection executes independently
+→ P2 result independently validated
+→ P1/P2 evidence persisted without cross-side contamination
+→ final metric status calculated truthfully.
+
+FINAL REPORT:
+
+Tell me:
+
+1. Exact files changed.
+2. Exact root cause fixed.
+3. How P1 and P2 now execute independently.
+4. How the permanent invariant prevents this regression from returning.
+5. Regression tests added and their results.
+6. Full test-suite results.
+7. Typecheck results.
+8. Production build results.
+9. Confirm that existing evidence-integrity rules were preserved.
+10. Confirm that no audit data was fabricated, deleted, or altered to improve the coverage percentage.
+11. Confirm that the 60-metric denominator and evidence thresholds were unchanged.
+12. Confirm whether any existing audit snapshots were modified.
+
+Do not make unrelated changes.
+Do not run a full expensive audit until all code-level validation passes.

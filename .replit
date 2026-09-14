@@ -1,82 +1,20 @@
-modules = ["nodejs-22", "python-3.12", "web", "postgresql-16"]
+modules = ["nodejs-24", "postgresql-16"]
 
-[nix]
-channel = "stable-25_05"
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
 
-[agent]
-expertMode = true
-
-run = "npm run dev"
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
 
 [workflows]
-runButton = "Start"
+runButton = "Project"
 
-[[workflows.workflow]]
-name = "Start"
-mode = "sequential"
-author = 64742427
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-
-[[workflows.workflow]]
-name = "typecheck"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run typecheck"
-
-[workflows.workflow.metadata]
-isValidation = true
-
-[[workflows.workflow]]
-name = "test"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm test"
-
-[workflows.workflow.metadata]
-isValidation = true
-
-[[workflows.workflow]]
-name = "db push"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run db:push"
-
-[[workflows.workflow]]
-name = "drive audits once"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run worker:drive-audit:once"
-
-# A plain Node server, not Cloudflare Workers.
-#
-# This used to be `npx wrangler dev --config .output/server/wrangler.json`, from the Vite
-# config's Cloudflare default preset. The data layer holds a PostgreSQL connection pool --
-# a long-lived TCP socket -- which a Workers runtime cannot keep, so the build now targets
-# nitro's node-server preset and this runs the result directly.
-[deployment]
-deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 180000
+timeoutMs = 20000

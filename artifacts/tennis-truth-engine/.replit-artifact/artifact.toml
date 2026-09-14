@@ -1,0 +1,38 @@
+kind = "web"
+previewPath = "/"
+title = "Tennis Truth Engine"
+description = "A tennis analysis application that helps users evaluate matches and betting evidence with the same tools, data views, and workflows as the original product."
+version = "1.0.0"
+id = "artifacts/tennis-truth-engine"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19024
+
+[services.development]
+run = "pnpm --filter @workspace/tennis-truth-engine run dev"
+
+[services.production]
+
+[services.production.build]
+args = [ "pnpm", "--filter", "@workspace/tennis-truth-engine", "run", "build" ]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
+[services.production.run]
+args = [ "pnpm", "--filter", "@workspace/tennis-truth-engine", "run", "start" ]
+
+[services.production.run.env]
+PORT = "19024"
+NODE_ENV = "production"
+BASE_PATH = "/"
+
+[services.production.health.startup]
+path = "/"
+
+[services.env]
+PORT = "19024"
+BASE_PATH = "/"
