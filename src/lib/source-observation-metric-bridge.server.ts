@@ -12,10 +12,7 @@ import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alia
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
 import { inferRepositoryMatchContext } from "./repository-results-history.server";
-import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
-import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
-import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
-import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
+import { buildLiveTennisApiPbpContext } from "./live-tennis-api-pbp.server";
 
 
 type MetricLike = { code: string; name: string };
@@ -129,10 +126,7 @@ async function approvedPbpPacket(args: { metrics: MetricLike[]; p1: string; p2: 
   const tour = classifyEvidenceTourFamily(context);
   if (!tour || !context) return {} as Record<string, any>;
   const input = { metrics: args.metrics, p1: args.p1, p2: args.p2, asOfDate: args.asOfDate, context };
-  if (tour === "ATP_MAIN") return (await buildBsdAtpMainPbpContext(input)).packet as Record<string, any>;
-  if (tour === "WTA_MAIN") return (await buildBsdWtaMainPbpContext(input)).packet as Record<string, any>;
-  if (tour === "ATP_CHALLENGER") return (await buildBsdAtpChallengerPbpContext(input)).packet as Record<string, any>;
-  return (await buildBsdWtaChallengerPbpContext(input)).packet as Record<string, any>;
+  return (await buildLiveTennisApiPbpContext(input)).packet as Record<string, any>;
 }
 
 function mergePacketEntry(base: any, pbp: any) {

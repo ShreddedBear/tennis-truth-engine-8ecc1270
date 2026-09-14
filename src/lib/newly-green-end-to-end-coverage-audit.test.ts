@@ -86,12 +86,10 @@ describe("newly-green end-to-end coverage audit", () => {
     for (const code of PBP_METRICS) expect(policyForMetric(code).allowed_families, `metric ${code}`).toContain("POINT_BY_POINT");
   });
 
-  it("certifies the three runtime BSD PBP adapters are wired into warehouse execution", () => {
+  it("certifies the Live Tennis API PBP adapter is wired into warehouse execution", () => {
     const compact = warehouse.replace(/\s+/g, "");
-    for (const builder of ["buildBsdAtpMainPbpContext({","buildBsdAtpChallengerPbpContext({","buildBsdWtaMainPbpContext({"]) expect(compact).toContain(builder.replace(/\s+/g, ""));
-    expect(compact).toContain("_bsd_atp_main_pbp_status");
-    expect(compact).toContain("_bsd_atp_challenger_pbp_status");
-    expect(compact).toContain("_bsd_wta_main_pbp_status");
+    expect(compact).toContain("buildLiveTennisApiPbpContext({");
+    expect(compact).toContain("_live_tennis_api_pbp_status");
   });
 
   it("certifies WTA Challenger/WTA 125 approved-index integration and final quarantine result", () => {

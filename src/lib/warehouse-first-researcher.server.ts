@@ -23,10 +23,7 @@ import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
-import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
-import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
-import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
-import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
+import { buildLiveTennisApiPbpContext } from "./live-tennis-api-pbp.server";
 import { localMetricRows } from "./hybrid-audit-research.server";
 import { officialWtaMetricRows } from "./wta-official-match-evidence.server";
 import { certifyMetricFinding } from "./metric-certification";
@@ -393,29 +390,20 @@ export const warehouseFirstResearcher: Researcher = {
     let liveRows: MetricFinding[] = [];
     if (liveMissing.length) {
       const sourceFallback = { packet: {}, status: { outcome: "SOURCE_TIMEOUT" } } as any;
-      const [warehouseResult, challengerResult, atpMainResult, wtaMainResult, wtaChallengerResult] = await researchWorkPool.runWithBudget(
+      const [warehouseResult, liveTennisApiResult] = await researchWorkPool.runWithBudget(
         "source-packets",
         SOURCE_PACKET_BUDGET_MS,
         () => Promise.all([
           buildMetricObservationContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-          buildBsdAtpChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-          buildBsdAtpMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-          buildBsdWtaMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
-          buildBsdWtaChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+          buildLiveTennisApiPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
         ]),
-        () => [{}, sourceFallback, sourceFallback, sourceFallback, sourceFallback],
+        () => [{}, sourceFallback],
       );
       console.log(`[research-timing] source packets ${Date.now()-callStartedAt}ms`);
       const unavailablePbp = sourceFallback;
       const warehousePacket = warehouseResult ?? {};
-      const bsdAtpChallengerPbp = challengerResult ?? unavailablePbp;
-      const bsdAtpMainPbp = atpMainResult ?? unavailablePbp;
-      const bsdWtaMainPbp = wtaMainResult ?? unavailablePbp;
-      const bsdWtaChallengerPbp = wtaChallengerResult ?? unavailablePbp;
-      let observationPacket = mergeObservationPackets(warehousePacket, bsdAtpChallengerPbp.packet);
-      observationPacket = mergeObservationPackets(observationPacket, bsdAtpMainPbp.packet);
-      observationPacket = mergeObservationPackets(observationPacket, bsdWtaMainPbp.packet);
-      observationPacket = mergeObservationPackets(observationPacket, bsdWtaChallengerPbp.packet);
+      const liveTennisApiPbp = liveTennisApiResult ?? unavailablePbp;
+      const observationPacket = mergeObservationPackets(warehousePacket, liveTennisApiPbp.packet);
 
       for (const metric of liveMissing) {
         const code = codeOf(metric.code);
@@ -452,13 +440,13 @@ export const warehouseFirstResearcher: Researcher = {
         } else if (TASK18B_METRIC_CODES.has(code)) {
           // The packet had nothing usable for this code. Before letting that read as "no
           // reason at all" downstream, check whether the reason is a REAL producer failure
-          // rather than an absence: bsd-*-pbp.server.ts's fetch_failures/fetch_failure_sample
-          // (e.g. "BSD/Bzzoiro API returned HTTP 402 ...") means the live provider call
-          // itself broke -- a billing/auth/network failure, never proof the source lacks
-          // this match's point-by-point record. Only fires when a real failure was recorded;
-          // a match with zero candidates in the local index (a genuine absence) leaves every
-          // lane's fetch_failures at 0 and this stays silent, exactly as before.
-          const lanes = [bsdAtpChallengerPbp.status, bsdAtpMainPbp.status, bsdWtaMainPbp.status].filter(
+          // rather than an absence: live-tennis-api-pbp.server.ts's fetch_failures/
+          // fetch_failure_sample (e.g. "Live Tennis API returned HTTP 402 ...") means the
+          // live provider call itself broke -- a billing/auth/network/quota failure, never
+          // proof the source lacks this match's point-by-point record. Only fires when a
+          // real failure was recorded; a match with zero candidates (a genuine absence)
+          // leaves fetch_failures at 0 and this stays silent, exactly as before.
+          const lanes = [liveTennisApiPbp.status].filter(
             (s): s is { fetch_failures: number; fetch_failure_sample: string | null; source: string } =>
               Boolean(s) && typeof (s as { fetch_failures?: unknown }).fetch_failures === "number",
           );
@@ -530,7 +518,7 @@ export const warehouseFirstResearcher: Researcher = {
       const remainingLiveMissing=liveMissing.filter(metric=>!fullyUsableFinding(deterministicByCode.get(codeOf(metric.code))));
       if (remainingLiveMissing.length) {
         const identityResolution = { p1: identities.p1, p2: identities.p2 };
-        const context = appendMetricObservationContext(input.context, { ...observationPacket, _canonical_identity_resolution: identityResolution, _bsd_atp_challenger_pbp_status: bsdAtpChallengerPbp.status, _bsd_atp_main_pbp_status: bsdAtpMainPbp.status, _bsd_wta_main_pbp_status: bsdWtaMainPbp.status, _bsd_wta_challenger_pbp_status: bsdWtaChallengerPbp.status });
+        const context = appendMetricObservationContext(input.context, { ...observationPacket, _canonical_identity_resolution: identityResolution, _live_tennis_api_pbp_status: liveTennisApiPbp.status });
         const providerRows = await researchWorkPool.runWithBudget(
           "live-provider",
           LIVE_PROVIDER_BUDGET_MS,
