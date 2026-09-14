@@ -1,0 +1,72 @@
+Excellent. This is the result we wanted. The LiveTennisAPI integration has now crossed the important technical hurdle.
+
+What this proves
+
+For a real LiveTennisAPI tape:
+
+* 100 provider rows → 99 actual reconstructed points
+    (the initial 0-0 state isn’t a point, so 99 is correct)
+* 16 complete games
+* Explicit point_winner vs score-derived reconstruction: 0 differences
+* 0 rejected/ambiguous games on the valid tape
+* 22/22 tests passed
+* Bad/incomplete data is rejected rather than silently discarded
+* Metrics 002, 003, 009, 016, 018, 032 can now consume the reconstructed evidence
+* Only one API request was needed
+* The tape is now saved as a local fixture, so future tests don’t need another API call
+
+This is a real validation of the LiveTennisAPI → reconstruction path, unlike the earlier nonexistent 24-tape claim.
+
+One important distinction
+
+“Safe to consume” does not mean:
+
+“All six metrics will now have evidence.”
+
+It means:
+
+If the reconstructed tape satisfies the existing metric’s requirements, the metric is now capable of consuming it without the adapter being the blocker.
+
+The existing minimum-sample, historical-window, player/context, and metric-specific evidence rules still apply.
+
+Cheapest next step
+
+I would not run the 27-match audit yet.
+
+First, commit/push this verified change, then perform one controlled end-to-end test using the saved fixture:
+
+LiveTennisAPI fixture → adapter → reconstruction → actual metric producers → 002/003/009/016/018/032
+
+Use this prompt:
+
+The strict LiveTennisAPI score-snapshot fallback is now validated:
+99 reconstructed points, 16 games, 0 differences from explicit winners, 22/22 tests passed.
+
+Next step: one cheap end-to-end producer test only.
+
+First commit and push the already-tested reconstruction/adapter changes.
+
+Then use the saved sanitized LiveTennisAPI fixture — do not make another API request.
+
+Run the actual existing producers for:
+002, 003, 009, 016, 018, 032
+
+Verify that the reconstructed canonical PBP actually reaches each producer and report:
+
+* metric
+* player
+* usable observation produced: yes/no
+* exact reason if no
+* raw fields consumed
+* whether rejection occurred before or after reconstruction
+
+Do NOT run the 27-match cohort audit.
+Do NOT change metric definitions, formulas, thresholds, evidence rules, or decision logic.
+
+The purpose is only to prove:
+
+saved LiveTennisAPI tape → reconstruction → production metric observation
+
+If all six producers receive the reconstructed data, stop and report the result. Do not make additional changes.
+
+If that passes, then we have a very strong reason to spend the API calls on the 26 completed matches and see how much of that 0% coverage actually comes back.
