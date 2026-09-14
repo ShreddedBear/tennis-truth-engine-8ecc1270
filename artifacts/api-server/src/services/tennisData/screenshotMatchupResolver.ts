@@ -943,10 +943,13 @@ async function resolvePlayerMatch(
 
 async function resolveEventMatch(
   provider: TennisDataProvider,
-  eventName: string | null,
+  entry: RawMatchupEntry,
   warnings: string[],
 ): Promise<ScreenshotEventMatch> {
-  let { surface, level } = inferSurfaceAndLevel(eventName);
+  const eventName = entry.eventName;
+  const inferred = inferSurfaceAndLevel(eventName);
+  let surface = entry.surface ?? inferred.surface;
+  let level = entry.level ?? inferred.level;
 
   // The named table never resolves Challenger/ITF events by name (see surfaceMap.ts)
   // because live fixtures get a tournament_key → surface lookup instead.
@@ -981,8 +984,11 @@ async function resolveEventMatch(
 
   if (eventName && surface === null) {
     warnings.push(`Read event "${eventName}", but couldn't determine its surface -- please set surface/level manually.`);
+  } else if (!eventName && surface === null) {
+    warnings.push(`No event/tournament name could be read from the screenshot.`);
+    warnings.push(`Surface was not detected from the screenshot.`);
   } else if (!eventName) {
-    warnings.push(`No event/tournament name could be read from the screenshot -- surface was not auto-detected.`);
+    warnings.push(`No event/tournament name could be read from the screenshot.`);
   }
 
   return { recognizedName: eventName, surface, level };
@@ -1001,7 +1007,7 @@ async function resolveOneMatchup(
   const [player1Outcome, player2Outcome, event] = await Promise.all([
     resolvePlayerMatch(provider, entry.player1Name, entry.eventName, todayFixtures),
     resolvePlayerMatch(provider, entry.player2Name, entry.eventName, todayFixtures),
-    resolveEventMatch(provider, entry.eventName, warnings),
+    resolveEventMatch(provider, entry, warnings),
   ]);
 
   let player1 = player1Outcome.match;

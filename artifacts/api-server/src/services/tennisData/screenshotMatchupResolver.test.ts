@@ -203,3 +203,50 @@ test("resolveScreenshotMatchup never auto-selects a player when multiple confide
   assert.equal(result.matchups?.[0].resolved, false);
   assert.ok(result.warnings.some((w) => w.includes("multiple matching players were found")));
 });
+
+test("structured OCR surface and level remain valid without a redundant event name", async () => {
+  const pairs = [
+    ["DAISUKE SUMIZAWA", "KOSUKE OGURA"],
+    ["JESSE DELANEY", "YUSUKE TAKAHASHI"],
+    ["KENNY DE SCHEPPER", "ALBERTO BARROSO CAMPOS"],
+    ["LUCA POTENZA", "FINN BASS"],
+  ] as const;
+  const players = new Map<string, PlayerSummary>(pairs.flat().map((name, index) => [
+    name,
+    { id: `ocr-${index}`, name, countryCode: null, currentRank: null, tour: "ATP" } satisfies PlayerSummary,
+  ]));
+  const provider = makeProvider({
+    searchPlayers: async (query: string) => {
+      const player = players.get(query.toUpperCase());
+      return player ? [player] : [];
+    },
+  });
+
+  for (const [player1Name, player2Name] of pairs) {
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{
+        player1Name,
+        player2Name,
+        eventName: null,
+        surface: "Hard",
+        level: "ATP250",
+        matchFormat: "BestOf3",
+      }],
+    });
+    assert.equal(result.matchups?.[0]?.resolved, true);
+    assert.equal(result.player1.recognizedName, player1Name);
+    assert.equal(result.player2.recognizedName, player2Name);
+    assert.equal(result.event.surface, "Hard");
+    assert.equal(result.event.level, "ATP250");
+    assert.ok(!result.warnings.some((warning) => warning.includes("surface was not auto-detected")));
+  }
+});
+
+test("missing structured surface remains explicitly diagnosed when event name is also missing", async () => {
+  const result = await resolveScreenshotMatchup(makeProvider(), {
+    matchups: [{ player1Name: null, player2Name: "KNOWN PLAYER", eventName: null, surface: null, level: "ATP250" }],
+  });
+  assert.equal(result.event.surface, null);
+  assert.ok(result.warnings.some((warning) => warning === "Surface was not detected from the screenshot."));
+  assert.ok(result.warnings.some((warning) => warning.includes("Player 1 could not be read")));
+});

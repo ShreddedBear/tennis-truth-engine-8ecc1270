@@ -25,6 +25,9 @@ export interface RawMatchupEntry {
   player1Name: string | null;
   player2Name: string | null;
   eventName: string | null;
+  surface?: import("./types").Surface | null;
+  level?: import("./types").TournamentLevel | null;
+  matchFormat?: import("./types").MatchFormat | null;
 }
 
 export interface RawScreenshotRecognition {
@@ -257,7 +260,32 @@ function cleanEntry(obj: unknown): RawMatchupEntry | null {
   const player1Name = clean(o.player1Name);
   const player2Name = clean(o.player2Name);
   if (player1Name === null && player2Name === null) return null;
-  return { player1Name, player2Name, eventName: clean(o.eventName) };
+  const surfaceToken = clean(o.surface)?.replace(/[\s_-]/g, "").toUpperCase();
+  const surface =
+    surfaceToken === "HARD" ? "Hard" :
+    surfaceToken === "CLAY" ? "Clay" :
+    surfaceToken === "GRASS" ? "Grass" :
+    surfaceToken === "INDOORHARD" ? "IndoorHard" :
+    null;
+  const levelToken = clean(o.level ?? o.eventLevel)?.replace(/[\s_-]/g, "").toUpperCase();
+  const level =
+    levelToken === "GRANDSLAM" ? "GrandSlam" :
+    levelToken === "MASTERS1000" ? "Masters1000" :
+    levelToken === "ATP500" ? "ATP500" :
+    levelToken === "ATP250" ? "ATP250" :
+    levelToken === "WTA1000" ? "WTA1000" :
+    levelToken === "WTA500" ? "WTA500" :
+    levelToken === "WTA250" ? "WTA250" :
+    levelToken === "CHALLENGER" ? "Challenger" :
+    levelToken === "ITF" ? "ITF" :
+    levelToken === "OTHER" ? "Other" :
+    null;
+  const formatToken = clean(o.matchFormat ?? o.bestOf)?.replace(/[\s_-]/g, "").toUpperCase();
+  const matchFormat =
+    formatToken === "BO3" || formatToken === "BESTOF3" ? "BestOf3" :
+    formatToken === "BO5" || formatToken === "BESTOF5" ? "BestOf5" :
+    null;
+  return { player1Name, player2Name, eventName: clean(o.eventName), surface, level, matchFormat };
 }
 
 function parseRecognitionResponse(raw: string | null | undefined): RawScreenshotRecognition {
