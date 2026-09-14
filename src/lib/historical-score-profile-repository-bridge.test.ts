@@ -80,4 +80,18 @@ describe("getRepositoryScoreProfileStats (real formula, WTA_MAIN via repository 
     const { getRepositoryScoreProfileStats } = await import("./historical-score-profile-repository-bridge.server");
     expect(getRepositoryScoreProfileStats("Nobody At All", "date 2026-02-01 women")).toEqual([]);
   });
+
+  it("computes performance_variance and performance_floor_ceiling_set_margin_range from real set margins (sets won minus sets lost)", async () => {
+    // Set margins for the three fixture matches, in chronological order: +2 (2-0),
+    // +1 (2-1), -2 (0-2). Sample stdev of [2,1,-2] and range (max-min) are both real,
+    // verifiable arithmetic, not approximated.
+    const { getRepositoryScoreProfileStats } = await import("./historical-score-profile-repository-bridge.server");
+    const stats = getRepositoryScoreProfileStats(PLAYER, "date 2026-02-01 women");
+    const byKey = Object.fromEntries(stats.map((s) => [s.key, s.value]));
+    const margins = [2, 1, -2];
+    const m = margins.reduce((s, x) => s + x, 0) / margins.length;
+    const expectedSd = Math.sqrt(margins.reduce((s, x) => s + (x - m) ** 2, 0) / (margins.length - 1));
+    expect(byKey.performance_variance).toBeCloseTo(expectedSd, 6);
+    expect(byKey.performance_floor_ceiling_set_margin_range).toBe(4); // max(2) - min(-2)
+  });
 });

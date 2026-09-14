@@ -48,16 +48,47 @@ function synthesizeDataHubRow(o: RepositoryResultsObservation): DataHubRow | nul
 
 const FAMILIES_WITH_SET_SCORES = ["WTA_MAIN", "ATP_CHALLENGER"] as const;
 
+function mean(a: number[]): number | null { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null; }
+// Sample standard deviation (n-1 divisor), matching predixsport-derived.server.ts's own
+// sd() exactly -- these two producers feed the same metric 011 fields, so the two tour
+// paths must use the same statistical convention to be comparable.
+function sd(a: number[]): number | null { const m = mean(a); return m === null || a.length < 2 ? null : Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); }
+
+// predixsport-derived.server.ts computes performance_variance/performance_floor_ceiling_
+// set_margin_range from each match's set-margin (sets won minus sets lost) over the most
+// recent 20 matches, but that producer is ATP-only (falls back to runtime-tennis-index.server.ts
+// for other tours, which only has aggregated buckets -- no per-match set margins to compute
+// this from). Repository rows already carry set_scores for WTA_MAIN/ATP_CHALLENGER, so the
+// same two fields can be computed here with the identical formula and window.
+function repositorySetMarginStats(player: string, family: string, asOfDate: string): SourcedStat[] {
+  const rows = repositoryResultsRows(player, family as Parameters<typeof repositoryResultsRows>[1], asOfDate, { strictBefore: true })
+    .filter((o) => o.event_date)
+    .sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
+  const recent = rows.slice(-20);
+  const margins = recent.map((o) => {
+    const detail = (o.raw_payload as { history_detail?: { set_scores?: Array<[number, number]> } }).history_detail;
+    const setScores = detail?.set_scores;
+    if (!setScores || !setScores.length) return null;
+    const won = setScores.filter(([a, b]) => a > b).length, lost = setScores.filter(([a, b]) => a < b).length;
+    return won - lost;
+  }).filter((x): x is number => x !== null);
+  if (!margins.length) return [];
+  const out: SourcedStat[] = [];
+  const variance = sd(margins);
+  if (variance !== null) out.push({ key: "performance_variance", player, value: variance, surface: null, window: "PRE_MATCH_HISTORY", tour_level: null, sample: margins.length, origin: "RECONSTRUCTED", sources: [{ source_name: `Repository ${family} history (set-margin variance)`, url: "", retrieved_at: new Date().toISOString() }] });
+  out.push({ key: "performance_floor_ceiling_set_margin_range", player, value: Math.max(...margins) - Math.min(...margins), surface: null, window: "PRE_MATCH_HISTORY", tour_level: null, sample: margins.length, origin: "RECONSTRUCTED", sources: [{ source_name: `Repository ${family} history (set-margin variance)`, url: "", retrieved_at: new Date().toISOString() }] });
+  return out;
+}
+
 export function getRepositoryScoreProfileStats(player: string, context: string): SourcedStat[] {
   const family = classifyEvidenceTourFamily(context);
   if (!family || !(FAMILIES_WITH_SET_SCORES as readonly string[]).includes(family)) return [];
   const cutoffMatch = context.match(/(?:date\s+)?(20\d{2}-\d{2}-\d{2})/i);
   const asOfDate = cutoffMatch?.[1];
   if (!asOfDate) return [];
-  const rows = repositoryResultsRows(player, family, asOfDate, { strictBefore: true })
-    .map(synthesizeDataHubRow)
-    .filter((r): r is DataHubRow => r !== null);
-  if (!rows.length) return [];
-  const stats = computeHistoricalScoreProfileStatsFromRows(rows, player, `date ${asOfDate}`);
-  return stats.map((s) => ({ ...s, sources: [{ source_name: `Repository ${family} history (set-score profile)`, url: "", retrieved_at: new Date().toISOString() }] }));
+  const rawRows = repositoryResultsRows(player, family, asOfDate, { strictBefore: true });
+  const synthRows = rawRows.map(synthesizeDataHubRow).filter((r): r is DataHubRow => r !== null);
+  const profileStats = synthRows.length ? computeHistoricalScoreProfileStatsFromRows(synthRows, player, `date ${asOfDate}`)
+    .map((s) => ({ ...s, sources: [{ source_name: `Repository ${family} history (set-score profile)`, url: "", retrieved_at: new Date().toISOString() }] })) : [];
+  return [...profileStats, ...repositorySetMarginStats(player, family, asOfDate)];
 }
