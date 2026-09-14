@@ -65,7 +65,7 @@ export const Route = createFileRoute("/api/admin-republish-metrics-document")({
           if (rulesError) return json({ ok: false, error: `current rules lookup: ${rulesError.message}` }, 500);
           const currentByCode = new Map<string, string>((currentRules ?? []).map((r) => [r.rule_code, r.rule_name]));
 
-          const seedUrl = new URL("/seed/metrics.txt", request.url);
+          const seedUrl = new URL("/truth-engine/seed/metrics.txt", request.url);
           const seedRes = await fetch(seedUrl);
           if (!seedRes.ok) return json({ ok: false, error: `Could not fetch ${seedUrl}: HTTP ${seedRes.status}` }, 500);
           const text = await seedRes.text();

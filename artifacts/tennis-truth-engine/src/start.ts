@@ -1,4 +1,5 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { renderErrorPage } from "./lib/error-page";
 
@@ -30,19 +31,74 @@ const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
-// NO FUNCTION MIDDLEWARE.
-//
-// This used to carry attachSupabaseAuth, which read a Supabase session in the browser and
-// attached its access token as a bearer header on every server-function call. There is no
-// Supabase session to read any more, and there never was one in practice: production holds
-// zero auth.users, so getSession() always returned null and the header was never attached.
-//
-// The application's ownership model is a single constant, LOCAL_WORKSPACE_ID, applied
-// server-side -- not a per-request identity. Adding an authentication system to replace a
-// token that was never issued would change how the app behaves for its one user without
-// protecting anything, so the access model is stated rather than invented: every request is
-// the workspace owner, and the security boundary is the server/client split, which the
-// CSRF middleware below and the server-only import rules enforce.
+function isTruthy(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes(value?.trim().toLowerCase() ?? "");
+}
+
+function hasOwnerHeaders(request: Request): boolean {
+  if (!isTruthy(process.env.OWNER_REPLIT_AUTO_AUTH)) return false;
+  const ownerId = process.env.OWNER_REPLIT_USER_ID?.trim();
+  const ownerName = process.env.OWNER_REPLIT_USER_NAME?.trim().toLowerCase();
+  if (!ownerId && !ownerName) return false;
+  if (ownerId && request.headers.get("x-replit-user-id") !== ownerId) return false;
+  if (ownerName && request.headers.get("x-replit-user-name")?.toLowerCase() !== ownerName) return false;
+  return true;
+}
+
+function hasValidAdminCookie(request: Request): boolean {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) return false;
+
+  const cookie = request.headers.get("cookie")?.split(";").find((part) => part.trim().startsWith("admin_session="));
+  if (!cookie) return false;
+
+  const encoded = cookie.slice(cookie.indexOf("=") + 1);
+  let signed: string;
+  try {
+    signed = decodeURIComponent(encoded);
+  } catch {
+    return false;
+  }
+  if (!signed.startsWith("s:")) return false;
+
+  const valueAndSignature = signed.slice(2);
+  const separator = valueAndSignature.lastIndexOf(".");
+  if (separator < 1) return false;
+  const value = valueAndSignature.slice(0, separator);
+  const actual = valueAndSignature.slice(separator + 1);
+  const expected = createHmac("sha256", secret).update(value).digest("base64").replace(/=+$/u, "");
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return value === "ok"
+    && actualBuffer.length === expectedBuffer.length
+    && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+/**
+ * Truth Engine shares the Stats Engine's owner-only admin session. Verifying it
+ * here protects direct deep links and every browser-callable server function,
+ * not just the navigation item.
+ */
+const adminMiddleware = createMiddleware().server(async ({ next, request, context }) => {
+  if (hasOwnerHeaders(request) || hasValidAdminCookie(request)) return await next();
+
+  if ((context as { handlerType?: string } | undefined)?.handlerType === "serverFn") {
+    return new Response(
+      JSON.stringify({ ok: false, error: { code: "UNAUTHORIZED", message: "Admin login required" } }),
+      { status: 401, headers: { "content-type": "application/json; charset=utf-8" } },
+    );
+  }
+
+  const currentUrl = new URL(request.url);
+  const nextPath = `${currentUrl.pathname}${currentUrl.search}`;
+  const loginUrl = `/admin/login?next=${encodeURIComponent(nextPath)}`;
+  const encodedLoginUrl = JSON.stringify(loginUrl).replace(/</gu, "\\u003c");
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Admin login required</title></head><body><p>Admin login required. <a href="${loginUrl}">Continue to login</a>.</p><script>window.location.replace(${encodedLoginUrl})</script></body></html>`,
+    { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
+  );
+});
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [errorMiddleware, adminMiddleware, csrfMiddleware],
 }));

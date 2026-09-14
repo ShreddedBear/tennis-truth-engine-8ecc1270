@@ -40,6 +40,7 @@ if (port !== undefined && (Number.isNaN(port) || port <= 0)) {
 }
 
 export default defineConfig({
+  base: "/truth-engine/",
   define: {
     __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
   },

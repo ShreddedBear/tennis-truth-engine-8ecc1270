@@ -9,6 +9,7 @@ import {
   History,
   LayoutDashboard,
   ListChecks,
+  ArrowLeft,
   ScrollText,
   Upload,
 } from "lucide-react";
@@ -37,6 +38,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <p className="text-sm font-semibold tracking-wide uppercase">Tennis Matrix — Independent Verification & Audit</p>
             <p className="text-xs opacity-70">The Matrix may be compared to the audit. It may not determine the audit.</p>
           </div>
+          <a
+            href="/"
+            className="flex items-center gap-2 rounded-md border border-white/20 px-3 py-2 text-xs font-medium transition-colors hover:bg-white/10"
+          >
+            <ArrowLeft className="size-3.5" />
+            Stats Engine
+          </a>
         </div>
       </header>
       <nav className="md:hidden overflow-x-auto border-b border-border bg-card">

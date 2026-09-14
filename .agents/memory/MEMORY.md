@@ -1,1 +1,2 @@
 - [TanStack Start port boundary](tanstack-start-port-boundary.md) — keep the Truth Engine’s server functions with its web artifact rather than forcing an Express split.
+- [Cross-service auth probes](cross-service-auth-probes.md) — artifact health checks may hit a service directly, so same-origin auth fetches can recurse; verify shared credentials locally.

@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/"
+previewPath = "/truth-engine"
 title = "Tennis Truth Engine"
 description = "A tennis analysis application that helps users evaluate matches and betting evidence with the same tools, data views, and workflows as the original product."
 version = "1.0.0"
@@ -8,7 +8,7 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = [ "/truth-engine" ]
 localPort = 19024
 
 [services.development]
@@ -28,11 +28,11 @@ args = [ "pnpm", "--filter", "@workspace/tennis-truth-engine", "run", "start" ]
 [services.production.run.env]
 PORT = "19024"
 NODE_ENV = "production"
-BASE_PATH = "/"
+BASE_PATH = "/truth-engine"
 
 [services.production.health.startup]
-path = "/"
+path = "/truth-engine/favicon.ico"
 
 [services.env]
 PORT = "19024"
-BASE_PATH = "/"
+BASE_PATH = "/truth-engine"
