@@ -85,10 +85,7 @@ describe("runtime evidence coverage diagnostic", () => {
     expect(researcher).toContain("deterministicPbpMetricFromPacket({metricCode:code,p1,p2");
     expect(researcher).toContain("deterministicResultsScheduleMetric({metricCode:metric.code,p1,p2");
     expect(researcher).toContain("buildMetricObservationContext({metrics:liveMissing,p1,p2");
-    expect(researcher).toContain("buildBsdAtpMainPbpContext({metrics:liveMissing,p1,p2");
-    expect(researcher).toContain("buildBsdWtaMainPbpContext({metrics:liveMissing,p1,p2");
-    expect(researcher).toContain("buildBsdAtpChallengerPbpContext({metrics:liveMissing,p1,p2");
-    expect(researcher).toContain("buildBsdWtaChallengerPbpContext({metrics:liveMissing,p1,p2");
+    expect(researcher).toContain("buildLiveTennisApiPbpContext({metrics:liveMissing,p1,p2");
   });
 
   it("samples real production matches even when event_level or scheduled_date is null", () => {
@@ -154,16 +151,13 @@ describe("runtime evidence coverage diagnostic", () => {
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
     // The market lane stays scoped to MARKET, every other lane excludes PBP and MARKET,
     // and no lane may pull PBP in positively -- PBP reaches coverage only through the
-    // tour-scoped BSD bridges, never because rows happen to exist in the table.
+    // Live Tennis API bridge, never because rows happen to exist in the table.
     expect(bridge).toContain('eq(sourceObservationsTable.observation_type, "MARKET")');
     expect(bridge).toContain("notInArray(sourceObservationsTable.observation_type, EXCLUDED_OBSERVATION_TYPES)");
     expect(bridge).toContain('EXCLUDED_OBSERVATION_TYPES = ["POINT_BY_POINT", "PBP", "MARKET"]');
     expect(bridge).not.toContain('inArray(sourceObservationsTable.observation_type, ["POINT_BY_POINT"');
     expect(bridge).toContain("approvedPbpPacket");
-    expect(bridge).toContain("buildBsdAtpMainPbpContext");
-    expect(bridge).toContain("buildBsdWtaMainPbpContext");
-    expect(bridge).toContain("buildBsdAtpChallengerPbpContext");
-    expect(bridge).toContain("buildBsdWtaChallengerPbpContext");
+    expect(bridge).toContain("buildLiveTennisApiPbpContext");
   });
 
   it("indexes the exact predicates used by the evidence read path", () => {

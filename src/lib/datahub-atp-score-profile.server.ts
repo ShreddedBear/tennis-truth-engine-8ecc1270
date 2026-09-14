@@ -6,7 +6,7 @@ const SOURCE_URL = "https://datahub.io/core/atp-world-tour-tennis-data";
 const SOURCE_NAME = "DataHub ATP World Tour tennis data (CC BY 4.0)";
 const HISTORICAL_MIN_YEAR = 2005;
 
-type Row = Record<string, string>;
+export type Row = Record<string, string>;
 let cache: Row[] | null = null;
 
 function norm(v: string) { return v.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }

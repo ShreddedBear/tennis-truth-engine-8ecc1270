@@ -71,13 +71,30 @@ describe("warehouse-first-researcher.server.ts surfaces a real BSD PBP fetch fai
     expect(block).toContain("} else if (TASK18B_METRIC_CODES.has(code)) {");
   });
 
-  it("checks all three fetch-capable lanes (challenger, ATP main, WTA main), never the WTA Challenger lane which never fetches", () => {
+  it("checks the Live Tennis API lane's status for a real fetch failure before staying silent", () => {
     const idx = collapsed.indexOf("const lanes = [");
     expect(idx).toBeGreaterThan(-1);
     const block = collapsed.slice(idx, idx + 200);
-    expect(block).toContain("bsdAtpChallengerPbp.status");
-    expect(block).toContain("bsdAtpMainPbp.status");
-    expect(block).toContain("bsdWtaMainPbp.status");
-    expect(block).not.toContain("bsdWtaChallengerPbp.status");
+    expect(block).toContain("liveTennisApiPbp.status");
+  });
+});
+
+// Live production finding: livetennisapi.com became the primary point-by-point provider
+// (Basic tier: point-by-point history, 60 req/min / 1,000 req/day), replacing the BSD/
+// Bzzoiro lanes above, which never had usable credits. This guards the wiring: the
+// researcher imports the single consolidated lane and merges its packet the same way the
+// old four BSD lanes were merged, so nothing downstream (mergeMetricFindingSides,
+// applyProviderFailurePrecedence) needed to change.
+describe("warehouse-first-researcher.server.ts wires the Live Tennis API PBP lane", () => {
+  it("imports buildLiveTennisApiPbpContext instead of the four BSD lane builders", () => {
+    expect(collapsed).toContain('import { buildLiveTennisApiPbpContext } from "./live-tennis-api-pbp.server"');
+    expect(collapsed).not.toContain("buildBsdAtpChallengerPbpContext");
+    expect(collapsed).not.toContain("buildBsdAtpMainPbpContext");
+    expect(collapsed).not.toContain("buildBsdWtaMainPbpContext");
+    expect(collapsed).not.toContain("buildBsdWtaChallengerPbpContext");
+  });
+
+  it("merges the Live Tennis API packet into the observation packet alongside the warehouse packet", () => {
+    expect(collapsed).toContain("mergeObservationPackets(warehousePacket, liveTennisApiPbp.packet)");
   });
 });
