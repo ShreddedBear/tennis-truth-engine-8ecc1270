@@ -3,6 +3,7 @@ import { isBeforeCutoff } from "./temporal-boundary";
 
 import { join } from "node:path";
 import type { SourcedStat } from "./reconstruction/engine";
+import { getRuntimeHistoricalStats } from "./runtime-tennis-index.server";
 
 const SOURCE_URL="https://www.kaggle.com/datasets/predixsport/sports-elo-ratings";
 const SOURCE_NAME="PredixSport public tennis ratings (CC BY 4.0)";
@@ -25,7 +26,13 @@ function withinDays(rows:Row[],cut:string|null,days:number){if(!cut)return[];con
 function latestOpponentElo(all:Row[],opponent:string,date:string,surf:string|null){const n=norm(opponent);const candidates=all.filter(r=>norm(r.player??"")===n&&(!date||!r.date||r.date<=date)&&(!surf||!r.surface||r.surface.toLowerCase()===surf)).sort((a,b)=>(a.date||"").localeCompare(b.date||""));const r=candidates[candidates.length-1];return r?num(r.elo_pre)??num(r.elo_post):null;}
 
 export function getRecentReconstruction(player:string,context:string):SourcedStat[]{
- const all=load(),canonical=resolve(all,player);if(!canonical)return[];const cut=cutoff(context),surf=surface(context);if(!cut)return[];/*Phase 13: unestablished boundary => no admissible evidence.*/const _r=0;void _r;const rows=all.filter(r=>r.player===canonical&&(isBeforeCutoff(r.date,cut))).sort((a,b)=>(a.date||"").localeCompare(b.date||""));if(!rows.length)return[];
+ const all=load(),canonical=resolve(all,player);
+ // The ATP-only PredixSport CSV above never resolves a WTA player, so this whole
+ // producer (last5/10 win %, current_streak_signed, recent form/elo trend, etc.) used to
+ // return nothing for WTA -- not because the data doesn't exist, but because it never
+ // looked anywhere else. runtime-tennis-index.server.ts already covers both tours.
+ if(!canonical)return getRuntimeHistoricalStats(player,context);
+ const cut=cutoff(context),surf=surface(context);if(!cut)return[];/*Phase 13: unestablished boundary => no admissible evidence.*/const _r=0;void _r;const rows=all.filter(r=>r.player===canonical&&(isBeforeCutoff(r.date,cut))).sort((a,b)=>(a.date||"").localeCompare(b.date||""));if(!rows.length)return getRuntimeHistoricalStats(player,context);
  const last10=rows.slice(-10),last5=rows.slice(-5),last3=rows.slice(-3),surfaceRecent=surf?rows.filter(r=>(r.surface??"").toLowerCase()===surf).slice(-10):last10;const d7=withinDays(rows,cut,7),d14=withinDays(rows,cut,14),d28=withinDays(rows,cut,28),d60=withinDays(rows,cut,60),d90=withinDays(rows,cut,90);const out:SourcedStat[]=[];
  const add=(key:string,v:number|null,sample:number)=>{if(v!==null&&Number.isFinite(v))out.push(stat(player,key,v,sample,surf));};
  add("last5_win_pct",winPct(last5),last5.length);add("last10_win_pct",winPct(last10),last10.length);add("last5_set_win_pct",setPct(last5),last5.length);add("last10_set_win_pct",setPct(last10),last10.length);add("recent_straight_set_control_pct",straightPct(last10),last10.length);add("current_surface_recent_win_pct",winPct(surfaceRecent),surfaceRecent.length);add("win_pct_60d",winPct(d60),d60.length);add("win_pct_90d",winPct(d90),d90.length);
