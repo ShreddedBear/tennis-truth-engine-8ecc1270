@@ -35,6 +35,10 @@ import { activeRunIds, activeSlateMatchIds } from "../src/lib/current-audit-stat
  * must refuse to proceed on any other count rather than silently operate on a slate that
  * has grown, shrunk, or been reconfigured since this number was confirmed. */
 export const EXPECTED_ACTIVE_SLATE_COUNT = 105;
+const expectedActiveSlateCount = Math.max(
+  1,
+  Number(process.env["REAUDIT_EXPECTED_ACTIVE_SLATE_COUNT"] ?? EXPECTED_ACTIVE_SLATE_COUNT),
+);
 
 export interface ManifestEntry {
   matchId: string;
@@ -104,10 +108,15 @@ export function selectReauditMatchIds(
   matches: readonly MatchLike[],
   runs: readonly RunLike[],
   versions: readonly SummaryVersionLike[],
+  sourceRunNumber?: number,
 ): string[] {
   const activeMatchIds = activeSlateMatchIds(versions);
   const activeRunIdSet = activeRunIds(runs, activeMatchIds);
-  const matchIdsWithActiveRun = new Set(runs.filter((run) => activeRunIdSet.has(run.id)).map((run) => run.match_id));
+  const matchIdsWithActiveRun = new Set(
+    runs
+      .filter((run) => activeRunIdSet.has(run.id) && (sourceRunNumber === undefined || run.run_number === sourceRunNumber))
+      .map((run) => run.match_id),
+  );
   return matches.map((match) => match.id).filter((id) => activeMatchIds.has(id) && matchIdsWithActiveRun.has(id));
 }
 
@@ -218,6 +227,9 @@ export async function runControlledReaudit(options: ReauditOptions): Promise<{
 const MANIFEST_PATH = path.join(process.cwd(), ".reaudit-manifests", "active-slate-reaudit.json");
 const CONCURRENCY = Math.max(1, Math.min(3, Number(process.env["REAUDIT_CONCURRENCY"] ?? 1)));
 const BUDGET_MS = Math.max(10_000, Number(process.env["REAUDIT_BUDGET_MS"] ?? 60_000));
+const SOURCE_RUN_NUMBER = process.env["REAUDIT_SOURCE_RUN_NUMBER"] === undefined
+  ? undefined
+  : Number(process.env["REAUDIT_SOURCE_RUN_NUMBER"]);
 
 async function main(): Promise<void> {
   if (!process.env["DATABASE_URL"]) {
@@ -238,10 +250,10 @@ async function main(): Promise<void> {
       db.select({ match_id: summaryVersionsTable.match_id, is_active: summaryVersionsTable.is_active }).from(summaryVersionsTable),
     ]);
 
-    const matchIds = selectReauditMatchIds(matches, runs, versions);
+    const matchIds = selectReauditMatchIds(matches, runs, versions, SOURCE_RUN_NUMBER);
     console.log(`[reaudit] active-slate re-audit candidate count: ${matchIds.length}`);
-    if (matchIds.length !== EXPECTED_ACTIVE_SLATE_COUNT) {
-      console.error(`[reaudit] REFUSING TO PROCEED: expected exactly ${EXPECTED_ACTIVE_SLATE_COUNT} matches, found ${matchIds.length}. The active slate has changed since that count was confirmed -- re-confirm before adjusting EXPECTED_ACTIVE_SLATE_COUNT.`);
+    if (matchIds.length !== expectedActiveSlateCount) {
+      console.error(`[reaudit] REFUSING TO PROCEED: expected exactly ${expectedActiveSlateCount} matches, found ${matchIds.length}. The active slate has changed since that count was confirmed -- re-confirm before setting REAUDIT_EXPECTED_ACTIVE_SLATE_COUNT.`);
       process.exitCode = 1;
       return;
     }

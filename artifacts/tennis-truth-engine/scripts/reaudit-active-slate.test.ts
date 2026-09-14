@@ -33,6 +33,17 @@ describe("selectReauditMatchIds", () => {
     expect(selectReauditMatchIds(matches, runs, versions)).toEqual(["on-slate"]);
   });
 
+  it("can pin selection to the confirmed source run number", () => {
+    const matches = [match("new-cohort"), match("older-cohort")];
+    const runs = [
+      run("r1", "new-cohort", "COMPLETE", 1),
+      run("old-r1", "older-cohort", "COMPLETE", 1),
+      run("r5", "older-cohort", "COMPLETE", 5),
+    ];
+    const versions = [version("new-cohort", true), version("older-cohort", true)];
+    expect(selectReauditMatchIds(matches, runs, versions, 1)).toEqual(["new-cohort"]);
+  });
+
   it("EXPECTED_ACTIVE_SLATE_COUNT is the confirmed production slate size this script is scoped to", () => {
     expect(EXPECTED_ACTIVE_SLATE_COUNT).toBe(105);
   });
