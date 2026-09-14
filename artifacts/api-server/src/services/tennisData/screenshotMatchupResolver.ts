@@ -29,6 +29,9 @@ export interface ScreenshotEventMatch {
   recognizedName: string | null;
   surface: import("./types").Surface | null;
   level: import("./types").TournamentLevel | null;
+  round: string | null;
+  scheduledDate: string | null;
+  matchFormat: import("./types").MatchFormat | null;
 }
 
 export interface ScreenshotMatchupEntry {
@@ -991,7 +994,14 @@ async function resolveEventMatch(
     warnings.push(`No event/tournament name could be read from the screenshot.`);
   }
 
-  return { recognizedName: eventName, surface, level };
+  return {
+    recognizedName: eventName,
+    surface,
+    level,
+    round: entry.round ?? null,
+    scheduledDate: entry.scheduledDate ?? null,
+    matchFormat: entry.matchFormat ?? null,
+  };
 }
 
 // ── Top-level resolution ───────────────────────────────────────────────────
@@ -1230,7 +1240,14 @@ export async function resolveScreenshotMatchup(
 ): Promise<ScreenshotMatchupResult> {
   if (raw.matchups.length === 0) {
     const noData: ScreenshotPlayerMatch = { recognizedName: null, player: null };
-    const noEvent: ScreenshotEventMatch = { recognizedName: null, surface: null, level: null };
+    const noEvent: ScreenshotEventMatch = {
+      recognizedName: null,
+      surface: null,
+      level: null,
+      round: null,
+      scheduledDate: null,
+      matchFormat: null,
+    };
     return {
       player1: noData,
       player2: noData,

@@ -28,6 +28,8 @@ export interface RawMatchupEntry {
   surface?: import("./types").Surface | null;
   level?: import("./types").TournamentLevel | null;
   matchFormat?: import("./types").MatchFormat | null;
+  round?: string | null;
+  scheduledDate?: string | null;
 }
 
 export interface RawScreenshotRecognition {
@@ -55,6 +57,11 @@ For each matchup, extract:
 - player1Name: first tennis player name in that pair (topmost or leftmost if side-by-side)
 - player2Name: second tennis player name in that pair
 - eventName: tournament or event name for that matchup (null if not visible; use the same event name for all matchups if they share one card/image)
+- level: event level, normalized to one of GrandSlam, Masters1000, ATP500, ATP250, WTA1000, WTA500, WTA250, Challenger, ITF, Other, or null
+- round: round label exactly as shown, or null
+- scheduledDate: date as YYYY-MM-DD when shown, or null
+- surface: normalized to Hard, Clay, Grass, IndoorHard, or null. Treat "red clay" as Clay.
+- matchFormat: normalized to BestOf3, BestOf5, or null
 
 PLAYER NAME RULES — a player name is a PERSON's name (first name, last name, or both). It is NOT any of the following:
 - Betting market type labels: MONEYLINE, SPREAD, TOTAL, OVER, UNDER, PARLAY, COMBO, TEASER, PROP, FUTURES, HANDICAP, LIVE, SGP, SAME GAME PARLAY, or any phrase containing these words
@@ -72,7 +79,8 @@ General rules:
 - Ignore match times, court numbers, seed numbers in brackets (e.g. "(1)"), rankings, scores, and score-related numbers.
 - If the image shows a full bracket or schedule, return EACH individual matchup row/card as a separate entry.
 - For long scroll-images with multiple match cards stacked vertically, return each card as a separate entry.
-- Player names may appear on separate lines (e.g. one player above the other, separated by a divider, "vs", "v", or a dash). Treat consecutive player names as a pair.
+- A border, blank gap, "MATCHUP N", or a new inline "X vs Y" heading starts a new record. Never combine a player or metadata from one record/card with another.
+- Player names may appear on separate lines inside the SAME record (e.g. one player above the other, separated by "vs", "v", or a divider). Never pair names merely because they are consecutive elsewhere in the image.
 - Only include entries where you can read at least one PERSON's name. Set unreadable fields to null.
 - If both players in a matchup are unclear or unreadable, omit that matchup from the array.
 - If the image shows a sportsbook parlay slip with multiple sports, only extract the TENNIS matchup rows — identify them by the presence of actual player surnames, not by sport labels.
@@ -82,7 +90,7 @@ General rules:
 - NAME FORMATS: Player names appear in many formats — full name ("Rafael Nadal"), last name only ("Nadal"), abbreviated ("R. Nadal"), initials + surname. Return the name exactly as it appears; the system will resolve abbreviations.
 
 Respond with ONLY a strict JSON array, no markdown, no other text:
-[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null}, ...]`;
+[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null, "level": string|null, "round": string|null, "scheduledDate": string|null, "surface": string|null, "matchFormat": string|null}, ...]`;
 
 /**
  * Fallback prompt used when the primary attempt returns zero matchups.
@@ -101,13 +109,15 @@ For each pair of players you find, return:
 - player1Name: the first/top/left player name exactly as written
 - player2Name: the second/bottom/right player name exactly as written  
 - eventName: any tournament/event/league name shown, or null
+- level, round, scheduledDate, surface, and matchFormat when visible, using the same normalized values as the primary request
 
 Be INCLUSIVE not exclusive. Return every pair of human names that could plausibly be tennis players.
 If you see a name next to another name with odds/numbers/decorations around them, that pair is a matchup.
+Keep every bordered card, blank-line-delimited block, or "MATCHUP N" section independent. Never borrow a player or field from an adjacent record.
 Only return an empty array if the image contains zero player names whatsoever.
 
 Respond with ONLY a JSON array, no markdown:
-[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null}, ...]`;
+[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null, "level": string|null, "round": string|null, "scheduledDate": string|null, "surface": string|null, "matchFormat": string|null}, ...]`;
 
 // ---------------------------------------------------------------------------
 // Key / provider detection
@@ -257,17 +267,22 @@ function cleanEntry(obj: unknown): RawMatchupEntry | null {
     // Reject sportsbook UI labels that the vision model may have mistakenly returned
     return isSportsbookJunk(t) ? null : t;
   };
+  const token = (v: unknown): string | null => {
+    if (typeof v === "number" && Number.isFinite(v)) return String(v);
+    return clean(v);
+  };
   const player1Name = clean(o.player1Name);
   const player2Name = clean(o.player2Name);
   if (player1Name === null && player2Name === null) return null;
-  const surfaceToken = clean(o.surface)?.replace(/[\s_-]/g, "").toUpperCase();
+  const surfaceToken = token(o.surface)?.replace(/[\s_-]/g, "").toUpperCase();
   const surface =
     surfaceToken === "HARD" ? "Hard" :
     surfaceToken === "CLAY" ? "Clay" :
+    surfaceToken === "REDCLAY" ? "Clay" :
     surfaceToken === "GRASS" ? "Grass" :
     surfaceToken === "INDOORHARD" ? "IndoorHard" :
     null;
-  const levelToken = clean(o.level ?? o.eventLevel)?.replace(/[\s_-]/g, "").toUpperCase();
+  const levelToken = token(o.level ?? o.eventLevel ?? o.event_level)?.replace(/[\s_-]/g, "").toUpperCase();
   const level =
     levelToken === "GRANDSLAM" ? "GrandSlam" :
     levelToken === "MASTERS1000" ? "Masters1000" :
@@ -276,19 +291,29 @@ function cleanEntry(obj: unknown): RawMatchupEntry | null {
     levelToken === "WTA1000" ? "WTA1000" :
     levelToken === "WTA500" ? "WTA500" :
     levelToken === "WTA250" ? "WTA250" :
-    levelToken === "CHALLENGER" ? "Challenger" :
+    levelToken === "CHALLENGER" || levelToken === "ATPCHALLENGER" ? "Challenger" :
     levelToken === "ITF" ? "ITF" :
-    levelToken === "OTHER" ? "Other" :
+    levelToken ? "Other" :
     null;
-  const formatToken = clean(o.matchFormat ?? o.bestOf)?.replace(/[\s_-]/g, "").toUpperCase();
+  const formatToken = token(o.matchFormat ?? o.bestOf ?? o.best_of)?.replace(/[\s_-]/g, "").toUpperCase();
   const matchFormat =
-    formatToken === "BO3" || formatToken === "BESTOF3" ? "BestOf3" :
-    formatToken === "BO5" || formatToken === "BESTOF5" ? "BestOf5" :
+    formatToken === "3" || formatToken === "BO3" || formatToken === "BESTOF3" ? "BestOf3" :
+    formatToken === "5" || formatToken === "BO5" || formatToken === "BESTOF5" ? "BestOf5" :
     null;
-  return { player1Name, player2Name, eventName: clean(o.eventName), surface, level, matchFormat };
+  const scheduledDate = token(o.scheduledDate ?? o.scheduled_date);
+  return {
+    player1Name,
+    player2Name,
+    eventName: clean(o.eventName ?? o.tournament),
+    surface,
+    level,
+    matchFormat,
+    round: clean(o.round),
+    scheduledDate: scheduledDate && /^\d{4}-\d{2}-\d{2}$/.test(scheduledDate) ? scheduledDate : null,
+  };
 }
 
-function parseRecognitionResponse(raw: string | null | undefined): RawScreenshotRecognition {
+export function parseRecognitionResponse(raw: string | null | undefined): RawScreenshotRecognition {
   if (!raw) return EMPTY_RECOGNITION;
   const cleaned = raw.trim()
     .replace(/^```(?:json)?\s*/i, "")  // strip opening ```json or ```

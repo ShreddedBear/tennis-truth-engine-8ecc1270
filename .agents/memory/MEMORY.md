@@ -2,3 +2,4 @@
 - [Cross-service auth probes](cross-service-auth-probes.md) — artifact health checks may hit a service directly, so same-origin auth fetches can recurse; verify shared credentials locally.
 - [LiveTennisAPI history identity](live-tennis-api-history-identity.md) — exact player searches can return duplicate IDs, and some recent tapes omit point winners; preserve strict reconstruction.
 - [PBP reconstruction provenance](pbp-reconstruction-provenance.md) — never cite the nonexistent 24-tape verifier; score-snapshot reconstruction is validated only by current captured fixtures.
+- [OCR matchup boundaries](ocr-matchup-boundaries.md) — parse tennis screenshots by explicit card/record boundaries; never globally pair nearby name-like lines.

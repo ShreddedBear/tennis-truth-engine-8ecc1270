@@ -6,8 +6,9 @@
  * Text-extraction providers give us raw strings; this module bridges that gap.
  *
  * Heuristics applied in order:
- *   1. Inline "X vs Y" / "X v Y" / "X def. Y" patterns on the same line
- *   2. Consecutive candidate-name lines (two name-like lines back-to-back)
+ *   1. Inline "X vs Y" / "X v Y" / "X def. Y" records, with metadata read only
+ *      until the next explicit matchup heading.
+ *   2. Exactly two name-like lines inside one blank-line-delimited block.
  *
  * A "name-like" line:
  *   - Contains at least one letter
@@ -50,6 +51,7 @@ function isNameLike(line: string): boolean {
 function cleanName(raw: string): string | null {
   // Strip leading/trailing punctuation, seed numbers "(1)", bracket chars
   const cleaned = raw
+    .replace(/^matchup\s+\d+(?:\s+of\s+\d+)?\s*[:\-–—]?\s*/i, "")
     .replace(/^\(\d+\)\s*/, "")   // "(1) "
     .replace(/\s*\(\d+\)$/, "")   // " (1)"
     .replace(/^[\s\-–—:]+/, "")
@@ -59,33 +61,75 @@ function cleanName(raw: string): string | null {
 }
 
 export function parseOcrText(text: string): RawMatchupEntry[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-
   const matchups: RawMatchupEntry[] = [];
-
-  // Strategy 1 — inline "X vs Y" on the same line
   const vsRe = /^(.+?)\s+(?:vs?\.?|def\.?|–|-)\s+(.+)$/i;
-  for (const line of lines) {
-    const m = vsRe.exec(line);
-    if (m) {
-      const p1 = cleanName(m[1]);
-      const p2 = cleanName(m[2]);
-      if (p1 && p2 && p1 !== p2) {
-        matchups.push({ player1Name: p1, player2Name: p2, eventName: null });
-      }
+  const rawLines = text.split(/\r?\n/);
+  const headings = rawLines
+    .map((line, index) => ({ index, match: vsRe.exec(line.trim()) }))
+    .filter((entry): entry is { index: number; match: RegExpExecArray } => entry.match !== null);
+
+  const field = (lines: string[], names: string[]): string | null => {
+    const pattern = new RegExp(`^(?:${names.join("|")})\\s*:\\s*(.+)$`, "i");
+    for (const line of lines) {
+      const found = pattern.exec(line.trim());
+      if (found?.[1]?.trim()) return found[1].trim();
     }
+    return null;
+  };
+  const normalizedSurface = (value: string | null): RawMatchupEntry["surface"] => {
+    const normalized = value?.replace(/[\s_-]/g, "").toUpperCase();
+    if (normalized === "HARD") return "Hard";
+    if (normalized === "CLAY" || normalized === "REDCLAY") return "Clay";
+    if (normalized === "GRASS") return "Grass";
+    if (normalized === "INDOORHARD") return "IndoorHard";
+    return null;
+  };
+  const normalizedLevel = (value: string | null): RawMatchupEntry["level"] => {
+    const normalized = value?.replace(/[\s_-]/g, "").toUpperCase();
+    if (normalized === "GRANDSLAM") return "GrandSlam";
+    if (normalized === "MASTERS1000") return "Masters1000";
+    if (["ATP500", "ATP250", "WTA1000", "WTA500", "WTA250", "ITF"].includes(normalized ?? "")) {
+      return normalized as NonNullable<RawMatchupEntry["level"]>;
+    }
+    if (normalized === "CHALLENGER" || normalized === "ATPCHALLENGER") return "Challenger";
+    return value ? "Other" : null;
+  };
+  const normalizedFormat = (value: string | null): RawMatchupEntry["matchFormat"] => {
+    const normalized = value?.replace(/[\s_-]/g, "").toUpperCase();
+    if (normalized === "3" || normalized === "BO3" || normalized === "BESTOF3") return "BestOf3";
+    if (normalized === "5" || normalized === "BO5" || normalized === "BESTOF5") return "BestOf5";
+    return null;
+  };
+
+  for (let headingIndex = 0; headingIndex < headings.length; headingIndex++) {
+    const heading = headings[headingIndex]!;
+    const nextStart = headings[headingIndex + 1]?.index ?? rawLines.length;
+    const recordLines = rawLines.slice(heading.index + 1, nextStart);
+    const p1 = cleanName(heading.match[1]!);
+    const p2 = cleanName(heading.match[2]!);
+    if (!p1 || !p2 || p1 === p2) continue;
+    const bestOf = field(recordLines, ["best[ _-]?of"]);
+    matchups.push({
+      player1Name: p1,
+      player2Name: p2,
+      eventName: field(recordLines, ["tournament", "event"]),
+      level: normalizedLevel(field(recordLines, ["event[ _-]?level", "level"])),
+      round: field(recordLines, ["round"]),
+      scheduledDate: field(recordLines, ["scheduled[ _-]?date", "date"]),
+      surface: normalizedSurface(field(recordLines, ["surface"])),
+      matchFormat: normalizedFormat(bestOf),
+    });
   }
 
   if (matchups.length > 0) return matchups;
 
-  // Strategy 2 — consecutive name-like lines treated as a pair
-  const nameLines = lines.filter(isNameLike);
-  for (let i = 0; i + 1 < nameLines.length; i += 2) {
-    const p1 = cleanName(nameLines[i]);
-    const p2 = cleanName(nameLines[i + 1]);
+  // Fail closed: only pair stacked names when both occur in the same visible text block.
+  const blocks = text.split(/\r?\n\s*\r?\n+/);
+  for (const block of blocks) {
+    const nameLines = block.split(/\r?\n/).map((line) => line.trim()).filter(isNameLike);
+    if (nameLines.length !== 2) continue;
+    const p1 = cleanName(nameLines[0]!);
+    const p2 = cleanName(nameLines[1]!);
     if (p1 && p2 && p1 !== p2) {
       matchups.push({ player1Name: p1, player2Name: p2, eventName: null });
     }

@@ -222,7 +222,7 @@ class ScreenshotImportService {
           return {
             player1: { recognizedName: null, player: null, status: "not-found" },
             player2: { recognizedName: null, player: null, status: "not-found" },
-            event: { recognizedName: null, surface: null, level: null },
+            event: { recognizedName: null, surface: null, level: null, round: null, scheduledDate: null, matchFormat: null },
             warnings: [
               "All OCR providers are currently unavailable. Please try again later or enter player names manually.",
             ],
@@ -249,7 +249,7 @@ class ScreenshotImportService {
       resolved = {
         player1: { recognizedName: null, player: null, status: "not-found" },
         player2: { recognizedName: null, player: null, status: "not-found" },
-        event: { recognizedName: null, surface: null, level: null },
+        event: { recognizedName: null, surface: null, level: null, round: null, scheduledDate: null, matchFormat: null },
         warnings: ["Player resolution failed — please verify names manually."],
         matchups: [],
       };
