@@ -49,6 +49,12 @@ export default defineConfig({
     port,
     strictPort: true,
     allowedHosts: true,
+    hmr: {
+      // A transient upstream TCP reset can be logged by Vite even when the
+      // fail-closed audit pipeline handles it and completes successfully.
+      // Keep those errors in the server log without covering the mobile UI.
+      overlay: false,
+    },
     fs: { strict: false },
   },
   plugins: [
