@@ -31,7 +31,16 @@ function residualFinding038(player: string, lane: TourLane, asOfDate: string): M
   const result = computeOpponentAdjustedResidualPerformance({ player, lane, asOfDate });
   if (result.status !== "GO") return null;
   const v = result.value;
-  const value = `own_games_won_pct=${v.own_games_won_pct}; cohort_games_won_pct=${v.cohort_games_won_pct}; games_won_residual_pct=${v.games_won_residual_pct}; own_sets_won_pct=${v.own_sets_won_pct}; cohort_sets_won_pct=${v.cohort_sets_won_pct}; sets_won_residual_pct=${v.sets_won_residual_pct}; elo_band=+/-${v.elo_band}`;
+  // own_matches was previously reported only inside the human-readable "sample" note (never
+  // parsed by truth-engine-metric-comparison.ts, which reads only p1_value/p2_value) --
+  // carrying it into the value string itself (no new computation) is pure provenance/audit-
+  // trail transparency. It does NOT currently feed a COMPARISON_SPECS minSample floor -- code
+  // 038 is deliberately NOT active (see truth-engine-metric-comparison.ts's "deliberately
+  // still absent" note on 038: a standing, dated regression test pins it excluded on
+  // live-database sample-thinness grounds that this pass could not verify or overturn without
+  // live DB access). Left in place so a future pass with real data already has the field it
+  // would need to activate this code properly, rather than rediscovering this same gap.
+  const value = `own_games_won_pct=${v.own_games_won_pct}; cohort_games_won_pct=${v.cohort_games_won_pct}; games_won_residual_pct=${v.games_won_residual_pct}; own_sets_won_pct=${v.own_sets_won_pct}; cohort_sets_won_pct=${v.cohort_sets_won_pct}; sets_won_residual_pct=${v.sets_won_residual_pct}; elo_band=+/-${v.elo_band}; own_matches=${v.own_matches}`;
   return certifyMetricFinding({
     metric_code: "038", p1_value: value, p2_value: null, p1_treatment: "PARTIAL", p2_treatment: "UNAVAILABLE",
     differential: null, evidence_family: "STANDALONE_OPPONENT_ADJUSTED_RESIDUAL_PERFORMANCE", reliability: 68,

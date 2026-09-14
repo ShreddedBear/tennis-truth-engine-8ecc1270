@@ -11,8 +11,8 @@ import { MATRIX_SUMMARY_REQUIRED_CODES } from "./metric-classification";
 
 const APPROVED_ACTIVE_SET = [
   "001", "002", "003", "005", "006", "007", "008", "009", "010", "011",
-  "016", "018", "027", "029", "031", "032", "034", "036", "041", "045",
-  "051", "053", "055", "068", "080",
+  "016", "018", "020", "027", "029", "031", "032", "034", "036", "041",
+  "043", "044", "045", "051", "053", "055", "061", "068", "080",
 ];
 
 const usableRow = (code: string): MetricRowForReadiness => ({
@@ -43,10 +43,10 @@ describe("the active registry is derived, not declared", () => {
 });
 
 describe("promotion moves the denominator automatically", () => {
-  // The requirement: adding one metric to the active registry takes the denominator from
-  // 25 to 26 with no other edit. `codes` is injected here purely so the real registry is
+  // The requirement: adding one metric to the active registry takes the denominator up by
+  // exactly one with no other edit. `codes` is injected here purely so the real registry is
   // not mutated -- production callers use the default, which is COMPARISON_SPECS' keys.
-  it("25 -> 26 when one metric is promoted, with no constant to update", () => {
+  it("N -> N+1 when one metric is promoted, with no constant to update", () => {
     const rows = APPROVED_ACTIVE_SET.map(usableRow);
     const before = activeMetricReadiness(rows);
     expect(before.expected).toBe(ACTIVE_METRIC_CODES.length);
@@ -123,11 +123,13 @@ describe("only genuinely usable two-sided evidence counts", () => {
 });
 
 describe("readiness reproduces the real live run it was built to explain", () => {
-  // Live run 0305bc70 as persisted: of its 25 active rows, 3 DIRECT/DIRECT + 1
+  // Live run 0305bc70 as persisted: of its active rows, 3 DIRECT/DIRECT + 1
   // PARTIAL/PARTIAL + 1 RECONSTRUCTED/RECONSTRUCTED were two-sided, 4 were one-sided
-  // (3 PARTIAL/UNAVAILABLE, 1 DIRECT/UNAVAILABLE) and 16 were UNAVAILABLE on both sides.
-  // Processing progress for that run read 81/81; active evidence is 5/25.
-  it("reports 5/25 where processing progress reported 81/81", () => {
+  // (3 PARTIAL/UNAVAILABLE, 1 DIRECT/UNAVAILABLE) and the rest were UNAVAILABLE on both
+  // sides. Processing progress for that run read 81/81; active evidence was usable/expected.
+  // Counts below are derived from ACTIVE_METRIC_CODES.length rather than a typed constant,
+  // so this test does not go stale every time a metric is promoted into the active set.
+  it("reports usable/expected where processing progress reported 81/81", () => {
     const rows: MetricRowForReadiness[] = [];
     const codes = [...ACTIVE_METRIC_CODES];
     const take = () => codes.shift()!;
@@ -139,11 +141,12 @@ describe("readiness reproduces the real live run it was built to explain", () =>
     for (const code of codes.slice()) rows.push({ metric_code: code, p1_treatment: "UNAVAILABLE", p2_treatment: "UNAVAILABLE", p1_value: null, p2_value: null });
 
     const r = activeMetricReadiness(rows);
-    expect(r.expected).toBe(25);
+    const expected = ACTIVE_METRIC_CODES.length;
+    expect(r.expected).toBe(expected);
     expect(r.usable).toBe(5);
     expect(r.oneSided).toBe(4);
-    expect(r.unavailable).toBe(16);
-    expect(r.percent).toBe(20);
+    expect(r.unavailable).toBe(expected - 9);
+    expect(r.percent).toBe(Number(((5 / expected) * 100).toFixed(1)));
   });
 });
 

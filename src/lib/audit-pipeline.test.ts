@@ -1279,9 +1279,17 @@ describe("Run Audit pipeline", () => {
   // classifyMetric is mocked above to treat "M70" (real code 070) as PROTECTED_UNAVAILABLE.
   // "M59" (real code 059, "Loss Path Probability") is used here as the real
   // META_OR_NON_PLAYER reference code -- it is genuinely excluded under the canonical
-  // registry, unlike "M61" (061 is a resolved LEGITIMATE_PLAYER_METRIC -- see
-  // docs/audit-task-047-061-classification-decisions.md -- not excluded, and also not
-  // active, so it too now instantiates no row).
+  // registry, unlike "M04" (004 "Combined Efficiency" is an ordinary
+  // LEGITIMATE_PLAYER_METRIC with no classification-registry record and no
+  // COMPARISON_SPECS entry -- not excluded, and also not active, so it instantiates no
+  // row; same reference code the "instantiates only the active codes..." test above
+  // already uses for this exact purpose). "M61" was this test's previous example of an
+  // inactive-but-legitimate code; it no longer qualifies now that 061 (Historical Twin
+  // Match Search) has a real COMPARISON_SPECS entry and is therefore active -- see
+  // truth-engine-metric-comparison.ts. "M37" (037, Win Autopsy Metrics) would NOT be a
+  // valid replacement either -- metric-classification.ts classifies it
+  // MATRIX_SUMMARY_REQUIRED (quarantined), a different exclusion path from "ordinary,
+  // simply not promoted."
   it("a non-active NO_SOURCE code gets no row at all, while a real META_OR_NON_PLAYER code still stays EXCLUDED", async () => {
     const seenByResearch = new Set<string>();
     const { deps, tables } = makeMemoryDeps();
@@ -1298,7 +1306,7 @@ describe("Run Audit pipeline", () => {
     const metricRows = tables["metric_results"]!;
     expect(metricRows.some((r) => r["metric_code"] === "M70"), "metric M70 should not have been instantiated").toBe(false);
     expect(seenByResearch.has("M70"), "metric M70 was sent to the research provider").toBe(false);
-    expect(metricRows.some((r) => r["metric_code"] === "M61"), "metric M61 (not active) should not have been instantiated").toBe(false);
+    expect(metricRows.some((r) => r["metric_code"] === "M04"), "metric M04 (not active) should not have been instantiated").toBe(false);
 
     const metaRow = metricRows.find((r) => r["metric_code"] === "M59");
     expect(metaRow!["status"]).toBe("EXCLUDED");

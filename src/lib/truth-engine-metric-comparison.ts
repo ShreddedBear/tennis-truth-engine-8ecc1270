@@ -204,6 +204,184 @@ export const COMPARISON_SPECS: Record<string, ComparisonSpec> = {
   "068": { field: "current_streak_signed", sampleField: ["season_matches"], minSample: 5, direction: "HIGHER_IS_BETTER", family: "RECENT_FORM", materiality: 5, label: "Current win/loss streak (signed match count)" },
 
   "080": { field: "favorable_divergent_outcomes", minusField: "unfavorable_divergent_outcomes", direction: "HIGHER_IS_BETTER", family: "COMMON_OPPONENT", materiality: 1, label: "Common-opponent net divergent outcomes" },
+
+  // ---- Insufficient-evidence recovery pass -----------------------------------------------
+  // The Truth Engine was refusing matches to INSUFFICIENT_EVIDENCE not because the evidence
+  // was genuinely undiscriminating, but because a metric had a real, already-computed,
+  // already-persisted two-sided value and simply had no entry here -- a completeness gate
+  // (COMPARISON_SPECS coverage) masquerading as a sufficiency gate. This pass widens coverage
+  // for codes that are (a) actively computed by a live audit-metric-XXX module, (b) wired
+  // into the researcher pipeline (verified against deterministic-batchN-*.server.ts, not
+  // assumed from the module existing), and (c) have a direction/family defensible from the
+  // producer's OWN definition, never guessed. Every one of these also required a live-DB
+  // "median n" reading (the method Phase 12 used for 002/003/009/etc.) to set a fully
+  // calibrated materiality floor, which this pass had no Supabase access to obtain -- so
+  // every materiality/minSample pair below is instead the WORST-CASE (most conservative)
+  // value implied by the metric's OWN minSample: the standard error of a proportion (or of a
+  // proportion difference, where both sides draw independently) at exactly minSample, which
+  // is the largest -- most conservative -- that SE can be for any match that clears the gate.
+  // A real match almost always has n above the floor, so this systematically UNDER-credits
+  // marginal evidence rather than over-crediting it -- never the direction that would recover
+  // a match by force. Flagged here, not hidden, so a future pass with live DB access can
+  // tighten these the same way Phase 12 did for the original batch.
+
+  // Post-strong/weak-tournament win rate -- a direct regression-to-the-mean check ("does this
+  // player carry good form out of a tournament they just did well in"), computed over a
+  // player's ENTIRE chronological history grouped into tournament runs, not a fixed trailing-N
+  // window -- unlike 005/055/068 (which all read the identical last-10-match window and so
+  // must share RECENT_FORM), this slices the SAME underlying results by a structurally
+  // different selection rule (conditioned on the outcome of the immediately preceding
+  // tournament run, of any age), so it is not a restatement of any trailing-window family and
+  // gets its own. following_strong_tournament_n was not previously persisted in the value
+  // string at all (only win_rate was) -- exposed by this pass in
+  // deterministic-batch2-new-metrics.server.ts (r.following_strong_tournament.n was already
+  // computed, just dropped on the floor before reaching metric_results).
+  "020": { field: "following_strong_tournament_win_pct", sampleField: ["following_strong_tournament_n"], minSample: 8, direction: "HIGHER_IS_BETTER", family: "TOURNAMENT_TRANSITION_FORM", materiality: 25, label: "Win % immediately following a strong prior tournament run" },
+
+  // Favorite Failure-Mode: audit-metric-043-favorite-failure-mode.ts's
+  // computeFailureConditionCompatibility computes, for computeFavoriteFailureMode({player,
+  // opponent}), a reproduction_compatibility_score_pct = how well `opponent` reproduces
+  // `player`'s OWN favorite-role-loss failure conditions, weighted by how often `player`
+  // actually fails via each one. Each side's own persisted value is therefore "how exploitable
+  // am I, specifically, by the opponent I face today" -- LOWER is better for that side (a
+  // smaller score means the opponent is less able to reproduce the exact conditions that make
+  // this player lose as the favorite). Comparing P1's own score against P2's own score under
+  // LOWER_IS_BETTER correctly resolves to whichever player is LESS exploitable by their actual
+  // opponent, not whichever player merely has the "bigger" raw number. Independent family
+  // (MATCHUP_FAILURE_MODE): this is a directional, opponent-specific compatibility score, not a
+  // restatement of either player's own loss rate (036/LOSS_PROFILE) or upset history
+  // (044/UPSET_COMPATIBILITY) in isolation. opponent_underdog_wins_n (the sample behind the
+  // opponent's own reproduction rate, the more direct driver of this score's reliability) was
+  // already persisted cleanly by deterministic-batch4-favorite-underdog-patterns.server.ts --
+  // no wiring change needed.
+  "043": { field: "reproduction_compatibility_score_pct", sampleField: ["opponent_underdog_wins_n"], minSample: 8, direction: "LOWER_IS_BETTER", family: "MATCHUP_FAILURE_MODE", materiality: 25, label: "Opponent's reproduction-compatibility score against this player's own favorite-loss failure modes" },
+
+  // Opponent Upset Compatibility: audit-metric-044-opponent-upset-compatibility.ts's
+  // surface_match_rate_pct is the % of THIS player's own verified underdog wins that occurred
+  // on TODAY'S match surface -- the module's own header states "every static-index match row
+  // carries a surface," so trailing_underdog_wins_n (already cleanly persisted) is a reliable,
+  // not merely approximate, stand-in for this specific rate's true denominator. HIGHER_IS_BETTER
+  // (a player whose past upsets skew toward today's surface has a stronger, surface-matched
+  // track record of upsetting). Independent family (UPSET_COMPATIBILITY) -- distinct from
+  // SURFACE_STRENGTH (a rating level, not an upset-specific surface-match rate) and from
+  // MATCHUP_FAILURE_MODE (043 reads the OPPONENT's reproduction of THIS player's failure modes;
+  // this reads THIS player's own upset-surface fit). elo_gap_to_avg_upset_opponent (this
+  // module's other headline field) is deliberately NOT specced here: its own doc comment
+  // defines "better" as smaller ABSOLUTE gap ("smaller absolute value = more similar to
+  // favorites already upset"), a non-monotonic relationship extract()'s linear
+  // field-and-optional-minusField model cannot express without guessing a sign convention --
+  // left out rather than forced.
+  "044": { field: "surface_match_rate_pct", sampleField: ["trailing_underdog_wins_n"], minSample: 8, direction: "HIGHER_IS_BETTER", family: "UPSET_COMPATIBILITY", materiality: 25, label: "Underdog-win rate on today's match surface" },
+
+  // Historical Twin Match Search: historical-twin-match-search.server.ts finds the K=15
+  // nearest-neighbor historical matches by Elo gap (surface-penalized) to today's P1-vs-P2 gap
+  // and reports how often the analogous favorite actually won. That is ONE joint fact, persisted
+  // as the IDENTICAL string on both p1_value and p2_value (current_analogous_favorite names
+  // which of P1/P2 that favorite-win-rate belongs to) -- unusable by this file's extract(),
+  // which reads the same field from two independently-parsed strings and would always compute
+  // a zero differential. deterministic-batch5-new-metrics.server.ts's withOwnAnalogousWinPct
+  // (added by this pass) turns it into a genuine per-player field with pure arithmetic on
+  // numbers the module already computed (the named analogous favorite keeps
+  // favorite_win_pct_in_twins as their own; the other player gets its complement, since the two
+  // are a zero-sum probability by construction) -- not a new computation, not a guess.
+  // HIGHER_IS_BETTER, independent family (TWIN_MATCH_PROBABILITY): an empirical realized-outcome
+  // frequency over similar-Elo-gap historical matches, mechanistically distinct from the Elo
+  // rating itself (001/SURFACE_STRENGTH) or from H2H shrinkage (051/H2H_PROBABILITY). minSample
+  // is set ABOVE the producer's own structural floor (MIN_TWIN_MATCHES=5) at 10, since the
+  // reported quantity is a single proportion (not two independent samples) and a tighter floor
+  // meaningfully reduces the worst-case SE used for materiality below.
+  "061": { field: "own_analogous_twin_win_pct", sampleField: ["twin_matches_found"], minSample: 10, direction: "HIGHER_IS_BETTER", family: "TWIN_MATCH_PROBABILITY", materiality: 32, label: "Own analogous-favorite/underdog win % in nearest-neighbor historical twin matches" },
+
+  // ---- Deliberately still absent: candidates checked and NOT added this pass -------------
+  // Each of these has a live audit-metric-XXX engine, but adding a spec for it would require
+  // either guessing something this file's own header rules out, or a materially larger wiring
+  // change than the additive, no-guessing fixes made above. Documented so a future pass does
+  // not have to re-discover why, and does not add one of these by assuming its mere existence
+  // means it was overlooked.
+  //
+  // 038 (Opponent-Adjusted Residual Performance): built (audit-metric-038-opponent-adjusted-
+  // residual-performance.ts, docs/audit-task-038-040-062.md) with a real, well-gated
+  // per-player engine -- structurally requiring own_matches>=20 and an Elo-band cohort of
+  // >=100 matches/>=8 players before ever returning a value -- and was a strong candidate for
+  // this pass. NOT added: truth-engine-decision.test.ts already carries an explicit, dated
+  // regression test ("004, 023, 038 remain unactivated: directionally clean but too thin for
+  // production use... 9 live usable rows... too sparse to be a reliable production voter",
+  // citing docs/audit-truth-engine-phase13.5-evidence-expansion.md) pinning 038 as
+  // DELIBERATELY excluded on live-database sample-thinness grounds. That finding and the
+  // audit-task-038-040-062.md build are hard to reconcile from static reading alone: the
+  // phase-13.5 exclusion's "9 live usable rows" may describe a since-superseded mechanism (the
+  // 038-040-062 doc says no engine existed at all before its own build), or it may still
+  // accurately describe how rarely this specific Elo-band-cohort engine's own GO gate is met
+  // in the real live database -- this pass has no live-DB access to tell which. Unlike 044's
+  // non-monotonic field (a structural reason forced by the math) or 037/039's quarantine (a
+  // structural reason forced by classification), this is a genuine live-data question with a
+  // standing, considered exclusion already on record -- overriding it from static code
+  // reading alone would be exactly the kind of guess this file's header exists to refuse.
+  // Left out, flagged for a human decision with real live-DB access to check current sample
+  // counts against this engine's actual gates, rather than silently forced either way.
+  // 037 (Win Autopsy) and 039 (Performance Surprise Rating): BOTH structurally disqualified
+  // twice over. (1) metric-classification.ts's MATRIX_SUMMARY_REQUIRED array still lists both
+  // as quarantined pending real Tennis Matrix AI Summary evidence -- this file's own header
+  // ("Quarantined codes... must never be added here while quarantined") already rules them
+  // out on that basis alone, structurally upstream of anything below. (2) even setting that
+  // aside, neither has a genuine per-match, per-player engine to spec: the only per-player
+  // engine for 036/037 is audit-metric-036-loss-autopsy.ts, which computes 036 ONLY.
+  // audit-metric-036-037-loss-win-autopsy.ts (which DOES cover both 037 and 039) is a single
+  // whole-audit-DB population classifier (docs/audit-task-new-batch1-036-037-039-loss-win-
+  // autopsy.md: "a single DB-wide number cannot supply an independent p1_value/p2_value pair
+  // for a specific p1-vs-p2 audit request"), confirmed by repo-wide search to be wired ONLY
+  // into audit-metric-036-037-039-live.server.ts's whole-DB calibration report, never into any
+  // deterministic-batchN-*.server.ts per-match tier -- there is no p1_value/p2_value for any
+  // specific match to compare, for either code.
+  // 040 (Hidden Decline Detector): a genuinely surprising find -- metric-classification.ts
+  // ALSO still lists "040" as MATRIX_SUMMARY_REQUIRED (quarantined), the same as 037/039
+  // above, which on its own is disqualifying here for the same reason. But unlike 037/039, a
+  // real per-match engine WAS built and wired for 040 regardless
+  // (deterministic-batch6-residual-decline-stakes.server.ts's deterministicBatch6HiddenDecline,
+  // per docs/audit-task-038-040-062.md's "DONE" verdict) -- meaning that tier is very likely
+  // dead code in the live pipeline right now: per this same file's own MATRIX_SUMMARY_REQUIRED
+  // handling (see the audit-pipeline.test.ts coverage of quarantined codes), a quarantined
+  // code's metric_results row is never even instantiated, so deterministicBatch6HiddenDecline
+  // would never be reached however correct its own logic is. This looks like a genuine
+  // classification/wiring mismatch worth a human decision (reactivate 040 via
+  // metric-classification.ts's documented reactivation path, or confirm the quarantine is
+  // still intentional and the batch6 tier should be removed) -- NOT resolved here, since
+  // metric-classification.ts's own header states reactivation "is the deliberate, reviewed
+  // final step... never a side effect" and is out of scope for a comparison-layer change.
+  // Independently of that classification question, 040's OWN persisted format also isn't
+  // spec-ready: it writes per-dimension findings as
+  // "`${dimension}: verdict=X; earlier=Y (n=Z); recent=W (n=V)`" joined by "; " across multiple
+  // dimensions -- this breaks this file's key=value parsing convention two ways: the field key
+  // becomes "ace_rate: verdict" (colon-and-space embedded, not a clean identifier) and the
+  // numeric leaves are embedded inside a non-numeric string ("61.2 (n=45)"), which numeric()
+  // correctly refuses to parse rather than guess at. Recoverable, but only via a producer-side
+  // reformat to clean key=value pairs across every dimension -- a materially larger wiring
+  // change than the single-field additive fixes above, left for a dedicated follow-up, and
+  // moot until the classification question above is resolved.
+  // 047 (Uncertainty-Adjusted Advantage): deterministic-batch5-new-metrics.server.ts persists
+  // the IDENTICAL comparison text on both p1_value and p2_value (by design -- the metric's own
+  // definition is a joint CI-adjusted comparison, not a per-player fact), in the same
+  // "dimension=X: p1_rate_pct=... p2_rate_pct=..." format as 061 was before this pass's fix --
+  // but unlike 061, 047's per-dimension p1_rate_pct/p2_rate_pct are already the two players' own
+  // numbers (not a single zero-sum probability), so there is no single well-defined
+  // "own share" to extract the way withOwnAnalogousWinPct does for 061 without picking one base
+  // metric among several reported dimensions to promote -- left out rather than guessed.
+  // 052 (Entropy & Lead Durability): already cleanly wired and parseable
+  // (set_score_entropy_bits/game_score_entropy_bits/sets_n, via
+  // deterministic-batch2-new-metrics.server.ts), but the module's own header states this is an
+  // empirical Shannon entropy of a player's REALIZED scoreline distribution, explicitly
+  // NOT the win-probability-conditioned quantity the catalog defines -- and, unlike every other
+  // spec in this registry, neither "more entropy" nor "less entropy" is stated or implied
+  // anywhere to be better for winning. Adding a direction here would be exactly the guess this
+  // file's header (rule 3) exists to refuse.
+  // 062 (Motivation/Stakes): wired and parseable (seeded_rate_pct etc.), but no sample/n field
+  // is persisted in the value string at all (only in the human-readable "sample" note, same gap
+  // 038 had before this pass) -- AND, more fundamentally, evidence-gap.ts classifies this code
+  // PUBLIC_CONTEXT, and seeded_rate_pct/avg_rank_points_at_stake are themselves largely a
+  // restatement of ranking/strength (a highly-seeded player IS a highly-ranked player) rather
+  // than independent evidence -- the same double-counting risk 029 was careful to subtract a
+  // baseline to avoid. Left out pending a real justification for why this doesn't just restate
+  // SURFACE_STRENGTH/RESULTS_HISTORY under a different name.
 };
 
 export interface ParsedMetricValue {

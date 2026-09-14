@@ -11,15 +11,16 @@ import { classifyMetricActivation, type MetricActivationForMatch } from "./metri
 //   executed; a row counts as treated even when it ends UNAVAILABLE. This is a throughput
 //   number, and it is also the P2 resume cursor, so it is deliberately left alone.
 //
-//   ACTIVE TRUTH ENGINE EVIDENCE (x/25) — how many of the codes that actually GRADE a match
+//   ACTIVE TRUTH ENGINE EVIDENCE (x/N) — how many of the codes that actually GRADE a match
 //   produced genuinely usable, two-sided evidence. This is the readiness number.
 //
-// The denominator is the key set of COMPARISON_SPECS rather than a literal 25, because
+// The denominator is the key set of COMPARISON_SPECS rather than a literal constant, because
 // those specs are what the comparison layer actually uses to grade. Deriving it means the
-// two can never drift: promoting a metric by adding its spec moves this denominator to 26
-// in the same commit, and nothing else has to be edited. There is no "25" constant here.
+// two can never drift: promoting a metric by adding its spec moves this denominator up by one
+// in the same commit, and nothing else has to be edited. There is no hardcoded count here --
+// COMPARISON_SPECS.length IS the denominator, whatever it currently is.
 //
-// The other 56 codes are NOT excluded from the system by any of this. They stay in the
+// The other codes are NOT excluded from the system by any of this. They stay in the
 // processing universe, keep executing, and keep their evidence; they simply are not part of
 // the graded set until a spec exists for them.
 export const ACTIVE_METRIC_CODES: readonly string[] = Object.keys(COMPARISON_SPECS).sort();
@@ -60,10 +61,10 @@ export interface ActiveMetricReadiness {
   unavailable: number;
   /** Active codes with no row in this run at all. */
   notExecuted: number;
-  /** usable / expected(25) -- the ORIGINAL, unchanged, fixed-denominator readiness number. */
+  /** usable / expected -- the ORIGINAL, unchanged, fixed-denominator readiness number. */
   percent: number;
   /**
-   * How many of the 25 are legitimately eligible FOR THIS MATCH: `expected` minus codes
+   * How many of the active codes are legitimately eligible FOR THIS MATCH: `expected` minus codes
    * where BOTH sides independently landed on an evidence-based absence (see
    * metric-activation-status.ts's DENOMINATOR_EXCUSED_STATUSES) -- never a metric merely
    * NOT_EXECUTED or broken by a real pipeline bug, which stay counted as misses.

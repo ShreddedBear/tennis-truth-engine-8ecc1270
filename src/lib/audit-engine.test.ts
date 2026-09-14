@@ -423,7 +423,7 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     const notRun = (test_code: string) => ({ status: "UNAVAILABLE", test_code, outcome: "NOT EVALUATED" });
 
     it("an unavailable, never-run test does not withhold DOUBLE GREEN", () => {
-      const base = fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 });
+      const base = fixture({ winner: "Alpha", usableCount: ACTIVE_METRIC_CODES.length, totalCount: ACTIVE_METRIC_CODES.length });
       const withNotRun = evaluate({ ...base, stress: [...cleanStress, notRun("ST04"), notRun("ST08"), notRun("ST09"), notRun("ST10")] });
       const withoutThem = evaluate(base);
       expect(withNotRun.color).toBe(withoutThem.color);
@@ -432,7 +432,7 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
 
     it("a test that DID run and failed still withholds DOUBLE GREEN", () => {
       const report = evaluate({
-        ...fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 }),
+        ...fixture({ winner: "Alpha", usableCount: ACTIVE_METRIC_CODES.length, totalCount: ACTIVE_METRIC_CODES.length }),
         stress: [...cleanStress, { status: "COMPLETE", test_code: "ST05", outcome: "UNSTABLE" }],
       });
       expect(report.color).not.toBe("DOUBLE GREEN");
@@ -440,7 +440,7 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
 
     it("a stress set with nothing completed never qualifies vacuously", () => {
       const report = evaluate({
-        ...fixture({ winner: "Alpha", usableCount: 25, totalCount: 25 }),
+        ...fixture({ winner: "Alpha", usableCount: ACTIVE_METRIC_CODES.length, totalCount: ACTIVE_METRIC_CODES.length }),
         stress: [notRun("ST04"), notRun("ST08")],
       });
       expect(report.color).not.toBe("DOUBLE GREEN");
@@ -473,24 +473,24 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
   });
 
   it("3. strong active evidence is no longer dragged down by the inactive universe (G8)", () => {
-    // The entire active registry usable, none of the other 56 -- the exact shape that used
-    // to read 25/81 = 30.9% and green-lock the match. The gate now measures the evidence
-    // the decision actually rests on: every eligible active metric is usable, so coverage is
-    // 100% and no coverage green-lock is raised. The per-side diagnostic still reports the
-    // full-universe picture, because that number is still worth seeing -- it just no longer
-    // decides anything.
-    const report = evaluate(fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 }));
+    // The entire active registry usable, none of the inactive rest -- the exact shape that
+    // used to read (active/81) and green-lock the match on a diluted number. The gate now
+    // measures the evidence the decision actually rests on: every eligible active metric is
+    // usable, so coverage is 100% and no coverage green-lock is raised. The per-side
+    // diagnostic still reports the full-universe picture, because that number is still worth
+    // seeing -- it just no longer decides anything.
+    const report = evaluate(fixture({ winner: "Alpha", usableCount: ACTIVE_METRIC_CODES.length, totalCount: 81 }));
     expect(report.coverage.usablePercent).toBe(100);
     expect(report.coverage.activeUsable).toBe(ACTIVE_METRIC_CODES.length);
     expect(report.coverage.activeEligible).toBe(ACTIVE_METRIC_CODES.length);
-    expect(report.coverage.p1.usablePercent).toBeCloseTo((25 / 81) * 100, 1);
+    expect(report.coverage.p1.usablePercent).toBeCloseTo((ACTIVE_METRIC_CODES.length / 81) * 100, 1);
     expect(report.greenLockReasons.filter((r) => r.includes("coverage"))).toEqual([]);
     expect(winnerDetail(report)).toBe("Alpha");
   });
 
   it("3b. genuinely thin ACTIVE evidence still green-locks", () => {
-    // G8 must not disable the gate, only re-aim it. Three of 25 eligible active metrics
-    // usable is 12% and is still short of the 70% threshold.
+    // G8 must not disable the gate, only re-aim it. Three of the active set's eligible
+    // metrics usable is well under the 70% threshold, whatever the active set's exact size.
     const report = evaluate(fixture({ winner: "Alpha", usableCount: 3, totalCount: 81 }));
     expect(report.coverage.usablePercent).toBeLessThan(70);
     expect(report.greenLockReasons.some((r) => r.includes("coverage"))).toBe(true);
@@ -499,14 +499,14 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     expect(winnerDetail(report)).toBe("Alpha");
   });
 
-  it("4. 25/25 (100% of the active set) does not itself manufacture a winner when the Truth Engine produced none", () => {
-    const report = evaluate(fixture({ winner: null, usableCount: 25, totalCount: 25 }));
+  it("4. 100% of the active set does not itself manufacture a winner when the Truth Engine produced none", () => {
+    const report = evaluate(fixture({ winner: null, usableCount: ACTIVE_METRIC_CODES.length, totalCount: ACTIVE_METRIC_CODES.length }));
     expect(report.coverage.usablePercent).toBe(100);
     expect(report.color).toBe("INSUFFICIENT EVIDENCE");
     expect(report.action).toBe("INSUFFICIENT EVIDENCE");
   });
 
-  it("5. fewer than 25 usable active metrics can still produce a winner when the Truth Engine's own rules already established one", () => {
+  it("5. fewer than the full active set of usable active metrics can still produce a winner when the Truth Engine's own rules already established one", () => {
     // Only 10 of 81 usable, well under a full active set, yet a winner exists.
     const report = evaluate(fixture({ winner: "Alpha", usableCount: 10, totalCount: 81 }));
     expect(report.color).not.toBe("INSUFFICIENT EVIDENCE");
@@ -515,7 +515,7 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
 
   it("6. evidence coverage remains a diagnostic value, distinct from and never overwriting the winner", () => {
     const low = evaluate(fixture({ winner: "Alpha", usableCount: 3, totalCount: 81 }));
-    const high = evaluate(fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 }));
+    const high = evaluate(fixture({ winner: "Alpha", usableCount: ACTIVE_METRIC_CODES.length, totalCount: 81 }));
     expect(low.coverage.usablePercent).toBeLessThan(high.coverage.usablePercent);
     // Coverage moved (diagnostic); the winner did not (authoritative), in either fixture.
     expect(winnerDetail(low)).toBe("Alpha");
@@ -524,12 +524,12 @@ describe("audit-engine: the 81-code coverage gate cannot veto a valid Truth Engi
     expect(high.color).not.toBe("INSUFFICIENT EVIDENCE");
   });
 
-  it("7/8. the 56 inactive metrics can neither vote for nor veto either player", () => {
-    // Vary ONLY the inactive/unusable metric rows (the ones beyond the first 25); the
+  it("7/8. the inactive metrics can neither vote for nor veto either player", () => {
+    // Vary ONLY the inactive/unusable metric rows (the ones beyond the active set); the
     // winner and the color must not move, because nothing about evaluate()'s color
     // path reads them for anything but the coverage diagnostic.
-    const withNoiseA = fixture({ winner: "Alpha", usableCount: 25, totalCount: 81 });
-    const withNoiseB = { ...withNoiseA, metrics: metricsWithCoverage(25, 81).map((m, i) => (i >= 25 ? { ...m, p1_treatment: "PARTIAL" as const, p2_treatment: "UNAVAILABLE" as const } : m)) };
+    const withNoiseA = fixture({ winner: "Alpha", usableCount: ACTIVE_METRIC_CODES.length, totalCount: 81 });
+    const withNoiseB = { ...withNoiseA, metrics: metricsWithCoverage(ACTIVE_METRIC_CODES.length, 81).map((m, i) => (i >= ACTIVE_METRIC_CODES.length ? { ...m, p1_treatment: "PARTIAL" as const, p2_treatment: "UNAVAILABLE" as const } : m)) };
     const a = evaluate(withNoiseA);
     const b = evaluate(withNoiseB);
     expect(winnerDetail(a)).toBe(winnerDetail(b));

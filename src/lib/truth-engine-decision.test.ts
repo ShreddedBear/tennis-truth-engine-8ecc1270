@@ -643,6 +643,18 @@ describe("Phase 12 — P1/P2 symmetry under swap", () => {
     "016": ['output={"score_state_performance_json":"{\\"Break Point\\":{\\"n\\":12,\\"win_pct\\":80}}"}', 'output={"score_state_performance_json":"{\\"Break Point\\":{\\"n\\":10,\\"win_pct\\":20}}"}'],
     "045": ["forced_deciding_set_n=15; forced_deciding_set_win_pct=80", "forced_deciding_set_n=12; forced_deciding_set_win_pct=30"],
     "068": ["current_streak=W12; season_matches=20", "current_streak=L3; season_matches=18"],
+    // Insufficient-evidence recovery pass (truth-engine-metric-comparison.ts). 038 is
+    // deliberately NOT here -- see that file's "deliberately still absent" note: a
+    // pre-existing, dated regression test elsewhere in this file ("004, 023, 038 remain
+    // unactivated") pins it excluded on live-database sample-thinness grounds this pass could
+    // not verify or overturn without live DB access.
+    "020": ["following_strong_tournament_win_pct=70; following_strong_tournament_n=15", "following_strong_tournament_win_pct=20; following_strong_tournament_n=12"],
+    // LOWER_IS_BETTER: the "strong" (P1-favouring) side is the LOWER reproduction-compatibility
+    // score -- a smaller score means the opponent is less able to exploit this player's own
+    // favorite-loss failure modes.
+    "043": ["reproduction_compatibility_score_pct=15; opponent_underdog_wins_n=12", "reproduction_compatibility_score_pct=55; opponent_underdog_wins_n=10"],
+    "044": ["surface_match_rate_pct=75; trailing_underdog_wins_n=12", "surface_match_rate_pct=25; trailing_underdog_wins_n=10"],
+    "061": ["favorite_win_pct_in_twins=70; current_analogous_favorite=P1; twin_matches_found=15; own_analogous_twin_win_pct=70", "favorite_win_pct_in_twins=70; current_analogous_favorite=P1; twin_matches_found=12; own_analogous_twin_win_pct=30"],
   };
 
   it("covers every registered spec", () => {
@@ -859,8 +871,8 @@ describe("Phase 13.5 — evidence expansion joins existing families, casts no ne
     }
   });
 
-  it("registry size is exactly 25 after this phase", () => {
-    expect(Object.keys(COMPARISON_SPECS).length).toBe(25);
+  it("registry size is exactly 29 (25 after Phase 13.5, +4 from the later insufficient-evidence recovery pass: 020/043/044/061)", () => {
+    expect(Object.keys(COMPARISON_SPECS).length).toBe(29);
   });
 });
 

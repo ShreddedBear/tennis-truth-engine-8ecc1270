@@ -38,13 +38,25 @@ describe("deterministicBatch5NewMetrics (live pipeline wiring for 047/061)", () 
     expect(result).toBeNull();
   });
 
-  it("061 Historical Twin Match Search: produces a real, symmetric twin-match finding", async () => {
+  it("061 Historical Twin Match Search: produces a real twin-match finding, joint text shared but each side's own_analogous_twin_win_pct genuinely per-player", async () => {
     const result = await deterministicBatch5NewMetrics({ metricCode: "061", p1: "andrea collarini", p2: "zdenek kolar", asOfDate: AS_OF, tourFamily: LANE, surface: "hard" });
     expect(result).not.toBeNull();
     expect(result!.p1_treatment).toBe("RECONSTRUCTED");
     expect(result!.p2_treatment).toBe("RECONSTRUCTED");
-    expect(result!.p1_value).toBe(result!.p2_value);
     expect(result!.p1_value).toMatch(/twin_matches_found=/);
+    // The insufficient-evidence recovery pass (truth-engine-metric-comparison.ts's "061"
+    // spec) appends a genuinely per-player own_analogous_twin_win_pct field so this code can
+    // be compared at all -- the rest of the joint text (found by historical-twin-match-
+    // search.server.ts) stays identical on both sides, same as before that pass.
+    expect(result!.p1_value).toMatch(/own_analogous_twin_win_pct=[\d.-]+$/);
+    expect(result!.p2_value).toMatch(/own_analogous_twin_win_pct=[\d.-]+$/);
+    const stripOwnPct = (v: string) => v.replace(/; own_analogous_twin_win_pct=[\d.-]+$/, "");
+    expect(stripOwnPct(result!.p1_value)).toBe(stripOwnPct(result!.p2_value));
+    // The two own-shares are a zero-sum probability by construction (whichever player is
+    // today's analogous favorite keeps the joint favorite_win_pct_in_twins as their own; the
+    // other gets its complement).
+    const ownPct = (v: string) => Number(v.match(/own_analogous_twin_win_pct=([\d.-]+)$/)?.[1]);
+    expect(ownPct(result!.p1_value) + ownPct(result!.p2_value)).toBeCloseTo(100, 1);
     expect(result!.evidence_family).toBe("STANDALONE_HISTORICAL_TWIN_MATCH_SEARCH");
     expect(result!.sources.length).toBeGreaterThan(0);
   });

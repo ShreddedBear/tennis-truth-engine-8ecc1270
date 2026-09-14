@@ -64,14 +64,36 @@ async function uncertaintyAdjustedAdvantage047(p1: string, p2: string, lane: Tou
   });
 }
 
+/**
+ * computeHistoricalTwinMatchSearchForLane persists ONE joint fact (the analogous favorite's
+ * win rate across twin matches, plus which of P1/P2 is today's analogous favorite) as the
+ * SAME text on both p1_value and p2_value -- correct for a human reading either side, but
+ * unusable by truth-engine-metric-comparison.ts's extract(), which subtracts the same field
+ * read from two independently-parsed strings and would always get 0. Appending each player's
+ * OWN share of that already-computed, zero-sum probability (favorite's rate for whichever of
+ * P1/P2 the joint text names as current_analogous_favorite; its complement for the other) is
+ * pure arithmetic on numbers the module already computed -- not a new computation, and not a
+ * guess -- and turns the joint fact into a genuinely per-player comparable field without
+ * touching historical-twin-match-search.server.ts or its own tests.
+ */
+function withOwnAnalogousWinPct(jointValue: string, side: "P1" | "P2"): string {
+  const favoriteWinPct = Number(jointValue.match(/favorite_win_pct_in_twins=([\d.-]+)/)?.[1]);
+  const analogousFavorite = jointValue.match(/current_analogous_favorite=(P1|P2)/)?.[1];
+  if (!Number.isFinite(favoriteWinPct) || (analogousFavorite !== "P1" && analogousFavorite !== "P2")) {
+    return `${jointValue}; own_analogous_twin_win_pct=NA`;
+  }
+  const ownPct = analogousFavorite === side ? favoriteWinPct : Number((100 - favoriteWinPct).toFixed(1));
+  return `${jointValue}; own_analogous_twin_win_pct=${ownPct}`;
+}
+
 async function historicalTwinMatchSearch061(p1: string, p2: string, lane: TourLane, asOfDate: string, surface: string | null): Promise<MetricFinding | null> {
   const result = computeHistoricalTwinMatchSearchForLane({ p1, p2, lane, asOfDate, surface });
   if (result.status !== "GO") return null;
   const { p1_value, p2_value, differential, sample, reliability, sources } = result.value;
   return certifyMetricFinding({
     metric_code: "061",
-    p1_value,
-    p2_value,
+    p1_value: withOwnAnalogousWinPct(p1_value, "P1"),
+    p2_value: withOwnAnalogousWinPct(p2_value, "P2"),
     p1_treatment: "RECONSTRUCTED",
     p2_treatment: "RECONSTRUCTED",
     differential,

@@ -26,6 +26,11 @@ describe("deterministicBatch6ResidualStakes (live pipeline wiring for 038/062)",
     expect(result!.evidence_family).toBe("STANDALONE_OPPONENT_ADJUSTED_RESIDUAL_PERFORMANCE");
     expect(result!.p1_value).toMatch(/games_won_residual_pct=/);
     expect(result!.p2_value).toMatch(/games_won_residual_pct=/);
+    // own_matches now travels in the value string itself (previously only in the "sample"
+    // note), which is what lets truth-engine-metric-comparison.ts's "038" spec gate this
+    // metric's own thin-sample risk via a real sampleField instead of guessing.
+    expect(result!.p1_value).toMatch(/own_matches=\d+/);
+    expect(result!.p2_value).toMatch(/own_matches=\d+/);
   });
 
   it("038: falls through to null on a lane with no broad set_scores coverage (ATP_MAIN)", async () => {

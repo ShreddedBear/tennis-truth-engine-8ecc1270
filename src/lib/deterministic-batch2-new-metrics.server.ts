@@ -38,7 +38,12 @@ function levelTourTransition020(p1: string, p2: string, lane: TourLane, asOfDate
     matches_used: r.matches_used,
     ...Object.fromEntries(r.elo_differential_bands.map(band => [`elo_band_${band.band.toLowerCase()}_win_pct`, band.win_rate])),
     following_strong_tournament_win_pct: r.following_strong_tournament.win_rate,
+    // n was already computed by computePostTournamentBuckets but previously dropped on the
+    // floor here -- exposing it (no new computation) is what lets truth-engine-metric-
+    // comparison.ts gate this specific bucket's own thin-sample risk instead of guessing.
+    following_strong_tournament_n: r.following_strong_tournament.n,
     following_weak_tournament_win_pct: r.following_weak_tournament.win_rate,
+    following_weak_tournament_n: r.following_weak_tournament.n,
   });
   return { p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }

@@ -24,6 +24,12 @@ describe("deterministicBatch2NewMetric (live pipeline wiring for 020/036/045/052
     expect(result).not.toBeNull();
     expect(result!.p1_treatment).toBe("RECONSTRUCTED");
     expect(result!.p1_value).toMatch(/matches_used=/);
+    // following_strong_tournament_n/following_weak_tournament_n now travel in the value
+    // string itself (previously the bucket's own n was computed but dropped on the floor),
+    // which is what lets truth-engine-metric-comparison.ts's "020" spec gate this metric's
+    // own thin-sample risk via a real sampleField instead of guessing.
+    expect(result!.p1_value).toMatch(/following_strong_tournament_n=\d+/);
+    expect(result!.p1_value).toMatch(/following_weak_tournament_n=\d+/);
     expect(result!.evidence_family).toBe("STANDALONE_LEVEL_TOUR_TRANSITION");
   });
 

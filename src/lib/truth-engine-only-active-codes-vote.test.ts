@@ -4,13 +4,15 @@ import { ACTIVE_METRIC_CODES } from "./truth-engine-active-metrics";
 import { decideTruthEngineSelection } from "./truth-engine-decision";
 
 // Required by Task E (section 29/30): a direct, code-verified proof -- not an audit claim --
-// that the 25 active COMPARISON_SPECS codes are the ONLY metric codes the Truth Engine
-// decision can ever act on, and that a row for any of the 56 inactive codes can never enter
-// as voting evidence, no matter how "usable" its own treatment/value looks.
-describe("Truth Engine decision: only the 25 active codes can ever vote", () => {
-  it("ACTIVE_METRIC_CODES is exactly Object.keys(COMPARISON_SPECS), 25 codes", () => {
+// that the active COMPARISON_SPECS codes are the ONLY metric codes the Truth Engine
+// decision can ever act on, and that a row for any inactive code can never enter as voting
+// evidence, no matter how "usable" its own treatment/value looks. The count itself is
+// deliberately not pinned to a literal number here -- see truth-engine-active-metrics.ts's
+// own header ("one definition, derived, never typed out") -- so promoting a metric never
+// requires updating this test.
+describe("Truth Engine decision: only the active codes can ever vote", () => {
+  it("ACTIVE_METRIC_CODES is exactly Object.keys(COMPARISON_SPECS)", () => {
     expect(ACTIVE_METRIC_CODES).toEqual([...Object.keys(COMPARISON_SPECS)].sort());
-    expect(ACTIVE_METRIC_CODES).toHaveLength(25);
   });
 
   it("a row for a code outside COMPARISON_SPECS is always NO_COMPARISON_SPEC, however usable its own value looks", () => {
