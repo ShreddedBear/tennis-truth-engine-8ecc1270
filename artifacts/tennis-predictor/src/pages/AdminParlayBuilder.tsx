@@ -21,6 +21,7 @@ const api = (path: string) => `${BASE}${path}`
 
 const MAX_FILES = 150
 const RESOLVE_CONCURRENCY = 4
+const VALIDATION_BATCH_SIZE = 12
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,34 @@ interface BuilderSession {
   summary: {
     keepCount: number; borderlineCount: number; removeCount: number
     avgValidationScore: number; avgRiskScore: number; overallParlayGrade: string
+  }
+}
+
+function summarizeBuilderLegs(legs: BuilderLegResult[]): BuilderSession["summary"] {
+  const gradeOrder = ["Reject", "Weak", "Solid", "Elite"] as const
+  const keepCount = legs.filter(leg => leg.decision === "KEEP").length
+  const borderlineCount = legs.filter(leg => leg.decision === "BORDERLINE").length
+  const removeCount = legs.filter(leg => leg.decision === "REMOVE").length
+  const avgValidationScore = legs.length > 0
+    ? Math.round(legs.reduce((sum, leg) => sum + leg.validationScore, 0) / legs.length)
+    : 0
+  const avgRiskScore = legs.length > 0
+    ? Math.round(legs.reduce((sum, leg) => sum + leg.riskScore, 0) / legs.length)
+    : 0
+  const gradeIndices = legs.map(leg => Math.max(0, gradeOrder.indexOf(leg.parlayGrade)))
+  const worstIdx = gradeIndices.length > 0 ? Math.min(...gradeIndices) : 0
+  const avgIdx = gradeIndices.length > 0
+    ? Math.round(gradeIndices.reduce((sum, value) => sum + value, 0) / gradeIndices.length)
+    : 0
+  const overallParlayGrade = gradeOrder[Math.max(0, Math.min(3, Math.min(worstIdx + 1, avgIdx)))]
+
+  return {
+    keepCount,
+    borderlineCount,
+    removeCount,
+    avgValidationScore,
+    avgRiskScore,
+    overallParlayGrade,
   }
 }
 
@@ -1875,7 +1904,7 @@ export default function AdminParlayBuilder() {
       }
       const legSignals: Record<string, InlineSignals | null> = {}
 
-      await Promise.all(ready.map(async (l) => {
+      await runWithConcurrency(ready, RESOLVE_CONCURRENCY, async (l) => {
         if (!l.player1Id || !l.player2Id) { legSignals[l.key] = null; return }
         try {
           const r = await fetch(api("/api/predictions"), {
@@ -1905,7 +1934,7 @@ export default function AdminParlayBuilder() {
         } catch {
           legSignals[l.key] = null
         }
-      }))
+      })
 
       // Persist signals so Best of Best can flip all legs to the predicted winner
       // even after the user has manually toggled some legs post-analysis.
@@ -1949,14 +1978,54 @@ export default function AdminParlayBuilder() {
           }
         }),
       }
-      const r = await fetch(api("/api/admin/parlay/validate"), {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validateBody),
+      // Large screenshot imports can contain 100+ legs. Sending all of them in one
+      // request can outlive the mobile proxy window and return an HTML timeout page.
+      // Validate bounded batches so each request completes independently.
+      const validatedLegs: BuilderLegResult[] = []
+      const validationBatches = Array.from(
+        { length: Math.ceil(validateBody.legs.length / VALIDATION_BATCH_SIZE) },
+        (_, index) => validateBody.legs.slice(
+          index * VALIDATION_BATCH_SIZE,
+          (index + 1) * VALIDATION_BATCH_SIZE,
+        ),
+      )
+
+      for (let batchIndex = 0; batchIndex < validationBatches.length; batchIndex++) {
+        const batch = validationBatches[batchIndex]
+        const response = await fetch(api("/api/admin/parlay/validate"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ legs: batch }),
+        })
+        const rawText = await response.text()
+        let payload: BuilderSession | { error?: string }
+        try {
+          payload = JSON.parse(rawText) as BuilderSession | { error?: string }
+        } catch {
+          const detail = rawText.trim().slice(0, 160)
+          throw new Error(
+            `Validation batch ${batchIndex + 1} of ${validationBatches.length} returned `
+            + `a non-JSON response (HTTP ${response.status})${detail ? `: ${detail}` : ""}`,
+          )
+        }
+        if (!response.ok) {
+          throw new Error(
+            ("error" in payload && payload.error)
+              ? payload.error
+              : `Validation batch ${batchIndex + 1} failed (HTTP ${response.status})`,
+          )
+        }
+        if (!("legs" in payload) || !Array.isArray(payload.legs)) {
+          throw new Error(`Validation batch ${batchIndex + 1} returned no leg results`)
+        }
+        validatedLegs.push(...payload.legs)
+      }
+
+      setResult({
+        legs: validatedLegs,
+        summary: summarizeBuilderLegs(validatedLegs),
       })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? "Validation failed")
-      setResult(j as BuilderSession)
       setAutoSelected(new Set())
     } catch (e) {
       toast({ title: "Validation failed", description: String(e), variant: "destructive" })
