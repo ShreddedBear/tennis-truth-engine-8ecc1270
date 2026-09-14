@@ -235,6 +235,41 @@ class ScreenshotImportService {
       }
     }
 
+    // Vision models can return valid but incomplete JSON for very tall scroll captures. For
+    // large images, compare the semantic result with OCR.Space's card parser and retain the
+    // source that recovered more explicit matchup records. This never merges or re-pairs names.
+    const rawBase64 = imageBase64.startsWith("data:")
+      ? imageBase64.slice(imageBase64.indexOf(",") + 1)
+      : imageBase64;
+    const estimatedImageBytes = rawBase64.length * 0.75;
+    const isLargeScrollCandidate = estimatedImageBytes >= 900 * 1024;
+    if (isLargeScrollCandidate && ocrProvider !== "OCR.Space") {
+      try {
+        const supplementalStartedAt = Date.now();
+        const spaceResult = await callOcrSpace(imageBase64);
+        const supplementalDuration = Date.now() - supplementalStartedAt;
+        ocrDurationMs += supplementalDuration;
+        debugLog.push(
+          `[OCR.SPACE] Completeness check extracted ${spaceResult.matchups.length} matchup(s) versus ${ocrResult.matchups.length} from ${ocrProvider}`,
+        );
+        if (spaceResult.matchups.length > ocrResult.matchups.length) {
+          ocrProvider = "OCR.Space";
+          ocrResult = {
+            matchups: spaceResult.matchups,
+            debugLog,
+            rawText: spaceResult.rawText,
+          };
+          debugLog.push("[OCR.SPACE] Selected more complete explicit-card extraction");
+        }
+        recordSuccess("OCR.Space");
+      } catch (spaceErr) {
+        debugLog.push(
+          `[OCR.SPACE] Completeness check unavailable — retaining ${ocrResult.matchups.length} vision matchup(s): ${String((spaceErr as { message?: string })?.message ?? spaceErr).slice(0, 120)}`,
+        );
+        recordTransientFailure("OCR.Space");
+      }
+    }
+
     // 5. Player resolution
     const { debugLog: ocrDebugLog, rawText, ...rawForResolver } = ocrResult;
     void ocrDebugLog; // already merged into debugLog above

@@ -68,13 +68,34 @@ export function parseOcrText(text: string): RawMatchupEntry[] {
     .map((line, index) => ({ index, match: vsRe.exec(line.trim()) }))
     .filter((entry): entry is { index: number; match: RegExpExecArray } => entry.match !== null);
 
-  const field = (lines: string[], names: string[]): string | null => {
-    const pattern = new RegExp(`^(?:${names.join("|")})\\s*:\\s*(.+)$`, "i");
+  type FieldName = "eventName" | "level" | "round" | "scheduledDate" | "surface" | "bestOf";
+  const labels: Array<{ name: FieldName; source: string }> = [
+    { name: "eventName", source: "(?:tournament|tournamen|lournament|ournament|tourament|toumament|burnament|rumament|thumament|taumament|nurnament|journament)" },
+    { name: "level", source: "(?:event\\s*[ _-]?(?:level|lavel|lovel)|evant\\s*[ _-]?level|fvent\\s*[ _-]?level|fuent\\s*[ _-]?level|tvmtlevel)(?=\\s*[:;,.-])" },
+    { name: "round", source: "(?:round|raund|rount|rourd|kound)(?=\\s*[:;,.-])" },
+    { name: "scheduledDate", source: "(?:scheduled\\s*[ _-]?(?:date|dale|dato)|scheduler\\s*[ _-]?date)(?=\\s*[:;,.-])" },
+    { name: "surface", source: "(?:surface|surfuce|surtace|surace|surlace)(?=\\s*[:;,.-])" },
+    { name: "bestOf", source: "(?:best\\s*[ _-]?(?:of|ot|or)|rest\\s*[ _-]?of)(?=\\s*[:;,.-])" },
+  ];
+  const allLabels = labels.map((label) => `(?<${label.name}>${label.source})`).join("|");
+
+  const fields = (lines: string[]): Partial<Record<FieldName, string>> => {
+    const values: Partial<Record<FieldName, string>> = {};
     for (const line of lines) {
-      const found = pattern.exec(line.trim());
-      if (found?.[1]?.trim()) return found[1].trim();
+      const matches = [...line.matchAll(new RegExp(allLabels, "gi"))];
+      for (let index = 0; index < matches.length; index++) {
+        const match = matches[index]!;
+        const name = Object.keys(match.groups ?? {}).find(
+          (key) => match.groups?.[key] !== undefined,
+        ) as FieldName | undefined;
+        if (!name || values[name]) continue;
+        const start = (match.index ?? 0) + match[0].length;
+        const end = matches[index + 1]?.index ?? line.length;
+        const value = line.slice(start, end).replace(/^[\s:;,.-]+|[\s|/]+$/g, "").trim();
+        if (value) values[name] = value;
+      }
     }
-    return null;
+    return values;
   };
   const normalizedSurface = (value: string | null): RawMatchupEntry["surface"] => {
     const normalized = value?.replace(/[\s_-]/g, "").toUpperCase();
@@ -108,20 +129,46 @@ export function parseOcrText(text: string): RawMatchupEntry[] {
     const p1 = cleanName(heading.match[1]!);
     const p2 = cleanName(heading.match[2]!);
     if (!p1 || !p2 || p1 === p2) continue;
-    const bestOf = field(recordLines, ["best[ _-]?of"]);
+    const metadata = fields(recordLines);
     matchups.push({
       player1Name: p1,
       player2Name: p2,
-      eventName: field(recordLines, ["tournament", "event"]),
-      level: normalizedLevel(field(recordLines, ["event[ _-]?level", "level"])),
-      round: field(recordLines, ["round"]),
-      scheduledDate: field(recordLines, ["scheduled[ _-]?date", "date"]),
-      surface: normalizedSurface(field(recordLines, ["surface"])),
-      matchFormat: normalizedFormat(bestOf),
+      eventName: metadata.eventName ?? null,
+      level: normalizedLevel(metadata.level ?? null),
+      round: metadata.round ?? null,
+      scheduledDate: metadata.scheduledDate ?? null,
+      surface: normalizedSurface(metadata.surface ?? null),
+      matchFormat: normalizedFormat(metadata.bestOf ?? null),
     });
   }
 
-  if (matchups.length > 0) return matchups;
+  if (matchups.length > 0) {
+    const comparableEvent = (value: string | null | undefined) =>
+      String(value ?? "")
+        .toLowerCase()
+        .replace(/\b(?:atp|alp|all)\b/g, "atp")
+        .replace(/[^a-z0-9]+/g, "")
+        .replace(/(?:bell?s|biell[as])/g, "biella");
+    const similarEvent = (left: string, right: string) => {
+      if (left === right) return true;
+      const shorter = left.length <= right.length ? left : right;
+      const longer = left.length > right.length ? left : right;
+      return shorter.length >= 8 && longer.includes(shorter);
+    };
+    // Metadata may be omitted from one otherwise-readable card. Fill only when both
+    // immediate neighbours independently name the same event; never infer player names.
+    for (let index = 1; index + 1 < matchups.length; index++) {
+      const current = matchups[index]!;
+      if (current.eventName) continue;
+      const previous = matchups[index - 1]!.eventName;
+      const next = matchups[index + 1]!.eventName;
+      if (!previous || !next) continue;
+      if (similarEvent(comparableEvent(previous), comparableEvent(next))) {
+        current.eventName = previous.length <= next.length ? previous : next;
+      }
+    }
+    return matchups;
+  }
 
   // Fail closed: only pair stacked names when both occur in the same visible text block.
   const blocks = text.split(/\r?\n\s*\r?\n+/);

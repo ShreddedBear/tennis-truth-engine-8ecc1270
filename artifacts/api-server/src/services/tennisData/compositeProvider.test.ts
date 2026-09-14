@@ -25,6 +25,7 @@ import type {
   ProviderStatusInfo,
   TennisDataProvider,
 } from "./types.js";
+import type { LiveTennisFixturesProvider } from "./liveTennisFixturesProvider.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -197,5 +198,30 @@ describe("CompositeTennisProvider — Sofascore tier-3", () => {
       () => composite.getPlayer("unknown-player"),
       ProviderUnavailableError,
     );
+  });
+
+  it("still searches Live Tennis when both ranking providers are unavailable", async () => {
+    const liveCandidate: PlayerSummary = {
+      id: "live-tennis-player-1305",
+      name: "Daisuke Sumizawa",
+      countryCode: "JPN",
+      currentRank: 1582,
+      tour: "atp",
+    };
+    const fixturePrimary = {
+      async searchPlayers() {
+        return [liveCandidate];
+      },
+      getStatus() {
+        return { provider: "Live Tennis API", connected: true, lastSuccessfulCallAt: null, lastError: null };
+      },
+    } as unknown as LiveTennisFixturesProvider;
+    const composite = new CompositeTennisProvider(
+      makeUnavailableProvider("Primary"),
+      makeUnavailableProvider("Fallback"),
+      fixturePrimary,
+    );
+
+    assert.deepEqual(await composite.searchPlayers("Daisuke Sumizawa"), [liveCandidate]);
   });
 });

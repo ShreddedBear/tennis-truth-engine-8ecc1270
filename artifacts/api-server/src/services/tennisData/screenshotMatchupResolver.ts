@@ -1164,12 +1164,20 @@ async function resolveOneMatchup(
 
   // Best-guess disclaimer: player IS set but may be wrong — OCR may have misread a character.
   // The warning is emitted before the prediction proceeds so the user can correct it.
-  if (player1Outcome.status === "best-guess" && player1.player) {
+  if (
+    player1Outcome.status === "best-guess" &&
+    player1.player &&
+    normalizeName(entry.player1Name ?? "") !== normalizeName(player1.player.name)
+  ) {
     warnings.push(
       `Read "${entry.player1Name}" for Player 1 — OCR may have misread a character. Best guess: ${player1.player.name}. Please confirm via Search Players.`,
     );
   }
-  if (player2Outcome.status === "best-guess" && player2.player) {
+  if (
+    player2Outcome.status === "best-guess" &&
+    player2.player &&
+    normalizeName(entry.player2Name ?? "") !== normalizeName(player2.player.name)
+  ) {
     warnings.push(
       `Read "${entry.player2Name}" for Player 2 — OCR may have misread a character. Best guess: ${player2.player.name}. Please confirm via Search Players.`,
     );

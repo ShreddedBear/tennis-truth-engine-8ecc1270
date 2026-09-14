@@ -17,6 +17,9 @@ export interface CacheEntry<T> {
 
 const TTL_MS = 60 * 60 * 1000; // 1 hour
 const MAX_ENTRIES = 200;
+// Include the parser contract in the key. A code deploy can otherwise keep serving an
+// hour-old resolved result produced by an earlier parser from the same uploaded image.
+const CACHE_SCHEMA_VERSION = "screenshot-import-v3";
 
 // Ordered map so we can evict oldest-inserted entry (insertion order).
 const _cache = new Map<string, CacheEntry<unknown>>();
@@ -27,7 +30,7 @@ export function imageHash(imageBase64: string): string {
   const raw = imageBase64.startsWith("data:")
     ? imageBase64.slice(imageBase64.indexOf(",") + 1)
     : imageBase64;
-  return createHash("md5").update(raw).digest("hex");
+  return createHash("md5").update(CACHE_SCHEMA_VERSION).update("\0").update(raw).digest("hex");
 }
 
 export function cacheGet<T>(hash: string): T | null {

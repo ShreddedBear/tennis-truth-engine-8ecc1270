@@ -54,6 +54,60 @@ Kosuke Ogura`);
   assert.deepEqual(parsed, []);
 });
 
+test("extracts multiple OCR-damaged metadata labels from one line", () => {
+  const [parsed] = parseOcrText(`MATCHUP 15
+Daisuke Sumizawa vs Kosuke Ogura
+ournament: AlP Challenger Guangzhou Event Lavel: Challengar Round: Qualifying Round 1
+Scheduled Date: 2026-09-13 Surface: Hard Best Of: 3`);
+  assert.deepEqual(parsed, {
+    player1Name: "Daisuke Sumizawa",
+    player2Name: "Kosuke Ogura",
+    eventName: "AlP Challenger Guangzhou",
+    level: "Other",
+    round: "Qualifying Round 1",
+    scheduledDate: "2026-09-13",
+    surface: "Hard",
+    matchFormat: "BestOf3",
+  });
+});
+
+test("fills a missing event only when both adjacent records agree", () => {
+  const parsed = parseOcrText(`A One vs B One
+Tournament: ATP Challenger Biella
+
+C Two vs D Two
+Scheduled Date: 2026-09-13 Surface: Clay Best Of: 3
+
+E Three vs F Three
+lournament ATP Challenger Biella`);
+  assert.equal(parsed[1]?.eventName, "ATP Challenger Biella");
+
+  const distinct = parseOcrText(`A One vs B One
+Tournament: ATP Challenger Biella
+
+C Two vs D Two
+Scheduled Date: 2026-09-13
+
+E Three vs F Three
+Tournament: ATP Challenger Rennes`);
+  assert.equal(distinct[1]?.eventName, null);
+});
+
+test("recovers the omitted Biella event from the two agreeing OCR-damaged neighbours", () => {
+  const parsed = parseOcrText(`MATCHUP 1
+Lorenzo Beraldo vs Dimitris Sakellaridis
+ournament: All Challenger Bells tvmtlevel: Chilleneer Round: Qualifying Round 1
+Scheduled Date: 2026-09-13 Surface: Clay Best Of: 3
+Adrian Oetzbach vs Pierluigi Basile
+Scheduled Date: 2026-09-13 Surface: Clay Best Of: 3
+MATCHUP 3
+Matthew William Donald vs Giovanni Oradini
+ournament: ATP Challenger Biells Event Level: Challenger Round: Qualifying Round 1`);
+  assert.equal(parsed[1]?.eventName, "All Challenger Bells");
+  assert.equal(parsed[1]?.player1Name, "Adrian Oetzbach");
+  assert.equal(parsed[1]?.player2Name, "Pierluigi Basile");
+});
+
 test("normalizes structured model aliases and numeric best_of", () => {
   const parsed = parseRecognitionResponse(JSON.stringify([{
     player1Name: "Eva Vedder",

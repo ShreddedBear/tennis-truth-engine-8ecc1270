@@ -229,11 +229,46 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   async searchPlayers(query: string): Promise<PlayerSummary[]> {
-    return this.withFallback(
-      "searchPlayers",
-      () => this.primary.searchPlayers(query),
-      () => this.fallback.searchPlayers(query),
-    );
+    let candidates: PlayerSummary[] = [];
+    try {
+      candidates = await this.primary.searchPlayers(query);
+    } catch (err) {
+      if (!(err instanceof ProviderUnavailableError)) throw err;
+      logger.warn(
+        { method: "searchPlayers", primaryError: err.message },
+        `${this.primary.name} player search unavailable`,
+      );
+    }
+
+    // A healthy rankings feed can legitimately return no lower-tour players. An empty
+    // result is therefore a coverage gap, not proof that another source has nothing.
+    if (candidates.length === 0) {
+      try {
+        candidates = await this.fallback.searchPlayers(query);
+      } catch (err) {
+        if (!(err instanceof ProviderUnavailableError)) throw err;
+        logger.warn(
+          { method: "searchPlayers", fallbackError: err.message },
+          `${this.fallback.name} player search unavailable`,
+        );
+      }
+    }
+
+    if (this.fixturePrimary) {
+      try {
+        candidates = [...candidates, ...(await this.fixturePrimary.searchPlayers(query))];
+      } catch (err) {
+        if (!(err instanceof ProviderUnavailableError)) throw err;
+        logger.warn(
+          { method: "searchPlayers", liveTennisError: err.message },
+          "Live Tennis player search unavailable — retaining ranking-provider results",
+        );
+      }
+    }
+
+    const unique = new Map<string, PlayerSummary>();
+    for (const candidate of candidates) unique.set(candidate.id, candidate);
+    return [...unique.values()];
   }
 
   /**

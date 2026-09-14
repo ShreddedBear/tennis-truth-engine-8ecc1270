@@ -2,6 +2,7 @@ import { logger } from "../../lib/logger";
 import type {
   Fixture,
   MatchFormat,
+  PlayerSummary,
   ProviderStatusInfo,
   Surface,
   TournamentLevel,
@@ -69,8 +70,12 @@ function mapFixture(value: unknown): Fixture | null {
   const player2 = asRecord(players?.p2);
   const player1Name = asString(player1?.name);
   const player2Name = asString(player2?.name);
+  const player1Id = asId(player1?.id);
+  const player2Id = asId(player2?.id);
   const matchId = asId(match.id);
-  if (!matchId || !player1Name || !player2Name) return null;
+  // Names are not identities. Reject rows without source-issued player IDs rather than
+  // manufacturing an ID from the display name and later treating it as provider-backed.
+  if (!matchId || !player1Name || !player2Name || !player1Id || !player2Id) return null;
 
   const rawStart = asString(match.scheduled_time);
   const parsedStart = rawStart ? new Date(rawStart) : null;
@@ -98,9 +103,9 @@ function mapFixture(value: unknown): Fixture | null {
         ? match.indoor
         : asString(match.surface)?.toLowerCase().includes("indoor") ?? null,
     matchFormat: mapMatchFormat(match.best_of),
-    player1Id: `live-tennis-player-${asId(player1?.id) ?? player1Name}`,
+    player1Id: `live-tennis-player-${player1Id}`,
     player1Name,
-    player2Id: `live-tennis-player-${asId(player2?.id) ?? player2Name}`,
+    player2Id: `live-tennis-player-${player2Id}`,
     player2Name,
   };
 }
@@ -109,6 +114,7 @@ export class LiveTennisFixturesProvider {
   readonly name = "Live Tennis API";
   private cachedFixtures: Fixture[] | null = null;
   private cacheExpiresAt = 0;
+  private readonly playerSearchCache = new Map<string, { expiresAt: number; players: PlayerSummary[] }>();
   private unavailableUntil = 0;
   private lastSuccessfulCallAt: string | null = null;
   private lastError: string | null = null;
@@ -198,5 +204,92 @@ export class LiveTennisFixturesProvider {
   ): Promise<Fixture[]> {
     const fixtures = await this.fetchFixtures(opts?.bypassCache === true);
     return fixtures.filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
+  }
+
+  async searchPlayers(query: string): Promise<PlayerSummary[]> {
+    const normalizedQuery = query
+      .normalize("NFKD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    if (normalizedQuery.length < 2) return [];
+
+    const cached = this.playerSearchCache.get(normalizedQuery);
+    if (cached && Date.now() < cached.expiresAt) return cached.players;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({ search: query, limit: "25", offset: "0" });
+      const response = await fetch(`${BASE_URL}/players?${params}`, {
+        headers: {
+          Accept: "application/json",
+          "X-API-Key": this.apiKey,
+        },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new ProviderUnavailableError(
+          `${this.name} player search failed: HTTP ${response.status}`,
+        );
+      }
+
+      const payload = asRecord(await response.json());
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const candidates = rows.flatMap((value): PlayerSummary[] => {
+        const player = asRecord(value);
+        const id = asId(player?.id);
+        const name = asString(player?.name);
+        if (!id || !name || name.includes("/") || name.includes("&")) return [];
+        const normalizedName = name
+          .normalize("NFKD")
+          .replace(/\p{Diacritic}/gu, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
+        if (!normalizedName.includes(normalizedQuery)) return [];
+        const ranking = Number(player?.ranking);
+        return [{
+          id: `live-tennis-player-${id}`,
+          name,
+          countryCode: asString(player?.country)?.toUpperCase() ?? null,
+          currentRank: Number.isFinite(ranking) && ranking > 0 ? ranking : null,
+          tour: asString(player?.tour),
+        }];
+      });
+
+      // The source can retain older duplicate identities for the same exact singles name.
+      // When one carries a current ranking, that source-ranked identity is the canonical one.
+      const byName = new Map<string, PlayerSummary[]>();
+      for (const candidate of candidates) {
+        const key = candidate.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        byName.set(key, [...(byName.get(key) ?? []), candidate]);
+      }
+      const players = [...byName.values()].flatMap((sameName) => {
+        const ranked = sameName.filter((candidate) => candidate.currentRank !== null);
+        return ranked.length === 1 ? ranked : sameName;
+      });
+      this.playerSearchCache.set(normalizedQuery, {
+        expiresAt: Date.now() + CACHE_TTL_MS,
+        players,
+      });
+      this.lastSuccessfulCallAt = new Date().toISOString();
+      this.lastError = null;
+      return players;
+    } catch (error) {
+      if (error instanceof ProviderUnavailableError) throw error;
+      const detail =
+        error instanceof Error && error.name === "AbortError"
+          ? "request timed out"
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      throw new ProviderUnavailableError(
+        `${this.name} player search failed: ${detail}`,
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 }

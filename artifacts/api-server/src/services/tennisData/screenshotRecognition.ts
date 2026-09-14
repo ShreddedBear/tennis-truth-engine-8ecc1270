@@ -380,7 +380,7 @@ async function callOpenAI(resolved: ResolvedKey, imageDataUrl: string, systemPro
   const client = new OpenAI({ apiKey: resolved.key, ...(resolved.baseUrl ? { baseURL: resolved.baseUrl } : {}) });
   const response = await client.chat.completions.create({
     model: "gpt-4o",
-    max_completion_tokens: 2000,
+    max_completion_tokens: 8192,
     messages: [
       { role: "system", content: systemPrompt },
       {
@@ -428,7 +428,7 @@ async function callGemini(resolved: ResolvedKey, data: string, mediaType: "image
           { text: "Extract all matchups from this screenshot." },
         ],
       }],
-      generationConfig: { maxOutputTokens: 2000 },
+      generationConfig: { maxOutputTokens: 8192 },
     };
 
     const res = await fetch(url, {
@@ -511,7 +511,7 @@ async function callAnthropic(resolved: ResolvedKey, data: string, mediaType: "im
   const client = new Anthropic({ apiKey: resolved.key });
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 2000,
+    max_tokens: 8192,
     system: systemPrompt,
     messages: [
       {
