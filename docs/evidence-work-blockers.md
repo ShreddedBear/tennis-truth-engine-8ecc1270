@@ -445,7 +445,66 @@ what was safe to fix unilaterally (the win-probability formula gap, purely
 additive, no existing assertion touched) and logged the treatment question
 here instead of guessing at it.
 
-## 4. Metric 060's ENVIRONMENT family eligibility looks like a missed reconciliation case (OPEN, likely real, not fixed)
+## 4. Metric 060's ENVIRONMENT family eligibility looks like a missed reconciliation case (RESOLVED 2026-09-14 — deliberate, not a bug)
+
+**Final resolution 2026-09-14, per explicit user instruction to check git
+archaeology before making the call:** examined the actual original Task
+19/20 reconciliation commits directly (not just this session's own
+`6d5ccf2` flag commit) for explicit treatment of 060/071:
+
+- `dd923e7` ("Task 19: fix canonical metric-definition drift; add
+  player-evidence classification") — its own commit message states
+  `metric-source-family-policy.ts` "was already authored against the TRUE
+  identities, so no policy changes were needed," i.e. this pass
+  specifically investigated the family-policy file against every real
+  metric definition and confirmed it needed no changes, including 060/071's
+  entries.
+- `5aeab88` ("Task 19 continued: rebuild metric-source-family-policy
+  against true numbering") — rewrote large parts of `ENVIRONMENT_METRICS`,
+  `RESULTS_SCHEDULE_METRICS`, and `PBP_METRICS` wholesale, and the
+  `REQUIRED_FAMILIES` map's `"060": ["ENVIRONMENT","POINT_BY_POINT"]` and
+  `"071": ["RESULTS_SCHEDULE","ENVIRONMENT"]` entries are both present,
+  unchanged, in the post-rebuild code.
+- `e2b564e` ("Task 20 reconciliation: retarget/dedupe Task 18B PBP codes,
+  close PBP family-policy leak") — explicitly removed `036`/`040`/`079`
+  from PBP-related sets in this same commit, with detailed per-code
+  reasoning, while 060/071 were left untouched in both
+  `ENVIRONMENT_METRICS` and the `REQUIRED_FAMILIES` map.
+- `55d4e01` ("Fix code 069: remove Dominance Ratio/PBP mapping, reconcile
+  to authoritative definition") — explicitly removed 069 from
+  `PBP_METRICS`/`ENVIRONMENT` mappings and the `REQUIRED_FAMILIES`/
+  `covered` sets in this same commit, again leaving 060/071's entries
+  untouched right next to the lines being edited.
+
+So across four separate reconciliation commits spanning Tasks 19 and 20 —
+the same commits that demonstrably found and fixed the identical class of
+mistake for 069, 036, 040, and 079 — codes 060 and 071 consistently kept
+their ENVIRONMENT (and for 071, RESULTS_SCHEDULE) eligibility unchanged,
+edited around but never removed. Combined with `dd923e7`'s explicit
+statement that the family-policy file was checked against true
+definitions and needed no changes, this is the "mentioned and explicitly
+left in" case the user's instruction anticipated, not the "never
+reviewed" case — unlike 020, which had zero defending comment or test
+anywhere and turned out to be a real bug.
+
+**Decision: treat as deliberate, not fixed.** Reverted the provisional,
+uncommitted edit to `metric-source-family-policy.ts` (removing "071" from
+`RESULTS_SCHEDULE_METRICS`) that was in progress before this check. 060
+and 071 keep their existing ENVIRONMENT/RESULTS_SCHEDULE family
+eligibility in `metric-source-family-policy.ts`,
+`deterministic-environment-metrics.server.ts`, and
+`deterministic-results-schedule-metrics.server.ts` — no code changes. The
+underlying evidence-quality concern (raw ambient weather is a thin match
+for 060's zero weather-related bullets and 071's roof-state/start-time
+bullets) is still real and worth flagging to whoever owns
+`newly-green-end-to-end-coverage-audit.test.ts`'s intent if they want to
+revisit it deliberately in the future, but it is a documented, considered
+call from the original reconciliation pass, not an oversight this session
+should override unilaterally. Item closed.
+
+---
+
+### Original entry (superseded by the resolution above)
 
 **Update 2026-08-29:** auditing 021 independently (see
 `docs/metric-audit-021-022-surface-environment-and-shot-level.md`) found a
