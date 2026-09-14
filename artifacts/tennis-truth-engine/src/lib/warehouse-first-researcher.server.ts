@@ -23,7 +23,7 @@ import { evidencePairMatches } from "./evidence-player-alias";
 import { classifyEvidenceTourFamily, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 import { finalMetricWiringResearcher } from "./metric-wiring-078-081.server";
 import { appendMetricObservationContext, buildMetricObservationContext } from "./source-observation-metric-bridge.server";
-import { buildLiveTennisApiPbpContext } from "./live-tennis-api-pbp.server";
+import { buildLiveTennisApiPbpContext, liveTennisApiSourcePacketBudgetMs } from "./live-tennis-api-pbp.server";
 import { localMetricRows } from "./hybrid-audit-research.server";
 import { officialWtaMetricRows } from "./wta-official-match-evidence.server";
 import { certifyMetricFinding } from "./metric-certification";
@@ -33,7 +33,10 @@ import { auditDbCompositeMetric, isAuditDbCompositeMetric } from "./audit-metric
 
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 const metricCallCache = new BoundedPromiseCache<MetricFinding[]>(256, 15 * 60_000);
-const SOURCE_PACKET_BUDGET_MS = 7_000;
+// Historical PBP requires bounded multi-request discovery and tape retrieval. Seven
+// seconds was shorter than the provider path itself and converted valid in-flight work
+// into an empty fallback. Keep a finite bound, but make it operationally configurable.
+const SOURCE_PACKET_BUDGET_MS = liveTennisApiSourcePacketBudgetMs();
 const LIVE_PROVIDER_BUDGET_MS = 12_000;
 const researchWorkPool = new BoundedOperationPool(4);
 

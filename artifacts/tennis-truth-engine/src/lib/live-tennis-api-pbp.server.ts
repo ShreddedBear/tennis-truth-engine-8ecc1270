@@ -3,40 +3,76 @@ import { reconstructPbpScoreState, TASK18B_METRIC_CODES, type PbpSide } from "./
 import { canonicalApprovedPbpIdentity, claimUniqueApprovedPbp, type ApprovedPbpTour } from "./pbp-evidence-firewall";
 
 const BASE = "https://api.livetennisapi.com/api/public/v1";
-// Basic tier: 60 req/min, 1,000 req/day (confirmed from the plan the user subscribed to).
-// This lane is process-wide serialized to stay safely under the per-minute cap; a full
-// slate re-audit will take real wall-clock time as a direct consequence of that cap, not a
-// bug. The daily cap is tracked so this lane fails closed with a clear reason instead of
-// flooding the provider with 429s once the day's budget is spent.
-const MIN_INTERVAL_MS = 1100; // ~54 req/min, margin under the 60/min limit
-const DAILY_BUDGET = 1000;
+const positiveInt = (value: string | undefined, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+};
+
+export type LiveTennisApiConfig = {
+  requestsPerMinute: number;
+  dailyBudget: number;
+  historyPageSize: number;
+  maxHistoryRowsPerPlayer: number;
+  maxCandidatesPerPlayer: number;
+  requestTimeoutMs: number;
+  retryAttempts: number;
+};
+
+/** Pro-plan defaults; every operational limit can be lowered without a code change. */
+export function liveTennisApiConfig(env: NodeJS.ProcessEnv = process.env): LiveTennisApiConfig {
+  return {
+    requestsPerMinute: Math.min(300, positiveInt(env.LIVE_TENNIS_API_REQUESTS_PER_MINUTE, 300)),
+    dailyBudget: Math.min(10_000, positiveInt(env.LIVE_TENNIS_API_DAILY_BUDGET, 10_000)),
+    historyPageSize: Math.min(100, positiveInt(env.LIVE_TENNIS_API_HISTORY_PAGE_SIZE, 25)),
+    maxHistoryRowsPerPlayer: positiveInt(env.LIVE_TENNIS_API_MAX_HISTORY_ROWS_PER_PLAYER, 250),
+    maxCandidatesPerPlayer: positiveInt(env.LIVE_TENNIS_API_MAX_CANDIDATES_PER_PLAYER, 20),
+    requestTimeoutMs: positiveInt(env.LIVE_TENNIS_API_REQUEST_TIMEOUT_MS, 15_000),
+    retryAttempts: Math.min(4, positiveInt(env.LIVE_TENNIS_API_RETRY_ATTEMPTS, 2)),
+  };
+}
+
+export function liveTennisApiSourcePacketBudgetMs(env: NodeJS.ProcessEnv = process.env): number {
+  return Math.max(7_000, positiveInt(env.LIVE_TENNIS_API_SOURCE_PACKET_BUDGET_MS, 45_000));
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Kept intentionally low (vs. BSD's 12-per-player) to fit the 1,000/day budget across a
-// full active-slate re-audit: 2 players x N candidates x (1 discovery call + 1 tape call
-// per candidate) must fit the daily cap. Revisit if the plan is upgraded.
-const MAX_CANDIDATES_PER_PLAYER = 4;
 
 let lastRequestAt = 0;
 let dailyWindowStart = Date.now();
 let dailyCount = 0;
+let requestStartQueue: Promise<void> = Promise.resolve();
 
 function budgetOk(): boolean {
   const now = Date.now();
   if (now - dailyWindowStart > DAY_MS) { dailyWindowStart = now; dailyCount = 0; }
-  return dailyCount < DAILY_BUDGET;
+  return dailyCount < liveTennisApiConfig().dailyBudget;
 }
 
 async function throttledFetch(path: string, token: string): Promise<Response> {
-  const now0 = Date.now();
-  if (now0 - dailyWindowStart > DAY_MS) { dailyWindowStart = now0; dailyCount = 0; }
-  const wait = Math.max(0, lastRequestAt + MIN_INTERVAL_MS - Date.now());
-  if (wait > 0) await new Promise((res) => setTimeout(res, wait));
-  lastRequestAt = Date.now();
-  dailyCount++;
-  return fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, "User-Agent": "tennis-truth-engine-live-tennis-api/1.0" },
-    signal: AbortSignal.timeout(12000),
-  });
+  const config = liveTennisApiConfig();
+  let response: Response | null = null;
+  for (let attempt = 0; attempt <= config.retryAttempts; attempt++) {
+    if (!budgetOk()) throw new Error(classifyPbpFetchFailure({ dailyBudgetExhausted: true }));
+    const scheduled = requestStartQueue.then(async () => {
+      const now = Date.now();
+      if (now - dailyWindowStart > DAY_MS) { dailyWindowStart = now; dailyCount = 0; }
+      const minIntervalMs = Math.ceil(60_000 / config.requestsPerMinute);
+      const wait = Math.max(0, lastRequestAt + minIntervalMs - Date.now());
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      lastRequestAt = Date.now();
+      dailyCount++;
+    });
+    requestStartQueue = scheduled.catch(() => {});
+    await scheduled;
+    response = await fetch(`${BASE}${path}`, {
+      headers: { Authorization: `Bearer ${token}`, "User-Agent": "tennis-truth-engine-live-tennis-api/1.0" },
+      signal: AbortSignal.timeout(config.requestTimeoutMs),
+    });
+    if (response.status !== 429 || attempt === config.retryAttempts) return response;
+    const retryAfter = Number(response.headers.get("retry-after"));
+    await new Promise((resolve) => setTimeout(resolve, Number.isFinite(retryAfter) ? Math.max(0, retryAfter * 1000) : 1000 * (attempt + 1)));
+  }
+  return response!;
 }
 
 const norm = (v: unknown) => String(v ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -47,7 +83,7 @@ const norm = (v: unknown) => String(v ?? "").normalize("NFKD").replace(/[̀-ͯ]/
 // calls: HTTP 400 with a `detail` message for bad param combinations, HTTP 402/401/403/404/
 //429, and a documented Bearer-token 401 for auth failures).
 export function classifyPbpFetchFailure(input: { status?: number; parseError?: boolean; networkError?: string; badRequest?: string; dailyBudgetExhausted?: boolean }): string {
-  if (input.dailyBudgetExhausted) return "Live Tennis API daily request budget (1,000/day, Basic tier) is exhausted for this process -- a provider quota limit, not evidence this match's point-by-point data is absent.";
+  if (input.dailyBudgetExhausted) return `Live Tennis API configured daily request budget (${liveTennisApiConfig().dailyBudget}/day) is exhausted for this process -- a provider quota limit, not evidence this match's point-by-point data is absent.`;
   if (input.networkError) return `Live Tennis API point-by-point request failed: ${input.networkError}`;
   if (input.status === 402) return "Live Tennis API returned HTTP 402 (payment/credits required) -- a provider billing failure, not evidence this match's point-by-point data is absent.";
   if (input.status === 401 || input.status === 403) return `Live Tennis API returned HTTP ${input.status} (authentication/authorization failed).`;
@@ -137,36 +173,77 @@ function classifyTour(m: { gender?: unknown; tour?: unknown; round?: unknown; to
   return isMen ? (isMainTour ? "ATP_MAIN" : "ATP_CHALLENGER") : (isMainTour ? "WTA_MAIN" : "WTA_CHALLENGER");
 }
 
-async function resolvePlayerId(name: string, token: string): Promise<number | null> {
+export function exactPlayerIds(body: unknown, playerName: string): number[] {
+  const key = norm(playerName);
+  const candidates: Array<{ id?: unknown; name?: unknown; is_doubles_team?: unknown }> =
+    Array.isArray((body as any)?.data) ? (body as any).data : [];
+  return [...new Set(candidates
+    .filter((candidate) => norm(candidate.name) === key && candidate.is_doubles_team !== true)
+    .map((candidate) => Number(candidate.id))
+    .filter((id) => Number.isInteger(id) && id > 0))]
+    .slice(0, 5);
+}
+
+const playerIdCache = new Map<string, Promise<number[]>>();
+async function resolvePlayerIds(name: string, token: string): Promise<number[]> {
   const key = norm(name);
-  if (!key) return null;
-  if (!budgetOk()) return null;
-  const tokens = key.split(" ").filter(Boolean);
-  const searchTerm = tokens[tokens.length - 1] ?? key;
-  try {
-    const r = await throttledFetch(`/players?search=${encodeURIComponent(searchTerm)}`, token);
-    if (!r.ok) return null;
-    const body: any = await r.json().catch(() => null);
-    const candidates: Array<{ id: number; name: string }> = Array.isArray(body?.data) ? body.data : [];
-    const exact = candidates.filter((c) => norm(c.name) === key);
-    // Fail closed on ambiguity: never guess between two same-named players.
-    return exact.length === 1 ? exact[0].id : null;
-  } catch { return null; }
+  if (!key) return [];
+  const cached = playerIdCache.get(key);
+  if (cached) return cached;
+  const promise = (async () => {
+    if (!budgetOk()) return [];
+    const tokens = key.split(" ").filter(Boolean);
+    const searchTerm = tokens[tokens.length - 1] ?? key;
+    try {
+      const r = await throttledFetch(`/players?search=${encodeURIComponent(searchTerm)}`, token);
+      if (!r.ok) return [];
+      const body: any = await r.json().catch(() => null);
+      // The provider currently exposes duplicate exact-name IDs for some established
+      // players. Do not guess one record: search every exact non-doubles ID, then let the
+      // canonical match firewall validate and deduplicate the returned match identities.
+      return exactPlayerIds(body, name);
+    } catch { return []; }
+  })();
+  playerIdCache.set(key, promise);
+  promise.catch(() => playerIdCache.delete(key));
+  return promise;
 }
 
 type HistoryRow = { id: number; date: string | null; gender: string | null; tour: string | null; surface: string | null; tournament: string | null; round: string | null; players: [string, string] };
 
+export async function collectPaginatedHistory(
+  fetchPage: (offset: number, limit: number) => Promise<any[]>,
+  asOfDate: string,
+  config: Pick<LiveTennisApiConfig, "historyPageSize" | "maxHistoryRowsPerPlayer" | "maxCandidatesPerPlayer">,
+): Promise<any[]> {
+  const qualifying: any[] = [];
+  for (let offset = 0; offset < config.maxHistoryRowsPerPlayer && qualifying.length < config.maxCandidatesPerPlayer; offset += config.historyPageSize) {
+    const rows = await fetchPage(offset, config.historyPageSize);
+    qualifying.push(...rows.filter((row) => row?.outcome === "completed" && row?.scheduled_time && String(row.scheduled_time).slice(0, 10) < asOfDate));
+    if (rows.length < config.historyPageSize) break;
+  }
+  return qualifying
+    .sort((a, b) => String(b.scheduled_time).localeCompare(String(a.scheduled_time)))
+    .slice(0, config.maxCandidatesPerPlayer);
+}
+
+const historyCache = new Map<string, Promise<HistoryRow[]>>();
 async function discoverHistoricalMatches(playerId: number, asOfDate: string, token: string): Promise<HistoryRow[]> {
-  if (!budgetOk()) return [];
-  try {
-    const r = await throttledFetch(`/history/matches?player=${playerId}&limit=25&offset=0`, token);
-    if (!r.ok) return [];
-    const body: any = await r.json().catch(() => null);
-    const rows: any[] = Array.isArray(body?.data) ? body.data : [];
-    return rows
-      .filter((row) => row?.outcome === "completed" && row?.scheduled_time && String(row.scheduled_time).slice(0, 10) < asOfDate)
-      .sort((a, b) => String(b.scheduled_time).localeCompare(String(a.scheduled_time)))
-      .slice(0, MAX_CANDIDATES_PER_PLAYER)
+  const key = `${playerId}|${asOfDate}`;
+  const cached = historyCache.get(key);
+  if (cached) return cached;
+  const promise = (async () => {
+    const config = liveTennisApiConfig();
+    const qualifying = await collectPaginatedHistory(async (offset, limit) => {
+      if (!budgetOk()) return [];
+      try {
+        const r = await throttledFetch(`/history/matches?player=${playerId}&limit=${limit}&offset=${offset}`, token);
+        if (!r.ok) return [];
+        const body: any = await r.json().catch(() => null);
+        return Array.isArray(body?.data) ? body.data : [];
+      } catch { return []; }
+    }, asOfDate, config);
+    return qualifying
       .map((row) => ({
         id: Number(row.id),
         date: row.scheduled_time ? String(row.scheduled_time).slice(0, 10) : null,
@@ -177,11 +254,18 @@ async function discoverHistoricalMatches(playerId: number, asOfDate: string, tok
         round: row?.round ?? null,
         players: [String(row?.players?.p1?.name ?? ""), String(row?.players?.p2?.name ?? "")] as [string, string],
       }));
-  } catch { return []; }
+  })();
+  historyCache.set(key, promise);
+  promise.catch(() => historyCache.delete(key));
+  return promise;
 }
 
 export type PbpFetchResult = { ok: true; payload: unknown } | { ok: false; reason: string };
+const tapeCache = new Map<number, Promise<PbpFetchResult>>();
 async function fetchTape(matchId: number, token: string): Promise<PbpFetchResult> {
+  const cached = tapeCache.get(matchId);
+  if (cached) return cached;
+  const promise = (async (): Promise<PbpFetchResult> => {
   if (!budgetOk()) return { ok: false, reason: classifyPbpFetchFailure({ dailyBudgetExhausted: true }) };
   try {
     const r = await throttledFetch(`/history/matches/${matchId}?points=complete`, token);
@@ -198,6 +282,10 @@ async function fetchTape(matchId: number, token: string): Promise<PbpFetchResult
   } catch (error) {
     return { ok: false, reason: classifyPbpFetchFailure({ networkError: error instanceof Error ? error.message : String(error) }) };
   }
+  })();
+  tapeCache.set(matchId, promise);
+  promise.catch(() => tapeCache.delete(matchId));
+  return promise;
 }
 
 type ObservationStatus = { eligible: boolean; reason: string; matches_used: number; rejected_pbp: number; source: string; fetch_failures: number; fetch_failure_sample: string | null };
@@ -213,12 +301,12 @@ async function computeObservations(args: { p1: string; p2: string; asOfDate: str
     const status: ObservationStatus = { eligible: true, reason: "", matches_used: 0, rejected_pbp: 0, source: "Live Tennis API", fetch_failures: 0, fetch_failure_sample: null };
     const token = process.env.Live_Tennis_Api;
     if (!token) { status.eligible = false; status.reason = "Live_Tennis_Api is not configured."; return { status, observations: [] }; }
-    const [id1, id2] = await Promise.all([resolvePlayerId(args.p1, token), resolvePlayerId(args.p2, token)]);
-    if (!id1 && !id2) { status.reason = "Neither player resolved to a Live Tennis API player id."; return { status, observations: [] }; }
+    const [ids1, ids2] = await Promise.all([resolvePlayerIds(args.p1, token), resolvePlayerIds(args.p2, token)]);
+    if (!ids1.length && !ids2.length) { status.reason = "Neither player resolved to a Live Tennis API player id."; return { status, observations: [] }; }
 
     const seenMatchIds = new Set<string>(), seenCanonicalKeys = new Set<string>();
     const claimed: Array<{ row: HistoryRow; identity: NonNullable<ReturnType<typeof canonicalApprovedPbpIdentity>> }> = [];
-    for (const id of [id1, id2].filter((x): x is number => typeof x === "number")) {
+    for (const id of [...new Set([...ids1, ...ids2])]) {
       for (const row of await discoverHistoricalMatches(id, args.asOfDate, token)) {
         if (row.players.some((p) => !p)) continue;
         const tour = classifyTour(row);

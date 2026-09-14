@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { classifyPbpFetchFailure, tapeToGamesPayload } from "./live-tennis-api-pbp.server";
+import {
+  classifyPbpFetchFailure,
+  collectPaginatedHistory,
+  exactPlayerIds,
+  liveTennisApiConfig,
+  liveTennisApiSourcePacketBudgetMs,
+  tapeToGamesPayload,
+} from "./live-tennis-api-pbp.server";
 import { reconstructPbpScoreState } from "./pbp-score-state-recovery";
 
 // Real tape rows captured live from https://api.livetennisapi.com against match 157791
@@ -111,5 +118,72 @@ describe("classifyPbpFetchFailure", () => {
     const reason = classifyPbpFetchFailure({ parseError: true });
     expect(reason.toLowerCase()).toContain("json");
     expect(reason).not.toContain("402");
+  });
+});
+
+describe("Live Tennis API Pro configuration", () => {
+  it("uses the subscribed Pro limits by default", () => {
+    const config = liveTennisApiConfig({});
+    expect(config.requestsPerMinute).toBe(300);
+    expect(config.dailyBudget).toBe(10_000);
+    expect(config.maxCandidatesPerPlayer).toBeGreaterThan(4);
+    expect(config.maxHistoryRowsPerPlayer).toBeGreaterThan(25);
+  });
+
+  it("allows operators to lower limits but never configure above the subscribed plan", () => {
+    expect(liveTennisApiConfig({
+      LIVE_TENNIS_API_REQUESTS_PER_MINUTE: "120",
+      LIVE_TENNIS_API_DAILY_BUDGET: "5000",
+      LIVE_TENNIS_API_MAX_CANDIDATES_PER_PLAYER: "12",
+      LIVE_TENNIS_API_MAX_HISTORY_ROWS_PER_PLAYER: "100",
+    })).toMatchObject({
+      requestsPerMinute: 120,
+      dailyBudget: 5000,
+      maxCandidatesPerPlayer: 12,
+      maxHistoryRowsPerPlayer: 100,
+    });
+    expect(liveTennisApiConfig({
+      LIVE_TENNIS_API_REQUESTS_PER_MINUTE: "999",
+      LIVE_TENNIS_API_DAILY_BUDGET: "99999",
+    })).toMatchObject({ requestsPerMinute: 300, dailyBudget: 10_000 });
+  });
+
+  it("uses a bounded source-packet budget longer than the obsolete seven-second cutoff", () => {
+    expect(liveTennisApiSourcePacketBudgetMs({})).toBe(45_000);
+    expect(liveTennisApiSourcePacketBudgetMs({ LIVE_TENNIS_API_SOURCE_PACKET_BUDGET_MS: "20000" })).toBe(20_000);
+  });
+
+  it("paginates beyond 25 rows and can retain more than four qualifying matches", async () => {
+    const offsets: number[] = [];
+    const page = (start: number, count: number, outcome = "completed") =>
+      Array.from({ length: count }, (_, index) => ({
+        id: start + index,
+        outcome,
+        scheduled_time: "2025-01-01T00:00:00Z",
+      }));
+    const rows = await collectPaginatedHistory(async (offset) => {
+      offsets.push(offset);
+      if (offset === 0) return page(0, 25, "scheduled");
+      if (offset === 25) return page(25, 25);
+      return page(50, 5);
+    }, "2026-09-14", {
+      historyPageSize: 25,
+      maxHistoryRowsPerPlayer: 100,
+      maxCandidatesPerPlayer: 20,
+    });
+    expect(offsets).toEqual([0, 25]);
+    expect(rows).toHaveLength(20);
+    expect(rows.every((row) => row.id >= 25)).toBe(true);
+  });
+});
+
+describe("Live Tennis API player identity discovery", () => {
+  it("keeps duplicate exact-name singles IDs for history discovery instead of rejecting the player", () => {
+    expect(exactPlayerIds({ data: [
+      { id: 280, name: "Caroline Dolehide", is_doubles_team: false },
+      { id: 11011, name: "Caroline Dolehide", is_doubles_team: false },
+      { id: 999, name: "Caroline Dolehide / Partner", is_doubles_team: true },
+      { id: 123, name: "Someone Else", is_doubles_team: false },
+    ] }, "Caroline Dolehide")).toEqual([280, 11011]);
   });
 });

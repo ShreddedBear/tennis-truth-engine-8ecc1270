@@ -87,7 +87,8 @@ describe("warehouse-first-researcher.server.ts surfaces a real BSD PBP fetch fai
 // applyProviderFailurePrecedence) needed to change.
 describe("warehouse-first-researcher.server.ts wires the Live Tennis API PBP lane", () => {
   it("imports buildLiveTennisApiPbpContext instead of the four BSD lane builders", () => {
-    expect(collapsed).toContain('import { buildLiveTennisApiPbpContext } from "./live-tennis-api-pbp.server"');
+    expect(collapsed).toContain("buildLiveTennisApiPbpContext");
+    expect(collapsed).toContain('from "./live-tennis-api-pbp.server"');
     expect(collapsed).not.toContain("buildBsdAtpChallengerPbpContext");
     expect(collapsed).not.toContain("buildBsdAtpMainPbpContext");
     expect(collapsed).not.toContain("buildBsdWtaMainPbpContext");
