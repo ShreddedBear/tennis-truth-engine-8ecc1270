@@ -43,6 +43,16 @@ function makeApiTennisStub(overrides: {
   } as unknown as BuilderProviders["apiTennis"];
 }
 
+function makeLiveTennisStub(overrides: {
+  searchPlayers?: (q: string) => Promise<PlayerSummary[]>;
+  getPlayerMatches?: (id: string) => Promise<MatchRecord[]>;
+} = {}): NonNullable<BuilderProviders["liveTennis"]> {
+  return {
+    searchPlayers: overrides.searchPlayers ?? (async () => []),
+    getPlayerMatches: overrides.getPlayerMatches ?? (async () => []),
+  } as unknown as NonNullable<BuilderProviders["liveTennis"]>;
+}
+
 function makeSofascoreStub(overrides: {
   player?: PlayerSummary | null;
   records?: MatchRecord[];
@@ -137,6 +147,61 @@ describe("shared playerIdentity resolver path", () => {
         `${testCase.playerName} should match candidate ${testCase.candidateName}`,
       );
     }
+  });
+});
+
+describe("Live Tennis API primary provider", () => {
+  it("uses the OCR-resolved Live Tennis player ID before any name search", async () => {
+    let requestedId: string | null = null;
+    const providers: BuilderProviders = {
+      liveTennis: makeLiveTennisStub({
+        searchPlayers: async () => {
+          throw new Error("name search should not run when OCR supplied a source ID");
+        },
+        getPlayerMatches: async (id) => {
+          requestedId = id;
+          return [makeRecord("live-history-1")];
+        },
+      }),
+      rapidApi: null,
+      apiTennis: null,
+      sofascore: makeSofascoreStub({ player: null, records: [] }),
+    };
+
+    const result = await fetchPlayerMatchesFromProviders(
+      "Novak Djokovic",
+      { playerId: "live-tennis-player-1218" },
+      providers,
+    );
+
+    assert.equal(requestedId, "live-tennis-player-1218");
+    assert.equal(result.diagnostics.outcome, "DATA_FOUND");
+    assert.equal(result.diagnostics.playerResolutionMethod, "ocr-source-id");
+    assert.deepEqual(result.diagnostics.sourcesAttempted, ["live-tennis"]);
+  });
+
+  it("resolves an unambiguous surname when no OCR source ID is available", async () => {
+    const providers: BuilderProviders = {
+      liveTennis: makeLiveTennisStub({
+        searchPlayers: async () => [{
+          id: "live-tennis-player-1218",
+          name: "Novak Djokovic",
+          countryCode: "SRB",
+          currentRank: 5,
+          tour: "atp",
+        }],
+        getPlayerMatches: async () => [makeRecord("live-history-2")],
+      }),
+      rapidApi: null,
+      apiTennis: null,
+      sofascore: makeSofascoreStub({ player: null, records: [] }),
+    };
+
+    const result = await fetchPlayerMatchesFromProviders("Djokovic", undefined, providers);
+
+    assert.equal(result.resolvedPlayerId, "live-tennis-player-1218");
+    assert.equal(result.diagnostics.playerResolutionMethod, "live-tennis-surname");
+    assert.deepEqual(result.diagnostics.sourcesAttempted, ["live-tennis"]);
   });
 });
 

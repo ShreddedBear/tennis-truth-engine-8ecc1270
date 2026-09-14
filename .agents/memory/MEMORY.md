@@ -3,3 +3,4 @@
 - [LiveTennisAPI history identity](live-tennis-api-history-identity.md) — exact player searches can return duplicate IDs, and some recent tapes omit point winners; preserve strict reconstruction.
 - [PBP reconstruction provenance](pbp-reconstruction-provenance.md) — never cite the nonexistent 24-tape verifier; score-snapshot reconstruction is validated only by current captured fixtures.
 - [OCR matchup boundaries](ocr-matchup-boundaries.md) — parse tennis screenshots by explicit card/record boundaries; never globally pair nearby name-like lines.
+- [Parlay Builder provider priority](parlay-builder-provider-priority.md) — LiveTennisAPI is Tier 1 for OCR identities and completed-match evidence.

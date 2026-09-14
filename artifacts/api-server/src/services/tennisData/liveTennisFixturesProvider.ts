@@ -1,6 +1,7 @@
 import { logger } from "../../lib/logger";
 import type {
   Fixture,
+  MatchRecord,
   MatchFormat,
   PlayerSummary,
   ProviderStatusInfo,
@@ -45,6 +46,9 @@ function mapLevel(tourValue: unknown, tournamentValue: unknown): TournamentLevel
   const tour = asString(tourValue)?.toLowerCase() ?? "";
   const tournament = asString(tournamentValue)?.toLowerCase() ?? "";
   const text = `${tour} ${tournament}`;
+  if (/(\baustralian open\b|\broland garros\b|\bfrench open\b|\bwimbledon\b|\bus open\b)/.test(tournament)) {
+    return "GrandSlam";
+  }
   if (text.includes("grand slam")) return "GrandSlam";
   if (text.includes("masters 1000")) return "Masters1000";
   if (text.includes("wta 1000")) return "WTA1000";
@@ -110,11 +114,87 @@ function mapFixture(value: unknown): Fixture | null {
   };
 }
 
+function mapHistoryMatch(value: unknown, requestedPlayerId: string): MatchRecord | null {
+  const match = asRecord(value);
+  if (!match || match.is_doubles === true || match.draw === "doubles") return null;
+  const players = asRecord(match.players);
+  const p1 = asRecord(players?.p1);
+  const p2 = asRecord(players?.p2);
+  const p1Id = asId(p1?.id);
+  const p2Id = asId(p2?.id);
+  const requestedSourceId = requestedPlayerId.replace(/^live-tennis-player-/, "");
+  const requestedSide = p1Id === requestedSourceId ? 1 : p2Id === requestedSourceId ? 2 : null;
+  if (!requestedSide) return null;
+
+  const opponent = requestedSide === 1 ? p2 : p1;
+  const opponentId = asId(opponent?.id);
+  const opponentName = asString(opponent?.name);
+  const matchId = asId(match.id);
+  const scheduledTime = asString(match.scheduled_time);
+  const parsedDate = scheduledTime ? new Date(scheduledTime) : null;
+  const winner = Number(match.winner);
+  if (
+    !matchId ||
+    !opponentId ||
+    !opponentName ||
+    !parsedDate ||
+    Number.isNaN(parsedDate.getTime()) ||
+    (winner !== 1 && winner !== 2)
+  ) return null;
+
+  const score = asRecord(match.score);
+  const games = Array.isArray(score?.games) ? score.games : [];
+  const p1Games = Array.isArray(games[0]) ? games[0] : [];
+  const p2Games = Array.isArray(games[1]) ? games[1] : [];
+  const setCount = Math.min(p1Games.length, p2Games.length);
+  const setScores = Array.from({ length: setCount }, (_, index) => {
+    const first = Number(p1Games[index]);
+    const second = Number(p2Games[index]);
+    return Number.isFinite(first) && Number.isFinite(second) ? `${first}-${second}` : null;
+  }).filter((item): item is string => item !== null);
+  const setGameMargins = Array.from({ length: setCount }, (_, index) => {
+    const own = Number((requestedSide === 1 ? p1Games : p2Games)[index]);
+    const other = Number((requestedSide === 1 ? p2Games : p1Games)[index]);
+    return {
+      playerGames: Number.isFinite(own) ? own : 0,
+      opponentGames: Number.isFinite(other) ? other : 0,
+    };
+  });
+  const opponentRanking = Number(opponent?.ranking);
+  const tournamentName = asString(match.tournament);
+
+  return {
+    id: `live-tennis-history-${matchId}`,
+    date: parsedDate.toISOString().slice(0, 10),
+    tournamentName,
+    tournamentLevel: mapLevel(match.tour, tournamentName),
+    round: asString(match.round) ?? asString(match.round_code),
+    matchFormat: mapMatchFormat(match.best_of),
+    surface: mapSurface(match.surface),
+    indoor:
+      typeof match.indoor === "boolean"
+        ? match.indoor
+        : asString(match.surface)?.toLowerCase().includes("indoor") ?? null,
+    opponentId: `live-tennis-player-${opponentId}`,
+    opponentName,
+    opponentRank:
+      Number.isFinite(opponentRanking) && opponentRanking > 0 ? opponentRanking : null,
+    result: winner === requestedSide ? "W" : "L",
+    score: setScores.join(" "),
+    retired: match.retired === true,
+    walkover: match.walkover === true,
+    stats: null,
+    opponentStats: null,
+    setGameMargins,
+  };
+}
+
 export class LiveTennisFixturesProvider {
   readonly name = "Live Tennis API";
   private cachedFixtures: Fixture[] | null = null;
   private cacheExpiresAt = 0;
   private readonly playerSearchCache = new Map<string, { expiresAt: number; players: PlayerSummary[] }>();
+  private readonly playerHistoryCache = new Map<string, { expiresAt: number; records: MatchRecord[] }>();
   private unavailableUntil = 0;
   private lastSuccessfulCallAt: string | null = null;
   private lastError: string | null = null;
@@ -287,6 +367,60 @@ export class LiveTennisFixturesProvider {
             : String(error);
       throw new ProviderUnavailableError(
         `${this.name} player search failed: ${detail}`,
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async getPlayerMatches(playerId: string): Promise<MatchRecord[]> {
+    const sourceId = playerId.replace(/^live-tennis-player-/, "");
+    if (!/^\d+$/.test(sourceId)) return [];
+    const cached = this.playerHistoryCache.get(sourceId);
+    if (cached && Date.now() < cached.expiresAt) return cached.records;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({
+        player: sourceId,
+        limit: "100",
+        offset: "0",
+      });
+      const response = await fetch(`${BASE_URL}/history/matches?${params}`, {
+        headers: {
+          Accept: "application/json",
+          "X-API-Key": this.apiKey,
+        },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new ProviderUnavailableError(
+          `${this.name} player history failed: HTTP ${response.status}`,
+        );
+      }
+      const payload = asRecord(await response.json());
+      const rows = Array.isArray(payload?.data) ? payload.data : [];
+      const records = rows
+        .map((row) => mapHistoryMatch(row, playerId))
+        .filter((record): record is MatchRecord => record !== null);
+      this.playerHistoryCache.set(sourceId, {
+        expiresAt: Date.now() + CACHE_TTL_MS,
+        records,
+      });
+      this.lastSuccessfulCallAt = new Date().toISOString();
+      this.lastError = null;
+      return records;
+    } catch (error) {
+      if (error instanceof ProviderUnavailableError) throw error;
+      const detail =
+        error instanceof Error && error.name === "AbortError"
+          ? "request timed out"
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      throw new ProviderUnavailableError(
+        `${this.name} player history failed: ${detail}`,
       );
     } finally {
       clearTimeout(timeout);

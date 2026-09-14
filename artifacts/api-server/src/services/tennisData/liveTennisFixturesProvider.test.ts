@@ -34,3 +34,60 @@ test("searchPlayers returns ranked source-ID-backed singles and caches the query
     globalThis.fetch = originalFetch;
   }
 });
+
+test("getPlayerMatches maps completed Live Tennis history for the requested player", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    data: [{
+      id: 179907,
+      status: "completed",
+      scheduled_time: "2026-08-30T23:15:00Z",
+      tournament: "US Open",
+      tour: "atp",
+      round: "ATP US Open - 1/64-finals",
+      surface: "hard",
+      players: {
+        p1: { id: 208, name: "Mariano Navone", ranking: 49 },
+        p2: { id: 1218, name: "Novak Djokovic", ranking: 5 },
+      },
+      score: {
+        games: [[7, 5, 4, 6, 6], [6, 7, 6, 2, 1]],
+      },
+      winner: 1,
+    }],
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  try {
+    const provider = new LiveTennisFixturesProvider("test-key");
+    const records = await provider.getPlayerMatches("live-tennis-player-1218");
+    assert.equal(records.length, 1);
+    assert.deepEqual(records[0], {
+      id: "live-tennis-history-179907",
+      date: "2026-08-30",
+      tournamentName: "US Open",
+      tournamentLevel: "GrandSlam",
+      round: "ATP US Open - 1/64-finals",
+      matchFormat: null,
+      surface: "Hard",
+      indoor: false,
+      opponentId: "live-tennis-player-208",
+      opponentName: "Mariano Navone",
+      opponentRank: 49,
+      result: "L",
+      score: "7-6 5-7 4-6 6-2 6-1",
+      retired: false,
+      walkover: false,
+      stats: null,
+      opponentStats: null,
+      setGameMargins: [
+        { playerGames: 6, opponentGames: 7 },
+        { playerGames: 7, opponentGames: 5 },
+        { playerGames: 6, opponentGames: 4 },
+        { playerGames: 2, opponentGames: 6 },
+        { playerGames: 1, opponentGames: 6 },
+      ],
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
