@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "vHjviC5UlMqMdxnL5n_OT"
+uri = "file://reports/tennis-runs-2026-09-14.html"
+type = "text"
+title = "97 Stats + 105 Parlay Match Report"
+description = "Searchable horizontal report showing both players, engine predictions, Builder selections, validation scores, risk, coverage, provider results, and evidence reasons."
+logical_id = "f3e98a1d-c231-4531-9e6f-43d905595741"
+content_hash = "sha256:7bda0bd82544beccb8bd3629ee22d01db65d0add8cd93e3fabec5109654086f2"
+size = 246674
+mtime_ms = 1789421139906
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/f3e98a1d-c231-4531-9e6f-43d905595741/811b928e-16f4-410d-8941-e7ff6999b059"
+storage_version_token = "1789421140771921"
+content_type = "text/html"
