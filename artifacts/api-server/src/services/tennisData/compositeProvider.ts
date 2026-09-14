@@ -28,6 +28,7 @@ import { fetchFromSofascore } from "../parlayBuilder/sofascoreProvider.js";
 import { fetchFromBsdTennis } from "./bsdTennisProvider.js";
 import { getPlayerMatchesFromDb } from "./dbHistoryFallback.js";
 import { getCachedPlayerIdentityIndex, getAliasIds } from "./playerIdentity.js";
+import type { LiveTennisFixturesProvider } from "./liveTennisFixturesProvider.js";
 
 // ─── Sofascore tertiary fixture fallback ──────────────────────────────────────
 // Used when both RapidAPI (primary) and API-Tennis (fallback) are unavailable.
@@ -183,6 +184,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
   constructor(
     private readonly primary: TennisDataProvider,
     private readonly fallback: TennisDataProvider,
+    private readonly fixturePrimary?: LiveTennisFixturesProvider,
   ) {
     this.name = `${primary.name}+${fallback.name}`;
   }
@@ -204,6 +206,8 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   getStatus(): ProviderStatusInfo {
+    const fixturePrimaryStatus = this.fixturePrimary?.getStatus();
+    if (fixturePrimaryStatus?.connected) return fixturePrimaryStatus;
     // When the primary is connected, report it. When it isn't (rate-limited, quota exhausted,
     // network error) report the fallback instead — that's the provider actually serving requests,
     // and showing the primary's "disconnected" state while the app is perfectly functional causes
@@ -369,6 +373,29 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   async getUpcomingFixturesRange(dateStart: string, dateStop: string, opts?: { bypassCache?: boolean }): Promise<Fixture[]> {
+    if (this.fixturePrimary) {
+      try {
+        const liveTennisFixtures = await this.fixturePrimary.getUpcomingFixturesRange(
+          dateStart,
+          dateStop,
+          opts,
+        );
+        if (liveTennisFixtures.length > 0) return liveTennisFixtures;
+        logger.info(
+          { dateStart, dateStop },
+          "Live Tennis API returned no fixtures in the requested window — continuing to fallback providers",
+        );
+      } catch (error) {
+        logger.warn(
+          {
+            method: "getUpcomingFixturesRange",
+            primaryError: error instanceof Error ? error.message : String(error),
+          },
+          "Live Tennis API unavailable for fixtures — continuing to fallback providers",
+        );
+      }
+    }
+
     // Tier-1: RapidAPI (MatchStat) — confirmed working endpoints, 30-min cache.
     // Tier-2: API-Tennis — only when tier-1 is rate-limited/quota-exhausted.
     // Tier-3: Sofascore public API — when both tier-1 and tier-2 are unavailable

@@ -1,6 +1,7 @@
 import { ApiTennisProvider } from "./apiTennisProvider";
 import { CompositeTennisProvider } from "./compositeProvider";
 import { MatchStatProvider } from "./matchStatProvider";
+import { LiveTennisFixturesProvider } from "./liveTennisFixturesProvider";
 import { ProviderUnavailableError, type ProviderStatusInfo, type TennisDataProvider } from "./types";
 
 export * from "./types";
@@ -71,7 +72,15 @@ export function getTennisDataProvider(): TennisDataProvider {
 
   if (rapidApiKey) {
     const matchStatProvider = new MatchStatProvider(rapidApiKey);
-    cachedProvider = new CompositeTennisProvider(matchStatProvider, apiTennisProvider);
+    const liveTennisApiKey = process.env.Live_Tennis_Api;
+    const liveTennisFixturesProvider = liveTennisApiKey
+      ? new LiveTennisFixturesProvider(liveTennisApiKey)
+      : undefined;
+    cachedProvider = new CompositeTennisProvider(
+      matchStatProvider,
+      apiTennisProvider,
+      liveTennisFixturesProvider,
+    );
   } else {
     cachedProvider = apiTennisProvider;
   }
