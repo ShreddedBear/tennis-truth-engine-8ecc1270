@@ -1,4 +1,4 @@
-import { useGetProviderStatus, useGetHistoricalDataFreshness, getGetProviderStatusQueryKey } from "@workspace/api-client-react"
+import { useGetProviderStatus, useGetHistoricalDataFreshness } from "@workspace/api-client-react"
 import { Badge } from "@/components/ui/badge"
 import { Activity, AlertCircle, CheckCircle2, Clock, Database } from "lucide-react"
 import { formatEasternClock } from "@/lib/timezone"
@@ -48,7 +48,7 @@ function HistoricalDataFreshnessIndicator() {
 export function ProviderStatusIndicator() {
   const { data: status, isLoading, isError } = useGetProviderStatus({
     query: {
-      queryKey: getGetProviderStatusQueryKey(),
+      queryKey: ["/api/provider/status"],
       // Retry up to 4 times with a short linear backoff before ever showing OFFLINE.
       // This covers the common "server still warming up on first load" case.
       retry: 4,

@@ -178,6 +178,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
    * Populated automatically on every successful getPlayer() call.
    */
   private readonly playerNameCache = new Map<string, string>();
+  private sofascoreLastSuccessfulCallAt: string | null = null;
 
   constructor(
     private readonly primary: TennisDataProvider,
@@ -211,6 +212,14 @@ export class CompositeTennisProvider implements TennisDataProvider {
     if (primaryStatus.connected) return primaryStatus;
     const fallbackStatus = this.fallback.getStatus();
     if (fallbackStatus.connected) return fallbackStatus;
+    if (this.sofascoreLastSuccessfulCallAt) {
+      return {
+        provider: "Sofascore fallback",
+        connected: true,
+        lastSuccessfulCallAt: this.sofascoreLastSuccessfulCallAt,
+        lastError: null,
+      };
+    }
     // Both down: return primary so the error message is as specific as possible.
     return primaryStatus;
   }
@@ -389,6 +398,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
     // try Sofascore as a silent tertiary. Never throws.
     if (fixtures.length === 0 && usedTier === "") {
       fixtures = await fetchSofascoreFixturesRange(dateStart, dateStop);
+      this.sofascoreLastSuccessfulCallAt = new Date().toISOString();
       if (fixtures.length > 0) {
         logger.info({ dateStart, dateStop, count: fixtures.length },
           "compositeProvider: Sofascore tertiary provided fixture list (both primary providers unavailable)");

@@ -21,7 +21,13 @@ async function main() {
   }
 
   const databaseUrl = new URL(process.env.DATABASE_URL);
-  const databaseName = process.env.STATS_DATABASE_NAME;
+  const configuredDatabaseName = decodeURIComponent(databaseUrl.pathname.slice(1));
+  const requestedDatabaseName =
+    process.env.STATS_DATABASE_NAME ??
+    process.env.PGDATABASE ??
+    configuredDatabaseName;
+  const databaseName =
+    requestedDatabaseName === "tennis_stats_engine" ? "heliumdb" : requestedDatabaseName;
   if (databaseName) {
     if (!/^[a-z_][a-z0-9_]*$/u.test(databaseName)) {
       throw new Error("STATS_DATABASE_NAME must be a valid PostgreSQL database name");
