@@ -1,0 +1,275 @@
+FILE: tennis_stats_ocr_two_1.png (match 13 of 53)
+STATUS: unresolved
+ERROR: No event/tournament name could be read from the screenshot.
+
+=== PIPELINE LOG ===
+[CACHE] MISS — hash=e6e6ca05…
+[INIT] 1 provider(s): GEMINI_API_KEY(gemini)
+[IMAGE] mediaType=image/png estimatedSize≈1573KB
+[TRY] GEMINI_API_KEY provider=gemini
+[FAIL] GEMINI_API_KEY attempt=0 status=503 code=? msg="Gemini API error 503 (gemini-flash-latest): This model is currently experiencing high demand. Spikes in demand are usual"
+[RETRY] waiting 1000ms before retry 1
+[FAIL] GEMINI_API_KEY attempt=1 status=503 code=? msg="Gemini API error 503 (gemini-flash-latest): This model is currently experiencing high demand. Spikes in demand are usual"
+[RETRY] waiting 2000ms before retry 2
+[FAIL] GEMINI_API_KEY attempt=2 status=503 code=? msg="Gemini API error 503 (gemini-flash-latest): This model is currently experiencing high demand. Spikes in demand are usual"
+[NEXT] exhausted GEMINI_API_KEY after 3 attempt(s), trying next provider
+[VISION_AI] All vision AI providers exhausted — trying OCR.Space fallback
+[OCR.SPACE] Extracted 53 matchup(s) in 4147ms
+
+=== RAW MODEL OUTPUT ===
+MATCHUP 1
+Lorenzo Beraldo vs Dimitris Sakellaridis
+ournament: All Challenger Bells tvmtlevel: Chilleneer Round: Qualitino Reuntill
+Scheduled Date: 2026-09-13 Surface: Clay Best Of: 3
+Adrian Oetzbach vs Pierluigi Basile
+Scheduled Date: 2026-09-13 Surface: Clay Best Of: 3
+MATCHUP 3
+Matthew William Donald vs Giovanni Oradini
+ournament: ATP Challenger Biells Event Level: Challenper Round: Qualifying Round 1|
+MATCHUP 4
+Maximilian Marterer vs Federico Arnaboldi
+ournament: ATP Challenger Biella Event Level: Challenger Round: Qualifying Round 1/
+MATCHUP 5
+Alex Marti Pujolras vs Maximo Zeitune
+Event Level: Challenper Round: Qualifying Round 1
+Scheduled Date: 2025-09-13 Surface: Clay Best Or: 3
+MATCHUP 6
+Pavel Laautin ys Matthieu Roehrich
+Event Level: Challenger Round: Qualifying Round 1
+scheduled Date: 2026-09-13 Surface: Clay Best Or: 3
+MATCHUP 7
+Patrick Zahrai vs loshua Sheehv
+ournament: ATP Challenger Rennes Event Level: Challenger Round: Qualifving Raung i
+Scheduled Date: 2026-09-13 Surface: Indoor Hard Best Of: 3
+MATCHUP 8
+Kenny De Schepper vs Alberto Barroso Campos
+Tournament: ATP Challenger Rennes Event Level: Challenger Round: Qualifying Round 1
+MATCHUP 9
+Luca Potenza vs Finn Bass
+Event Level: Challenger Round: Qualitying Raung 1
+Scheduled Date: 2026-09-13 Surface: Indoor Hard Best Of: 3
+MATCHUP 10
+Patrick Brady vs Toufik Sahtali
+outsment: All challenger Kennes
+event Level, Uhallenger Round: Qualiving kaunt I
+Scheduled Date: 2026-09-13 Surface: Indoor Hard Best Of: 3
+MATCHUP 11
+Max Schoenhaus vs Adhithya Ganesan
+Tournament: ATP Challenger Rennes Event Level: Challenger
+Round: Qualifying Raund 1
+MATCHUP 12
+Tournament: ATP Challenger Rennes
+Event Lovel: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-13 Surface: Indoor Hard Best Of: 3
+MATCHUP 13
+Luca Sanchez vs David de longe
+Tournament: ATP Challenger Rennes Event Level: Challenger Round: Qualifying Raund 1
+Scheduled Date: 2026-05-13 Surface: Indoor Hard Best Of: 3
+MATCHUP 14
+James Kent Trotter vs Ziyu Liu
+umamore, Ale challonaor Gunnyhan
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-13
+Surface: Hard Best Of: 3
+MATCHUP 15
+Daisuke Sumizawa vs Kosuke Ogura
+ournament: AlP Challenger Guangzhou Event Lavel: Challengar Round: Qualitying Round 1
+Scheduled Date: 2026-05-13
+Surface: Hard Best Of: 3
+MATCHUP 16
+Jesse Delaney vs Yusuke Takahashi
+burnament: ATP Challenger Guangzhou Event Level: Challencer Round: Qualifving Reund 1l
+Scheduled Date: 2026-09-13 Surface: Hard Best Of: 3
+MATCHUP 17
+Zijiang Yang vs Thomas Fancutt
+Event Lavel: Chillancar Round: Qualifing Reund 1
+Scheduled Date: 2075-00 3 Sace Hard Rector 3l
+MATCHUP 18
+Maxim Zhukov vs Thijmen Loof
+Tournament: ATP Challenger Guanozhou
+Event Level: Challenger Round: Qualifying Round 1
+MATCHUP 19
+Thiago Seyboth Wild vs Massimo Giunta
+ournament: ATP Challenger Genon
+Event Level: ATP Challenger Round: Round of 16/
+MATCHUP 20
+Francesco Passaro vs juan Pablo varillas
+Tournam
+Event Level: ATP Challenger Round: Round of 16
+Scheduled Date: 2026-09-0 Surface: Clay Best Of: 3
+MATCHUP 21
+Hugo Dellien vs Matej Dodig
+Jaumament: ATP Challenger Genoa
+Evant Level: ATP Challenger Round: Round 2
+Scheduled Date: 2026-09-10
+Surface: Clay Best Of: 3
+MATCHUP 22
+Stefano Travaglia vs Enrico Dalla Valle
+Scheduled Date: 2026-09-10 Surface: Clay Best Of: 3
+MATCHUP 23
+Genaro Alberto Olivieri vs Tiago Pereira
+Tournament: AlP Challenger Seville Event Lovel: AIP Challenger Round: Raund of 16
+Scheduled Date: 2026-09-10 Surface: Red clay
+Rest 0e?
+MATCHUP 24
+Max Alcala Gurri vs Pavel Lagutin
+Event Loval: ATP Challanger Round: Round of 16
+MATCHUP 25
+Francesca Jones vs Rositsa Dencheva
+Tournament: WIA 125K Antalya
+Event Level: WIA 125K
+Round: Round of 16
+MATCHUP 26
+Eva Vedder vs Maria Carle
+Evant Level: WTA 125K Rourd: Round of 16
+Scheduled Date: 2026-09-10 Surface: Red clay Best Of: 3
+MATCHUP 27
+Alicia Herrero Linana vs Ane Mintegi Del Olmo
+ournament: WIA 125K Antalya
+Event Level: WIA 125K
+Round: Round of 16
+Scheduled Date: 2026-09-10 Surface: Red clay Best Of: 3
+MATCHUP 28
+Eva Ronnemann vc Carla Ruvukakcav
+Rourd: Round of 16
+Scheduled Date: 2026-09-10
+Surface: Red clay
+Best Of: 3
+MATCHUP 29
+Luciano Darderi vs Harry Wendelken
+burnamont, IS Oron Man Sinnie Lyont loveleGrand Can Raund- Round oé128l
+Scheduled Date: 2026-08-31
+Surface: Hard Best O1: 5
+MATCHUP 30
+Valentin Royer vs Dalibor Svrcina
+Scheduled Date: 2026-08-31 Surface: Hard Best Of: 5
+MATCHUP 31
+Brandon Nakashima vs Sebastian Baez
+US Open Men Singles
+Event Level: Grand Slam Round: Round of 128
+MATCHUP 32
+aumament: US Open Men Singles
+Event Level: Grand Slam Round: Round of 128
+scheduled nata. Zent?
+Surface: liard Best Of S
+MATCHUP 33
+unchend shand vs Marco rundellit
+US Open Men Singles
+Grand Cam Round: Round or 178
+Scheduled Date: 2026-08-31 Surfuce: Hard Best Of: 5
+MATCHUP 34
+Matteo Berrettini vs Stan Wawrinka
+Rumament: US Open Men Singles
+Fuent level: Grand Slam Round: Round of 178
+Scheduled Date: 2026-08-31
+Surface: Hard Best of: 5
+MATCHUP 35
+Alexander Blockx vs Marcelo Tomas Barrios Vera
+Toumament: US Open Men Singles
+Gustlaal Posad Close Bad Dand de 150
+Scheduled Dote: 2026-08-31
+Surfuce: Hard Best Of: 5
+MATCHUP 36
+Alejandro Tabilo vs Yannick Hanfmann
+Scheduled Date: 2026-08-31 Surface: Hard Best Of: 5
+MATCHUP 37
+Mananchaya Sawangkaew vs Panna Udvardy
+Scheduled Dale: 2026-08-31 Surfuce: Hard Best Of: 3
+MATCHUP 38
+Peyton Stearns vs Harriet Dart
+cumanens on momeno
+Event Level: Grand Slam Round: Round of 128
+Scheduled Bate. 2026-083 Suriece- Hard RetO 3I
+MATCHUP 39
+Marie Bouzkova vs Elsa Jacquemot
+Tournament: US Open Women Sinaler
+Event Level: Grand Slam Round: Round of 128
+MATCHUP 40
+Karolina Muchova ys Sinia Kraus
+Evant Lovel: Grand Slam Round: Round of 128
+Scheduled Date. 2026-08.31 Surface- Hard Bast Of?
+MATCHUP 41
+Anhelina Kalinina vs Himeno Sakatsume
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2026 0B 31 Surface: Hard Best Of. 3
+MATCHUP 42
+Qinwen Zheng vs Kristina Liutova
+Scheduled Date: 2025-08.31 Surface: Hard Best Of 3
+MATCHUP 43
+Lilli Tagger vs Tamara Korpatsch
+Fuent one Gone Shem i Do 28
+MATCHUP 44
+Sara Bejlek vs Cristina Bucsa
+Event Level: Grand Slam Round: Round of 128
+MATCHUP 45
+Olle Wallin vs Andrea Colombo
+Thumament: ATP Challenger Como
+Fvent level: Challenger Round. Round of 37
+Schreir bain nike briara au Harrel
+MATCHUP 46
+Benjamin Hassan vs Francesco Forti
+Scheduled Date: 2028-0-31 Suitsce ciay-
+Event Level: Challenger Round: Qualifying Round 2
+Reet Of ?
+MATCHUP 47
+Andrey Chepelev vs Fausto Tabacco
+Toumament: ATP Challenger Como
+Event Level: Challenger Round: Round of 32
+Scheduled Date: 2026-08-31 Surface: Clay Best Of: 3
+MATCHUP 48
+Marak Gongol ye Aloy Hornandor
+Taumamart: ATP Challenger Manacor Evant level: Challenger Raund: Qualifying Round 1l
+Scheduled Date: 2026-06-31 Surface: Hard Best Of 3
+MATCHUP 49
+Sascha Gueymard Wayenburg vs Izan Almazan Valiente
+Tumament: ATP Challenger Manacor Event Level: Challenger Raund: Qualifying Round 1
+Scheduled Date: 2026-08-31 Surfuce: Hard Best Of: 3
+MATCHUP 50
+Lui Maxted vs Gabi Adrian Boitan
+: Challenger Round: Qualifving Round 1
+Scheduled Date: 2026-0B-31 Surface: Ilard Best Of: 3
+MATCHUP 51
+Mark Laial vs Motoharu Abe
+Toumament:
+ATP Challenger Manacor
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled sto ?002?
+Cano Hard Rat of 3
+MATCHUP 52
+Mathys Erhard vs Anton Shepp
+Touman
+nent: ATP Challenger Manacor
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Nato. 2028.0g.31 Curfere Hard Root of 2
+MATCHUP 53
+Matheus Pucine i de Almeida vs Christian Lanamo
+-STo Challender Manaco
+Event Level: Challenger
+Round. Qualifving Round
+MATCHUP 54
+Alvcia Parks vs Tavlah Preston
+Toumament: US Open Women Singles
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2025.08.30 Surface: Hard Best Of 3
+MATCHUP 55
+Alex Michelsen ys Federico Cinal
+Taumament. IS Onen Men Singles.|
+Fuent level. Grand Slam Raund- Round of 128
+Scheduled Date: 2026.08.30 Surface: Hard Best Of. 5l
+MATCHUP 56
+Emma Navarro vs Lois Boisson
+Scheduled Date: 2026-08-30 Surface: Hard Best Of: 3
+MATCHUP 57
+Raphael Collignon vs Sebastian Gorzny
+MATCHUP 58
+Tomas Martin Etcheverry vs Vit Kopriva
+MATCHUP 59
+Martin Landaluce vs lacob Fearnley
+humament. IS Open Men Singles
+Event loupl Grand Slam Raund. Round of 128
+MATCHUP 60
+Kimberly Birrell vs Petra Marcinko
+Toumament:
+US Open Women Singles
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2026.08.30 Surfaco Hard Race eM. 2
