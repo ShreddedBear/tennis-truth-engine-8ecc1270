@@ -111,13 +111,115 @@ export function classifyPbpFetchFailure(input: { status?: number; parseError?: b
 //   - `games` is organized [side][setIndex] (games won by that side within each set so
 //     far), so the completed game's post-score is exactly the last element of each side's
 //     array on the boundary row, and the set number is the array length before that row.
-export function tapeToGamesPayload(response: unknown): { games: Array<Record<string, unknown>> } {
+export type LiveTennisTapeDiagnostics = {
+  used_score_derivation: boolean;
+  rejected_or_ambiguous_games: number;
+};
+
+type TapeGamesResult = {
+  payload: { games: Array<Record<string, unknown>> };
+  diagnostics: LiveTennisTapeDiagnostics;
+};
+
+type ScoreSide = 1 | 2;
+type ScoreState = [number, number];
+
+function parsedScoreState(value: unknown, tiebreak: boolean): ScoreState | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  if (tiebreak) {
+    const scores = value.map(Number);
+    return scores.every((score) => Number.isInteger(score) && score >= 0)
+      ? scores as ScoreState
+      : null;
+  }
+  const labels = value.map((score) => String(score).trim().toUpperCase());
+  const ordinary = new Map([["0", 0], ["15", 1], ["30", 2], ["40", 3]]);
+  if ((labels[0] === "A" || labels[0] === "AD") && labels[1] === "40") return [4, 3];
+  if (labels[0] === "40" && (labels[1] === "A" || labels[1] === "AD")) return [3, 4];
+  if (!ordinary.has(labels[0]) || !ordinary.has(labels[1])) return null;
+  const state: ScoreState = [ordinary.get(labels[0])!, ordinary.get(labels[1])!];
+  return state[0] <= 2 || state[1] <= 2 || state[0] === state[1] ? state : null;
+}
+
+function scoreAfterPoint(state: ScoreState, winner: ScoreSide, tiebreak: boolean): ScoreState | "GAME" {
+  const next: ScoreState = [...state];
+  next[winner - 1]++;
+  if (tiebreak) {
+    return next[winner - 1] >= 7 && next[winner - 1] - next[2 - winner] >= 2 ? "GAME" : next;
+  }
+  if (next[winner - 1] >= 4 && next[winner - 1] - next[2 - winner] >= 2) return "GAME";
+  if (next[0] >= 3 && next[1] >= 3) {
+    if (next[0] === next[1]) return [3, 3];
+    return next[0] > next[1] ? [4, 3] : [3, 4];
+  }
+  return next;
+}
+
+function sameScore(a: ScoreState | "GAME", b: ScoreState): boolean {
+  return a !== "GAME" && a[0] === b[0] && a[1] === b[1];
+}
+
+function totalGames(value: unknown, side: ScoreSide): number | null {
+  const rows = Array.isArray(value) ? value[side - 1] : null;
+  if (!Array.isArray(rows) || !rows.every((score) => Number.isInteger(Number(score)) && Number(score) >= 0)) return null;
+  return rows.reduce<number>((sum, score) => sum + Number(score), 0);
+}
+
+function deriveWinnerFromSnapshots(
+  previous: any,
+  current: any,
+  gameBoundary: boolean,
+): { winner: ScoreSide | null; ambiguous: boolean } {
+  const tiebreak = Boolean(previous?.is_tiebreak ?? current?.is_tiebreak);
+  const before = parsedScoreState(previous?.points, tiebreak);
+  const after = parsedScoreState(current?.points, tiebreak);
+  if (!before || !after) return { winner: null, ambiguous: false };
+
+  if (gameBoundary) {
+    if (after[0] !== 0 || after[1] !== 0) return { winner: null, ambiguous: false };
+    const priorTotals = [totalGames(previous?.games, 1), totalGames(previous?.games, 2)];
+    const currentTotals = [totalGames(current?.games, 1), totalGames(current?.games, 2)];
+    if (priorTotals.some((value) => value === null) || currentTotals.some((value) => value === null)) {
+      return { winner: null, ambiguous: false };
+    }
+    const deltas = currentTotals.map((value, index) => value! - priorTotals[index]!);
+    const candidates = ([1, 2] as ScoreSide[]).filter((side) =>
+      deltas[side - 1] === 1 &&
+      deltas[2 - side] === 0 &&
+      scoreAfterPoint(before, side, tiebreak) === "GAME"
+    );
+    return { winner: candidates.length === 1 ? candidates[0] : null, ambiguous: candidates.length > 1 };
+  }
+
+  const candidates = ([1, 2] as ScoreSide[]).filter((side) => sameScore(scoreAfterPoint(before, side, tiebreak), after));
+  return { winner: candidates.length === 1 ? candidates[0] : null, ambiguous: candidates.length > 1 };
+}
+
+function pointSequenceWinner(points: Array<Record<string, unknown>>, tiebreak: boolean): ScoreSide | null {
+  let state: ScoreState = [0, 0];
+  for (const point of points) {
+    const winner = point.winner === "player1" ? 1 : point.winner === "player2" ? 2 : null;
+    if (!winner) return null;
+    const next = scoreAfterPoint(state, winner, tiebreak);
+    if (next === "GAME") return winner;
+    state = next;
+  }
+  return null;
+}
+
+export function tapeToGamesPayloadWithDiagnostics(response: unknown): TapeGamesResult {
   const tape: any[] = Array.isArray((response as any)?.tape) ? (response as any).tape : [];
   const games: Array<Record<string, unknown>> = [];
-  if (tape.length === 0) return { games };
+  if (tape.length === 0) return { payload: { games }, diagnostics: { used_score_derivation: false, rejected_or_ambiguous_games: 0 } };
   const mapSide = (n: unknown): "player1" | "player2" | null => (n === 1 ? "player1" : n === 2 ? "player2" : null);
   const gamesEqual = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
   const setLen = (g: unknown): number => (Array.isArray((g as any)?.[0]) ? (g as any)[0].length : 1);
+  const activeSetNo = (row: any): number => {
+    const sets = Array.isArray(row?.sets) ? row.sets.map(Number) : [];
+    return sets.length === 2 && sets.every((value: number) => Number.isInteger(value) && value >= 0)
+      ? sets[0] + sets[1] + 1
+      : setLen(row?.games);
+  };
   // Index by the COMPLETED game's own set number (1-based -> 0-based), never by "last
   // element": when a game-ending point also starts a new set, the new row's games arrays
   // already grew a slot for the upcoming set, so the just-finished set's count is one
@@ -126,15 +228,27 @@ export function tapeToGamesPayload(response: unknown): { games: Array<Record<str
   const atSet = (arr: unknown, setIndex: number): number => (Array.isArray(arr) && arr.length > setIndex ? Number(arr[setIndex]) : 0);
 
   let currentServer: "player1" | "player2" = mapSide(tape[0]?.server) ?? "player1";
-  let currentPoints: Array<{ winner: "player1" | "player2" }> = [];
+  let currentPoints: Array<Record<string, unknown>> = [];
+  let currentInvalid = false;
+  let currentUsedDerivation = false;
+  let usedScoreDerivation = false;
+  let rejectedGames = 0;
   let priorGames: unknown = tape[0]?.games;
   let setNo = setLen(priorGames);
 
   for (let i = 1; i < tape.length; i++) {
     const row = tape[i];
-    const winner = mapSide(row?.point_winner);
-    if (winner) currentPoints.push({ winner });
-    if (!gamesEqual(row?.games, priorGames)) {
+    const gameBoundary = !gamesEqual(row?.games, priorGames);
+    let winner = mapSide(row?.point_winner);
+    if (!winner) {
+      const derived = deriveWinnerFromSnapshots(tape[i - 1], row, gameBoundary);
+      winner = mapSide(derived.winner);
+      usedScoreDerivation = true;
+      currentUsedDerivation = true;
+      if (!winner || derived.ambiguous) currentInvalid = true;
+    }
+    currentPoints.push(winner ? { winner } : {});
+    if (gameBoundary) {
       if (currentPoints.length) {
         const g0 = Array.isArray(row?.games) ? row.games[0] : undefined;
         const g1 = Array.isArray(row?.games) ? row.games[1] : undefined;
@@ -146,10 +260,13 @@ export function tapeToGamesPayload(response: unknown): { games: Array<Record<str
           player1_games: atSet(g0, setNo - 1),
           player2_games: atSet(g1, setNo - 1),
         });
+        if (currentInvalid || (currentUsedDerivation && !pointSequenceWinner(currentPoints, Boolean(row?.is_tiebreak)))) rejectedGames++;
       }
       currentPoints = [];
+      currentInvalid = false;
+      currentUsedDerivation = false;
       currentServer = mapSide(row?.server) ?? currentServer;
-      setNo = setLen(row?.games);
+      setNo = activeSetNo(row);
       priorGames = row?.games;
     }
   }
@@ -158,8 +275,16 @@ export function tapeToGamesPayload(response: unknown): { games: Array<Record<str
   // as incomplete rather than crediting either side, so this cannot fabricate a result.
   if (currentPoints.length) {
     games.push({ set_number: setNo, server: currentServer, points: currentPoints, tiebreak: false });
+    if (currentInvalid || (currentUsedDerivation && !pointSequenceWinner(currentPoints, false))) rejectedGames++;
   }
-  return { games };
+  return {
+    payload: { games },
+    diagnostics: { used_score_derivation: usedScoreDerivation, rejected_or_ambiguous_games: rejectedGames },
+  };
+}
+
+export function tapeToGamesPayload(response: unknown): { games: Array<Record<string, unknown>> } {
+  return tapeToGamesPayloadWithDiagnostics(response).payload;
 }
 
 function classifyTour(m: { gender?: unknown; tour?: unknown; round?: unknown; tournament?: unknown }): ApprovedPbpTour | null {

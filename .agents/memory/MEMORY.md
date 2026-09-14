@@ -1,3 +1,4 @@
 - [TanStack Start port boundary](tanstack-start-port-boundary.md) — keep the Truth Engine’s server functions with its web artifact rather than forcing an Express split.
 - [Cross-service auth probes](cross-service-auth-probes.md) — artifact health checks may hit a service directly, so same-origin auth fetches can recurse; verify shared credentials locally.
 - [LiveTennisAPI history identity](live-tennis-api-history-identity.md) — exact player searches can return duplicate IDs, and some recent tapes omit point winners; preserve strict reconstruction.
+- [PBP reconstruction provenance](pbp-reconstruction-provenance.md) — never cite the nonexistent 24-tape verifier; score-snapshot reconstruction is validated only by current captured fixtures.

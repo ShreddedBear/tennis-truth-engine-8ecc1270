@@ -6,8 +6,10 @@ import {
   liveTennisApiConfig,
   liveTennisApiSourcePacketBudgetMs,
   tapeToGamesPayload,
+  tapeToGamesPayloadWithDiagnostics,
 } from "./live-tennis-api-pbp.server";
-import { reconstructPbpScoreState } from "./pbp-score-state-recovery";
+import { metricHasRequiredPbpFields, reconstructPbpScoreState, TASK18B_METRIC_CODES } from "./pbp-score-state-recovery";
+import capturedMatch157791 from "./fixtures/live-tennis-157791-tape.json";
 
 // Real tape rows captured live from https://api.livetennisapi.com against match 157791
 // (GET /history/matches/157791?points=complete), verified point-by-point against the
@@ -58,12 +60,12 @@ describe("tapeToGamesPayload (verified against a real captured match)", () => {
     expect(recovery.point_count).toBe(11); // 5 points in game1 + 6 in game2, excluding the null-winner baseline row
   });
 
-  it("advances the set number once games[0] gains a new set-index entry (verified: real match's first Set-2 tape row)", () => {
+  it("keeps the boundary row on the active set before subsequent rows advance to the new set", () => {
     const priorSet1End = { point_winner: 1 as const, server: 1 as const, games: [[6], [3]] as [number[], number[]], is_tiebreak: false };
     const set2Start = { point_winner: 1 as const, server: 1 as const, games: [[6, 1], [3, 0]] as [number[], number[]], is_tiebreak: false };
     const { games } = tapeToGamesPayload({ tape: [row(null, 2, [[6], [3]]), priorSet1End, set2Start] });
     expect(games).toHaveLength(1);
-    expect(games[0].set_number).toBe(1); // the completed game belonged to set 1, even though the boundary row already shows set 2's array
+    expect(games[0].set_number).toBe(1);
     expect(games[0].player1_games).toBe(6);
     expect(games[0].player2_games).toBe(3);
   });
@@ -78,6 +80,68 @@ describe("tapeToGamesPayload (verified against a real captured match)", () => {
     expect(tapeToGamesPayload({ tape: [] })).toEqual({ games: [] });
     expect(tapeToGamesPayload({})).toEqual({ games: [] });
     expect(tapeToGamesPayload(null)).toEqual({ games: [] });
+  });
+});
+
+describe("LiveTennisAPI score-snapshot fallback (captured match 157791)", () => {
+  const withoutPointWinners = {
+    ...capturedMatch157791,
+    tape: capturedMatch157791.tape.map(({ point_winner: _pointWinner, ...row }) => row),
+  };
+
+  it("matches the explicit-winner canonical recovery exactly", () => {
+    const explicit = reconstructPbpScoreState(tapeToGamesPayload(capturedMatch157791));
+    const scoreDerivedResult = tapeToGamesPayloadWithDiagnostics(withoutPointWinners);
+    const scoreDerived = reconstructPbpScoreState(scoreDerivedResult.payload);
+
+    expect(explicit.valid).toBe(true);
+    expect(scoreDerived.valid).toBe(true);
+    expect(explicit.point_count).toBe(99);
+    expect(explicit.game_count).toBe(16);
+    expect(scoreDerived.point_count).toBe(explicit.point_count);
+    expect(scoreDerived.game_count).toBe(explicit.game_count);
+    expect(scoreDerived.derived).toEqual(explicit.derived);
+    expect(scoreDerivedResult.diagnostics).toEqual({
+      used_score_derivation: true,
+      rejected_or_ambiguous_games: 0,
+    });
+    for (const code of TASK18B_METRIC_CODES) {
+      expect(metricHasRequiredPbpFields(scoreDerived, code, "player1"), `${code} player1`).toBe(true);
+      expect(metricHasRequiredPbpFields(scoreDerived, code, "player2"), `${code} player2`).toBe(true);
+    }
+  });
+
+  it("rejects a missing transition instead of skipping the unreadable point", () => {
+    const tape = withoutPointWinners.tape.filter((_row, index) => index !== 2);
+    const result = tapeToGamesPayloadWithDiagnostics({ tape });
+    expect(reconstructPbpScoreState(result.payload).valid).toBe(false);
+    expect(result.diagnostics.rejected_or_ambiguous_games).toBeGreaterThan(0);
+  });
+
+  it("rejects an ambiguous game-counter transition", () => {
+    const tape = structuredClone(withoutPointWinners.tape.slice(0, 6));
+    tape[5].games = [[1], [1]];
+    const result = tapeToGamesPayloadWithDiagnostics({ tape });
+    expect(reconstructPbpScoreState(result.payload).valid).toBe(false);
+    expect(result.diagnostics.rejected_or_ambiguous_games).toBe(1);
+  });
+
+  it("rejects an unreadable score state without silently dropping its game", () => {
+    const tape = structuredClone(withoutPointWinners.tape.slice(0, 6));
+    tape[3].points = ["?", "15"];
+    const result = tapeToGamesPayloadWithDiagnostics({ tape });
+    expect(result.payload.games).toHaveLength(1);
+    expect(reconstructPbpScoreState(result.payload).valid).toBe(false);
+    expect(result.diagnostics.rejected_or_ambiguous_games).toBe(1);
+  });
+
+  it("rejects an incomplete terminal state without inventing the deciding point", () => {
+    const tape = structuredClone(withoutPointWinners.tape.slice(0, 5));
+    tape[4].points = ["40", "A"];
+    const result = tapeToGamesPayloadWithDiagnostics({ tape });
+    expect(result.payload.games).toHaveLength(1);
+    expect(reconstructPbpScoreState(result.payload).valid).toBe(false);
+    expect(result.diagnostics.rejected_or_ambiguous_games).toBe(1);
   });
 });
 
