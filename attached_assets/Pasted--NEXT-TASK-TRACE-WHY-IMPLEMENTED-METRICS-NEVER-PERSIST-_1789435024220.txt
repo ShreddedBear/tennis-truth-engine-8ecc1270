@@ -1,0 +1,81 @@
+## NEXT TASK — TRACE WHY IMPLEMENTED METRICS NEVER PERSIST
+
+Use the cost-efficient execution rules above.
+
+Your previous audit established:
+- 020, 037, 038, 039, 040, 043, 044, 052 have producer implementations.
+- They currently have ZERO rows in `metric_results`.
+- Active metric codes have persisted rows.
+- Therefore DO NOT modify `COMPARISON_SPECS` yet.
+- Do not guess fields, families, directions, sample floors, or create fake evidence.
+- Do not modify the existing reliability/weighting logic unless the root cause requires it.
+- The 105-match evaluation dataset is unavailable; do not fabricate accuracy results.
+
+### Objective
+
+Find the exact upstream reason these implemented metrics are not reaching the persisted `metric_results` population used by the Truth Engine.
+
+Trace ONLY this path:
+
+producer
+→ metric registration/discovery
+→ batch/orchestration
+→ metric execution
+→ result normalization
+→ persistence/insert/upsert
+→ metric_results
+
+Start with the 8 candidate codes:
+020, 037, 038, 039, 040, 043, 044, 052.
+
+### Rules
+
+1. Read only the files necessary to trace this path.
+2. Compare one WORKING metric that successfully persists against one BROKEN candidate.
+3. Find the first point where their execution paths diverge.
+4. Identify whether the cause is:
+   - registration
+   - code/name mismatch
+   - batch selection
+   - execution failure
+   - normalization
+   - validation/rejection
+   - persistence filtering
+   - database constraint
+   - another concrete cause
+5. Do NOT fix anything until the exact failure point is proven from source/runtime evidence.
+6. If the same root cause affects multiple candidates, fix it once at the shared layer rather than adding eight separate patches.
+7. Do not alter comparison logic yet.
+8. Do not alter thresholds or model weights.
+9. Do not use the known winners/evaluation data.
+10. Do not run broad repository scans or unnecessary full test suites.
+
+### If the root cause is confirmed
+
+Implement the smallest shared fix necessary to make the already-existing metric producers execute and persist their legitimate results.
+
+Then run only targeted tests/checks proving:
+- the producer executes
+- the result reaches normalization
+- the result is accepted
+- the result is persisted
+- existing working metrics still behave normally
+
+Do not claim the Truth Engine now uses these metrics until persisted evidence is actually confirmed.
+
+### Final report
+
+Return only:
+
+1. EXACT ROOT CAUSE
+2. FIRST FAILURE POINT IN THE PIPELINE
+3. FILES CHANGED
+4. MINIMAL FIX
+5. TESTS/VERIFICATION
+6. WHICH OF 020/037/038/039/040/043/044/052 NOW PERSIST
+7. WHICH STILL DO NOT, AND WHY
+8. GIT COMMIT HASH
+
+If the root cause cannot be proven, make NO changes and report exactly what evidence is still missing.
+
+Do not spend credits on unrelated cleanup, refactoring, UI work, documentation, or the unavailable 105-match dataset.
