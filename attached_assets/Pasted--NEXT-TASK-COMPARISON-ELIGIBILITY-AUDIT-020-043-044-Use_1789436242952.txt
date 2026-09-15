@@ -1,0 +1,76 @@
+## NEXT TASK — COMPARISON ELIGIBILITY AUDIT: 020 / 043 / 044
+
+Use the cost-efficient execution rules.
+
+Do NOT modify code yet.
+
+The live persistence test is complete:
+Run ID: e58f6535-300f-4973-b34b-202392a13e30
+
+Confirmed:
+020, 043, 044 produce real two-sided usable persisted evidence.
+038 and 052 are currently historically unavailable and must NOT be promoted.
+037, 039, 040 remain quarantined.
+
+### Objective
+
+Determine whether 020, 043, and 044 can safely receive COMPARISON_SPECS entries.
+
+For EACH metric, inspect only the producer and persisted result shape and determine:
+
+1. Exact persisted P1/P2 field(s).
+2. Exact meaning of the value.
+3. Natural direction: which direction favors a player.
+4. Evidence family.
+5. Whether it shares a source/evidence family with an existing comparison metric.
+6. Actual observed sample size available in persisted data.
+7. Appropriate minSample/materiality floor based on observed data.
+8. Whether the evidence is DIRECT, RECONSTRUCTED, or PARTIAL.
+9. Whether any leakage/temporal-boundary test exists and what rule it enforces.
+10. Whether adding the comparison spec would create double-counting with an existing family.
+
+### Critical rules
+
+Do NOT guess any of the above.
+
+Derive each answer from:
+- the producer implementation
+- its tests/leakage tests
+- the persisted database rows
+- existing comparison-spec conventions
+
+Do NOT:
+- add comparison specs yet
+- change thresholds
+- change weights
+- change family logic
+- use known match winners
+- use the 105-match evaluation dataset
+- treat persistence as proof of predictive value
+- promote 038 or 052
+- modify quarantined 037/039/040
+
+### Final report
+
+For each of 020, 043, 044:
+
+METRIC:
+- persisted field:
+- meaning:
+- direction:
+- proposed family:
+- existing correlated metrics:
+- observed n:
+- evidence treatment:
+- proposed materiality/minSample:
+- leakage protection:
+- double-counting risk:
+- ELIGIBLE / NOT ELIGIBLE
+
+Then give one final recommendation:
+
+020: ADD / DO NOT ADD
+043: ADD / DO NOT ADD
+044: ADD / DO NOT ADD
+
+Make NO code changes unless I explicitly approve the proposed specs afterward.
