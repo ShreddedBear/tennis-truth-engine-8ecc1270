@@ -42,6 +42,7 @@
 import { asTourFamily, type LaneOutcome, type TourLane } from "./audit-metrics-shared";
 import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 import { computeHistoricalTwinMatchSearch, type TwinMatchSearchResult } from "./historical-twin-match-search.server";
+import type { HistoryLane } from "./task18c-rank-form-workload";
 
 /** Live wrapper: resolves the lane's static history data and delegates to the already-real, already-tested twin-match search engine. */
 export function computeHistoricalTwinMatchSearchForLane(args: {
@@ -50,10 +51,11 @@ export function computeHistoricalTwinMatchSearchForLane(args: {
   lane: TourLane;
   asOfDate: string;
   surface?: string | null;
+  historyLane?: HistoryLane;
 }): LaneOutcome<NonNullable<TwinMatchSearchResult>> {
   const { p1, p2, lane, asOfDate, surface = null } = args;
   const family = asTourFamily(lane);
-  const historyLane = loadRuntimeIndex().matchHistory[family];
+  const historyLane = args.historyLane ?? loadRuntimeIndex().matchHistory[family];
   if (!historyLane || typeof historyLane !== "object") {
     return { lane, status: "NOT_ENOUGH_DATA", n: 0, reason: `No match-history lane data available for ${lane}.` };
   }

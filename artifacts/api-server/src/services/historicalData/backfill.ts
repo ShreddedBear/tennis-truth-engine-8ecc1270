@@ -240,19 +240,33 @@ export async function runHistoricalBackfill(
     });
 
     for (const { fixture, schedule } of sorted) {
+      // Approved importers resolve source IDs before reaching this generic pipeline. Do not
+      // resolve their canonical IDs as if they were provider IDs (which would create false
+      // review-queue entries). Legacy providers retain the existing resolver behavior.
+      const storedPlayer1Id = fixture.canonicalPlayer1Id ?? fixture.player1Id;
+      const storedPlayer2Id = fixture.canonicalPlayer2Id ?? fixture.player2Id;
+      const storedWinnerId = fixture.winnerId === fixture.player1Id
+        ? storedPlayer1Id
+        : fixture.winnerId === fixture.player2Id
+          ? storedPlayer2Id
+          : fixture.winnerId;
       await Promise.all([
-        identityResolver.resolve({
-          provider: fixture.provider,
-          externalPlayerId: fixture.player1Id,
-          externalPlayerName: fixture.player1Name,
-          metadata: { tour: fixture.tour, tournamentNames: fixture.tournamentName ? [fixture.tournamentName] : [] },
-        }),
-        identityResolver.resolve({
-          provider: fixture.provider,
-          externalPlayerId: fixture.player2Id,
-          externalPlayerName: fixture.player2Name,
-          metadata: { tour: fixture.tour, tournamentNames: fixture.tournamentName ? [fixture.tournamentName] : [] },
-        }),
+        fixture.canonicalPlayer1Id
+          ? Promise.resolve()
+          : identityResolver.resolve({
+              provider: fixture.provider,
+              externalPlayerId: fixture.sourcePlayer1Id ?? fixture.player1Id,
+              externalPlayerName: fixture.player1Name,
+              metadata: { tour: fixture.tour, tournamentNames: fixture.tournamentName ? [fixture.tournamentName] : [] },
+            }),
+        fixture.canonicalPlayer2Id
+          ? Promise.resolve()
+          : identityResolver.resolve({
+              provider: fixture.provider,
+              externalPlayerId: fixture.sourcePlayer2Id ?? fixture.player2Id,
+              externalPlayerName: fixture.player2Name,
+              metadata: { tour: fixture.tour, tournamentNames: fixture.tournamentName ? [fixture.tournamentName] : [] },
+            }),
       ]);
       if (!fixture.cancelled && fixture.winnerId === null) {
         summary.matchesSkippedNoTerminalResult += 1;
@@ -264,8 +278,8 @@ export async function runHistoricalBackfill(
       // abbreviated name and get collapsed by identity resolution.  Inserting such a fixture would
       // produce duplicate (matchId, playerId, featureName) snapshot rows, violating the unique
       // constraint.
-      if (fixture.player1Id === fixture.player2Id) {
-        logger.warn({ externalId: fixture.id, playerId: fixture.player1Id }, "backfill: skipping same-player fixture (bad data)");
+      if (storedPlayer1Id === storedPlayer2Id) {
+        logger.warn({ externalId: fixture.id, playerId: storedPlayer1Id }, "backfill: skipping same-player fixture (bad data)");
         summary.matchesSkippedBadData += 1;
         continue;
       }
@@ -305,8 +319,8 @@ export async function runHistoricalBackfill(
         // transaction was introduced); fail fast rather than silently treating it as a normal
         // duplicate, which would permanently lose the mismatch with no repair path.
         if (!existing.cancelled && existing.winnerId !== null) {
-          const state1 = getOrCreateState(playerStates, fixture.player1Id);
-          const state2 = getOrCreateState(playerStates, fixture.player2Id);
+          const state1 = getOrCreateState(playerStates, storedPlayer1Id);
+          const state2 = getOrCreateState(playerStates, storedPlayer2Id);
           const surface = existing.surface as Surface | null;
           const expectedCount =
             computeFeatures(state1, surface).filter((f) => f.sourceTimestamp.getTime() < existing.cutoffAt.getTime()).length +
@@ -333,8 +347,8 @@ export async function runHistoricalBackfill(
         // DO fold it into this run's in-memory state so later matches in this same run still see
         // it, matching what hydration would have done had this row existed before the run started.
         foldMatchIntoStates(playerStates, {
-          player1Id: fixture.player1Id,
-          player2Id: fixture.player2Id,
+          player1Id: storedPlayer1Id,
+          player2Id: storedPlayer2Id,
           winnerId: existing.winnerId,
           cancelled: existing.cancelled,
           surface: existing.surface as Surface | null,
@@ -347,15 +361,15 @@ export async function runHistoricalBackfill(
       const { scheduledStartAt, timeConfirmed: scheduledStartTimeConfirmed } = schedule;
       const cutoffAt = new Date(scheduledStartAt.getTime() - cutoffMinutes * 60_000);
 
-      const state1 = getOrCreateState(playerStates, fixture.player1Id);
-      const state2 = getOrCreateState(playerStates, fixture.player2Id);
+      const state1 = getOrCreateState(playerStates, storedPlayer1Id);
+      const state2 = getOrCreateState(playerStates, storedPlayer2Id);
 
       const features1 = computeFeatures(state1, fixture.surface);
       const features2 = computeFeatures(state2, fixture.surface);
 
       const featureRows = [
-        ...features1.map((f) => ({ playerId: fixture.player1Id, ...f })),
-        ...features2.map((f) => ({ playerId: fixture.player2Id, ...f })),
+        ...features1.map((f) => ({ playerId: storedPlayer1Id, ...f })),
+        ...features2.map((f) => ({ playerId: storedPlayer2Id, ...f })),
       ]
         // Defense in depth: never write a feature whose own source timestamp fails its cutoff
         // check, even though computeFeatures() only ever draws from strictly-earlier matches.
@@ -381,11 +395,11 @@ export async function runHistoricalBackfill(
             surface: fixture.surface,
             round: fixture.round,
             matchFormat: fixture.matchFormat,
-            player1Id: fixture.player1Id,
+            player1Id: storedPlayer1Id,
             player1Name: fixture.player1Name,
-            player2Id: fixture.player2Id,
+            player2Id: storedPlayer2Id,
             player2Name: fixture.player2Name,
-            winnerId: fixture.winnerId,
+            winnerId: storedWinnerId,
             score: fixture.score,
             retired: fixture.retired,
             walkover: fixture.walkover,
@@ -399,6 +413,12 @@ export async function runHistoricalBackfill(
             player1Rank: fixture.player1Rank,
             player2Rank: fixture.player2Rank,
             rawSource: fixture.raw as object,
+            canonicalPlayer1Id: fixture.canonicalPlayer1Id ?? null,
+            canonicalPlayer2Id: fixture.canonicalPlayer2Id ?? null,
+            sourceFile: fixture.sourceFile ?? null,
+            sourceUrl: fixture.sourceUrl ?? null,
+            sourceLicense: fixture.sourceLicense ?? null,
+            importProvenance: fixture.importProvenance ?? {},
           })
           .returning({ id: historicalMatchesTable.id });
 
@@ -433,8 +453,8 @@ export async function runHistoricalBackfill(
       // into each player's running state so it can inform LATER matches (this run's, or a
       // future run's -- via hydration).
       foldMatchIntoStates(playerStates, {
-        player1Id: fixture.player1Id,
-        player2Id: fixture.player2Id,
+        player1Id: storedPlayer1Id,
+        player2Id: storedPlayer2Id,
         winnerId: fixture.winnerId,
         cancelled: fixture.cancelled,
         surface: fixture.surface,

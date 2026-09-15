@@ -30,6 +30,10 @@ export const historicalMatchesTable = pgTable(
     player1Name: text("player1_name").notNull(),
     player2Id: text("player2_id").notNull(),
     player2Name: text("player2_name").notNull(),
+    // Provider-independent IDs resolved before an approved historical import is admitted.
+    // Nullable for legacy rows imported before canonical ingestion was enforced.
+    canonicalPlayer1Id: text("canonical_player1_id"),
+    canonicalPlayer2Id: text("canonical_player2_id"),
 
     // Null only for cancelled matches that never produced a winner.
     winnerId: text("winner_id"),
@@ -71,6 +75,11 @@ export const historicalMatchesTable = pgTable(
 
     // Raw provider payload, kept for audit/debugging -- never read by the prediction engine.
     rawSource: jsonb("raw_source").notNull(),
+    // Immutable source and import lineage. The approved archive importer writes all four fields.
+    sourceFile: text("source_file"),
+    sourceUrl: text("source_url"),
+    sourceLicense: text("source_license"),
+    importProvenance: jsonb("import_provenance").notNull().default({}),
 
     importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
   },

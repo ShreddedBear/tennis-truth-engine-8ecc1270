@@ -46,6 +46,19 @@ describe("runtime-tennis-index-data.server", () => {
     expect(mod.loadRuntimeIndex()).toEqual(REAL_INDEX);
   });
 
+  it("loadRuntimeIndex() stays a static synchronous read and does not perform a warehouse overlay", async () => {
+    const mod = await freshModule(() => JSON.stringify(REAL_INDEX));
+    const before = mod.loadRuntimeIndex();
+    const after = mod.loadRuntimeIndex();
+    expect(after).toBe(before);
+    expect(after).toEqual(REAL_INDEX);
+  });
+
+  it("the explicit date-aware lane API fails closed for an invalid cutoff without querying the warehouse", async () => {
+    const mod = await freshModule(() => JSON.stringify(REAL_INDEX));
+    await expect(mod.loadRuntimeHistoryLane("ATP_MAIN", "not-a-date")).resolves.toEqual({});
+  });
+
   it("loadRuntimeIndex() fails closed to an empty index when disk read fails and nothing has warmed the cache", async () => {
     const mod = await freshModule(() => { throw new Error("ENOENT"); });
     const result = mod.loadRuntimeIndex();

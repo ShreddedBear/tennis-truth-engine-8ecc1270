@@ -168,13 +168,13 @@ export function computeResidualPerformanceFromReplay(
 }
 
 /** Live wrapper: replays the lane once and computes the residual for `player`, gated by lane eligibility. */
-export function computeOpponentAdjustedResidualPerformance(args: { player: string; lane: TourLane; asOfDate: string }): LaneOutcome<ResidualPerformanceResult> {
+export function computeOpponentAdjustedResidualPerformance(args: { player: string; lane: TourLane; asOfDate: string; historyLane?: HistoryLane }): LaneOutcome<ResidualPerformanceResult> {
   const { player, lane, asOfDate } = args;
   if (!RESIDUAL_PERFORMANCE_ELIGIBLE_LANES.has(lane)) {
     return { lane, status: "NOT_ENOUGH_DATA", n: 0, reason: `${lane} does not have broad enough set_scores coverage in the static history index to build a games/sets-won cohort norm.` };
   }
   const family = asTourFamily(lane);
-  const historyLane = loadRuntimeIndex().matchHistory[family];
+  const historyLane = args.historyLane ?? loadRuntimeIndex().matchHistory[family];
   const replay = replayResidualPerformance(historyLane as never, asOfDate);
   const value = computeResidualPerformanceFromReplay(player, replay);
   if (!value) {

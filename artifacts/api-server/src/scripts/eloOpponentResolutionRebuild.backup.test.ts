@@ -128,7 +128,10 @@ function match(id: number, player1Id: string, player2Id: string, start: string, 
     score: "6-4 6-4", retired: false, walkover: false, cancelled: false,
     gameMarginsPlayer1: [], indoor: null, player1Rank: null, player2Rank: null,
     scheduledStartAt: new Date(start), scheduledStartTimeConfirmed: true, cutoffMinutes: 30,
-    cutoffAt: new Date(new Date(start).getTime() - 30 * 60_000), rawSource: {}, importedAt: new Date(start),
+    cutoffAt: new Date(new Date(start).getTime() - 30 * 60_000), rawSource: {},
+    canonicalPlayer1Id: null, canonicalPlayer2Id: null,
+    sourceFile: null, sourceUrl: null, sourceLicense: null, importProvenance: {},
+    importedAt: new Date(start),
   };
 }
 

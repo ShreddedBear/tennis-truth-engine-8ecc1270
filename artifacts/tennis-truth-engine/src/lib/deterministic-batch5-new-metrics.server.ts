@@ -25,6 +25,7 @@ import { certifyMetricFinding } from "./metric-certification";
 import type { TourLane } from "./audit-metrics-shared";
 import { computeUncertaintyAdjustedAdvantage, type DimensionComparison } from "./audit-metric-047-uncertainty-adjusted-advantage";
 import { computeHistoricalTwinMatchSearchForLane } from "./audit-metric-061-historical-twin-match-search";
+import { loadRuntimeHistoryLane } from "./runtime-tennis-index-data.server";
 
 const OWNED = new Set(["047", "061"]);
 
@@ -65,7 +66,11 @@ async function uncertaintyAdjustedAdvantage047(p1: string, p2: string, lane: Tou
 }
 
 async function historicalTwinMatchSearch061(p1: string, p2: string, lane: TourLane, asOfDate: string, surface: string | null): Promise<MetricFinding | null> {
-  const result = computeHistoricalTwinMatchSearchForLane({ p1, p2, lane, asOfDate, surface });
+  // 061 is an already-async historical dispatcher and explicitly accepts a HistoryLane.
+  // Keep the warehouse read scoped to this metric/date; ordinary runtime-index consumers
+  // remain static and fast, and no withheld metric is promoted by this adapter.
+  const historyLane = await loadRuntimeHistoryLane(lane, asOfDate);
+  const result = computeHistoricalTwinMatchSearchForLane({ p1, p2, lane, asOfDate, surface, historyLane: historyLane as never });
   if (result.status !== "GO") return null;
   const { p1_value, p2_value, differential, sample, reliability, sources } = result.value;
   return certifyMetricFinding({

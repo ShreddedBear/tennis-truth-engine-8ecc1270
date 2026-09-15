@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "backfill": "tsx src/scripts/backfillHistoricalMatches.ts",
+    "import:approved-sackmann": "tsx src/scripts/importApprovedSackmann.ts",
     "regenerate-ledger": "tsx src/scripts/regenerateLedgerPredictions.ts",
     "test:leakage": "tsx --test src/services/historicalData/leakage.test.ts",
     "test:historicalBackfillIncremental": "tsx --test src/services/historicalData/backfillIncremental.test.ts",

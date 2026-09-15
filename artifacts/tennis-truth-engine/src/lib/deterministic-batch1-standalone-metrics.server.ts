@@ -31,7 +31,7 @@ import type { EvidenceTourFamily } from "./evidence-match-identity";
 import type { MetricFinding } from "./audit-pipeline";
 import { certifyMetricFinding } from "./metric-certification";
 import type { TourLane } from "./audit-metrics-shared";
-import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
+import { loadRuntimeHistoryLane, loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 import { replayElo } from "./task18c-rank-form-workload";
 import { computeOpponentFinishingAbility } from "./audit-metric-027-opponent-finishing-ability";
 import { computeCommonOpponentPointDifferential } from "./audit-metric-031-common-opponent-point-differential";
@@ -129,9 +129,9 @@ function hiddenImprovement041(p1: string, p2: string, lane: TourLane, asOfDate: 
   return { ok: true, p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }
 
-function matchStateElo046(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
-  const a = computeMatchStateElo({ player: p1, lane, asOfDate });
-  const b = computeMatchStateElo({ player: p2, lane, asOfDate });
+function matchStateElo046(p1: string, p2: string, lane: TourLane, asOfDate: string, historyLane: Parameters<typeof computeMatchStateElo>[0]["historyLane"]): FoundValues {
+  const a = computeMatchStateElo({ player: p1, lane, asOfDate, historyLane });
+  const b = computeMatchStateElo({ player: p2, lane, asOfDate, historyLane });
   if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   return {
     ok: true,
@@ -190,11 +190,12 @@ export async function deterministicBatch1StandaloneMetric(args: { metricCode: st
   let evidenceFamily = "";
   let caughtReason: string | null = null;
   try {
+    const historyLane = code === "046" ? await loadRuntimeHistoryLane(lane, asOfDate) : undefined;
     if (code === "027") { found = finishingAbility027(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_OPPONENT_FINISHING_ABILITY"; }
     else if (code === "029") { found = psychologicalResponseProxy029(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_PSYCHOLOGICAL_RESPONSE_PROXY"; }
     else if (code === "031") { found = commonOpponentDifferential031(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_COMMON_OPPONENT_DIFFERENTIAL"; }
     else if (code === "041") { found = hiddenImprovement041(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_HIDDEN_IMPROVEMENT"; }
-    else if (code === "046") { found = matchStateElo046(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_MATCH_STATE_ELO"; }
+    else if (code === "046") { found = matchStateElo046(p1, p2, lane, asOfDate, historyLane as never); evidenceFamily = "STANDALONE_MATCH_STATE_ELO"; }
     else if (code === "051") { found = opponentSpecificProbability051(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_OPPONENT_SPECIFIC_PROBABILITY"; }
   } catch (error) {
     // Previously a silent `return null` -- indistinguishable from "no data" downstream,

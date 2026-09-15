@@ -111,6 +111,29 @@ export async function ensureRuntimeIndexLoaded(assets?: WorkersAssetsBinding): P
   }
 }
 
+function mergeHistoryEntries(base: unknown[], overlay: unknown[]): unknown[] {
+  const byMatch = new Map<string, unknown[]>();
+  const conflicts = new Set<string>();
+  const add = (entry: unknown) => {
+    if (!Array.isArray(entry)) return;
+    const key = [entry[0], entry[1], entry[2], entry[3], entry[5]].map(value => String(value ?? "").trim().toLowerCase()).join("|");
+    if (conflicts.has(key)) return;
+    const existing = byMatch.get(key);
+    if (existing && existing[4] !== entry[4]) {
+      byMatch.delete(key);
+      conflicts.add(key);
+      return;
+    }
+    byMatch.set(key, entry);
+  };
+  for (const entry of base) add(entry);
+  // The approved warehouse is the preferred source for an identical match. This
+  // retains its source/provenance detail rather than silently discarding it in
+  // favor of the generated static row.
+  for (const entry of overlay) add(entry);
+  return [...byMatch.values()].sort((a, b) => String(a[0] ?? "").localeCompare(String(b[0] ?? "")));
+}
+
 export function loadRuntimeIndex(): RuntimeTennisIndex {
   if (cache) return cache;
   const fromDisk = loadFromDisk();
@@ -119,4 +142,43 @@ export function loadRuntimeIndex(): RuntimeTennisIndex {
     return cache;
   }
   return empty();
+}
+
+/**
+ * Explicit date-aware boundary for async producers that can await their lane. A successful
+ * warehouse read is overlaid even when it has zero admitted rows; the static lane is used only
+ * when the warehouse itself is unavailable. Ordinary loadRuntimeIndex() remains static and
+ * synchronous: no database query or global mutation occurs here.
+ */
+export async function loadRuntimeHistoryLane(
+  family: keyof RuntimeTennisIndex["matchHistory"],
+  asOfDate: string,
+): Promise<Record<string, unknown[]>> {
+  const staticLane = loadRuntimeIndex().matchHistory[family] ?? {};
+  const staticBefore = filterHistoryBefore(staticLane, asOfDate);
+  try {
+    const { loadApprovedSackmannHistory } = await import("./approved-sackmann-history.server");
+    const result = await loadApprovedSackmannHistory(asOfDate);
+    if (!result.available) return staticBefore;
+    const overlay = result.lanes[family] ?? {};
+    const merged: Record<string, unknown[]> = {};
+    for (const [player, rows] of Object.entries(staticBefore)) merged[player] = [...rows];
+    for (const [player, rows] of Object.entries(overlay)) {
+      merged[player] = mergeHistoryEntries(merged[player] ?? [], rows) as unknown[];
+    }
+    return filterHistoryBefore(merged, asOfDate);
+  } catch {
+    return staticBefore;
+  }
+}
+
+function filterHistoryBefore(lane: Record<string, unknown[]>, asOfDate: string): Record<string, unknown[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) return {};
+  const filtered: Record<string, unknown[]> = {};
+  for (const [player, rows] of Object.entries(lane)) {
+    const eligible = rows.filter(entry => Array.isArray(entry) && /^\d{4}-\d{2}-\d{2}$/.test(String(entry[0] ?? "").slice(0, 10))
+      && String(entry[0]).slice(0, 10) < asOfDate);
+    if (eligible.length) filtered[player] = eligible;
+  }
+  return filtered;
 }

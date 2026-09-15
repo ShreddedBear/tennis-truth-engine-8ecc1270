@@ -94,13 +94,13 @@ export function computeMotivationStakesProfile(player: string, lane: HistoryLane
 }
 
 /** Live wrapper: gated to ATP_CHALLENGER (the only lane with real seed/draw_size/rank_points source data). */
-export function computeMotivationStakes(args: { player: string; lane: TourLane; asOfDate: string }): LaneOutcome<MotivationStakesResult> {
+export function computeMotivationStakes(args: { player: string; lane: TourLane; asOfDate: string; historyLane?: HistoryLane }): LaneOutcome<MotivationStakesResult> {
   const { player, lane, asOfDate } = args;
   if (!MOTIVATION_STAKES_ELIGIBLE_LANES.has(lane)) {
     return { lane, status: "NOT_ENOUGH_DATA", n: 0, reason: `${lane}'s source data has no seed/draw_size/ranking-points columns -- verified directly against that lane's own source CSV header row. Only ATP_CHALLENGER (TennisMyLife normalized CSVs) carries this data.` };
   }
   const family = asTourFamily(lane);
-  const historyLane = loadRuntimeIndex().matchHistory[family];
+  const historyLane = args.historyLane ?? loadRuntimeIndex().matchHistory[family];
   if (!laneMatchesBefore(historyLane as never, asOfDate).length) {
     return { lane, status: "NOT_ENOUGH_DATA", n: 0, reason: "Lane has no leakage-safe matches before asOfDate." };
   }

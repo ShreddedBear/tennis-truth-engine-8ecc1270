@@ -19,16 +19,17 @@ import type { TourLane } from "./audit-metrics-shared";
 import { computeOpponentAdjustedResidualPerformance } from "./audit-metric-038-opponent-adjusted-residual-performance";
 import { computeHiddenDecline } from "./audit-metric-040-hidden-decline-detector";
 import { computeMotivationStakes } from "./audit-metric-062-motivation-stakes";
+import { loadRuntimeHistoryLane } from "./runtime-tennis-index-data.server";
 
-const SYNCHRONOUS_OWNED = new Set(["038", "062"]);
+const OWNED = new Set(["038", "062"]);
 
 function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
 }
 
-function residualFinding038(player: string, lane: TourLane, asOfDate: string): MetricFinding | null {
-  const result = computeOpponentAdjustedResidualPerformance({ player, lane, asOfDate });
+function residualFinding038(player: string, lane: TourLane, asOfDate: string, historyLane: Parameters<typeof computeOpponentAdjustedResidualPerformance>[0]["historyLane"]): MetricFinding | null {
+  const result = computeOpponentAdjustedResidualPerformance({ player, lane, asOfDate, historyLane });
   if (result.status !== "GO") return null;
   const v = result.value;
   const value = `own_games_won_pct=${v.own_games_won_pct}; cohort_games_won_pct=${v.cohort_games_won_pct}; games_won_residual_pct=${v.games_won_residual_pct}; own_sets_won_pct=${v.own_sets_won_pct}; cohort_sets_won_pct=${v.cohort_sets_won_pct}; sets_won_residual_pct=${v.sets_won_residual_pct}; elo_band=+/-${v.elo_band}`;
@@ -40,8 +41,8 @@ function residualFinding038(player: string, lane: TourLane, asOfDate: string): M
   });
 }
 
-function stakesFinding062(player: string, lane: TourLane, asOfDate: string): MetricFinding | null {
-  const result = computeMotivationStakes({ player, lane, asOfDate });
+function stakesFinding062(player: string, lane: TourLane, asOfDate: string, historyLane: Parameters<typeof computeMotivationStakes>[0]["historyLane"]): MetricFinding | null {
+  const result = computeMotivationStakes({ player, lane, asOfDate, historyLane });
   if (result.status !== "GO") return null;
   const v = result.value;
   const value = `seeded_rate_pct=${v.seeded_rate_pct}; avg_seed_when_seeded=${v.avg_seed_when_seeded ?? "NA"}; avg_rank_points_at_stake=${v.avg_rank_points_at_stake ?? "NA"}`;
@@ -53,15 +54,16 @@ function stakesFinding062(player: string, lane: TourLane, asOfDate: string): Met
   });
 }
 
-/** Synchronous tier for 038/062 -- called once per player side from the cheap deterministic chain. */
+/** Async historical tier for 038/062 -- one explicit warehouse lane read per pair. */
 export async function deterministicBatch6ResidualStakes(args: { metricCode: string; p1: string; p2: string; asOfDate: string; tourFamily?: EvidenceTourFamily | null }): Promise<MetricFinding | null> {
   const code = codeOf(args.metricCode);
-  if (!SYNCHRONOUS_OWNED.has(code)) return null;
+  if (!OWNED.has(code)) return null;
   const lane = args.tourFamily as TourLane | null | undefined;
   if (!lane) return null;
   try {
-    const p1Finding = code === "038" ? residualFinding038(args.p1, lane, args.asOfDate) : stakesFinding062(args.p1, lane, args.asOfDate);
-    const p2Finding = code === "038" ? residualFinding038(args.p2, lane, args.asOfDate) : stakesFinding062(args.p2, lane, args.asOfDate);
+    const historyLane = await loadRuntimeHistoryLane(lane, args.asOfDate);
+    const p1Finding = code === "038" ? residualFinding038(args.p1, lane, args.asOfDate, historyLane as never) : stakesFinding062(args.p1, lane, args.asOfDate, historyLane as never);
+    const p2Finding = code === "038" ? residualFinding038(args.p2, lane, args.asOfDate, historyLane as never) : stakesFinding062(args.p2, lane, args.asOfDate, historyLane as never);
     if (!p1Finding && !p2Finding) return null;
     // Independent P1/P2 evidence: each side's own finding stands alone, never suppressing or overwriting the other.
     const p1Value = p1Finding?.p1_value ?? null, p2Value = p2Finding?.p1_value ?? null;

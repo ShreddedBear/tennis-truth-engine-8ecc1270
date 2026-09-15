@@ -17,6 +17,7 @@ import { computeLevelTourTransition } from "./audit-metric-020-level-tour-transi
 import { computeLossAutopsy } from "./audit-metric-036-loss-autopsy";
 import { computeFavoriteFragility } from "./audit-metric-045-favorite-fragility";
 import { computeEntropyLeadDurability } from "./audit-metric-052-entropy-lead-durability";
+import { loadRuntimeHistoryLane } from "./runtime-tennis-index-data.server";
 
 const OWNED = new Set(["020", "036", "045", "052"]);
 
@@ -83,9 +84,9 @@ function favoriteFragility045(p1: string, p2: string, lane: TourLane, asOfDate: 
   return { ok: true, p1Value: fmtSide(a.value), p2Value: fmtSide(b.value), n: Math.min(a.n, b.n) };
 }
 
-function entropyLeadDurability052(p1: string, p2: string, lane: TourLane, asOfDate: string): FoundValues {
-  const a = computeEntropyLeadDurability({ player: p1, lane, asOfDate });
-  const b = computeEntropyLeadDurability({ player: p2, lane, asOfDate });
+function entropyLeadDurability052(p1: string, p2: string, lane: TourLane, asOfDate: string, historyLane: Parameters<typeof computeEntropyLeadDurability>[0]["historyLane"]): FoundValues {
+  const a = computeEntropyLeadDurability({ player: p1, lane, asOfDate, historyLane });
+  const b = computeEntropyLeadDurability({ player: p2, lane, asOfDate, historyLane });
   if (a.status !== "GO" || b.status !== "GO") return { ok: false, p1Reason: notEnoughDataReason(a), p2Reason: notEnoughDataReason(b) };
   const fmtSide = (r: typeof a.value) => fmt({
     sets_n: r.sets_n,
@@ -116,10 +117,11 @@ export async function deterministicBatch2NewMetric(args: { metricCode: string; p
   let evidenceFamily = "";
   let caughtReason: string | null = null;
   try {
+    const historyLane = code === "052" ? await loadRuntimeHistoryLane(lane, asOfDate) : undefined;
     if (code === "020") { found = levelTourTransition020(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_LEVEL_TOUR_TRANSITION"; }
     else if (code === "036") { found = lossAutopsy036(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_LOSS_AUTOPSY"; }
     else if (code === "045") { found = favoriteFragility045(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_FAVORITE_FRAGILITY"; }
-    else if (code === "052") { found = entropyLeadDurability052(p1, p2, lane, asOfDate); evidenceFamily = "STANDALONE_ENTROPY_LEAD_DURABILITY"; }
+    else if (code === "052") { found = entropyLeadDurability052(p1, p2, lane, asOfDate, historyLane as never); evidenceFamily = "STANDALONE_ENTROPY_LEAD_DURABILITY"; }
   } catch (error) {
     // malformed/unavailable static-index lane still falls through, never crashes or
     // fabricates a value -- but the real error is now recorded instead of discarded.

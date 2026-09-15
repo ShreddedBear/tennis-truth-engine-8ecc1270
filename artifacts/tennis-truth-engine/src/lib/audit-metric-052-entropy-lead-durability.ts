@@ -24,6 +24,7 @@
 // structural schema gap on ATP_MAIN/WTA_CHALLENGER, same as #027/#045/#046.
 import { normalizeEvidenceIdentity } from "./evidence-player-alias";
 import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
+import type { HistoryLane } from "./task18c-rank-form-workload";
 import { round1, type LaneOutcome, type TourLane, asTourFamily } from "./audit-metrics-shared";
 
 export const ENTROPY_ELIGIBLE_LANES: ReadonlySet<TourLane> = new Set(["WTA_MAIN", "ATP_CHALLENGER"]);
@@ -63,13 +64,13 @@ export function computeEntropyFromSetScores(matchSetScores: Array<Array<[number,
 }
 
 /** Live wrapper: reads `player`'s own set_scores history strictly before asOfDate from the static index, gated by lane eligibility. */
-export function computeEntropyLeadDurability(args: { player: string; lane: TourLane; asOfDate: string }): LaneOutcome<EntropyLeadDurabilityResult> {
+export function computeEntropyLeadDurability(args: { player: string; lane: TourLane; asOfDate: string; historyLane?: HistoryLane }): LaneOutcome<EntropyLeadDurabilityResult> {
   const { player, lane, asOfDate } = args;
   if (!ENTROPY_ELIGIBLE_LANES.has(lane)) {
     return { lane, status: "NOT_ENOUGH_DATA", n: 0, reason: `${lane} has no set-sequence (set_scores) data in the static history index -- structural schema gap, not sparse data.` };
   }
   const family = asTourFamily(lane);
-  const historyLane = loadRuntimeIndex().matchHistory[family] as unknown as Record<string, unknown[][]>;
+  const historyLane = (args.historyLane ?? loadRuntimeIndex().matchHistory[family]) as unknown as Record<string, unknown[][]>;
   const key = normalizeEvidenceIdentity(player);
   const entries = historyLane[key];
   if (!Array.isArray(entries) || !entries.length) {

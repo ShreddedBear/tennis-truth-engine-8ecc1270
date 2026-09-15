@@ -1184,9 +1184,8 @@ router.post("/evaluation/historical-backfill/run-cycle", async (_req, res): Prom
 });
 
 /**
- * Sackmann CSV backfill (Task #107 Phase 1) — downloads Jeff Sackmann's tennis_atp / tennis_wta
- * GitHub CSVs and inserts match history into historical_matches via the same infrastructure as
- * the live-provider backfill. Runs in the background; outcome written to job_runs.
+ * Approved Sackmann CSV backfill — downloads only the Aneeshers raw-GitHub archive and inserts
+ * match history through the normal warehouse pipeline.
  *
  * POST /evaluation/sackmann-backfill/run
  * Body (all optional): { startYear?: number, endYear?: number, tours?: ("atp"|"wta")[], includeChallengerItf?: boolean }
@@ -1200,11 +1199,20 @@ router.post("/evaluation/historical-backfill/run-cycle", async (_req, res): Prom
 // owner-triggered runs. Other job-trigger routes (calibration-refit, walk-forward) already use
 // requireAdmin for the same reason.
 router.post("/evaluation/sackmann-backfill/run", requireAdmin, async (req, res): Promise<void> => {
-
-  const startYear          = typeof req.body?.startYear          === "number"  ? req.body.startYear          : 2010;
-  const endYear            = typeof req.body?.endYear            === "number"  ? req.body.endYear            : new Date().getFullYear();
-  const tours              = Array.isArray(req.body?.tours)                    ? req.body.tours               : ["atp", "wta"];
+  const currentYear = new Date().getUTCFullYear();
+  const startYear = Number.isInteger(req.body?.startYear) ? req.body.startYear : 2012;
+  const endYear = Number.isInteger(req.body?.endYear) ? req.body.endYear : currentYear;
+  const requestedTours: unknown[] = Array.isArray(req.body?.tours) ? req.body.tours : ["atp", "wta"];
+  const tours: Array<"atp" | "wta"> = [
+    ...new Set(requestedTours.filter((tour): tour is "atp" | "wta" => tour === "atp" || tour === "wta")),
+  ];
   const includeChallengerItf = typeof req.body?.includeChallengerItf === "boolean" ? req.body.includeChallengerItf : true;
+  if (startYear < 2012 || endYear > currentYear || startYear > endYear || tours.length === 0) {
+    res.status(400).json({
+      error: `Approved Sackmann range must be 2012-${currentYear}, startYear must not exceed endYear, and tours must contain atp and/or wta.`,
+    });
+    return;
+  }
 
   // Respond immediately — the backfill is long-running.
   res.json({ started: true, startYear, endYear, tours, includeChallengerItf, jobName: `${SACKMANN_PROVIDER}-backfill` });
@@ -1234,7 +1242,7 @@ router.post("/evaluation/sackmann-backfill/run", requireAdmin, async (req, res):
       logger.info({ result }, "sackmann-backfill: completed");
     })
     .catch(async (err) => {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error ? (err as Error).message : String(err);
       logger.error({ err }, "sackmann-backfill: failed");
       await db.insert(jobRunsTable).values({
         jobName: `${SACKMANN_PROVIDER}-backfill`,
@@ -1294,6 +1302,11 @@ router.get("/evaluation/sackmann-backfill/status", async (_req, res): Promise<vo
  * dryRun=false → fire-and-forget; final counts stored in job_runs (retrieve via status endpoint).
  */
 router.post("/evaluation/sackmann-local-backfill/run", requireAdmin, async (req, res): Promise<void> => {
+  res.status(410).json({
+    error: "Local Sackmann imports are disabled. Use the approved Aneeshers archive route.",
+  });
+  return;
+
   const localDir   = typeof req.body?.localDir   === "string"  ? req.body.localDir   : undefined;
   const fileTypes  = Array.isArray(req.body?.fileTypes)        ? req.body.fileTypes  : undefined;
   const yearFrom   = typeof req.body?.yearFrom   === "number"  ? req.body.yearFrom   : undefined;
@@ -1308,7 +1321,7 @@ router.post("/evaluation/sackmann-local-backfill/run", requireAdmin, async (req,
       const result = await runSackmannLocalBackfill(opts);
       res.json(result);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error ? (err as Error).message : String(err);
       logger.error({ err }, "sackmann-local-backfill: dry-run failed");
       res.status(500).json({ error: errorMessage });
     }
@@ -1335,7 +1348,7 @@ router.post("/evaluation/sackmann-local-backfill/run", requireAdmin, async (req,
       logger.info({ result }, "sackmann-local-backfill: completed");
     })
     .catch(async (err) => {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error ? (err as Error).message : String(err);
       logger.error({ err }, "sackmann-local-backfill: failed");
       await db.insert(jobRunsTable).values({
         jobName,

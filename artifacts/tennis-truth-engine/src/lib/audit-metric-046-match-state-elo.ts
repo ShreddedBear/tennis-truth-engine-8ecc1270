@@ -143,13 +143,13 @@ export interface MatchStateEloResult {
 }
 
 /** Live wrapper: replays the lane once and looks up both ratings for `player`, gated by lane eligibility for set-sequence data. */
-export function computeMatchStateElo(args: { player: string; lane: TourLane; asOfDate: string }): LaneOutcome<MatchStateEloResult> {
+export function computeMatchStateElo(args: { player: string; lane: TourLane; asOfDate: string; historyLane?: HistoryLane }): LaneOutcome<MatchStateEloResult> {
   const { player, lane, asOfDate } = args;
   if (!MATCH_STATE_ELO_ELIGIBLE_LANES.has(lane)) {
     return { lane, status: "NOT_ENOUGH_DATA", n: 0, reason: `${lane} has no set-sequence (set_scores) data in the static history index -- cannot determine set-1 outcomes.` };
   }
   const family = asTourFamily(lane);
-  const historyLane = loadRuntimeIndex().matchHistory[family];
+  const historyLane = args.historyLane ?? loadRuntimeIndex().matchHistory[family];
   const replay = replayMatchStateElo(historyLane as never, asOfDate);
   const key = normalizeEvidenceIdentity(player);
   const afterWinning = replay.after_winning_set1.get(key) ?? null;

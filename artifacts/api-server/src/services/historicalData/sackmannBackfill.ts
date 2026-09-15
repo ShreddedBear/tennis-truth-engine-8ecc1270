@@ -1,17 +1,15 @@
 /**
  * Sackmann historical backfill.
  *
- * Downloads Jeff Sackmann's tennis_atp / tennis_wta GitHub CSVs and inserts their match records
+ * Downloads the approved Aneeshers tennis-sackmann-archive GitHub CSVs and inserts their match records
  * into historical_matches via the existing backfill infrastructure (so feature snapshots, Elo
  * state, and idempotency all work exactly as they do for API-Tennis data).
  *
  * Sources (main-draw):
- *  ATP: https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_YYYY.csv
- *  WTA: https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_YYYY.csv
+ *  ATP/WTA: approved archive paths under /atp/ and /wta/
  *
  * Sources (Challenger / qualifying / ITF — enabled by default via includeChallengerItf option):
- *  ATP: https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_qual_chall_YYYY.csv
- *  WTA: https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_qual_itf_YYYY.csv
+ *  ATP/WTA supplementary files: approved archive paths under /atp/ and /wta/
  *
  * These supplementary files share the same schema as the main-draw files so the same parser
  * applies. The ATP file contains ATP Challenger events AND qualifying-round matches at main-tour
@@ -44,28 +42,23 @@ import type {
   LiveScore,
 } from "../tennisData/types";
 import { logger } from "../../lib/logger";
+import {
+  upsertCanonicalPlayer,
+  upsertProviderAlias,
+} from "../identity/canonicalPlayerPersistence.js";
+import { loadCanonicalIngestionDependencies } from "../identity/canonicalIngestionResolver.js";
+import { normalizeCanonicalPlayerName } from "../identity/canonicalPlayerResolver.js";
+import type { PlayerResolutionResult } from "../identity/canonicalPlayerResolver.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const SACKMANN_PROVIDER = "sackmann";
 
-// Public mirror: farhadGithub/tennis-atp-data (ATP main-draw 1968–2024, exact Sackmann schema).
-// Confirmed reachable from Replit via both raw.githubusercontent.com and api.github.com/contents/.
-const FARHAD_ATP_MIRROR_BASE = "https://raw.githubusercontent.com/farhadGithub/tennis-atp-data/master/data/raw";
-
-// Original Sackmann repos (private — require a PAT that has collaborator access on JeffSackmann's repos).
-// Used for ATP Challenger/qualifying files (no public mirror exists for those) and all WTA files.
-// Gracefully returns [] on 404 so missing years are silently skipped.
-const ATP_BASE_URL = "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master";
-const WTA_BASE_URL = "https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master";
-
-// Kaggle mirror sources (public datasets, exact Sackmann column format).
-// Requires KAGGLE_API_TOKEN env var with download permission.
-//   ATP main-draw: 2000-2017  (gmadevs/atp-matches-dataset)
-//   WTA main-draw: 2000-2016  (gmadevs/wta-matches)
-// Qual/Challenger files are not mirrored on Kaggle — those still require GITHUB_PAT.
-const KAGGLE_ATP_DATASET = "gmadevs/atp-matches-dataset";
-const KAGGLE_WTA_DATASET = "gmadevs/wta-matches";
+export const APPROVED_SACKMANN_REPOSITORY = "Aneeshers/tennis-sackmann-archive";
+export const APPROVED_SACKMANN_BRANCH = "main";
+export const APPROVED_SACKMANN_LICENSE = "CC BY-NC-SA 4.0";
+const APPROVED_SACKMANN_BASE_URL =
+  `https://raw.githubusercontent.com/${APPROVED_SACKMANN_REPOSITORY}/${APPROVED_SACKMANN_BRANCH}`;
 
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -193,7 +186,7 @@ function rowToFixture(
   const loserId  = row.loser_id?.trim();
   if (!winnerId || !loserId || !row.match_num?.trim()) return null;
 
-  const externalId = `${row.tourney_id?.trim() ?? "?"}-${row.match_num.trim()}`;
+  const externalId = `${tour.toLowerCase()}-${row.tourney_id?.trim() ?? "?"}-${row.match_num.trim()}`;
   const score = row.score?.trim() ?? null;
   const isRetired   = !!score && /ret/i.test(score);
   const isWalkover  = !!score && /w\/o|walkover/i.test(score);
@@ -220,8 +213,10 @@ function rowToFixture(
     surface: mapSurface(row.surface ?? ""),
     matchFormat: bestOf,
     player1Id: p1Id,
+    sourcePlayer1Id: `${tour}:${winnerId}`,
     player1Name: p1Name,
     player2Id: p2Id,
+    sourcePlayer2Id: `${tour}:${loserId}`,
     player2Name: p2Name,
     winnerId: p1Id, // winner is always player1 in Sackmann
     score,
@@ -238,152 +233,42 @@ function rowToFixture(
 
 // ── CSV fetching ──────────────────────────────────────────────────────────────
 
-/**
- * Convert a raw.githubusercontent.com URL to its api.github.com/repos/.../contents/ equivalent.
- * Returns null if the URL doesn't match the expected pattern.
- *
- * raw:  https://raw.githubusercontent.com/OWNER/REPO/BRANCH/path/file.csv
- * api:  https://api.github.com/repos/OWNER/REPO/contents/path/file.csv
- *
- * api.github.com is confirmed reachable from Replit's sandbox (returns HTTP 200 for public
- * endpoints), while raw.githubusercontent.com consistently 404s for private repos — even with
- * an Authorization header that would otherwise be valid.  The api.github.com contents endpoint
- * with `Accept: application/vnd.github.v3.raw` streams raw file content (no base64 encoding).
- */
-function rawUrlToContentsUrl(rawUrl: string): string | null {
-  const m = rawUrl.match(
-    /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/,
-  );
-  if (!m) return null;
-  const [, owner, repo, , filepath] = m;
-  return `https://api.github.com/repos/${owner}/${repo}/contents/${filepath}`;
+export function isApprovedSackmannSourceUrl(url: string): boolean {
+  return new RegExp(
+    `^https://raw\\.githubusercontent\\.com/${APPROVED_SACKMANN_REPOSITORY}/${APPROVED_SACKMANN_BRANCH}/` +
+      `(?:atp/atp_matches_(?:\\d{4}|qual_chall_\\d{4})|wta/wta_matches_(?:\\d{4}|qual_itf_\\d{4}))\\.csv$`,
+  ).test(url);
+}
+
+export function approvedSackmannSourceUrl(tour: "ATP" | "WTA", year: number, supplementary = false): string {
+  const prefix = tour.toLowerCase();
+  const stem = supplementary
+    ? `${prefix}_matches_${tour === "ATP" ? "qual_chall" : "qual_itf"}_${year}`
+    : `${prefix}_matches_${year}`;
+  const url = `${APPROVED_SACKMANN_BASE_URL}/${prefix}/${stem}.csv`;
+  if (!isApprovedSackmannSourceUrl(url)) throw new Error(`Blocked non-approved Sackmann source URL: ${url}`);
+  return url;
 }
 
 /**
- * Download a single CSV from GitHub.
- *
- * Strategy (in order):
- *   1. When GITHUB_PAT is set: use api.github.com/repos/.../contents/ with
- *      `Accept: application/vnd.github.v3.raw` — confirmed reachable from Replit even when
- *      raw.githubusercontent.com returns 404 for private repos.
- *   2. Fallback: raw.githubusercontent.com — works for truly public repos with no auth,
- *      or when the PAT URL transform above is not applicable.
- *
- * Returns [] on 404 so callers silently skip unavailable years.
+ * Download one CSV from the approved public raw-GitHub archive.
+ * A missing year is unavailable and produces no fixtures.
  */
 async function fetchCsvFromGitHub(url: string): Promise<Record<string, string>[]> {
-  const pat = process.env.GITHUB_PAT;
-
-  // ── Attempt 1: api.github.com/repos/.../contents/ (preferred when PAT is available) ──
-  if (pat) {
-    const contentsUrl = rawUrlToContentsUrl(url);
-    if (contentsUrl) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-      try {
-        const res = await fetch(contentsUrl, {
-          signal: controller.signal,
-          headers: {
-            Authorization: `token ${pat}`,
-            Accept: "application/vnd.github.v3.raw",
-            "User-Agent": "TennisMatrix-Backfill/1.0",
-          },
-        });
-        if (res.status === 404) return []; // Year not in repo
-        if (res.ok) {
-          const text = await res.text();
-          return parseCsv(text);
-        }
-        logger.warn(
-          { status: res.status, contentsUrl },
-          "sackmannBackfill: api.github.com/contents fetch failed — falling back to raw URL",
-        );
-      } catch (err) {
-        logger.warn({ err, contentsUrl }, "sackmannBackfill: api.github.com/contents error — falling back");
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-  }
-
-  // ── Attempt 2: raw.githubusercontent.com (works for public repos; PAT auth added if set) ──
-  const headers: Record<string, string> = { "User-Agent": "TennisMatrix-Backfill/1.0" };
-  if (pat) headers["Authorization"] = `token ${pat}`;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: controller.signal, headers });
-    if (res.status === 404) return []; // Year not yet available or repo private
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    const text = await res.text();
-    return parseCsv(text);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * Download a single CSV from Kaggle.
- * Requires `KAGGLE_API_TOKEN` env var with download permissions.
- * Known public mirrors:
- *   - gmadevs/atp-matches-dataset  → atp_matches_YYYY.csv  (2000–2017)
- *   - gmadevs/wta-matches           → wta_matches_YYYY.csv  (2000–2016)
- * Returns [] if the token is absent, if the file isn't in the dataset, or
- * if the download is rejected (e.g. read-only token).
- */
-async function fetchCsvFromKaggle(kaggleDataset: string, filename: string): Promise<Record<string, string>[]> {
-  const token = process.env.KAGGLE_API_TOKEN;
-  if (!token) return [];
-
-  const url = `https://www.kaggle.com/api/v1/datasets/${kaggleDataset}/download/${encodeURIComponent(filename)}`;
+  if (!isApprovedSackmannSourceUrl(url)) throw new Error(`Blocked non-approved Sackmann source URL: ${url}`);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: "follow",
+      headers: { "User-Agent": "TennisMatrix-Approved-Sackmann-Import/1.0" },
     });
-    if (res.status === 404) return []; // File not in this dataset (e.g. post-2017 year)
-    if (!res.ok) {
-      logger.warn(
-        { status: res.status, dataset: kaggleDataset, file: filename },
-        "sackmannBackfill: Kaggle download failed (token may lack download permission)",
-      );
-      return [];
-    }
-    const text = await res.text();
-    return parseCsv(text);
-  } catch (err) {
-    logger.warn({ err, dataset: kaggleDataset, file: filename }, "sackmannBackfill: Kaggle fetch error");
-    return [];
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return parseCsv(await res.text());
   } finally {
     clearTimeout(timer);
   }
-}
-
-/**
- * Fetch one year's CSV, trying Kaggle first then GitHub as a fallback.
- *
- * Source precedence:
- *   1. Kaggle (if KAGGLE_API_TOKEN is set and file exists in the mirror dataset)
- *   2. GitHub raw content (if GITHUB_PAT is set, or the repo happens to be public)
- *
- * Qual/Challenger files are not mirrored on Kaggle; those use GitHub only.
- */
-async function fetchCsvYear(
-  githubUrl: string,
-  kaggleDataset?: string,
-  kaggleFilename?: string,
-): Promise<Record<string, string>[]> {
-  // Try Kaggle first when we have a dataset + filename mapping
-  if (kaggleDataset && kaggleFilename) {
-    const rows = await fetchCsvFromKaggle(kaggleDataset, kaggleFilename);
-    if (rows.length > 0) return rows;
-  }
-  // Fall back to GitHub (works if GITHUB_PAT is set or repo is public)
-  return fetchCsvFromGitHub(githubUrl);
 }
 
 // ── Minimal TennisDataProvider wrapper ────────────────────────────────────────
@@ -450,7 +335,128 @@ export interface SackmannBackfillSummary {
   /** Years successfully loaded from wta_matches_qual_itf_YYYY.csv (0 if includeChallengerItf was false). */
   wtaItfYearsLoaded: number;
   fixturesLoaded: number;
+  discovered: number;
+  rejected: number;
+  quarantined: number;
+  duplicates: number;
+  canonicalMatchRate: number;
+  fileCoverage: Record<string, number>;
+  tourCoverage: Record<string, number>;
+  dateCoverage: { earliest: string | null; latest: string | null; byYear: Record<string, number> };
   backfill: BackfillSummary;
+}
+
+export interface ApprovedFixtureResolver {
+  resolve(input: {
+    provider: string;
+    externalPlayerId: string;
+    externalPlayerName: string;
+    metadata?: { tour?: string | null; tournamentNames?: string[] };
+  }): Promise<PlayerResolutionResult>;
+}
+
+export function approvedSackmannCanonicalId(externalPlayerId: string): string {
+  return `canonical-sackmann-${externalPlayerId.toLowerCase().replace(/[^a-z0-9_-]+/g, "-")}`;
+}
+
+/**
+ * Admission gate for the approved archive. Both source players must resolve to a canonical ID;
+ * otherwise the complete match is quarantined by the resolver's existing review-queue callback.
+ */
+export async function resolveApprovedSackmannFixtures(
+  fixtures: HistoricalFixture[],
+  resolver: ApprovedFixtureResolver,
+): Promise<{ fixtures: HistoricalFixture[]; quarantined: number; canonicalMatches: number }> {
+  const accepted: HistoricalFixture[] = [];
+  let quarantined = 0;
+  for (const fixture of fixtures) {
+    const sourcePlayer1Id = fixture.player1Id;
+    const sourcePlayer2Id = fixture.player2Id;
+    const [player1, player2] = await Promise.all([
+      resolver.resolve({
+        provider: fixture.provider,
+        externalPlayerId: fixture.sourcePlayer1Id ?? fixture.player1Id,
+        externalPlayerName: fixture.player1Name,
+        metadata: { tour: fixture.tour, tournamentNames: fixture.tournamentName ? [fixture.tournamentName] : [] },
+      }),
+      resolver.resolve({
+        provider: fixture.provider,
+        externalPlayerId: fixture.sourcePlayer2Id ?? fixture.player2Id,
+        externalPlayerName: fixture.player2Name,
+        metadata: { tour: fixture.tour, tournamentNames: fixture.tournamentName ? [fixture.tournamentName] : [] },
+      }),
+    ]);
+    if (!player1.canonicalPlayerId || !player2.canonicalPlayerId) {
+      quarantined++;
+      continue;
+    }
+    accepted.push({
+      ...fixture,
+      sourcePlayer1Id: fixture.sourcePlayer1Id ?? fixture.player1Id,
+      sourcePlayer2Id: fixture.sourcePlayer2Id ?? fixture.player2Id,
+      player1Id: player1.canonicalPlayerId,
+      player2Id: player2.canonicalPlayerId,
+      winnerId: fixture.winnerId === sourcePlayer1Id
+        ? player1.canonicalPlayerId
+        : fixture.winnerId === sourcePlayer2Id
+          ? player2.canonicalPlayerId
+          : fixture.winnerId,
+      canonicalPlayer1Id: player1.canonicalPlayerId,
+      canonicalPlayer2Id: player2.canonicalPlayerId,
+      requiresCanonicalResolution: true,
+    });
+  }
+  return { fixtures: accepted, quarantined, canonicalMatches: accepted.length };
+}
+
+async function createApprovedSackmannResolver(): Promise<ApprovedFixtureResolver> {
+  const dependencies = await loadCanonicalIngestionDependencies();
+  const canonicalBySourceId = new Map(
+    (dependencies.aliases ?? []).map((alias) => [
+      `${alias.provider}:${alias.externalPlayerId}`,
+      alias.canonicalPlayerId,
+    ]),
+  );
+  const resolvedBySourceId = new Map<string, PlayerResolutionResult>();
+
+  return {
+    async resolve(input) {
+      const cacheKey = `${input.provider}:${input.externalPlayerId}`;
+      const cached = resolvedBySourceId.get(cacheKey);
+      if (cached) return cached;
+
+      const canonicalId = approvedSackmannCanonicalId(input.externalPlayerId);
+      if (canonicalBySourceId.get(cacheKey) !== canonicalId) {
+        await upsertCanonicalPlayer({
+          id: canonicalId,
+          displayName: input.externalPlayerName,
+          tour: input.metadata?.tour ?? null,
+        });
+        await upsertProviderAlias({
+          provider: input.provider,
+          externalPlayerId: input.externalPlayerId,
+          externalPlayerName: input.externalPlayerName,
+          canonicalPlayerId: canonicalId,
+          aliasType: "authoritative-source-id",
+          metadata: input.metadata ? { ...input.metadata } : {},
+        });
+        canonicalBySourceId.set(cacheKey, canonicalId);
+      }
+      const result: PlayerResolutionResult = {
+        source: "approved-aneeshers-sackmann",
+        canonicalPlayerId: canonicalId,
+        resolutionMethod: "provider-alias",
+        confidence: 1,
+        normalizedName: normalizeCanonicalPlayerName(input.externalPlayerName),
+        candidateCanonicalIds: [],
+        manualReviewRequired: false,
+        supportingMetadata: input.metadata ?? null,
+        reason: null,
+      };
+      resolvedBySourceId.set(cacheKey, result);
+      return result;
+    },
+  };
 }
 
 /**
@@ -464,12 +470,23 @@ export async function runSackmannBackfill(
   const currentYear       = new Date().getFullYear();
   const startYear         = options.startYear          ?? 2010;
   const endYear           = options.endYear            ?? currentYear;
+  const minimumMatchDate  = `${startYear}-01-01`;
+  const maximumMatchDate  = endYear === currentYear
+    ? new Date().toISOString().slice(0, 10)
+    : `${endYear}-12-31`;
   const tours             = options.tours              ?? ["atp", "wta"];
   const includeChallengerItf = options.includeChallengerItf ?? true;
 
   if (startYear > endYear) throw new Error(`startYear (${startYear}) > endYear (${endYear})`);
 
   const allFixtures: HistoricalFixture[] = [];
+  let rowsDiscovered = 0;
+  let rowsRejected = 0;
+  const fileCoverage: Record<string, number> = {};
+  let quarantined = 0;
+  let canonicalMatches = 0;
+  let duplicateCount = 0;
+  let uniqueFixtureCount = 0;
   let atpYearsLoaded          = 0;
   let wtaYearsLoaded          = 0;
   let atpChallengerYearsLoaded = 0;
@@ -478,22 +495,38 @@ export async function runSackmannBackfill(
   const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
   /**
-   * Fetches one CSV (trying Kaggle then GitHub), maps rows to HistoricalFixture[], and
-   * appends to allFixtures. Returns the number of valid fixtures loaded (0 on failure).
+   * Fetches one approved CSV, maps rows to HistoricalFixture[], and appends to allFixtures.
    */
   async function fetchAndAppend(
     url: string,
     tourLabel: "ATP" | "WTA",
     context: string,
-    kaggleDataset?: string,
-    kaggleFilename?: string,
   ): Promise<number> {
     try {
-      const rows = await fetchCsvYear(url, kaggleDataset, kaggleFilename);
+      const rows = await fetchCsvFromGitHub(url);
       if (rows.length === 0) return 0;
-      const fixtures = rows
+      rowsDiscovered += rows.length;
+      const mapped = rows
         .map((r) => rowToFixture(r, tourLabel))
-        .filter((f): f is HistoricalFixture => f !== null);
+      const fixtures = mapped
+        .filter((f): f is HistoricalFixture => f !== null)
+        .filter((f) => f.date >= minimumMatchDate && f.date <= maximumMatchDate)
+        .map((f) => ({
+          ...f,
+          sourceFile: context,
+          sourceUrl: url,
+          sourceLicense: APPROVED_SACKMANN_LICENSE,
+          importProvenance: {
+            importer: "approved-aneeshers-sackmann",
+            repository: APPROVED_SACKMANN_REPOSITORY,
+            branch: APPROVED_SACKMANN_BRANCH,
+            sourceFile: context,
+            sourceUrl: url,
+            sourceLicense: APPROVED_SACKMANN_LICENSE,
+          },
+        }));
+      rowsRejected += rows.length - fixtures.length;
+      fileCoverage[context] = fixtures.length;
       allFixtures.push(...fixtures);
       logger.info({ url: context, rows: rows.length, fixtures: fixtures.length }, "sackmannBackfill: file loaded");
       return fixtures.length;
@@ -503,46 +536,33 @@ export async function runSackmannBackfill(
     }
   }
 
-  // Fetch all CSV files in parallel (capped to avoid hammering external APIs).
+  // Fetch approved raw-GitHub CSV files in parallel with bounded concurrency.
   // For each (year, tour) pair we fetch:
   //   1. The main-draw file: atp_matches_YYYY.csv / wta_matches_YYYY.csv
-  //      Source: Kaggle mirror first (2000-2017 ATP / 2000-2016 WTA), then GitHub fallback
+  //      Source: approved Aneeshers archive
   //   2. (if includeChallengerItf) The supplementary file:
   //        ATP: atp_matches_qual_chall_YYYY.csv — ATP Challengers + qualifying rounds
   //        WTA: wta_matches_qual_itf_YYYY.csv   — WTA ITF events + qualifying rounds
-  //        Source: GitHub only (no Kaggle mirror for qual/chall files)
+  //        Source: approved Aneeshers archive
   const concurrency = 4;
   for (let i = 0; i < years.length; i += concurrency) {
     const batch = years.slice(i, i + concurrency);
     await Promise.all(
       batch.flatMap((year) =>
         tours.flatMap((tour) => {
-          const base        = tour === "atp" ? ATP_BASE_URL : WTA_BASE_URL;
           const prefix      = tour === "atp" ? "atp" : "wta";
           const tourLabel: "ATP" | "WTA" = tour === "atp" ? "ATP" : "WTA";
-          const kaggleDset  = tour === "atp" ? KAGGLE_ATP_DATASET : KAGGLE_WTA_DATASET;
 
           const tasks: Promise<void>[] = [];
 
           // ── Main-draw file ────────────────────────────────────────────────
-          // ATP: use the farhadGithub public mirror (1968–2024, exact Sackmann schema, confirmed
-          //      reachable from Replit). Falls back to the original Sackmann repo (private, 404s)
-          //      for years beyond 2024 or if the mirror is unavailable.
-          // WTA: no public mirror found; uses the original Sackmann repo (private, graceful 404).
           const mainFilename = `${prefix}_matches_${year}.csv`;
-          const mirrorBase = tour === "atp" ? FARHAD_ATP_MIRROR_BASE : null;
-          const mainUrl = mirrorBase
-            ? `${mirrorBase}/${mainFilename}`
-            : `${base}/${mainFilename}`;
-          // Kaggle fallback still attempted for WTA (gmadevs/wta-matches covers 2000–2016)
-          const useKaggle = tour === "wta";
+          const mainUrl = approvedSackmannSourceUrl(tourLabel, year);
           tasks.push(
             fetchAndAppend(
               mainUrl,
               tourLabel,
-              `${prefix}_matches_${year}`,
-              useKaggle ? kaggleDset : undefined,
-              useKaggle ? mainFilename : undefined,
+              `${prefix}/${mainFilename}`,
             ).then((count) => {
               if (count > 0) {
                 if (tour === "atp") atpYearsLoaded++;
@@ -551,18 +571,17 @@ export async function runSackmannBackfill(
             }),
           );
 
-          // ── Challenger / ITF supplementary file (GitHub only) ───────────
+            // ── Challenger / ITF supplementary file ────────────────────────
           if (includeChallengerItf) {
             const chalFilename = tour === "atp"
               ? `${prefix}_matches_qual_chall_${year}.csv`
               : `${prefix}_matches_qual_itf_${year}.csv`;
-            const chalUrl = `${base}/${chalFilename}`;
+            const chalUrl = approvedSackmannSourceUrl(tourLabel, year, true);
             const chalLabel = tour === "atp"
               ? `${prefix}_matches_qual_chall_${year}`
               : `${prefix}_matches_qual_itf_${year}`;
-            // No Kaggle mirror for qual/chall files — GitHub only
             tasks.push(
-              fetchAndAppend(chalUrl, tourLabel, chalLabel).then((count) => {
+              fetchAndAppend(chalUrl, tourLabel, `${prefix}/${chalFilename}`).then((count) => {
                 if (count > 0) {
                   if (tour === "atp") atpChallengerYearsLoaded++;
                   else wtaItfYearsLoaded++;
@@ -577,6 +596,25 @@ export async function runSackmannBackfill(
     );
   }
 
+  // Remove overlap before identity work, then require both canonical resolutions for every
+  // admitted match. Authoritative tour-scoped source IDs persist deterministic aliases.
+  const seenExternalIds = new Set<string>();
+  const uniqueFixtures = allFixtures.filter((fixture) => {
+    if (seenExternalIds.has(fixture.id)) {
+      duplicateCount++;
+      return false;
+    }
+    seenExternalIds.add(fixture.id);
+    return true;
+  });
+  uniqueFixtureCount = uniqueFixtures.length;
+  const canonicalResolver = await createApprovedSackmannResolver();
+  const admitted = await resolveApprovedSackmannFixtures(uniqueFixtures, canonicalResolver);
+  quarantined = admitted.quarantined;
+  canonicalMatches = admitted.canonicalMatches;
+  allFixtures.length = 0;
+  for (const fixture of admitted.fixtures) allFixtures.push(fixture);
+
   if (allFixtures.length === 0) {
     logger.warn({ startYear, endYear, tours, includeChallengerItf }, "sackmannBackfill: no fixtures loaded");
     const emptyDate = `${startYear}-01-01`;
@@ -586,6 +624,14 @@ export async function runSackmannBackfill(
       atpChallengerYearsLoaded: 0,
       wtaItfYearsLoaded: 0,
       fixturesLoaded: 0,
+      discovered: rowsDiscovered,
+      rejected: rowsRejected,
+      quarantined,
+      duplicates: duplicateCount,
+      canonicalMatchRate: 0,
+      fileCoverage,
+      tourCoverage: {},
+      dateCoverage: { earliest: null, latest: null, byYear: {} },
       backfill: {
         dateStart: emptyDate,
         dateStop: `${endYear}-12-31`,
@@ -639,7 +685,41 @@ export async function runSackmannBackfill(
     },
   );
 
-  return { atpYearsLoaded, wtaYearsLoaded, atpChallengerYearsLoaded, wtaItfYearsLoaded, fixturesLoaded: allFixtures.length, backfill };
+  const tourCoverage = allFixtures.reduce<Record<string, number>>((counts, fixture) => {
+    const tour = fixture.tour ?? "Unknown";
+    counts[tour] = (counts[tour] ?? 0) + 1;
+    return counts;
+  }, {});
+  const dateCoverage = allFixtures.reduce(
+    (coverage, fixture) => {
+      const year = fixture.date.slice(0, 4);
+      coverage.byYear[year] = (coverage.byYear[year] ?? 0) + 1;
+      if (!coverage.earliest || fixture.date < coverage.earliest) coverage.earliest = fixture.date;
+      if (!coverage.latest || fixture.date > coverage.latest) coverage.latest = fixture.date;
+      return coverage;
+    },
+    { earliest: null as string | null, latest: null as string | null, byYear: {} as Record<string, number> },
+  );
+  return {
+    atpYearsLoaded,
+    wtaYearsLoaded,
+    atpChallengerYearsLoaded,
+    wtaItfYearsLoaded,
+    fixturesLoaded: allFixtures.length,
+    discovered: rowsDiscovered,
+    rejected: rowsRejected,
+    quarantined,
+    duplicates: duplicateCount + backfill.matchesSkippedDuplicate,
+    canonicalMatchRate: uniqueFixturesCountForRate(uniqueFixtureCount, canonicalMatches),
+    fileCoverage,
+    tourCoverage,
+    dateCoverage,
+    backfill,
+  };
+}
+
+function uniqueFixturesCountForRate(discoveredFixtures: number, canonicalMatches: number): number {
+  return discoveredFixtures > 0 ? canonicalMatches / discoveredFixtures : 0;
 }
 
 // ── Local-file import (from extracted ZIP) ────────────────────────────────────
@@ -1021,4 +1101,6 @@ export {
   mapWtaLevel     as _mapWtaLevel,
   mapAtpLevel     as _mapAtpLevel,
   intOrNull       as _intOrNull,
+  isApprovedSackmannSourceUrl as _isApprovedSackmannSourceUrl,
+  approvedSackmannSourceUrl as _approvedSackmannSourceUrl,
 };
