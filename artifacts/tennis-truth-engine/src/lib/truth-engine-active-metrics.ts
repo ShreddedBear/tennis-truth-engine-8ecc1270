@@ -42,6 +42,7 @@ export interface MetricRowForReadiness {
   p2_treatment?: string | null;
   p1_value?: string | null;
   p2_value?: string | null;
+  reliability?: number | null;
   /** Already-persisted machine-readable reasons (metricPairPatch's UnavailableReason). */
   p1_unavailable_reason?: string | null;
   p2_unavailable_reason?: string | null;

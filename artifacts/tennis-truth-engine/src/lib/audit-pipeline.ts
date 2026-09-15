@@ -793,7 +793,7 @@ async function executeStress(deps:PipelineDeps,matchId:string,runId:string):Prom
  */
 export function deterministicIndependentConclusion(metrics:Array<Record<string,unknown>>,p1Name:string,p2Name:string):ConclusionFinding&{audit:ReturnType<typeof runTruthEngineAudit>}{
   const audit=runTruthEngineAudit(
-    compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null}))),
+     compareMetricRows(metrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_value:m["p1_value"]as string|null,p2_value:m["p2_value"]as string|null,p1_treatment:m["p1_treatment"]as string|null,p2_treatment:m["p2_treatment"]as string|null,reliability:typeof m["reliability"]==="number"?m["reliability"] as number:null}))),
     p1Name,p2Name,
   );
   return{
@@ -934,9 +934,8 @@ async function commitFinalDecision(deps:PipelineDeps,matchId:string,runId:string
     // and every honestly-unavailable metric side was recorded in the decision record as a
     // producer defect. Diagnostic only: nothing here can reach the winner, the colour, or the
     // 60% threshold.
-    metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null,p1_unavailable_reason:m["p1_unavailable_reason"] as string|null,p2_unavailable_reason:m["p2_unavailable_reason"] as string|null})),
+     metricRows:decisionMetrics.map(m=>({metric_code:String(m["metric_code"]??""),p1_treatment:m["p1_treatment"] as string|null,p2_treatment:m["p2_treatment"] as string|null,p1_value:m["p1_value"] as string|null,p2_value:m["p2_value"] as string|null,reliability:typeof m["reliability"]==="number"?m["reliability"] as number:null,p1_unavailable_reason:m["p1_unavailable_reason"] as string|null,p2_unavailable_reason:m["p2_unavailable_reason"] as string|null})),
     now:deps.now(),
-    actualWinner:(decisionMatch as unknown as{actual_winner?:string|null}).actual_winner??null,
   }):null;
   // final_selection must hold the bare selected-player identity (or null), never the
   // action string ("PLAY — X" / "PASS" / ...) that final_recommendation carries -- a

@@ -72,6 +72,12 @@ export interface FamilyEvidence {
   neutral_metrics: string[];
   /** Every compared metric in this family, for the evidence chain. */
   comparisons: MetricComparison[];
+  /** Bounded directional mass. A family is normalized by its member count. */
+  weighted_p1: number;
+  weighted_p2: number;
+  family_weight: number;
+  weighted_balance: number;
+  internally_contradictory: boolean;
 }
 
 export interface TruthEngineDecision {
@@ -115,16 +121,53 @@ export interface TruthEngineDecision {
   families: FamilyEvidence[];
   reason: string;
   evidence_chain: string[];
+  /** Completeness describes how much usable evidence was observed; it is not sufficiency. */
+  evidence_completeness: number;
+  evidence_completeness_percent: number;
+  evidence_completeness_status: "NONE" | "PARTIAL" | "COMPLETE";
+  sufficiency_status: "INSUFFICIENT" | "SUFFICIENT";
+  sufficiency_tier: "NONE" | "RECOVERABLE" | "SUFFICIENT" | "ROBUST";
+  weighted_score_p1: number;
+  weighted_score_p2: number;
+  weighted_balance: number;
+  weighted_evidence_percent: number;
+  usable_count_p1: number;
+  usable_count_p2: number;
+  quality_counts: { direct: number; reconstructed: number; partial: number; unknown_reliability: number; low_reliability: number };
+  family_support_details: Array<{ family: string; support_p1: number; support_p2: number; weight: number; contradiction: boolean }>;
+  contradiction: { independent_families: string[]; conflicted_families: string[]; weighted_mass: number };
+  ablation_robustness: {
+    weakest_metric: string | null;
+    weakest_metric_outcome: SelectionOutcome;
+    reconstructed_outcome: SelectionOutcome;
+    correlated_outcome: SelectionOutcome;
+    family_outcomes: Array<{ family: string; outcome: SelectionOutcome }>;
+    fragile: boolean;
+  };
 }
 
-function voteFor(comparisons: MetricComparison[]): { vote: FamilyVote; supporting: string[]; opposing: string[]; neutral: string[] } {
+function metricWeight(c: MetricComparison): number {
+  // Forged/legacy comparisons did not carry the additive weight field. Keeping
+  // their old unit weight is backwards compatible while real projections use
+  // the bounded quality-aware weight.
+  return c.evidence_weight === null || c.evidence_weight === undefined ? 1 : Math.max(0, Math.min(1, c.evidence_weight));
+}
+
+function voteFor(comparisons: MetricComparison[]): { vote: FamilyVote; supporting: string[]; opposing: string[]; neutral: string[]; p1: number; p2: number } {
   const p1 = comparisons.filter((c) => c.favours === "P1").map((c) => c.metric_code);
   const p2 = comparisons.filter((c) => c.favours === "P2").map((c) => c.metric_code);
   const neutral = comparisons.filter((c) => c.favours === "NEUTRAL").map((c) => c.metric_code);
-  if (p1.length && p2.length) return { vote: "INTERNALLY_CONFLICTED", supporting: p1, opposing: p2, neutral };
-  if (p1.length) return { vote: "P1", supporting: p1, opposing: [], neutral };
-  if (p2.length) return { vote: "P2", supporting: p2, opposing: [], neutral };
-  return { vote: "NEUTRAL", supporting: [], opposing: [], neutral };
+  const denominator = Math.max(1, comparisons.length);
+  const p1Mass = comparisons.filter((c) => c.favours === "P1").reduce((sum, c) => sum + metricWeight(c), 0) / denominator;
+  const p2Mass = comparisons.filter((c) => c.favours === "P2").reduce((sum, c) => sum + metricWeight(c), 0) / denominator;
+  const internallyContradictory = p1.length > 0 && p2.length > 0;
+  // Correlated rows are averaged within their family, so adding rows cannot
+  // create unbounded support. A material weighted imbalance resolves conflict;
+  // a true weighted tie remains explicitly conflicted.
+  const vote: FamilyVote = p1Mass === p2Mass
+    ? internallyContradictory ? "INTERNALLY_CONFLICTED" : "NEUTRAL"
+    : p1Mass > p2Mass ? "P1" : p2Mass > p1Mass ? "P2" : "NEUTRAL";
+  return { vote, supporting: p1, opposing: p2, neutral, p1: p1Mass, p2: p2Mass };
 }
 
 function buildFamilies(comparisons: MetricComparison[]): FamilyEvidence[] {
@@ -136,17 +179,22 @@ function buildFamilies(comparisons: MetricComparison[]): FamilyEvidence[] {
   return [...byFamily.entries()]
     .filter(([, rows]) => rows.length >= MIN_COMPARISONS_PER_FAMILY)
     .map(([family, rows]) => {
-      const { vote, supporting, opposing, neutral } = voteFor(rows);
-      return { family, vote, supporting_metrics: supporting, opposing_metrics: opposing, neutral_metrics: neutral, comparisons: rows };
+      const { vote, supporting, opposing, neutral, p1, p2 } = voteFor(rows);
+      return {
+        family, vote, supporting_metrics: supporting, opposing_metrics: opposing,
+        neutral_metrics: neutral, comparisons: rows, weighted_p1: p1, weighted_p2: p2,
+        family_weight: Math.min(1, p1 + p2), weighted_balance: Number((p1 - p2).toFixed(6)),
+        internally_contradictory: supporting.length > 0 && opposing.length > 0,
+      };
     })
     .sort((a, b) => a.family.localeCompare(b.family));
 }
 
-/** Leader from family votes alone. Each family counts once, regardless of how many metrics it holds. */
+/** Leader from bounded family mass; correlated rows cannot accumulate by count. */
 function leaderOf(families: FamilyEvidence[]): { leader: "P1" | "P2" | null; p1: number; p2: number } {
-  const p1 = families.filter((f) => f.vote === "P1").length;
-  const p2 = families.filter((f) => f.vote === "P2").length;
-  if (p1 === p2) return { leader: null, p1, p2 };
+  const p1 = Number(families.reduce((sum, f) => sum + f.weighted_p1, 0).toFixed(6));
+  const p2 = Number(families.reduce((sum, f) => sum + f.weighted_p2, 0).toFixed(6));
+  if (Math.abs(p1 - p2) < 1e-9) return { leader: null, p1, p2 };
   return { leader: p1 > p2 ? "P1" : "P2", p1, p2 };
 }
 
@@ -154,6 +202,11 @@ export interface DecisionInput {
   comparisons: MetricComparison[];
   p1Name: string;
   p2Name: string;
+}
+
+function outcomeFromFamilies(families: FamilyEvidence[]): SelectionOutcome {
+  const leader = leaderOf(families).leader;
+  return leader ?? "INSUFFICIENT_EVIDENCE";
 }
 
 export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: DecisionInput): TruthEngineDecision {
@@ -180,44 +233,87 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
   const neutralFamilies = families.filter((f) => f.vote === "NEUTRAL").map((f) => f.family);
   const conflictedFamilies = families.filter((f) => f.vote === "INTERNALLY_CONFLICTED").map((f) => f.family);
 
-  // Share of the directional evidence held by `support`. Conflicted families sit in the
-  // denominator because they contain real opposing evidence; NEUTRAL families sit outside
-  // it entirely because they favour nobody. With no directional family at all the share is
-  // 0, never an undefined division dressed up as a number.
+  const usableP1 = comparisons.filter((c) => c.p1_number !== null).length;
+  const usableP2 = comparisons.filter((c) => c.p2_number !== null).length;
+  const qualityCounts = {
+    direct: comparisons.filter((c) => c.treatment_quality_p1 === 1 && c.treatment_quality_p2 === 1).length,
+    reconstructed: comparisons.filter((c) => c.treatment_quality_p1 === 0.8 || c.treatment_quality_p2 === 0.8).length,
+    partial: comparisons.filter((c) => c.treatment_quality_p1 === 0.6 || c.treatment_quality_p2 === 0.6).length,
+    unknown_reliability: comparisons.filter((c) => c.normalized_reliability === null).length,
+    low_reliability: comparisons.filter((c) => c.normalized_reliability !== null && c.normalized_reliability < 0.5).length,
+  };
+  const comparedCount = comparisons.filter((c) => c.status === "COMPARED").length;
+  const activeCount = comparisons.filter((c) => isActiveMetricCode(c.metric_code)).length;
+  const completeness = activeCount > 0 ? (comparedCount / activeCount) * 100 : 0;
+
+  // Share of directional QUALITY MASS. Each family is already bounded and
+  // normalized by its member count, so correlated rows cannot create a lead
+  // merely by being numerous.
   // `rawPercent` is the exact, unrounded share and is what the 60% threshold below
   // compares against. `percent` (rounded to 1 decimal) is for display/persistence only.
   // Rounding before comparing would let a raw 59.95% round up to "60.0" and incorrectly
   // clear the gate -- the threshold check must see the real value, not its display form.
   const evidenceShare = (support: string[], contra: string[]) => {
-    const directional = support.length + contra.length + conflictedFamilies.length;
-    const rawPercent = directional > 0 ? (support.length / directional) * 100 : 0;
+    const directionalFamilies = families.filter((f) => f.weighted_p1 > 0 || f.weighted_p2 > 0);
+    const p1Mass = directionalFamilies.reduce((sum, f) => sum + f.weighted_p1, 0);
+    const p2Mass = directionalFamilies.reduce((sum, f) => sum + f.weighted_p2, 0);
+    const rawPercent = p1Mass + p2Mass > 0
+      ? ((support.includes("P2") ? p2Mass : p1Mass) / (p1Mass + p2Mass)) * 100
+      : 0;
+    // Callers pass family names for the leader; infer the selected side from
+    // which family set contains the first supporting family.
+    const leaderMass = support.reduce((sum, name) => {
+      const family = families.find((f) => f.family === name);
+      return sum + (family?.vote === "P2" ? family.weighted_p2 : family?.weighted_p1 ?? 0);
+    }, 0);
+    const opposingMass = contra.reduce((sum, name) => {
+      const family = families.find((f) => f.family === name);
+      return sum + (family?.vote === "P2" ? family.weighted_p2 : family?.weighted_p1 ?? 0);
+    }, 0);
+    const selectedPercent = leaderMass + opposingMass > 0 ? (leaderMass / (leaderMass + opposingMass)) * 100 : rawPercent;
     return {
-      directional,
-      rawPercent,
-      percent: directional > 0 ? Number(rawPercent.toFixed(1)) : 0,
+      directional: directionalFamilies.length,
+      rawPercent: selectedPercent,
+      percent: directionalFamilies.length > 0 ? Number(selectedPercent.toFixed(1)) : 0,
+      p1Mass, p2Mass,
     };
   };
 
-  const shell = (outcome: SelectionOutcome, reason: string, stability: SelectionStability, support: string[] = [], contra: string[] = [], flipping: string[] = [], tieInducing: string[] = []): TruthEngineDecision => ({
-    outcome,
-    selected_player: outcome === "P1" ? p1Name : outcome === "P2" ? p2Name : null,
-    stability,
-    evidence_percent: evidenceShare(support, contra).percent,
-    directional_families: evidenceShare(support, contra).directional,
-    corroborated: support.length >= MIN_INDEPENDENT_SUPPORT_FAMILIES,
-    independent_support_families: support,
-    independent_contradiction_families: contra,
-    neutral_families: neutralFamilies,
-    conflicted_families: conflictedFamilies,
-    flipping_families: flipping,
-    tie_inducing_families: tieInducing,
-    unavailable,
-    duplicated_support_metrics: duplicatedSupport,
-    duplicated_contradiction_metrics: duplicatedContradiction,
-    families,
-    reason,
-    evidence_chain: families.map((f) => `${f.family}: ${f.vote}${f.supporting_metrics.length ? ` (from ${f.supporting_metrics.join(", ")})` : ""}${f.opposing_metrics.length ? ` vs ${f.opposing_metrics.join(", ")}` : ""}`),
-  });
+  const shell = (outcome: SelectionOutcome, reason: string, stability: SelectionStability, support: string[] = [], contra: string[] = [], flipping: string[] = [], tieInducing: string[] = []): TruthEngineDecision => {
+    const share = evidenceShare(support, contra);
+    const weightedScoreP1 = Number(share.p1Mass.toFixed(6));
+    const weightedScoreP2 = Number(share.p2Mass.toFixed(6));
+    const weightedBalance = Number((weightedScoreP1 - weightedScoreP2).toFixed(6));
+    const directional = families.filter((f) => f.weighted_p1 > 0 || f.weighted_p2 > 0).length;
+    const weakest = comparisons.filter((c) => c.status === "COMPARED").sort((a, b) => metricWeight(a) - metricWeight(b))[0];
+    const reconstructed = comparisons.filter((c) => c.status === "COMPARED" && (c.treatment_quality_p1 === 0.8 || c.treatment_quality_p2 === 0.8));
+    const correlated = families.filter((f) => f.comparisons.length > 1).flatMap((f) => f.comparisons.slice(1));
+    const ablationOutcome = (removed: MetricComparison[]) => outcomeFromFamilies(buildFamilies(comparisons.filter((c) => !removed.includes(c) && isActiveMetricCode(c.metric_code))));
+    const ablationFamilies = families.map((f) => ({ family: f.family, outcome: outcomeFromFamilies(families.filter((other) => other.family !== f.family)) }));
+    const fragile = [weakest ? ablationOutcome([weakest]) : outcome, ablationOutcome(reconstructed), ablationOutcome(correlated)].some((candidate) => candidate !== outcome);
+    return {
+      outcome, selected_player: outcome === "P1" ? p1Name : outcome === "P2" ? p2Name : null, stability,
+      evidence_percent: share.percent, directional_families: directional,
+      corroborated: support.length >= MIN_INDEPENDENT_SUPPORT_FAMILIES,
+      independent_support_families: support, independent_contradiction_families: contra,
+      neutral_families: neutralFamilies, conflicted_families: conflictedFamilies,
+      flipping_families: flipping, tie_inducing_families: tieInducing, unavailable,
+      duplicated_support_metrics: duplicatedSupport, duplicated_contradiction_metrics: duplicatedContradiction,
+      families, reason,
+      evidence_chain: families.map((f) => `${f.family}: ${f.vote}${f.supporting_metrics.length ? ` (from ${f.supporting_metrics.join(", ")})` : ""}${f.opposing_metrics.length ? ` vs ${f.opposing_metrics.join(", ")}` : ""}`),
+      evidence_completeness: Number((completeness / 100).toFixed(4)),
+      evidence_completeness_percent: Number(completeness.toFixed(1)),
+      evidence_completeness_status: completeness === 0 ? "NONE" : completeness >= 100 ? "COMPLETE" : "PARTIAL",
+      sufficiency_status: outcome === "INSUFFICIENT_EVIDENCE" ? "INSUFFICIENT" : "SUFFICIENT",
+      sufficiency_tier: outcome === "INSUFFICIENT_EVIDENCE" ? (families.length ? "RECOVERABLE" : "NONE") : stability === "ROBUST" ? "ROBUST" : "SUFFICIENT",
+      weighted_score_p1: weightedScoreP1, weighted_score_p2: weightedScoreP2,
+      weighted_balance: weightedBalance, weighted_evidence_percent: share.percent,
+      usable_count_p1: usableP1, usable_count_p2: usableP2, quality_counts: qualityCounts,
+      family_support_details: families.map((f) => ({ family: f.family, support_p1: f.weighted_p1, support_p2: f.weighted_p2, weight: f.family_weight, contradiction: f.internally_contradictory })),
+      contradiction: { independent_families: contra, conflicted_families: conflictedFamilies, weighted_mass: Number(families.filter((f) => contra.includes(f.family) || f.internally_contradictory).reduce((sum, f) => sum + Math.min(f.weighted_p1, f.weighted_p2), 0).toFixed(6)) },
+      ablation_robustness: { weakest_metric: weakest?.metric_code ?? null, weakest_metric_outcome: weakest ? ablationOutcome([weakest]) : outcome, reconstructed_outcome: ablationOutcome(reconstructed), correlated_outcome: ablationOutcome(correlated), family_outcomes: ablationFamilies, fragile },
+    };
+  };
 
   if (!families.length) {
     return shell("INSUFFICIENT_EVIDENCE", `No metric produced a usable two-sided comparison (${unavailable.length} metric(s) unavailable). The Truth Engine cannot select a side and does not guess.`, "NOT_APPLICABLE");

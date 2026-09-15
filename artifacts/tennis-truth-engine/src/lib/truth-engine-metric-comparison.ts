@@ -349,6 +349,24 @@ export interface MetricComparison {
   advantage_p1: number | null;
   direction: ComparisonDirection | null;
   reason: string;
+  /** Raw persisted reliability, retained for audit compatibility. */
+  reliability: number | null;
+  /** Reliability normalized to 0..1. Null is explicit unknown, never a guessed value. */
+  normalized_reliability: number | null;
+  /** Quality of the weaker side's treatment (DIRECT=1, RECONSTRUCTED=.8, PARTIAL=.6). */
+  treatment_quality: number | null;
+  treatment_quality_p1: number | null;
+  treatment_quality_p2: number | null;
+  /** Confidence in the declared denominator. Metrics without a denominator are 1. */
+  sample_confidence: number | null;
+  sample_confidence_p1: number | null;
+  sample_confidence_p2: number | null;
+  /** Absolute directional edge divided by this metric's materiality floor. */
+  materiality_normalized_directional_strength: number | null;
+  directional_strength: number | null;
+  /** Bounded quality weight used by the decision core. */
+  evidence_weight: number | null;
+  diagnostics: string[];
 }
 
 export interface MetricRowForComparison {
@@ -357,11 +375,38 @@ export interface MetricRowForComparison {
   p2_value?: string | null;
   p1_treatment?: string | null;
   p2_treatment?: string | null;
+  /** Persisted metric reliability; values in either 0..1 or 0..100 form are accepted. */
+  reliability?: number | null;
 }
 
 function codeOf(value: unknown) {
   const m = String(value ?? "").match(/(\d{1,3})$/);
   return m ? m[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
+}
+
+function normalizeReliability(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return null;
+  const normalized = n > 1 ? n / 100 : n;
+  return Math.max(0, Math.min(1, normalized));
+}
+
+function qualityOfTreatment(treatment: unknown): number | null {
+  switch (String(treatment ?? "").toUpperCase()) {
+    case "DIRECT": return 1;
+    case "RECONSTRUCTED": return 0.8;
+    case "PARTIAL": return 0.6;
+    default: return null;
+  }
+}
+
+function sampleConfidenceFor(spec: ComparisonSpec, parsed: ParsedMetricValue): number | null {
+  if (!spec.sampleField || spec.minSample === undefined) return 1;
+  const sample = lookup(parsed, spec.sampleField[0], spec.sampleField.slice(1));
+  if (sample === null) return null;
+  // The minimum-sample gate remains fail-closed. Above it, confidence rises
+  // smoothly and is capped, rather than allowing a huge denominator to dominate.
+  return Math.max(0, Math.min(1, Math.sqrt(sample / (spec.minSample * 2))));
 }
 
 /**
@@ -371,34 +416,55 @@ function codeOf(value: unknown) {
 export function compareMetricRow(row: MetricRowForComparison): MetricComparison {
   const code = codeOf(row.metric_code);
   const spec = COMPARISON_SPECS[code];
-  const base = { metric_code: code, label: spec?.label ?? null, family: spec?.family ?? null, p1_number: null, p2_number: null, differential: null, advantage_p1: null, direction: spec?.direction ?? null };
+  const reliability = normalizeReliability(row.reliability);
+  const qualityP1 = qualityOfTreatment(row.p1_treatment);
+  const qualityP2 = qualityOfTreatment(row.p2_treatment);
+  const base = {
+    metric_code: code, label: spec?.label ?? null, family: spec?.family ?? null,
+    p1_number: null, p2_number: null, differential: null, advantage_p1: null,
+    direction: spec?.direction ?? null, reliability: typeof row.reliability === "number" ? row.reliability : null,
+    normalized_reliability: reliability, treatment_quality: null,
+    treatment_quality_p1: qualityP1, treatment_quality_p2: qualityP2,
+    sample_confidence: null, sample_confidence_p1: null, sample_confidence_p2: null,
+    materiality_normalized_directional_strength: null, directional_strength: null,
+    evidence_weight: null, diagnostics: [] as string[],
+  };
 
   if (!spec) {
-    return { ...base, status: "NO_COMPARISON_SPEC", favours: "UNAVAILABLE", reason: `No declared comparable field/direction for metric ${code}; excluded from the decision rather than guessed.` };
+    return { ...base, status: "NO_COMPARISON_SPEC", favours: "UNAVAILABLE", diagnostics: ["NO_COMPARISON_SPEC"], reason: `No declared comparable field/direction for metric ${code}; excluded from the decision rather than guessed.` };
   }
   const p1Usable = USABLE_TREATMENTS.has(String(row.p1_treatment ?? ""));
   const p2Usable = USABLE_TREATMENTS.has(String(row.p2_treatment ?? ""));
   if (!p1Usable || !p2Usable) {
     // Explicitly NOT a lean for whichever side happens to be usable.
-    return { ...base, status: "TREATMENT_NOT_USABLE", favours: "UNAVAILABLE", reason: `Treatment not usable on ${!p1Usable && !p2Usable ? "both sides" : !p1Usable ? "P1" : "P2"} (p1=${row.p1_treatment ?? "none"}, p2=${row.p2_treatment ?? "none"}); no comparison made and no side credited.` };
+    return { ...base, status: "TREATMENT_NOT_USABLE", favours: "UNAVAILABLE", diagnostics: ["TREATMENT_NOT_USABLE"], reason: `Treatment not usable on ${!p1Usable && !p2Usable ? "both sides" : !p1Usable ? "P1" : "P2"} (p1=${row.p1_treatment ?? "none"}, p2=${row.p2_treatment ?? "none"}); no comparison made and no side credited.` };
   }
 
-  const p1Number = extract(spec, parseMetricValue(row.p1_value));
-  const p2Number = extract(spec, parseMetricValue(row.p2_value));
+  const p1Parsed = parseMetricValue(row.p1_value);
+  const p2Parsed = parseMetricValue(row.p2_value);
+  const p1Number = extract(spec, p1Parsed);
+  const p2Number = extract(spec, p2Parsed);
+  const diagnostics = [...(reliability === null ? ["RELIABILITY_UNKNOWN"] : [])];
+  const treatmentQuality = Math.min(qualityP1 ?? 0, qualityP2 ?? 0);
+  const p1SampleConfidence = sampleConfidenceFor(spec, p1Parsed);
+  const p2SampleConfidence = sampleConfidenceFor(spec, p2Parsed);
+  const sampleConfidence = p1SampleConfidence === null || p2SampleConfidence === null
+    ? null
+    : Math.min(p1SampleConfidence, p2SampleConfidence);
   if (p1Number === null && p2Number === null) {
-    return { ...base, status: "VALUE_NOT_PARSEABLE", favours: "UNAVAILABLE", reason: `Neither side carried a parseable "${spec.field ?? "scalar"}" value; treated as UNAVAILABLE, never as zero.` };
+    return { ...base, treatment_quality: treatmentQuality, sample_confidence: sampleConfidence, sample_confidence_p1: p1SampleConfidence, sample_confidence_p2: p2SampleConfidence, diagnostics: [...diagnostics, "VALUE_NOT_PARSEABLE"], status: "VALUE_NOT_PARSEABLE", favours: "UNAVAILABLE", reason: `Neither side carried a parseable "${spec.field ?? "scalar"}" value; treated as UNAVAILABLE, never as zero.` };
   }
   if (p1Number === null || p2Number === null) {
-    return { ...base, p1_number: p1Number, p2_number: p2Number, status: "ONE_SIDED_EVIDENCE", favours: "UNAVAILABLE", reason: `Only ${p1Number === null ? "P2" : "P1"} carried a parseable "${spec.field ?? "scalar"}" value. One-sided evidence is never a lean for the side that happens to have it.` };
+    return { ...base, p1_number: p1Number, p2_number: p2Number, treatment_quality: treatmentQuality, sample_confidence: sampleConfidence, sample_confidence_p1: p1SampleConfidence, sample_confidence_p2: p2SampleConfidence, diagnostics: [...diagnostics, "ONE_SIDED_EVIDENCE"], status: "ONE_SIDED_EVIDENCE", favours: "UNAVAILABLE", reason: `Only ${p1Number === null ? "P2" : "P1"} carried a parseable "${spec.field ?? "scalar"}" value. One-sided evidence is never a lean for the side that happens to have it.` };
   }
 
   if (spec.sampleField && spec.minSample !== undefined) {
-    const p1Sample = lookup(parseMetricValue(row.p1_value), spec.sampleField[0], spec.sampleField.slice(1));
-    const p2Sample = lookup(parseMetricValue(row.p2_value), spec.sampleField[0], spec.sampleField.slice(1));
+    const p1Sample = lookup(p1Parsed, spec.sampleField[0], spec.sampleField.slice(1));
+    const p2Sample = lookup(p2Parsed, spec.sampleField[0], spec.sampleField.slice(1));
     if (p1Sample === null || p2Sample === null || p1Sample < spec.minSample || p2Sample < spec.minSample) {
       const describe = (n: number | null) => (n === null ? "not persisted" : String(n));
       return {
-        ...base, p1_number: p1Number, p2_number: p2Number, status: "INSUFFICIENT_SAMPLE", favours: "UNAVAILABLE",
+        ...base, p1_number: p1Number, p2_number: p2Number, treatment_quality: treatmentQuality, sample_confidence: sampleConfidence, sample_confidence_p1: p1SampleConfidence, sample_confidence_p2: p2SampleConfidence, diagnostics: [...diagnostics, "INSUFFICIENT_SAMPLE"], status: "INSUFFICIENT_SAMPLE", favours: "UNAVAILABLE",
         reason: `"${spec.label}" needs at least ${spec.minSample} ${spec.sampleField[0]} on both sides; P1 has ${describe(p1Sample)} and P2 has ${describe(p2Sample)}. A gap measured over too few attempts is noise, so neither side is credited.`,
       };
     }
@@ -407,6 +473,13 @@ export function compareMetricRow(row: MetricRowForComparison): MetricComparison 
   const differential = Number((p1Number - p2Number).toFixed(6));
   const advantageP1 = Number((spec.direction === "HIGHER_IS_BETTER" ? differential : -differential).toFixed(6));
   const favours: ComparisonFavours = Math.abs(differential) <= spec.materiality ? "NEUTRAL" : advantageP1 > 0 ? "P1" : "P2";
+  const strength = spec.materiality > 0 ? Number((Math.abs(advantageP1) / spec.materiality).toFixed(6)) : null;
+  // Unknown reliability is intentionally explicit, but uses the historical neutral
+  // multiplier so old persisted rows do not become unusable merely because metadata
+  // predates the reliability field.
+  const reliabilityFactor = reliability ?? 1;
+  const strengthFactor = strength === null ? 0 : strength / (1 + strength);
+  const evidenceWeight = favours === "NEUTRAL" ? 0 : Number((treatmentQuality * reliabilityFactor * (sampleConfidence ?? 0) * strengthFactor).toFixed(6));
   return {
     ...base,
     p1_number: p1Number,
@@ -415,6 +488,14 @@ export function compareMetricRow(row: MetricRowForComparison): MetricComparison 
     advantage_p1: advantageP1,
     status: "COMPARED",
     favours,
+    treatment_quality: treatmentQuality,
+    sample_confidence: sampleConfidence,
+    sample_confidence_p1: p1SampleConfidence,
+    sample_confidence_p2: p2SampleConfidence,
+    materiality_normalized_directional_strength: strength,
+    directional_strength: strength,
+    evidence_weight: evidenceWeight,
+    diagnostics,
     reason: favours === "NEUTRAL"
       ? `P1 ${p1Number} vs P2 ${p2Number} (${spec.label}); |difference| ${Math.abs(differential)} is within the ${spec.materiality} materiality threshold, so neither side is credited.`
       : `P1 ${p1Number} vs P2 ${p2Number} (${spec.label}, ${spec.direction}); favours ${favours}.`,

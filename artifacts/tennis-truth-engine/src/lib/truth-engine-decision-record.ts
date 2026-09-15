@@ -1,6 +1,5 @@
 import type { TruthEngineAuditResult } from "./truth-engine-audit";
 import { activeMetricReadiness, type MetricRowForReadiness } from "./truth-engine-active-metrics";
-import { playerNamesMatch } from "./match-result-resolution";
 
 // THE DECISION RECORD — structured features of one finished Truth Engine decision.
 //
@@ -31,6 +30,10 @@ export interface DecisionFamilyRecord {
   supporting_metrics: string[];
   opposing_metrics: string[];
   neutral_metrics: string[];
+  weighted_p1?: number;
+  weighted_p2?: number;
+  family_weight?: number;
+  internally_contradictory?: boolean;
 }
 
 export interface TruthEngineDecisionRecord {
@@ -53,6 +56,21 @@ export interface TruthEngineDecisionRecord {
   /** Same-family agreement that was deliberately NOT counted again. */
   duplicated_support_metrics: string[];
   families: DecisionFamilyRecord[];
+  evidence_completeness: number;
+  evidence_completeness_percent: number;
+  evidence_completeness_status: string;
+  sufficiency_status: string;
+  sufficiency_tier: string;
+  weighted_score_p1: number;
+  weighted_score_p2: number;
+  weighted_balance: number;
+  weighted_evidence_percent: number;
+  usable_count_p1: number;
+  usable_count_p2: number;
+  quality_counts: { direct: number; reconstructed: number; partial: number; unknown_reliability: number; low_reliability: number };
+  family_support_details: TruthEngineAuditResult["decision"]["family_support_details"];
+  contradiction: TruthEngineAuditResult["decision"]["contradiction"];
+  ablation_robustness: TruthEngineAuditResult["decision"]["ablation_robustness"];
 
   /** AUDIT-LAYER FEATURES, recorded as states -- never scored, never summed. */
   verification_findings: number;
@@ -94,8 +112,6 @@ export interface DecisionRecordInput {
   audit: TruthEngineAuditResult;
   metricRows: readonly MetricRowForReadiness[];
   now?: Date;
-  /** Supplied only when the match has actually been played and graded. */
-  actualWinner?: string | null;
 }
 
 /**
@@ -105,11 +121,10 @@ export interface DecisionRecordInput {
  * two names, and stays null whenever either side is unknown, so an unresolved match can
  * never be silently scored as a loss.
  */
-export function buildDecisionRecord({ audit, metricRows, now, actualWinner }: DecisionRecordInput): TruthEngineDecisionRecord {
+export function buildDecisionRecord({ audit, metricRows, now }: DecisionRecordInput): TruthEngineDecisionRecord {
   const decision = audit.decision;
   const coverage = activeMetricReadiness(metricRows);
   const selected = decision.selected_player;
-  const resolved = Boolean(selected) && Boolean(actualWinner);
 
   return {
     schema_version: 1,
@@ -133,7 +148,26 @@ export function buildDecisionRecord({ audit, metricRows, now, actualWinner }: De
       supporting_metrics: family.supporting_metrics,
       opposing_metrics: family.opposing_metrics,
       neutral_metrics: family.neutral_metrics,
+      weighted_p1: family.weighted_p1,
+      weighted_p2: family.weighted_p2,
+      family_weight: family.family_weight,
+      internally_contradictory: family.internally_contradictory,
     })),
+    evidence_completeness: decision.evidence_completeness,
+    evidence_completeness_percent: decision.evidence_completeness_percent,
+    evidence_completeness_status: decision.evidence_completeness_status,
+    sufficiency_status: decision.sufficiency_status,
+    sufficiency_tier: decision.sufficiency_tier,
+    weighted_score_p1: decision.weighted_score_p1,
+    weighted_score_p2: decision.weighted_score_p2,
+    weighted_balance: decision.weighted_balance,
+    weighted_evidence_percent: decision.weighted_evidence_percent,
+    usable_count_p1: decision.usable_count_p1,
+    usable_count_p2: decision.usable_count_p2,
+    quality_counts: decision.quality_counts,
+    family_support_details: decision.family_support_details,
+    contradiction: decision.contradiction,
+    ablation_robustness: decision.ablation_robustness,
 
     verification_findings: audit.verification.findings.length,
     disagreement_severity: audit.disagreement.overall_severity,
@@ -157,8 +191,10 @@ export function buildDecisionRecord({ audit, metricRows, now, actualWinner }: De
       counts_toward_denominator: entry.activation.countsTowardDenominator,
     })),
 
-    actual_winner: actualWinner ?? null,
-    decision_correct: resolved ? playerNamesMatch(selected!, actualWinner!) : null,
+    // Outcome data is deliberately not accepted at decision-record build time.
+    // Grading remains a separate, post-match path and cannot influence selection.
+    actual_winner: null,
+    decision_correct: null,
   };
 }
 
