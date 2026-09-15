@@ -1,0 +1,30 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2013,
+  "sources": {
+    "hist": {
+      "name": "Aneeshers/tennis-sackmann-archive",
+      "license": "NONCOMMERCIAL_ONLY",
+      "raw_records": 2631
+    },
+    "pbp": {
+      "name": "ppaulojr/tennis_pointbypoint",
+      "license": "LICENSE_UNCERTAIN",
+      "raw_records": 2648
+    }
+  },
+  "funnel": {
+    "candidates": 2648,
+    "normalized": 2648,
+    "player_name_matched": 2298,
+    "score_and_tny_matched": 1609,
+    "structurally_valid": 1525,
+    "internally_validated": 1525,
+    "independently_corroborated": 0,
+    "level_1_verified": 0
+  },
+  "duplicates_ambiguous_historical_matches": 5,
+  "conflicts_structurally_valid_but_disagrees_with_history": 0,
+  "independent_corroboration_blocker": "tennis-data.co.uk unreachable (see data/audit/verified-pbp-v4 outage record) -- 0 records can reach LEVEL_1 until this or another independent source is available",
+  "generated_at_utc": "2026-09-15T21:10:48.048037+00:00"
+}
