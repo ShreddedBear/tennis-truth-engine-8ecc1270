@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse,csv,hashlib,io,json,re,unicodedata,urllib.request,zipfile
+import argparse,csv,hashlib,io,json,re,time,unicodedata,urllib.request,zipfile
 from collections import Counter,defaultdict
 from datetime import datetime,timezone
 from pathlib import Path
@@ -17,10 +17,25 @@ PBP_FILES={
 }
 MAIN_LEVELS={'G','M','A','F'}
 UA='tennis-truth-engine-pbp-v4/1.0'
+# tennis-data.co.uk sits behind bot-detection that rejects the plain script UA
+# above with a bare connection failure (no HTTP status), which previously made
+# every match in a year get marked ACCESS_LIMITATION even when a PBP candidate
+# had already been found. A browser-shaped UA + a couple of retries is enough
+# to tell "site blocked the request" apart from "site is actually down".
+TD_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
-def fetch_bytes(url,timeout=90):
- req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'*/*'})
- with urllib.request.urlopen(req,timeout=timeout) as r:return r.read()
+def fetch_bytes(url,timeout=90,headers=None,retries=1):
+ hdrs={'User-Agent':UA,'Accept':'*/*'}
+ if headers:hdrs.update(headers)
+ last=None
+ for attempt in range(retries+1):
+  req=urllib.request.Request(url,headers=hdrs)
+  try:
+   with urllib.request.urlopen(req,timeout=timeout) as r:return r.read()
+  except Exception as e:
+   last=e
+   if attempt<retries:time.sleep(2*(attempt+1));continue
+ raise last
 def fetch_text(url):return fetch_bytes(url).decode('utf-8-sig','replace')
 def norm_name(v):return re.sub(r'[^a-z0-9]+','',unicodedata.normalize('NFKD',str(v or '')).encode('ascii','ignore').decode().lower())
 def norm_tny(v):
@@ -125,9 +140,10 @@ def read_table(data,url):
  return pd.read_excel(io.BytesIO(data))
 def read_td(tour,year):
  errs=[]
+ td_headers={'User-Agent':TD_UA,'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8','Referer':'https://www.tennis-data.co.uk/alldata.php'}
  for url in td_candidates(tour,year):
   try:
-   df=read_table(fetch_bytes(url),url);rows=[]
+   df=read_table(fetch_bytes(url,timeout=45,headers=td_headers,retries=2),url);rows=[]
    def pick(r,*names):
     lk={re.sub(r'[^a-z0-9]+','',str(k).lower()):v for k,v in r.items()}
     for n in names:

@@ -1,18 +1,116 @@
-name: Verified ATP WTA PBP Pipeline v4 — CANCELLED
+name: Verified ATP WTA PBP Pipeline v4 (manual bounded test)
 
-# CANCELLED by user on 2026-08-23.
-# Historical PBP audit outputs are retained for provenance only.
-# No push, schedule, or manual workflow trigger remains enabled.
+# The original hourly-schedule pipeline was CANCELLED by user on 2026-08-23
+# after 2012+2013 ATP_MAIN came back 0% verified: every match with a real PBP
+# candidate was blocked by a tennis-data.co.uk fetch failure (see
+# data/audit/verified-pbp-v4/atp_main/*/summary.json). That cancellation
+# stands — no schedule, no push trigger, no auto-advance through the
+# resumable queue (data/audit/verified-pbp-v4/queue.json stays untouched at
+# its cancelled position).
+#
+# Re-enabled 2026-09-15, workflow_dispatch only, after hardening the
+# tennis-data.co.uk fetch in scripts/verify-sackmann-pbp-v4.py (browser UA +
+# retries — the plain script UA was almost certainly bot-blocked, not
+# reflecting the site being down). This runs exactly one explicit tour/year
+# batch per manual dispatch as a bounded proof-of-fix, and only touches that
+# batch's own output directory.
 
 on:
   workflow_dispatch:
+    inputs:
+      tour:
+        description: 'Tour to verify'
+        required: true
+        default: 'ATP_MAIN'
+        type: choice
+        options:
+          - ATP_MAIN
+          - WTA_MAIN
+      year:
+        description: 'Year to verify (2012-current)'
+        required: true
+        default: '2012'
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: verified-pbp-pipeline-v4-manual
+  cancel-in-progress: false
 
 jobs:
-  cancelled:
-    if: ${{ false }}
+  verify-one-batch:
     runs-on: ubuntu-latest
+    timeout-minutes: 55
     steps:
-      - run: echo 'PBP v4 pipeline cancelled by user.'
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install verifier dependencies
+        run: python3 -m pip install --quiet pandas openpyxl xlrd
+
+      - name: Verify one ATP/WTA year batch with firewalls
+        run: |
+          python3 scripts/verify-sackmann-pbp-v4.py --tour "${{ inputs.tour }}" --year "${{ inputs.year }}"
+
+      - name: Integrity gate before commit
+        run: |
+          python3 - "${{ inputs.tour }}" "${{ inputs.year }}" <<'PY'
+          import json,sys
+          from pathlib import Path
+          tour,year=sys.argv[1],sys.argv[2]
+          root=Path('data/audit/verified-pbp-v4')
+          d=root/tour.lower()/year
+          s=json.loads((d/'summary.json').read_text())
+          maps=json.loads((d/'verified-mappings.json').read_text())
+          assert s.get('verifier_version')==4, 'wrong verifier version'
+          assert len(maps)==s.get('verified'), 'verified count/mapping mismatch'
+          hist_keys=set();pbp_keys=set()
+          for m in maps:
+            h=m['historical'];p=m['pbp_ref']
+            hk=(m['tour'],h.get('tourney_id'),h.get('match_num'),h.get('winner_id'),h.get('loser_id'))
+            pk=(p.get('source_file'),p.get('source_row'),p.get('pbp_sha256'))
+            assert hk not in hist_keys, f'duplicate historical match attachment: {hk}'
+            assert pk not in pbp_keys, f'duplicate PBP attachment: {pk}'
+            hist_keys.add(hk);pbp_keys.add(pk)
+            assert m['tour']==tour, 'tour firewall failure'
+            assert m.get('trust_level')=='LEVEL_1_RESULT_VERIFIED_PBP', 'untrusted attachment'
+            u=m.get('uniqueness',{})
+            assert u.get('forward_candidates')==1 and u.get('reverse_candidates')==1, 'uniqueness firewall failure'
+          # Global duplicate protection against every v4 checkpoint already persisted
+          # (including the frozen pre-cancellation years), same rule the original
+          # pipeline enforced before every commit.
+          global_hist=set();global_pbp=set()
+          for f in root.glob('*/*/verified-mappings.json'):
+            for m in json.loads(f.read_text()):
+              h=m['historical'];p=m['pbp_ref']
+              hk=(m['tour'],h.get('tourney_id'),h.get('match_num'),h.get('winner_id'),h.get('loser_id'))
+              pk=(p.get('source_file'),p.get('source_row'),p.get('pbp_sha256'))
+              if hk in global_hist: raise SystemExit(f'GLOBAL HISTORICAL DUPLICATE: {hk}')
+              if pk in global_pbp: raise SystemExit(f'GLOBAL PBP DUPLICATE: {pk}')
+              global_hist.add(hk);global_pbp.add(pk)
+          print(f'Integrity gate passed: {len(maps)} verified attachments; no duplicate historical or PBP mappings.')
+          PY
+
+      - name: Commit this batch's result only (queue/checkpoint left untouched)
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          TOUR_LC="$(echo "${{ inputs.tour }}" | tr '[:upper:]' '[:lower:]')"
+          git add "data/audit/verified-pbp-v4/${TOUR_LC}/${{ inputs.year }}"
+          if git diff --cached --quiet; then
+            echo 'No changes to persist.'
+          else
+            git commit -m "Manual bounded PBP v4 re-verify: ${{ inputs.tour }} ${{ inputs.year }}"
+            git pull --rebase origin "${{ github.ref_name }}"
+            git push
+          fi
+
+      - name: Publish result
+        if: always()
+        run: |
+          TOUR_LC="$(echo "${{ inputs.tour }}" | tr '[:upper:]' '[:lower:]')"
+          FILE="data/audit/verified-pbp-v4/${TOUR_LC}/${{ inputs.year }}/UPDATE.md"
+          echo '===== BATCH RESULT ====='
+          if [ -f "$FILE" ]; then cat "$FILE"; fi
