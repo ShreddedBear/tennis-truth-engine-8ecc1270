@@ -113,16 +113,9 @@ async function bootstrap(): Promise<void> {
   // Fire after paper trading, but before historical backfill, to stagger provider work on startup.
   setTimeout(triggerCalibrationRefitCycle, 15_000);
 
-  // Task #144: `historical_matches` -- the canonical record backtesting, calibration, and
-  // canonical player-identity lookup all depend on -- used to only advance when someone manually
-  // re-ran the CLI backfill with new dates, and silently stopped doing that over a year ago.
-  // `runHistoricalBackfillJob` is self-advancing (always picks up from wherever the table already
-  // reaches) and has its own standalone entry (`src/jobs/runHistoricalBackfillJob.ts`, intended
-  // for a once-daily Replit Scheduled Deployment running `job:historical-backfill`, same cadence
-  // as calibration-refit). Mirroring the paper-trading job's in-process fallback (see its comment
-  // above for the full rationale): firing it here too means the record keeps advancing today even
-  // before that Scheduled Deployment is configured, at the cost of pausing across a server
-  // restart -- an acceptable tradeoff given the alternative is silently going stale again.
+  // The incremental historical job replays warehouse state and is intentionally opt-in inside
+  // the web process. At full warehouse scale it must normally run as its standalone scheduled
+  // job so a replay cannot compete with live traffic for the web server's heap.
   const HISTORICAL_BACKFILL_INTERVAL_MS = 24 * 60 * 60_000;
   let historicalBackfillInFlight = false;
 
@@ -143,10 +136,10 @@ async function bootstrap(): Promise<void> {
       });
   }
 
-  setInterval(triggerHistoricalBackfillCycle, HISTORICAL_BACKFILL_INTERVAL_MS);
-  // Fire once shortly after startup too, offset from the paper-trading/calibration startup
-  // triggers so they don't all hit the provider at once.
-  setTimeout(triggerHistoricalBackfillCycle, 20_000);
+  if (process.env.RUN_IN_PROCESS_HISTORICAL_BACKFILL === "true") {
+    setInterval(triggerHistoricalBackfillCycle, HISTORICAL_BACKFILL_INTERVAL_MS);
+    setTimeout(triggerHistoricalBackfillCycle, 20_000);
+  }
 
   const DEGRADED_RECOMPUTE_INTERVAL_MS = 6 * 60 * 60_000;
   let degradedRecomputeInFlight = false;
