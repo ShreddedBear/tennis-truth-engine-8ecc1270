@@ -399,6 +399,121 @@ corpus exists and has a credible path to legitimately recovering a modest amount
 Challenger coverage without ppaulojr, without a new paid API, and without touching TennisMyLife,
 BSD, or Supabase.
 
+## Addendum 3 — the requested "JeffSackmann/tennis_pointbypoint" does not exist
+
+**Direct answer to the final question asked this pass: zero.** "How many additional verified
+ATP Challenger main-draw PBP matches can we legitimately recover from Jeff Sackmann's
+`tennis_pointbypoint` repository beyond the 407 MCP matches?" **Zero — for two independent,
+each-sufficient reasons**, both verified firsthand this session (not inferred, not assumed):
+
+**Reason 1: that repository does not exist.** `https://github.com/JeffSackmann/tennis_pointbypoint`
+returns HTTP 404 from both a direct fetch and the GitHub REST API
+(`api.github.com/repos/JeffSackmann/tennis_pointbypoint`), checked twice. Jeff Sackmann's only
+GitHub repositories relevant here are `tennis_atp`, `tennis_wta`, `tennis_slam_pointbypoint`, and
+`tennis_MatchChartingProject` (the 407-match MCP corpus already reported in Addendum 2). There is
+no fifth repository under that account with the requested name.
+
+**Reason 2: the repository that actually has those four filenames is not Jeff Sackmann's, and
+is the same source already fully consumed.** `pbp_matches_ch_main_archive.csv` /
+`pbp_matches_ch_main_current.csv` (and the `_qual_` variants) live at
+`ppaulojr/tennis_pointbypoint` — confirmed via `api.github.com/repos/ppaulojr/tennis_pointbypoint`:
+**`"license": null`, `"is_fork": false`, `"parent": null`**, owner `ppaulojr`, created and pushed
+once on 2015-04-18 and never updated since. Its own README (cloned and read directly, not
+excerpted secondhand) is written in the first person by "ppaulojr" describing a personal,
+imperfect scrape ("I've done what I can... probably imperfect parser... surely many errors
+remaining... probably also some duplicate matches") of unspecified upstream source data. It does
+not mention Jeff Sackmann anywhere. **This is the exact same unlicensed, unaffiliated source
+already identified and correctly excluded in the original audit and in Addendum 1** — the user's
+premise that it is Jeff Sackmann's authoritative repository is incorrect, and this audit does not
+adopt it. Per the instruction not to silently combine ppaulojr and Jeff Sackmann data: they are
+not combined here, and the finding is that they were never the same thing to begin with.
+
+### File-level audit of `ppaulojr/tennis_pointbypoint`'s CH files (performed as requested)
+
+Freshly cloned and parsed directly from GitHub this session (not from this repo's cached
+scripts), for full independence from the existing pipeline's own accounting:
+
+| Metric | `pbp_matches_ch_main_archive.csv` | `pbp_matches_ch_main_current.csv` | Combined |
+|---|---:|---:|---:|
+| Rows | 15,515 | 990 | 16,505 |
+| `tour` value | 100% `CH` | 100% `CH` | 100% `CH` |
+| `draw` value | 100% `Main` | 100% `Main` | 100% `Main` |
+
+- **Year range**: 2010–2015 only (2010: 1 · 2011: 1,353 · 2012: 4,711 · 2013: 5,097 · 2014:
+  4,353 · 2015: 990). Nothing from 2016 onward — matches the README's own claim
+  ("`_current` files contain 2015 matches, `_archive` ... most ... from 2012-14").
+- **Matches per tournament**: 526 distinct tournament-name strings (unnormalized; the same
+  event appears under several spellings across years, e.g. `ATPChallengerTourSaoPaulo` vs.
+  `ATPChallengerTour-SaoPaulo`). Top by row count: São Paulo (186), Astana (120), Braunschweig
+  (116), San Benedetto (109), Milan (104).
+- **Matches per surface**: not derivable from this file — it has no surface column
+  (`date,tny_name,tour,draw,server1,server2,winner,pbp,score,adf_flag` only). Surface is only
+  knowable after joining to a result source (TennisMyLife, as the existing pipeline already
+  does), so no per-surface number is reported here rather than fabricating one.
+- **Duplicate count**: 101 exact-content duplicate groups (same `pbp` string), 203 rows
+  involved; separately, 111 duplicate groups by (date, both player names, tournament), 223 rows
+  — these overlap substantially but are not computed on the same key, so are reported separately
+  rather than merged into one number.
+- **Malformed PBP count**: 0. Every one of the 16,505 `pbp` strings uses only the documented
+  charset (`S R A D . ; /`) — the file is internally well-formed at the character level.
+- **Valid PBP count**: 16,505 of 16,505 (100%) pass the charset check above. (This is a
+  structural-syntax check only, not proof of correctness against a real match — that is what the
+  existing firewall's independent-result-verification step is for, see below.)
+- **Retirement/excluded count**: 0 — confirmed by the absence of any `RET`/`W/O`/`DEF` marker in
+  the `score` field, consistent with the README's own statement that retirements were excluded
+  by ppaulojr before publishing.
+- **Player identity completeness**: 16,503 of 16,505 rows (99.99%) have both `server1` and
+  `server2` populated; 2 rows are missing one or both names.
+- **Date completeness**: 16,505 of 16,505 (100%) — every date parses cleanly (`DD Mon YY`
+  format).
+- **Winner completeness**: 16,505 of 16,505 (100%) — every row's `winner` field is `1` or `2`.
+
+### Comparison against the three existing pools
+
+**1. Against the existing 9,218 identity mappings — this file already produced all of them.**
+Every one of the 9,218 mappings' `pbp_ref.pbp_sha256` values (9,218 of 9,218, 100%) was found
+among the SHA-256 hashes of the `pbp` field in this freshly-cloned copy of the file — an exact,
+byte-level match, not an inference. **Exact overlap: 9,218 of 9,218. Exact new matches: 0.**
+7,185 additional rows exist in the raw file that were never promoted into a mapping — these are
+not new legitimate coverage; they are the leftover candidates from the same already-run firewall
+process (rows with no matching TennisMyLife result, ambiguous matches, or rows that lost a
+uniqueness/duplicate check) from the same unlicensed source, carrying the same licensing
+blocker as the 9,218 already do.
+
+**2. Against the 407 MCP matches — small, informative overlap, no new licensed coverage.** Of
+the 51 MCP Challenger matches in the 2012–2015 window, 15 also appear as a raw row in this
+ppaulojr file (matched by date + both player names). Of those 15, 12 were already promoted into
+the existing 9,218 mappings (per Addendum 2's identity check); the other 3 exist as a raw
+ppaulojr candidate row but were not promoted (a data-quality gap in the already-run pipeline, not
+a new-source opportunity). All 356 MCP matches from 2016–2026 fall entirely outside this file's
+2010–2015 date range, so overlap there is 0 by construction.
+
+**3. Against the 1,740 certified BSD/Bzzoiro matches — zero overlap by construction.** BSD's
+confirmed coverage starts 2025-01-12; this file ends in 2015. No shared date range exists.
+
+**Possible canonical matches / unresolved identities**: the 7,185 unconsumed ppaulojr rows could
+in principle yield a handful more confirmed identities under a more thorough re-match against
+TennisMyLife (or another approved result source) — but this session did not attempt that
+re-match (it would not change the underlying licensing conclusion, and no production writes were
+requested), so no number is claimed for it. The 101/203 duplicate-content rows and 111/223
+duplicate-key rows are additional identity-resolution risk within the file itself.
+
+**Duplicate PBP tapes**: confirmed by direct inspection — e.g. two identical rows for
+`Joao Sousa vs Juan Pablo Brzezicki, ATPChallenger-SaoPaulo2010, 05 Jan 11` share the same
+`pbp` string verbatim. These are duplicate rows in ppaulojr's own file, not duplicates introduced
+by this repo's pipeline.
+
+### What this does and does not change
+
+No production writes were made. `data/audit/verified-pbp/`, `historical-source-policy.ts`, the
+BSD adapter, Supabase, and metric files remain untouched (confirmed by `git status`/`git diff`
+before and after this addendum). The 9,218 mappings, the 407 MCP finding, and the 1,740
+certified BSD total are all unchanged. **This addendum's only contribution is to close off a
+line of inquiry**: the URL given this turn does not point at a real, licensed, previously-unused
+Sackmann corpus — it points at the same unlicensed file this repository already fully mined. The
+only legitimate expansion path already identified remains Addendum 2's MCP corpus (407 matches,
+51 of them 2012–2015, 12 of those already identity-matched to the existing 9,218).
+
 ## Remaining gaps
 
 1. **2023 BSD scan incomplete.** `data/audit/bsd-atp-challenger-pbp-history/queue.json`
