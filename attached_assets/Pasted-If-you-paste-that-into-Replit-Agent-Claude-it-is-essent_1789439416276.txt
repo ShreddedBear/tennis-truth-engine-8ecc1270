@@ -1,0 +1,176 @@
+If you paste that into Replit Agent/Claude, it is essentially telling it:
+
+“Stop guessing, audit my actual Tennis Matrix codebase first, find the real historical-data bottleneck, then fix the evidence pipeline using my existing architecture.”
+
+It is not just asking Replit to give you a report.
+
+What it should do
+
+1. Inspect the actual app first
+It should determine what your current production storage/database architecture actually is.
+
+Most importantly, it should see the instruction:
+
+DO NOT ASSUME SUPABASE
+
+So the previous Supabase mistake should not get carried forward.
+
+⸻
+
+2. Trace your existing data pipeline
+
+It should follow something like:
+
+Historical source → ingestion → player matching → match matching → validation → existing storage → metric evidence → engines
+
+It should figure out where the chain is currently breaking.
+
+For example, it may discover:
+
+* historical matches aren’t being imported
+* imported matches aren’t being persisted
+* player IDs aren’t matching
+* PBP isn’t reaching the evidence layer
+* metric producers exist but have no underlying data
+* evidence exists but isn’t reaching the Truth Engine
+
+The important part is that it should prove which one is actually happening before changing code.
+
+⸻
+
+3. Inspect your existing historical-data infrastructure
+
+It should look for the infrastructure you already have rather than creating a new one.
+
+So if your app currently uses some other database/storage system, Replit should use that.
+
+It should not create:
+
+“Here’s a new Supabase database.”
+
+That’s explicitly prohibited.
+
+⸻
+
+4. Audit the approved historical sources
+
+It should examine the existing ingestion capability and determine how to bring in useful historical information from the approved sources:
+
+* Sackmann archive
+* PPAulo point-by-point
+* Match Charting Project
+
+while respecting provenance and licensing.
+
+⸻
+
+5. Fix the historical evidence foundation
+
+If the audit confirms that the historical warehouse is effectively empty or incomplete, it should implement the necessary ingestion/persistence work.
+
+The goal is to get actual historical evidence into the application’s existing architecture.
+
+That should eventually give your engines real material to work with for things such as:
+
+* Surface Strength
+* Recent Form
+* Serve/Return
+* Common Opponents
+* H2H
+* PBP
+* Style
+* Workload/Fatigue
+
+⸻
+
+6. It should NOT automatically turn every new metric into a vote
+
+This is important.
+
+The prompt specifically tells it that:
+
+More metrics ≠ better model.
+
+For example, metrics 020, 043, and 044 were found to have legitimate data available in some circumstances, but they were not independently safe enough to become voting metrics.
+
+So the agent should improve the underlying evidence without artificially making the Truth Engine more confident.
+
+⸻
+
+7. It should test everything
+
+It should not stop at:
+
+“I imported 100,000 matches.”
+
+It should verify that the data actually travels through the application.
+
+For example:
+
+source record
+
+→ correctly identified player
+
+→ correctly identified match
+
+→ stored in current persistence layer
+
+→ metric can retrieve it
+
+→ evidence is generated
+
+→ evidence state is correct
+
+→ appropriate engine can consume it
+
+That’s the part I particularly wanted this version to force.
+
+⸻
+
+What it should NOT do
+
+It should not:
+
+❌ Build Supabase
+❌ Replace your current database
+❌ Create a second database
+❌ Add random tennis APIs
+❌ Blindly change prediction weights
+❌ Lower Truth Engine thresholds
+❌ Force more picks
+❌ Turn unavailable data into zeros
+❌ Fabricate historical statistics
+❌ Use future results in historical predictions
+❌ Merge your three engines
+❌ Treat correlated metrics as independent evidence
+❌ Declare something fixed just because the code compiled
+
+⸻
+
+And because you have limited Replit credits
+
+The first thing I would expect from Replit is an audit, not a massive implementation.
+
+Ideally its first response should look something like:
+
+Architecture discovered: [actual persistence system]
+Historical storage discovered: [actual tables/files/models]
+Current ingestion path: [actual path]
+Primary failure: [specific root cause]
+Secondary failures: [specific issues]
+Recommended minimal fix: [specific files/change]
+No changes made yet.
+
+Then you can let it execute the fix.
+
+One important distinction
+
+The prompt I gave you is a large master execution specification. Replit may interpret it as permission to start doing the work immediately.
+
+If what you want is maximum protection of your Replit credits, I would actually use a slightly different first message:
+
+AUDIT ONLY — DO NOT MODIFY CODE YET.
+
+Then have it inspect the repository and give you the exact findings first. After we see that report, we can give it a second, much smaller execution prompt that tells it exactly what to fix.
+
+That would be the safer approach for your situation.

@@ -1,0 +1,161 @@
+## TENNIS MATRIX — BUILD THE HISTORICAL EVIDENCE WAREHOUSE
+
+Use the cost-efficient execution rules.
+
+This audit established that the primary remaining bottleneck is NOT Truth Engine decision logic.
+
+Do NOT change:
+- 60% threshold
+- LOFO
+- family voting
+- decision weights
+- confidence thresholds
+- decision tiers
+- comparison specs
+- metric definitions
+
+Do NOT add new APIs.
+
+### CONFIRMED CURRENT STATE
+
+- historical_matches = 0 rows
+- 133 completed audit runs
+- 4,394 metric results
+- 9,277 evidence rows
+- 132 match records
+- 887 source observations
+- 0 persisted historical player-result observations
+- 0 persisted PBP observations
+- only 3 DIRECT/DIRECT metric results
+- approved Sackmann mirror is not yet a production ingestion source
+
+### APPROVED HISTORICAL SOURCE
+
+Primary:
+https://github.com/Aneeshers/tennis-sackmann-archive
+
+Fallback:
+https://huggingface.co/datasets/Aneeshers/tennis-sackmann-archive
+
+Do NOT attempt the broken original JeffSackmann repository.
+
+### OBJECTIVE
+
+Create the smallest reliable production ingestion pipeline that imports the approved historical ATP/WTA match data into the existing historical evidence architecture.
+
+Before changing schema, inspect the existing:
+- historical_matches schema
+- player tables
+- match tables
+- source-observation tables
+- canonical player ID logic
+- existing import/normalization code
+
+Reuse existing structures wherever possible.
+
+### REQUIRED DATA
+
+At minimum preserve:
+
+- source
+- source record/file
+- player identities
+- canonical player IDs
+- match date
+- tournament
+- tour
+- surface
+- round
+- winner
+- loser
+- score
+- match statistics when actually available
+- source/import timestamp
+
+Do NOT fabricate missing statistics.
+
+### CRITICAL TEMPORAL RULE
+
+Historical data used for a prediction at asOfDate X must contain only information available before X.
+
+The ingestion layer may store historical records globally, but every downstream query must enforce the prediction cutoff.
+
+### IDENTITY RULE
+
+Do not create duplicate players because of naming differences.
+
+Use the existing canonical player-ID system.
+
+Ambiguous player mappings must be quarantined rather than guessed.
+
+### INGESTION RULE
+
+Before importing the full archive:
+
+1. Test the source with a small sample.
+2. Validate schema mapping.
+3. Validate player matching.
+4. Validate duplicate detection.
+5. Validate date/surface/tour/round fields.
+6. Validate winner/loser orientation.
+7. Validate provenance.
+8. Run a small test import.
+9. Verify rows actually persist in the database.
+
+Only after those checks pass, perform the full ingestion.
+
+### COVERAGE
+
+Prioritize:
+ATP
+WTA
+and any Challenger data actually contained in the approved archive.
+
+Do not claim coverage that the source does not provide.
+
+### IMPORTANT
+
+Do NOT wire the newly imported data into new decision metrics yet.
+
+First establish a trustworthy historical warehouse.
+
+### SUCCESS CRITERIA
+
+The final report must prove:
+
+- source successfully accessed
+- number of records discovered
+- number imported
+- number rejected
+- number quarantined
+- duplicate handling
+- canonical player-match success rate
+- ATP coverage
+- WTA coverage
+- historical date range
+- database row count before/after
+- provenance preserved
+- temporal fields preserved
+- tests passed
+
+If ingestion cannot be completed safely, stop at the exact failure point.
+
+Do not fabricate successful ingestion.
+
+### FINAL REPORT
+
+Return only:
+
+ROOT CAUSE ADDRESSED
+SOURCE
+RECORDS DISCOVERED
+RECORDS IMPORTED
+RECORDS REJECTED/QUARANTINED
+DATABASE BEFORE/AFTER
+PLAYER-ID MATCHING
+COVERAGE
+TESTS
+FILES CHANGED
+GIT COMMIT HASH
+
+Do not modify Truth Engine decision logic.
