@@ -35,19 +35,60 @@ By tier (2012→current): Grand Slam 3,906 (915 at LEVEL_1 via 2012-2015 non-Sla
 
 (2016-2024 Slam lane has its own separate, already-reported rejection counts — 366 `NO_HIST_MATCH` + 90 `PBP_UNUSABLE` — those are identity/structural rejections, not corroboration gaps, since the Slam lane doesn't attempt third-party corroboration at all.)
 
-## 3. Root cause of the REVIEW_REQUIRED population (the single largest bucket)
+## 3. Root cause of the REVIEW_REQUIRED population — UPDATED, superseding the original §3 below
+
+**The original substring-based "present in TD / absent from TD" classification below was a false proxy.** A follow-up investigation traced the actual matching code (`scripts/verify-sackmann-wta-main-pbp.py`) end to end and reconciled every one of the 1,865 REVIEW_REQUIRED rows against the exact candidate-matching logic (not a crude tournament-name substring search). Verdict: **this is a MATCHING DEFECT, not a sync defect and not (for the tournaments checked) a genuine source gap.** The Tennis-Data.co.uk sync itself is intact: `scripts/sync-tennis-data-wta.py` has no per-tournament filter of any kind, `r.raise_for_status()` means a failed year-download would have crashed the whole sync rather than silently producing a partial file, and `DEDUP_REPORT.json` shows a plausible ~2,400-2,520 rows for every one of its 10 years with zero dedup collisions. Miami, Cincinnati, and Indian Wells **are present** in the local file — the earlier substring check missed them because Tennis-Data.co.uk stores them under era-specific title-sponsor names ("Sony Ericsson Open", "Western & Southern Financial Group Women's Open", "BNP Paribas Open") that share no substring with "Miami"/"Cincinnati"/"Indian Wells".
+
+Reconciling all 1,865 rows against the real matching code found three distinct, confirmed defects (exact counts, not estimates — reproduced via `scripts/verify-sackmann-wta-main-pbp.py`'s actual functions):
+
+| Reason | Count | % | Confirmed cause |
+|---|---|---|---|
+| `TOURNAMENT_NAME_MISMATCH` | 980 | 52.5% | `tny_ok()`'s plain substring check can't bridge a title-sponsor-name change between the two sources (e.g. ppaulojr's `SonyOpenTennis-WTAMiami` vs Tennis-Data's `Sony Ericsson Open`) — confirmed for Miami, Cincinnati (also compounded by an undecoded `&amp;` HTML entity) |
+| `PLAYER_NAME_NO_TD_PAIR_MATCH` | 630 | 33.8% | includes a confirmed compound-surname parsing bug: `lastname_initial_key`/`td_name_key` took only the *last* whitespace token as "the surname", breaking every double-surname player (e.g. Carla Suarez Navarro -> wrongly keyed `('navarro','c')` instead of `('suareznavarro','c')`); not yet separated from genuine no-pair cases within this bucket |
+| `DATE_MISMATCH` | 133 | 7.1% | ppaulojr's and Tennis-Data's per-match `date` field can legitimately differ by a few days for the same real match inside one tournament (confirmed: a Miami 2013 match dated 2013-03-18 by ppaulojr, 2013-03-20 by Tennis-Data) — exact date equality was too strict |
+| (diagnostic artifact, not a real defect) | 119 | 6.4% | rows my reconciliation harness flagged as "should have matched" because it didn't replicate the real pipeline's surface-equality and duplicate-protection checks — resolved automatically once the fixes were exercised through the real `run()` function itself (§3b), not a separate defect |
+| `SCORE_MISMATCH` | 3 | 0.2% | genuine score conflicts between sources — correctly rejected, not a defect |
+
+Per-tournament, this also explains why Miami/Cincinnati and Indian Wells failed for *different* reasons: Miami (205/246) and Cincinnati (120/138) are dominated by `TOURNAMENT_NAME_MISMATCH` (title-sponsor churn); Indian Wells (61/61) has *zero* tournament-name failures and is instead `DATE_MISMATCH` (34) and `PLAYER_NAME_NO_TD_PAIR_MATCH` (27) — its Tennis-Data alias ("BNP Paribas Open") is present too, confirmed separately.
+
+The original substring-based estimate below undercounted the true fixable population (1,214 "absent" was itself partly wrong, since it misclassified present-but-differently-named tournaments as absent) and is superseded by the reconciliation above and the measured fix in §3b.
+
+<details>
+<summary>Original §3 (superseded, kept for the record)</summary>
 
 Broke down all 1,865 by whether the historical match's own tournament name appears **anywhere** in the local Tennis-Data.co.uk sync file (`data/public/tennis-data-wta/wta_matches_2007_2016.csv`), across any of its 10 years:
 
-- **1,214 (65.1%): tournament is completely absent from the local sync, every year.** This is not a small/obscure-event problem — the top entries are **Miami (246), Cincinnati (138), Indian Wells (61)**, three of the biggest WTA Premier Mandatory/Premier-5 events in the sport. Zero rows for any of Cincinnati, Indian Wells, Kuala Lumpur, Sydney, Paris, Acapulco, Marrakech, or Osaka appear anywhere in the 2007-2016 local file, while other tournaments (Guangzhou, Pattaya, Katowice) are present for most/all of the same years. This pattern (major, heavily-documented combined ATP/WTA events entirely missing, smaller standalone WTA events present) looks more like a **download/parse gap in `scripts/sync-tennis-data-wta.py`'s one-time sync** than a genuine absence in tennis-data.co.uk's own published archive, but this cannot be confirmed from this sandbox — `tennis-data.co.uk` is not reachable here (same egress block already documented for the earlier PBP fill), so verifying against the live source needs a CI environment with real internet access (the same environment that already successfully produced this file once).
-- **651 (34.9%): tournament is present in the local sync, but this specific match still didn't get a unique corroborating hit.** Not further root-caused here (per "gap analysis only, no changes") — plausible causes include player-name-spelling variants, walkover/retirement score formatting differences, and date-boundary edge cases, but this needs case-by-case review, not a blanket fix.
+- **1,214 (65.1%): tournament is completely absent from the local sync, every year.** This is not a small/obscure-event problem — the top entries are **Miami (246), Cincinnati (138), Indian Wells (61)**, three of the biggest WTA Premier Mandatory/Premier-5 events in the sport. [Superseded: these tournaments are in fact present, under era-specific sponsor names the substring check didn't recognize — see above.]
+- **651 (34.9%): tournament is present in the local sync, but this specific match still didn't get a unique corroborating hit.**
 
-## 4. Largest verification gaps, ranked
+</details>
 
-1. **Missing-tournament coverage in the existing LEVEL_1 source (2012-2015 non-Slam)** — up to 1,214 matches, if the sync gap in §3 is a fixable defect rather than a genuine source limit. Largest single opportunity by far, and requires **no new source** — just re-verifying/re-running the already-qualified Tennis-Data.co.uk sync.
-2. **No independent corroboration attempted at all for the Slam lane (2016-2024)** — 2,991 matches structurally validated but single-source.
-3. **Present-tournament, still-unmatched non-Slam rows** — 651 matches, smaller and needs manual pattern investigation rather than a new source.
-4. **Ambiguous/conflict** — 67 combined, small.
+## 3b. Fix implemented and measured (matching code only — no PBP records changed)
+
+Three fixes applied to `scripts/verify-sackmann-wta-main-pbp.py`, each targeting one confirmed defect above:
+
+1. **Tournament alias table** (`TOURNAMENT_ALIASES`) mapping known title-sponsor-name variants (Miami, Cincinnati, Indian Wells) to a stable event key, checked as a fallback when the plain substring check fails. `norm_tny()` also now HTML-unescapes input first (fixes the `&amp;` case).
+2. **Compound-surname fix**: `lastname_initial_key` and `td_name_key` both now take the surname as *everything after the first token* (matching the same convention already used correctly by the sibling Grand Slam script), instead of only the last token.
+3. **Date tolerance**: the Tennis-Data pair+date lookup now accepts dates up to 3 days apart (`dates_within_tolerance`, `DATE_TOLERANCE_DAYS = 3`) instead of requiring exact equality — safe because every other check (player-pair identity, winner name, score, tournament) is still required to match exactly; only the date comparison was widened.
+
+**Measured via a dry run of the real, unmodified `run()` function** (file writes intercepted with `unittest.mock.patch` so nothing touched disk — confirmed after the fact with `git diff --stat` showing zero changes under `data/`):
+
+| Year | Old verified | New verified (dry run) | Old review_required | New review_required |
+|---|---|---|---|---|
+| 2012 | 1,124 | 1,238 | 404 | 286 |
+| 2013 | 1,261 | 1,475 | 560 | 337 |
+| 2014 | 1,258 | 1,438 | 610 | 428 |
+| 2015 | 375 | 465 | 291 | 202 |
+| **Total** | **4,018** | **4,616** | **1,865** | **1,253** |
+
+**Net new upgrades: 598** (2012-2015 non-Slam, would move REVIEW_REQUIRED -> RESULT_VERIFIED_PBP if this fix is applied and the pipeline re-run). The remaining reduction in REVIEW_REQUIRED (612 total, minus 598 verified = 14) moved to `AMBIGUOUS_MATCH` (+8) and `PBP_CONFLICT`/`PBP_UNUSABLE` (+6) instead — i.e. the newly-found candidates that turned out to be genuinely ambiguous or conflicting were correctly routed there, not force-verified. **No record has actually been promoted yet** — this is a measured, reproducible dry-run result, pending explicit approval to execute for real.
+
+## 4. Largest verification gaps, ranked (updated per §3b)
+
+1. **Matching-code defects against the existing, already-qualified LEVEL_1 source (2012-2015 non-Slam)** — **598 matches confirmed fixable** by a dry run of the real pipeline (§3b); zero new source needed. This is a matching-precision fix, not a sourcing gap.
+2. **No independent corroboration attempted at all for the Slam lane (2016-2024)** — 2,991 matches structurally validated but single-source; unaffected by the §3b fix (different pipeline, no Tennis-Data cross-check attempted there at all).
+3. **Remaining REVIEW_REQUIRED after the §3b fix** — 1,253 matches (was 1,865); genuinely needs either further matching-precision work or an additional independent source, not yet root-caused further.
+4. **Ambiguous/conflict** — 75 combined after the fix (was 67; +8 ambiguous, +6 conflict — see §3b), small.
 
 ## 5. Candidate independent sources for each gap
 
@@ -72,13 +113,15 @@ This is not "a new source" — it's re-verifying the one already in use. No new 
 
 | Source | Gap addressed | Estimated matches that could move | Confidence |
 |---|---|---|---|
-| Fixed/re-verified Tennis-Data.co.uk sync | REVIEW_REQUIRED → LEVEL_1 | up to 1,214 (2012-2015 only) | Medium — depends entirely on whether the live source actually has this data; could be zero if the gap is a genuine source limitation, not a sync defect |
+| Matching-code fixes (§3b), applied for real | REVIEW_REQUIRED → LEVEL_1 | **598, measured exactly via dry run** | High — this is not an estimate, it's a reproducible dry-run count from the real pipeline code; only remaining step is executing it for real |
 | WTA official API | LEVEL_2 → LEVEL_1 (Slam, 2016-2024) | up to 2,991 (all of it, if the API's historical depth and reliability hold up) | Low-medium — reachability, real historical depth, and license terms are all unconfirmed |
 | Wikipedia / official Slam sites | LEVEL_2 → LEVEL_1 (Slam, 2016-2024) | up to 2,991 | Low — no existing integration, format/extraction risk is real |
-| Manual review of present-tournament-but-unmatched rows | REVIEW_REQUIRED → LEVEL_1 | up to 651 (2012-2015) | Medium — this is a matching-precision fix against data already on hand, not a sourcing problem, but requires case-by-case investigation |
+| Further matching-precision work on the remaining 1,253 REVIEW_REQUIRED | REVIEW_REQUIRED → LEVEL_1 | unknown, not yet root-caused past §3b's fix | Medium — same class of investigation as §3b, not yet done for the residual population |
 
-**No record was upgraded, and no new source was integrated, in this analysis.**
+**No record was upgraded, and no new source was integrated, in this analysis or the follow-up matching-defect investigation. The 598-match fix is measured and ready, pending your approval to execute.**
 
-## 7. Recommended next concrete step (still analysis, not action, until you confirm)
+## 7. Recommended next concrete step — updated per §3b
 
-The single highest-value, lowest-risk next step is **not** a new source integration at all: **determine whether `scripts/sync-tennis-data-wta.py`'s output genuinely reflects tennis-data.co.uk's live WTA archive**, since up to 1,214 records (65% of the entire REVIEW_REQUIRED population) trace to specific major tournaments (Miami, Cincinnati, Indian Wells, and others) being completely absent from that already-qualified, already-trusted local file. This requires a CI/production environment with real internet access (this sandbox cannot reach tennis-data.co.uk) — re-running the sync, or fetching a couple of the missing tournament-years directly, would confirm in minutes whether this is a fixable sync defect (large, free win, zero new licensing) or a genuine source limitation (in which case the WTA official API or Wikipedia become the live candidates worth pursuing for real).
+The matching-defect investigation is complete and the fix is measured (598 matches, §3b), pending approval to execute it for real (re-run `scripts/verify-sackmann-wta-main-pbp.py` for 2012-2015 and `scripts/build-wta-main-pbp-approved-index.py`, writing to `data/audit/verified-pbp-v4/wta_main/` and `data/metrics/pbp/wta_main/approved-index.jsonl` for the first time this session).
+
+After that: the residual 1,253 REVIEW_REQUIRED rows and the Slam lane's 2,991 LEVEL_2 rows (no independent corroboration attempted at all) remain open. For the Slam lane specifically, the WTA official API (already called elsewhere in this codebase) remains the strongest candidate, still blocked by this sandbox's network restrictions and undocumented license terms — unchanged from the original recommendation.

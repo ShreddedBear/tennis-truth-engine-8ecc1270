@@ -40,7 +40,7 @@ and (d) no historical match or PBP candidate is reused (uniqueness /
 duplicate-protection firewall, same design as v4).
 """
 from __future__ import annotations
-import csv, hashlib, io, json, re, sys, unicodedata, urllib.request
+import csv, hashlib, html, io, json, re, sys, unicodedata, urllib.request
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,15 +75,46 @@ def norm_name(v):
 
 
 def norm_tny(v):
-    s = unicodedata.normalize("NFKD", str(v or "")).encode("ascii", "ignore").decode().lower()
+    s = html.unescape(str(v or ""))
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
     s = re.sub(r"\b(atp|wta)\b", "", s)
     s = re.sub(r"20\d{2}", "", s)
     return re.sub(r"[^a-z0-9]+", "", s)
 
 
+# Same combined WTA/ATP event, different title-sponsor era between the two sources: the
+# non-slam PBP archive (ppaulojr) labels a match with whatever sponsor name was current the
+# year it was scraped, while the independent Tennis-Data.co.uk sync can carry an older or
+# newer sponsor name for the same event -- confirmed by direct inspection (Miami 2013:
+# ppaulojr tags it "SonyOpenTennis-WTAMiami", Tennis-Data's own 2013 row says "Sony Ericsson
+# Open", the tournament's PRIOR sponsor name; Cincinnati: ppaulojr "Western&SouthernOpen",
+# Tennis-Data "Western & Southern Financial Group Women's Open"). tny_ok's plain substring
+# check can never bridge these, since neither name is a substring of the other. Each key
+# below is a stable, sponsor-name-independent event identifier; every listed alias
+# (confirmed against the actual local Tennis-Data.co.uk file and/or the ppaulojr archive,
+# not guessed) normalizes to that key before the substring check runs.
+TOURNAMENT_ALIASES: dict[str, list[str]] = {
+    "miami": ["miami", "sonyericssonopen", "sonyopentennis", "miamiopen", "miamimasters"],
+    "cincinnati": ["cincinnati", "westernsouthern"],
+    "indianwells": ["indianwells", "bnpparibasopen", "pacificlifeopen"],
+}
+
+
+def canonical_tny_alias(normalized: str) -> str | None:
+    for key, aliases in TOURNAMENT_ALIASES.items():
+        if any(a in normalized or normalized in a for a in aliases):
+            return key
+    return None
+
+
 def tny_ok(a, b):
     x, y = norm_tny(a), norm_tny(b)
-    return bool(x and y and (x in y or y in x))
+    if not x or not y:
+        return False
+    if x in y or y in x:
+        return True
+    ax, ay = canonical_tny_alias(x), canonical_tny_alias(y)
+    return ax is not None and ax == ay
 
 
 def pairkey(a, b):
@@ -91,11 +122,19 @@ def pairkey(a, b):
 
 
 def lastname_initial_key(full_name):
-    """('Lucie Safarova') -> ('safarova','l') to compare against Tennis-Data's 'Safarova L.' convention."""
+    """('Lucie Safarova') -> ('safarova','l'); ('Carla Suarez Navarro') -> ('suareznavarro','c').
+
+    Bug this fixes: taking only the FINAL whitespace-separated token as "the surname"
+    breaks every double-surname player (Spanish "Suarez Navarro", "Medina Garrigues";
+    Croatian "Kostanic Tosic"; etc.) -- confirmed against the local Tennis-Data.co.uk file,
+    which spells these the same way ("Suarez Navarro C."). The surname is everything after
+    the first (given-name) token, matching td_name_key's own convention below so the two
+    sides key identically regardless of how many words the surname has.
+    """
     parts = [p for p in re.split(r"\s+", unicodedata.normalize("NFKD", str(full_name or "")).encode("ascii", "ignore").decode().strip()) if p]
-    if not parts:
+    if len(parts) < 2:
         return None
-    last = re.sub(r"[^a-z]", "", parts[-1].lower())
+    last = re.sub(r"[^a-z]", "", "".join(parts[1:]).lower())
     first = re.sub(r"[^a-z]", "", parts[0].lower())
     if not last or not first:
         return None
@@ -103,11 +142,26 @@ def lastname_initial_key(full_name):
 
 
 def td_name_key(td_name):
-    """('Safarova L.') -> ('safarova','l')"""
-    m = re.match(r"^\s*([A-Za-z'\-]+)\s+([A-Za-z])", str(td_name or ""))
-    if not m:
+    """('Safarova L.') -> ('safarova','l'); ('Suarez Navarro C.') -> ('suareznavarro','c').
+
+    Bug this fixes: the previous regex `([A-Za-z'-]+)\\s+([A-Za-z])` stops its surname
+    capture at the FIRST space, so a two-word surname like "Suarez Navarro C." parsed as
+    surname="Suarez", initial="N" (the first letter of "Navarro", not the real initial) --
+    silently wrong, not merely a miss. Tennis-Data's own format is always
+    "<all surname words> <single-letter initial>.", so the real initial is always the LAST
+    token, and the surname is everything before it, joined without spaces to match
+    lastname_initial_key's own convention above.
+    """
+    parts = [p for p in re.split(r"\s+", str(td_name or "").strip()) if p]
+    if len(parts) < 2:
         return None
-    return (re.sub(r"[^a-z]", "", m.group(1).lower()), m.group(2).lower())
+    initial = re.sub(r"[^A-Za-z]", "", parts[-1])
+    if len(initial) != 1:
+        return None
+    surname = re.sub(r"[^a-z]", "", "".join(parts[:-1]).lower())
+    if not surname:
+        return None
+    return (surname, initial.lower())
 
 
 def td_pairkey(w, l):
@@ -125,6 +179,29 @@ def parse_date(v):
         except ValueError:
             pass
     return ""
+
+
+# ppaulojr's per-match `date` and the local Tennis-Data.co.uk sync's `date` are not always
+# the same calendar day for the same real match -- confirmed by direct inspection (e.g. a
+# Miami 2013 match ppaulojr dates 2013-03-18, Tennis-Data dates 2013-03-20; both are inside
+# the same 12-day tournament, so this is a per-source logging-convention difference, not
+# two different matches). Exact date equality was too strict a filter for the pair+date
+# lookup below. A short tolerance window is safe here specifically because every other
+# check (player-pair identity, winner name, score, tournament) still must also match exactly
+# -- widening only the date comparison does not on its own let an unrelated match through.
+DATE_TOLERANCE_DAYS = 3
+
+
+def dates_within_tolerance(a: str, b: str, max_days: int) -> bool:
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    try:
+        da, db = datetime.strptime(a, "%Y-%m-%d"), datetime.strptime(b, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return abs((da - db).days) <= max_days
 
 
 def clean_score(v):
@@ -332,7 +409,7 @@ def run(year):
             pk_td = tuple(sorted((k1, k2))) if k1 and k2 else None
             pwin_key = lastname_initial_key(pwin_name)
             for x in by_pair_td.get(pk_td, []) if pk_td else []:
-                if x["date"] != p["date"]:
+                if not dates_within_tolerance(x["date"], p["date"], DATE_TOLERANCE_DAYS):
                     continue
                 xw = td_name_key(x["winner"])
                 if not pwin_key or xw != pwin_key:
