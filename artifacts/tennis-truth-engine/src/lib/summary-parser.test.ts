@@ -6,6 +6,36 @@ function fieldMap(fields: Array<{ field_key: string; normalized_value: string | 
 }
 
 describe("summary-parser", () => {
+  it("extracts every row and its event-specific surface from a multi-event fixture page", () => {
+    const page = [
+      "ATP Challenger Rennes",
+      "Indoor Hard • Round 1 • Best of 3",
+      "#     PLAYER 1                                  PLAYER 2                              EVENT DATA",
+      "1     Daniel Rincon                             Hamish Stewart                        Indoor Hard",
+      "2     Tristan Schoolkate                        Marek Gengel                          Indoor Hard",
+      "WTA Sao Paulo",
+      "Hard • Round of 32 • Best of 3",
+      "#     PLAYER 1                                  PLAYER 2                              EVENT DATA",
+      "1     Teodora Kostovic                          Darja Semenistaja                     Hard",
+    ].join("\n");
+    const matchups = parseSummaryText([page]);
+    expect(matchups).toHaveLength(3);
+    expect(fieldMap(matchups[0].fields)).toMatchObject({ tournament: "ATP Challenger Rennes", surface: "IndoorHard", indoor_outdoor: "Indoor", round: "Round 1", best_of: "3" });
+    expect(fieldMap(matchups[2].fields)).toMatchObject({ tournament: "WTA Sao Paulo", surface: "Hard", indoor_outdoor: "Outdoor", round: "Round of 32", best_of: "3" });
+  });
+
+  it("keeps physical PDF page numbers and never pairs rows across pages", () => {
+    const pages = [
+      "ATP Challenger Tiburon\nHard • Round of 32 • Best of 3\n1     Darwin Blanch                    Stefan Kozlov                    Hard",
+      "WTA Sao Paulo\nHard • Round of 32 • Best of 3\n1     Paula Badosa                     Justina Mikulskyte               Hard",
+    ];
+    const matchups = parseSummaryText(pages);
+    expect(matchups.map((m) => [m.player1_name, m.player2_name, m.page_number])).toEqual([
+      ["Darwin Blanch", "Stefan Kozlov", 1],
+      ["Paula Badosa", "Justina Mikulskyte", 2],
+    ]);
+  });
+
   it("extracts a matchup and its labelled fields from a plain-text page", () => {
     const page = [
       "Roman Andres Burruchaga vs Moise Kouame",

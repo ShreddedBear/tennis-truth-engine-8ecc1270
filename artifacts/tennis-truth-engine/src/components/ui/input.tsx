@@ -4,6 +4,9 @@ import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    const accept = type === "file" && props.accept === "application/pdf"
+      ? "application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif"
+      : props.accept;
     return (
       <input
         type={type}
@@ -13,6 +16,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         )}
         ref={ref}
         {...props}
+        accept={accept}
       />
     );
   },

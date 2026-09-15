@@ -9,6 +9,27 @@ export interface OcrPdfResult {
   pageCount: number;
 }
 
+export async function ocrImageLocally(
+  file: File,
+  onProgress?: (message: string) => void,
+): Promise<OcrPdfResult> {
+  const { createWorker } = await import("tesseract.js");
+  onProgress?.("Starting local image OCR…");
+  const worker = await createWorker("eng", 1, {
+    logger: (m: { status?: string; progress?: number }) => {
+      if (!onProgress || !m.status) return;
+      const pct = typeof m.progress === "number" ? ` ${Math.round(m.progress * 100)}%` : "";
+      onProgress(`Local OCR: ${m.status}${pct}`);
+    },
+  });
+  try {
+    const result = await worker.recognize(file);
+    return { pages: [(result.data.text ?? "").replace(/\r/g, "").trim()], pageCount: 1 };
+  } finally {
+    await worker.terminate();
+  }
+}
+
 export async function ocrPdfLocally(
   file: File,
   onProgress?: (message: string) => void,

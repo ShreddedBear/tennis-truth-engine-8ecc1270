@@ -118,7 +118,7 @@ export function ScreenshotMatchupUpload({
             <div>
               <p className="font-bold text-sm">INSERT SCREENSHOT</p>
               <p className="text-xs text-muted-foreground font-mono">
-                Upload a bracket/schedule image -- we'll try to fill in both players and the surface
+                Upload a bracket, schedule image, or PDF — we'll read players and each event's surface
               </p>
             </div>
           </div>
@@ -126,7 +126,7 @@ export function ScreenshotMatchupUpload({
           <input
             ref={inputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="application/pdf,image/png,image/jpeg,image/webp"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -149,7 +149,7 @@ export function ScreenshotMatchupUpload({
             {isLoading ? (
               <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> READING...</>
             ) : (
-              <><ImagePlus className="w-4 h-4 mr-2" /> UPLOAD SCREENSHOT</>
+              <><ImagePlus className="w-4 h-4 mr-2" /> UPLOAD IMAGE / PDF</>
             )}
           </Button>
         </div>

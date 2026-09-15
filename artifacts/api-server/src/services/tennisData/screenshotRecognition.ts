@@ -49,18 +49,18 @@ export interface RawScreenshotRecognitionWithDebug extends RawScreenshotRecognit
 
 const EMPTY_RECOGNITION: RawScreenshotRecognition = { matchups: [] };
 
-const SYSTEM_PROMPT = `You read screenshots of tennis fixtures, schedules, brackets, or match-listing apps.
+const SYSTEM_PROMPT = `You read images and multi-page PDF documents containing tennis fixtures, schedules, brackets, or match-listing tables.
 
-Extract ALL distinct matchups (pairs of tennis players facing each other) visible in the image.
+Extract ALL distinct matchups (pairs of tennis players facing each other) visible on every page.
 
 For each matchup, extract:
 - player1Name: first tennis player name in that pair (topmost or leftmost if side-by-side)
 - player2Name: second tennis player name in that pair
-- eventName: tournament or event name for that matchup (null if not visible; use the same event name for all matchups if they share one card/image)
+- eventName: tournament or event name for that matchup (null if not visible; carry a section header only within its visible table/card)
 - level: event level, normalized to one of GrandSlam, Masters1000, ATP500, ATP250, WTA1000, WTA500, WTA250, Challenger, ITF, Other, or null
 - round: round label exactly as shown, or null
 - scheduledDate: date as YYYY-MM-DD when shown, or null
-- surface: normalized to Hard, Clay, Grass, IndoorHard, or null. Treat "red clay" as Clay.
+- surface: normalized to Hard, Clay, Grass, IndoorHard, or null. Treat "red clay" as Clay and "indoor hard" as IndoorHard. Read this independently for every event section; never carry a surface into the next tournament.
 - matchFormat: normalized to BestOf3, BestOf5, or null
 
 PLAYER NAME RULES — a player name is a PERSON's name (first name, last name, or both). It is NOT any of the following:
@@ -77,7 +77,8 @@ If a word that IS normally a sport name (e.g. "TENNIS") appears as part of a pla
 General rules:
 - Ignore betting odds, probability percentages, prices, team logos, country flags, decorative elements, and sponsored content.
 - Ignore match times, court numbers, seed numbers in brackets (e.g. "(1)"), rankings, scores, and score-related numbers.
-- If the image shows a full bracket or schedule, return EACH individual matchup row/card as a separate entry.
+- If an image or PDF page shows a full bracket, schedule, or numbered fixture table, return EACH individual matchup row/card as a separate entry.
+- For multi-page PDFs, inspect every page and preserve each page's event header, surface, round, and match format for only the rows governed by that header.
 - For long scroll-images with multiple match cards stacked vertically, return each card as a separate entry.
 - A border, blank gap, "MATCHUP N", or a new inline "X vs Y" heading starts a new record. Never combine a player or metadata from one record/card with another.
 - Player names may appear on separate lines inside the SAME record (e.g. one player above the other, separated by "vs", "v", or a divider). Never pair names merely because they are consecutive elsewhere in the image.
@@ -194,16 +195,16 @@ function resolveAllKeys(): ResolvedKey[] {
 
 function parseImageBase64(imageBase64: string): {
   data: string;
-  mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+  mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "application/pdf";
   dataUrl: string;
 } {
   if (imageBase64.startsWith("data:")) {
     const semi = imageBase64.indexOf(";");
     const comma = imageBase64.indexOf(",");
     const mimeRaw = semi > 0 ? imageBase64.slice(5, semi) : "image/jpeg";
-    const mediaType = (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mimeRaw)
+    const mediaType = (["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"].includes(mimeRaw)
       ? mimeRaw
-      : "image/jpeg") as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+      : "image/jpeg") as "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "application/pdf";
     return { data: imageBase64.slice(comma + 1), mediaType, dataUrl: imageBase64 };
   }
   const data = imageBase64;
@@ -404,7 +405,7 @@ async function callOpenAI(resolved: ResolvedKey, imageDataUrl: string, systemPro
  *   - retryAfterMs < 30 000 → transient rate-limit, outer loop will retry with backoff
  *   - retryAfterMs >= 30 000 (or undefined) → daily quota exhausted, skip to next provider
  */
-async function callGemini(resolved: ResolvedKey, data: string, mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif", systemPrompt = SYSTEM_PROMPT): Promise<string | null> {
+async function callGemini(resolved: ResolvedKey, data: string, mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "application/pdf", systemPrompt = SYSTEM_PROMPT): Promise<string | null> {
   const GEMINI_MODELS = [
     "gemini-flash-latest",      // alias — always points to the current stable flash
     "gemini-flash-lite-latest", // lighter alias — separate quota bucket
@@ -592,9 +593,15 @@ export async function recognizeMatchupScreenshot(
 ): Promise<RawScreenshotRecognitionWithDebug> {
   const allProviders = resolveAllKeys();
   // Pre-filter out any providers the caller has already flagged as unhealthy
-  const providers = options?.skipLabels?.size
+  const enabledProviders = options?.skipLabels?.size
     ? allProviders.filter((p) => !options.skipLabels!.has(p.label))
     : allProviders;
+  const { data, mediaType, dataUrl } = parseImageBase64(imageBase64);
+  // Gemini accepts PDF inline data. OpenAI/Anthropic paths here are image-only,
+  // so fail closed rather than mislabelling PDF bytes as an image.
+  const providers = mediaType === "application/pdf"
+    ? enabledProviders.filter((provider) => provider.provider === "gemini")
+    : enabledProviders;
   const skippedCount = allProviders.length - providers.length;
 
   const debugLog: string[] = [];
@@ -608,13 +615,16 @@ export async function recognizeMatchupScreenshot(
     throw new ScreenshotRecognitionUnavailableError(msg, debugLog);
   }
 
-  const { data, mediaType, dataUrl } = parseImageBase64(imageBase64);
   const imageSizeKb = Math.round((data.length * 0.75) / 1024);
-  debugLog.push(`[IMAGE] mediaType=${mediaType} estimatedSize≈${imageSizeKb}KB`);
+  debugLog.push(`[DOCUMENT] mediaType=${mediaType} estimatedSize≈${imageSizeKb}KB`);
   logger.info({ mediaType, imageSizeKb, providerCount: providers.length }, "Screenshot recognition starting");
 
   /** Call one provider with a given systemPrompt. Returns the parsed result or throws. */
   async function callProvider(resolved: ResolvedKey, systemPrompt: string): Promise<string | null> {
+    if (mediaType === "application/pdf") {
+      if (resolved.provider !== "gemini") throw new Error("PDF recognition requires the Gemini document provider");
+      return callGemini(resolved, data, mediaType, systemPrompt);
+    }
     return resolved.provider === "anthropic"
       ? callAnthropic(resolved, data, mediaType, systemPrompt)
       : resolved.provider === "gemini"

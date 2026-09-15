@@ -823,8 +823,8 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
       {/* Header row */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <p className="text-xs text-muted-foreground font-mono">
-          Drop up to {MAX_FILES} screenshots — each image is read by the vision AI independently.
-          Long images with multiple match cards are expanded into separate matchup rows automatically.
+          Drop up to {MAX_FILES} images or PDFs — every visible matchup is read independently.
+          Multi-page PDFs and long images are expanded into separate matchup rows automatically.
         </p>
         <div className="flex flex-wrap items-center gap-2 ml-auto">
           {hasItems && (
@@ -852,7 +852,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
           <input
             ref={inputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+            accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -868,7 +868,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
           >
             {anyResolving
               ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> READING...</>
-              : <><Layers className="w-4 h-4 mr-2" /> SELECT SCREENSHOTS</>}
+              : <><Layers className="w-4 h-4 mr-2" /> SELECT IMAGES / PDFS</>}
           </Button>
         </div>
       </div>
