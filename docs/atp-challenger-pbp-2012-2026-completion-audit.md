@@ -288,6 +288,118 @@ demoted, none were modified.
 Completion status: **not complete**. One credential-blocked year (2023) remains genuinely
 unresolved; this is reported, not concealed.
 
+## Addendum 2 — re-audit: an approved Sackmann PBP corpus exists, unused, for ATP Challenger
+
+**This corrects a gap in Addendum 1.** That addendum treated `ppaulojr/tennis_pointbypoint` as
+the only PBP-tape source ever consulted for the 9,218 mappings, and concluded 2016–2022 had "no
+approved source." That remains true of the pipelines already wired into this repo. It was never
+true of Jeff Sackmann's own ecosystem as a whole — this repo's `verify-sackmann-pbp*.py` scripts
+are misleadingly named: they use Sackmann's `tennis_atp`/`tennis_wta` **only for match-result
+identity** (via `Aneeshers/tennis-sackmann-archive`, already relied on elsewhere in this
+codebase) and still pull the **PBP tape itself from `ppaulojr`**
+(`verify-sackmann-pbp-v4.py` line 12: `PBP_BASE='https://raw.githubusercontent.com/ppaulojr/tennis_pointbypoint/master'`),
+and are scoped to ATP/WTA Main only (`MAIN_LEVELS={'G','M','A','F'}` — no `'C'`). **No script in
+this repository has ever queried Jeff Sackmann's real point-by-point dataset for Challenger
+matches.**
+
+No repository named `JeffSackmann/tennis_pointbypoint` exists (confirmed this session: direct
+fetch returns HTTP 404; a GitHub repository search for that name, and for `user:JeffSackmann`
+generally, returns zero and one result respectively). Jeff Sackmann/Tennis Abstract publishes
+exactly one repository with real shot-by-shot point sequences beyond the four Grand Slams:
+**`JeffSackmann/tennis_MatchChartingProject`** ("MCP") — confirmed by directly cloning and
+inspecting it this session, not by memory or inference.
+
+**1. Does MCP contain ATP Challenger PBP?** Yes. Challenger-level tournaments are encoded with a
+`_CH` suffix on the tournament name inside `charting-m-matches.csv`'s `match_id` (e.g.
+`20140613-M-Nottingham_CH-SF-Nick_Kyrgios-Miloslav_Mecir_Jr`), not the literal word "Challenger"
+— a plain-text search for "challenger" (the method used earlier in this audit) returns zero and
+misses this entirely. Corresponding point rows were confirmed present and non-trivial (63–179
+real points per match) in `charting-m-points-2010s.csv` for every match checked.
+
+**2. Which years?** 407 men's ATP Challenger (`_CH`) matches total, spanning 2013–2026 (0 in
+2012): 2013: 1 · 2014: 20 · 2015: 30 · 2016: 27 · 2017: 25 · 2018: 17 · 2019: 85 · 2020: 18 ·
+2021: 29 · 2022: 38 · 2023: 8 · 2024: 76 · 2025: 27 · 2026: 6. (Women's equivalent tier uses an
+`ITF_` prefix, not `_CH` — out of scope here per this mission's ATP-Challenger-only mandate.)
+
+**3. Which matches?** All 51 in the 2012–2015 window were extracted and spot-checked (list kept
+in this session's ephemeral scratch space, not committed). They span tournaments including
+Lexington, Nottingham, Mons, Knoxville, Sacramento, and Prague, with players who were
+Challenger-level at the time — including several now-familiar tour names (Kyrgios, Zverev,
+Goffin, Donaldson, Lorenzi).
+
+**4. Overlap with the 9,218 mappings?** Cross-referenced by exact match date
+(`exact_match_date`) plus normalized winner/loser name against `verified-mappings.json` for
+2013–2015 (6,944 mapping rows checked). **12 of the 51 MCP 2012–2015 Challenger matches match an
+existing mapping identity exactly** — e.g. `20141003-M-Mons_CH-QF-Alexander_Zverev-David_Goffin`
+matches the existing Mons/2014-10-03/Goffin–Zverev mapping. This is a conservative,
+exact-string-match count; the codebase's own canonical-identity firewall
+(`canonicalApprovedPbpIdentity`) does fuzzier normalization than this session's ad hoc check and
+would plausibly find a few more among the remaining 39. No mapping was modified to establish
+this — the check was read-only.
+
+**5. Can overlapping matches be canonically matched using existing mapping identities?** Yes —
+the same date + winner + loser identity fields already present in each mapping's `historical`
+block are sufficient; this is exactly the identity contract the existing firewall code already
+implements for other sources.
+
+**6. Is Sackmann/MCP license/provenance sufficient under current project source policy?**
+Materially stronger than either existing PBP input. MCP publishes an explicit, unambiguous
+license — CC BY-NC-SA 4.0 (Attribution, NonCommercial, ShareAlike) — the same license category
+this repository already accepts for `tennis_atp` under `docs/ATP_DATA_ATTRIBUTION.md` ("intended
+only for the app's current non-commercial/free use... do not use in a commercial or monetized
+version without... appropriate permission"). By that same already-applied standard, MCP is
+usable under the identical condition. This is not automatic clearance: MCP has never been
+individually attributed in this repo (only `tennis_atp`/`tennis_wta` are named in
+`ATP_DATA_ATTRIBUTION.md`), so treating it as approved requires adding it to that attribution
+document under the same terms — a documentation action, not a policy change, since no new
+license category or exception is being introduced. **This audit does not make that addition
+itself** (no production writes were requested or made this turn); it is a recommendation for a
+maintainer to ratify, not a fait accompli.
+
+**7. Can approved Sackmann PBP be ingested without using ppaulojr as the content source?** Yes —
+MCP is a fully self-contained CSV corpus (`charting-m-matches.csv` + `charting-m-points-*.csv`),
+with no dependency on `ppaulojr` or any other source.
+
+**8. Can the 9,218 mappings be used only as identity aids while the PBP comes from
+Sackmann/MCP?** Yes, for the 12 confirmed-overlapping matches: their existing `historical` block
+(date, tournament, round, winner, loser) already is the identity aid; only the `pbp_ref`
+(currently pointing at the unapproved ppaulojr tape) would need to point at the MCP tape instead
+— the mapping row's identity fields need not change. For the 39 non-overlapping 2012–2015 MCP
+matches and all 356 matches from 2016–2026, MCP's own match index already carries sufficient
+identity (date/tournament/round/players) independent of the 9,218 mappings entirely.
+
+**9. How much 2012–2015 Challenger PBP can actually be recovered from this newly-identified
+source?** 51 real matches with genuine point sequences (2012: 0, 2013: 1, 2014: 20, 2015: 30) —
+small next to 9,218, but for the first time in this audit, **real, licensed, non-fabricated** PBP
+content, not just a hash of a tape from an unapproved mirror. 12 of the 51 resolve an existing
+mapping's identity; the remaining 39 stand on their own.
+
+**10. Additional Challenger PBP years beyond 2015?** Yes — 356 more MCP Challenger matches
+across 2016–2026 (table in point 2 above). **This revises Addendum 1's 2016–2022 conclusion**:
+those years are not sourceless — MCP has sparse but real coverage for every one of them (2016:
+27, 2017: 25, 2018: 17, 2019: 85, 2020: 18, 2021: 29, 2022: 38). Addendum 1's "NO APPROVED SOURCE
+FOUND" / "hard-excluded, no source ever existed" language described this repo's two existing
+pipelines accurately; it should not be read as "no source exists anywhere," which was not fully
+verified until this pass. 2023 also gains 8 MCP matches, 2024 gains 76 (both previously reported
+as fully empty from the BSD/legacy-pipeline perspective) — this neither touches nor contradicts
+the BSD findings for those years (BSD is a live-match-listing check; MCP is a disjoint,
+volunteer-charted corpus); it adds an independent, additional, much smaller pool.
+
+### What this does and does not change
+
+No file under `data/audit/verified-pbp/`, no `historical-source-policy.ts`, no BSD adapter, no
+Supabase table, and no metric code was touched this turn, per explicit instruction. The 9,218
+mappings are unchanged and remain non-approved identity mappings. The certified 2025–2026 BSD
+lane is unchanged, not duplicated, not migrated (confirmed by `git status`/`git diff` before and
+after this addendum). **Total verified approved ATP Challenger PBP remains 1,740** (BSD
+2025+2026 only) until a maintainer ratifies MCP's attribution and someone builds the
+(straightforward, but not-yet-built) ingestion path described in points 7–8. This addendum's
+contribution is solely to the source inventory: a previously-unexamined, better-licensed PBP
+corpus exists and has a credible path to legitimately recovering a modest amount of 2012–2026
+Challenger coverage without ppaulojr, without a new paid API, and without touching TennisMyLife,
+BSD, or Supabase.
+
+## Remaining gaps
 
 1. **2023 BSD scan incomplete.** `data/audit/bsd-atp-challenger-pbp-history/queue.json`
    already has `next_year: 2023` queued. Running it requires `BSD_TENNIS_API_KEY` and
