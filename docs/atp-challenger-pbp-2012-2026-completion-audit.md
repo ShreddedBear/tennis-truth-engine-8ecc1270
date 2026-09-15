@@ -204,7 +204,90 @@ artifacts against each other and against the source scripts that produced them. 
 runtime code in this repository was modified by this audit, so no regression risk was
 introduced.
 
-## Remaining gaps
+## Addendum — targeted gap-completion determination (per-year)
+
+This addendum resolves the one open question the body of this document left as a policy
+judgment call — whether the PBP content behind the 9,218 mappings is *usable*, not just
+*hashed* — and gives a strict per-year table. It changes no data and no code; it is a
+determination, made against the source-approval evidence already in this repository.
+
+**Is `ppaulojr/tennis_pointbypoint` an approved PBP source? No.** Unlike TennisMyLife
+(explicit disabled-pending-reuse-terms entry in `historical-source-policy.ts`), PredixSport
+(`THIRD_PARTY_DATA.md`), or Sackmann (`docs/ATP_DATA_ATTRIBUTION.md`), `ppaulojr/tennis_pointbypoint`
+has no license/reuse-terms entry anywhere in this repository — it was never put through an
+approval process at all. It is referenced only as a hardcoded raw-GitHub URL in
+`scripts/verify-challenger-pbp.py` and the exploratory `scripts/verify-sackmann-pbp*.py`
+scripts, and the code that reads it discards the fetched tape immediately after hashing
+(never writes it to disk). The only certified production PBP source in this repository is
+BSD/Bzzoiro (`docs/NEWLY_GREEN_COVERAGE_AUDIT.md`). Therefore: **the PBP content behind the
+9,218 mappings cannot be legitimately recovered/used under current source policy** — not
+because it is technically inaccessible, but because it has never been approved, and this
+audit does not approve it. The 9,218 mappings stay exactly as they are: non-approved
+identity/existence mappings. No mapping was modified. **9,218 of 9,218 remain mappings-only.**
+
+**2016–2017 — NO APPROVED SOURCE FOUND.** Confirmed at the code level: even the unapproved
+`ppaulojr` mirror returns 0 PBP candidates for these two years
+(`data/audit/verified-pbp/atp_challenger/2016/summary.json`,
+`.../2017/summary.json`: `"pbp_candidates": 0`). No coverage manufactured.
+
+**2018–2022 — confirmed empty as far as this repository's source inventory can establish.**
+`scripts/verify-challenger-pbp.py` hard-excludes this range (`HARD_EXCLUDED = range(2018, 2023)`)
+before attempting any source resolution. Repo-wide search confirms no local override file
+exists at any of the three paths the pipeline would otherwise check
+(`data/raw/pbp/challenger/<year>.csv`, `data/raw/pbp/atp_challenger_<year>.csv`,
+`data/public/pbp/challenger/<year>.csv` — none exist for any year), and no
+`CHALLENGER_PBP_URL_TEMPLATE` is configured. BSD's own live-API coverage for 2018–2022 has
+not been scanned (`data/audit/bsd-atp-challenger-pbp-history/progress.json`:
+`next_year: 2023`, walking backward) — that remains unknown rather than confirmed-empty,
+but per instruction no download was attempted to resolve it (no credentials available
+regardless; see 2023 below). Left empty.
+
+**2023 — unresolved, blocked on missing credentials, not fabricated.** The only approved
+PBP source is BSD/Bzzoiro. Its incremental historical scan
+(`scripts/advance-bsd-atp-challenger-pbp-history.py`) has 2023 queued as `next_year` but
+has not run. Exact blocker, verified this session: `BSD_TENNIS_API_KEY` is not set in this
+environment (checked directly, not inferred), so `scripts/bsd-atp-challenger-pbp-history.py`
+cannot authenticate to `sports.bzzoiro.com`. Separately, `scripts/verify-challenger-pbp.py`
+also fails closed for 2023 with `FileNotFoundError("NO_MODERN_CHALLENGER_PBP_SOURCE_CONFIGURED")`
+(no local file, no `CHALLENGER_PBP_URL_TEMPLATE` — also confirmed unset). No unapproved API
+was substituted to produce a number. **2023 status: UNKNOWN, blocked on credentials.**
+
+**2024 — preserved.** BSD's own listing already confirmed 0 ATP Challenger matches
+returned for 2024 (`data/audit/bsd-atp-challenger-pbp-history/2024/summary.json`). No other
+approved source exists to check against. Finding preserved unchanged.
+
+**2025–2026 — untouched.** No modification, duplication, or migration of the certified BSD
+lane. Confirmed unchanged by `git status`/`git diff` against this session's starting state.
+
+### Final per-year table
+
+| Year | Raw PBP tapes | Persisted PBP | Approved PBP | Verified PBP | Mappings only | Source | Unresolved gap |
+|---:|---|---|---|---|---|---|---|
+| 2012 | 0 | 0 | 0 | 0 | 2,274 | ppaulojr (unapproved) | Source never approved |
+| 2013 | 0 | 0 | 0 | 0 | 2,897 | ppaulojr (unapproved) | Source never approved |
+| 2014 | 0 | 0 | 0 | 0 | 3,329 | ppaulojr (unapproved) | Source never approved |
+| 2015 | 0 | 0 | 0 | 0 | 718 | ppaulojr (unapproved) | Source never approved |
+| 2016 | 0 | 0 | 0 | 0 | 0 | none | NO APPROVED SOURCE FOUND |
+| 2017 | 0 | 0 | 0 | 0 | 0 | none | NO APPROVED SOURCE FOUND |
+| 2018 | 0 | 0 | 0 | 0 | 0 | none | Confirmed empty (repo inventory); BSD unscanned |
+| 2019 | 0 | 0 | 0 | 0 | 0 | none | Confirmed empty (repo inventory); BSD unscanned |
+| 2020 | 0 | 0 | 0 | 0 | 0 | none | Confirmed empty (repo inventory); BSD unscanned |
+| 2021 | 0 | 0 | 0 | 0 | 0 | none | Confirmed empty (repo inventory); BSD unscanned |
+| 2022 | 0 | 0 | 0 | 0 | 0 | none | Confirmed empty (repo inventory); BSD unscanned |
+| 2023 | 0 | 0 | 0 | 0 | 0 | none | **UNKNOWN — blocked on missing `BSD_TENNIS_API_KEY`** |
+| 2024 | 0 | 0 | 0 | 0 | 0 | BSD (checked, empty) | None — confirmed empty |
+| 2025 | 0 (live, not persisted) | 0 (by design — in-memory only) | 1,436 | 1,436 | 0 | BSD/Bzzoiro (certified) | None |
+| 2026 | 0 (live, not persisted) | 0 (by design — in-memory only) | 304 | 304 | 0 | BSD/Bzzoiro (certified) | None |
+
+**TOTAL VERIFIED APPROVED ATP CHALLENGER PBP: 1,740** (2025: 1,436 + 2026: 304). Mappings
+are excluded from this total by design.
+
+**9,218 of 9,218 existing mappings remain mappings-only** — none were promoted, none were
+demoted, none were modified.
+
+Completion status: **not complete**. One credential-blocked year (2023) remains genuinely
+unresolved; this is reported, not concealed.
+
 
 1. **2023 BSD scan incomplete.** `data/audit/bsd-atp-challenger-pbp-history/queue.json`
    already has `next_year: 2023` queued. Running it requires `BSD_TENNIS_API_KEY` and
