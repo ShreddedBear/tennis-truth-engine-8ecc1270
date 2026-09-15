@@ -1,0 +1,92 @@
+## NEXT TASK — FIND THE ACTUAL DECISION INSUFFICIENCY BOTTLENECK
+
+Use the cost-efficient execution rules.
+
+Do NOT change code yet.
+
+We have now proven:
+
+- 020, 043, 044 execute and persist real evidence.
+- They are NOT currently safe comparison metrics.
+- 038/052 are historically unavailable.
+- 037/039/040 remain intentionally quarantined.
+- Do NOT add any of these metrics to COMPARISON_SPECS merely to increase selections.
+- Do NOT lower the 60% decision threshold.
+
+### Objective
+
+Find why matches with legitimate existing decision-ready evidence still become:
+
+INSUFFICIENT_EVIDENCE
+
+Trace a representative set of current INSUFFICIENT_EVIDENCE decisions through:
+
+persisted evidence
+→ evidence validation
+→ comparison eligibility
+→ treatment/sample/materiality filters
+→ family construction
+→ directional support/contradiction
+→ 60% threshold
+→ LOFO stability
+→ final decision
+
+Use ONLY existing metrics that are already legitimately eligible for comparison.
+
+### Efficient audit method
+
+Pick:
+1. One INSUFFICIENT_EVIDENCE match with substantial persisted evidence.
+2. One successful PLAY/selection with similar evidence volume.
+3. Compare their pipelines.
+
+Find the FIRST point where the insufficient case loses usable evidence or fails to become directional.
+
+Specifically determine whether the bottleneck is:
+
+- comparison-spec restrictions
+- sample/materiality floors
+- treatment/reliability filtering
+- one-sided evidence handling
+- family filtering
+- correlated-family suppression
+- neutral denominator construction
+- directional-share calculation
+- LOFO fragility
+- final decision-tier logic
+- or something else
+
+Do NOT assume missing fields are the problem.
+
+Do NOT count raw metrics as independent evidence.
+
+Do NOT use known winners.
+
+Do NOT modify thresholds, weights, or decision logic during this audit.
+
+### Critical question
+
+Determine whether the current system is genuinely saying:
+
+"A defensible side cannot be established"
+
+or whether it is actually saying:
+
+"Enough evidence exists, but the evidence is being discarded before the decision layer can use it."
+
+That distinction is the entire purpose of this audit.
+
+### Final report
+
+Return ONLY:
+
+1. Representative INSUFFICIENT case
+2. Representative successful-selection case
+3. Exact evidence available in each
+4. FIRST divergence point
+5. Exact reason evidence is discarded/neutralized
+6. Whether the cause is a real evidence limitation or an overly restrictive pipeline rule
+7. Recommended smallest fix
+8. Expected effect on INSUFFICIENT_EVIDENCE
+
+NO CODE CHANGES unless a clearly proven defect is found and the fix is obviously minimal.
