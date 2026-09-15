@@ -1,0 +1,433 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2012,
+  "old_counts": {
+    "internally_validated": 1318,
+    "score_mismatch": 29,
+    "no_historical_player_pair": 608,
+    "tournament_mismatch": 629,
+    "structural_failure": 61
+  },
+  "new_counts": {
+    "internally_validated": 1919,
+    "unresolved_other": 29,
+    "no_historical_player_pair": 608,
+    "structural_failure": 89
+  },
+  "transitions": {
+    "internally_validated -> internally_validated": 1318,
+    "no_historical_player_pair -> no_historical_player_pair": 608,
+    "tournament_mismatch -> internally_validated": 601,
+    "structural_failure -> structural_failure": 61,
+    "score_mismatch -> unresolved_other": 29,
+    "tournament_mismatch -> structural_failure": 28
+  },
+  "recovered_count": 601,
+  "recovered_examples_sample": [
+    {
+      "player_1": "Lukasz Kubot",
+      "player_2": "Andreas Seppi",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Jabor Al Mutawa",
+      "player_2": "Flavio Cipolla",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Lukas Rosol",
+      "player_2": "Viktor Troicki",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Dmitry Tursunov",
+      "player_2": "Albert Ramos",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Igor Kunitsyn",
+      "player_2": "Benjamin Becker",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Ivo Karlovic",
+      "player_2": "Sergiy Stakhovsky",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Jo-Wilfried Tsonga",
+      "player_2": "Malek Jaziri",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Guillermo Garcia-Lopez",
+      "player_2": "Pablo Andujar",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Guillermo Garcia-Lopez",
+      "player_2": "Pablo Andujar",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Mikhail Youzhny",
+      "player_2": "Ernests Gulbis",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Rafael Nadal",
+      "player_2": "Philipp Kohlschreiber",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Nikolay Davydenko",
+      "player_2": "Roger Federer",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Rui Machado",
+      "player_2": "Gael Monfils",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+      "date": "2012-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Matthias Bachinger",
+      "player_2": "Viktor Troicki",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Jo-Wilfried Tsonga",
+      "player_2": "Flavio Cipolla",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Guillermo Garcia-Lopez",
+      "player_2": "Andreas Seppi",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Ivo Karlovic",
+      "player_2": "Mikhail Youzhny",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Denis Gremelmayr",
+      "player_2": "Rafael Nadal",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Roger Federer",
+      "player_2": "Grega Zemlja",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Gael Monfils",
+      "player_2": "Benjamin Becker",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Albert Ramos",
+      "player_2": "Jo-Wilfried Tsonga",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Roger Federer",
+      "player_2": "Andreas Seppi",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Mikhail Youzhny",
+      "player_2": "Rafael Nadal",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Viktor Troicki",
+      "player_2": "Gael Monfils",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Gael Monfils",
+      "player_2": "Rafael Nadal",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-06",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Jo-Wilfried Tsonga",
+      "player_2": "Gael Monfils",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111.html",
+      "date": "2012-01-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Filippo Volandri",
+      "player_2": "Joao Souza",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-01-30",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Santiago Giraldo",
+      "player_2": "Leonardo Mayer",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-01-30",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Paul Capdeville",
+      "player_2": "Igor Andreev",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-01-31",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Frederico Gil",
+      "player_2": "Paolo Lorenzi",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-01-31",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Ricardo Mello",
+      "player_2": "Diego Junqueira",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-01-31",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Nicolas Massu",
+      "player_2": "Federico Del Bonis",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-01-31",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Pablo Andujar",
+      "player_2": "Frederico Gil",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Leonardo Mayer",
+      "player_2": "Jeremy Chardy",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Juan Monaco",
+      "player_2": "Igor Andreev",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Thomaz Bellucci",
+      "player_2": "Federico Delbonis",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Fernando Gonzalez",
+      "player_2": "Joao Souza",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Horacio Zeballos",
+      "player_2": "Juan Ignacio Chela",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Carlos Berlocq",
+      "player_2": "Federico Del Bonis",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Joao Souza",
+      "player_2": "Juan Ignacio Chela",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Frederico Gil",
+      "player_2": "Jeremy Chardy",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Juan Monaco",
+      "player_2": "Albert Montanes",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+      "date": "2012-02-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Juan Ignacio Chela",
+      "player_2": "Carlos Berlocq",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar..html",
+      "date": "2012-02-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Juan Monaco",
+      "player_2": "Jeremy Chardy",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar..html",
+      "date": "2012-02-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Juan Monaco",
+      "player_2": "Carlos Berlocq",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar..html",
+      "date": "2012-02-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Ivo Karlovic",
+      "player_2": "Lukasz Kubot",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells2012",
+      "date": "2012-03-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Andreas Seppi",
+      "player_2": "Olivier Rochus",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells2012",
+      "date": "2012-03-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Santiago Giraldo",
+      "player_2": "Jack Sock",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells2012",
+      "date": "2012-03-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Paolo Lorenzi",
+      "player_2": "Robby Ginepri",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells2012",
+      "date": "2012-03-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Matthew Ebden",
+      "player_2": "Igor Kunitsyn",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells2012",
+      "date": "2012-03-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    }
+  ],
+  "newly_ambiguous_count": 0,
+  "newly_ambiguous_examples": [],
+  "newly_conflicting_count": 0,
+  "newly_conflicting_examples": [],
+  "generated_at_utc": "2026-09-15T21:46:33.500029+00:00"
+}

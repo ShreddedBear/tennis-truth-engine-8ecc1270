@@ -1,0 +1,433 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2013,
+  "old_counts": {
+    "internally_validated": 1525,
+    "no_historical_player_pair": 350,
+    "score_mismatch": 28,
+    "structural_failure": 84,
+    "tournament_mismatch": 661
+  },
+  "new_counts": {
+    "internally_validated": 2146,
+    "no_historical_player_pair": 350,
+    "unresolved_other": 28,
+    "structural_failure": 124
+  },
+  "transitions": {
+    "internally_validated -> internally_validated": 1525,
+    "tournament_mismatch -> internally_validated": 621,
+    "no_historical_player_pair -> no_historical_player_pair": 350,
+    "structural_failure -> structural_failure": 84,
+    "tournament_mismatch -> structural_failure": 40,
+    "score_mismatch -> unresolved_other": 28
+  },
+  "recovered_count": 621,
+  "recovered_examples_sample": [
+    {
+      "player_1": "Pablo Andujar",
+      "player_2": "Lukas Rosol",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Lukas Lacko",
+      "player_2": "Guillermo Garcia-Lopez",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Mikhail Youzhny",
+      "player_2": "Benjamin Becker",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Jeremy Chardy",
+      "player_2": "Daniel Brands",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Richard Gasquet",
+      "player_2": "Jan Hernych",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Jabor Al Mutawa",
+      "player_2": "Mohamed Safwat",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Ruben Ramirez Hidalgo",
+      "player_2": "Tobias Kamke",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "David Ferrer",
+      "player_2": "Dustin Brown",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Lukasz Kubot",
+      "player_2": "Feliciano Lopez",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-01",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Daniel Brands",
+      "player_2": "Mohamed Safwat",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Nikolay Davydenko",
+      "player_2": "Mikhail Youzhny",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Lukas Rosol",
+      "player_2": "Paolo Lorenzi",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Gael Monfils",
+      "player_2": "Philipp Kohlschreiber",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Lukasz Kubot",
+      "player_2": "Simone Bolelli",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Viktor Troicki",
+      "player_2": "Lukas Lacko",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Richard Gasquet",
+      "player_2": "Grega Zemlja",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "David Ferrer",
+      "player_2": "Tobias Kamke",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-02",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Daniel Brands",
+      "player_2": "Gael Monfils",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Richard Gasquet",
+      "player_2": "Lukas Lacko",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Nikolay Davydenko",
+      "player_2": "Simone Bolelli",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "David Ferrer",
+      "player_2": "Paolo Lorenzi",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-03",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Richard Gasquet",
+      "player_2": "Daniel Brands",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "David Ferrer",
+      "player_2": "Nikolay Davydenko",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Nikolay Davydenko",
+      "player_2": "Richard Gasquet",
+      "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+      "date": "2013-01-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Doha"
+    },
+    {
+      "player_1": "Santiago Giraldo",
+      "player_2": "Martin Alund",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Filippo Volandri",
+      "player_2": "Leonardo Mayer",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-04",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Guillaume Rufin",
+      "player_2": "Ruben Ramirez-Hidalgo",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Pere Riba",
+      "player_2": "Tommy Robredo",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Carlos Berlocq",
+      "player_2": "Andrey Kuznetsov",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Federico Delbonis",
+      "player_2": "Guido Pella",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Nicolas Massu",
+      "player_2": "Albert Montanes",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-05",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Joao Sousa",
+      "player_2": "Daniel Gimeno-Traver",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-06",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Guillaume Rufin",
+      "player_2": "Juan Monaco",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-06",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Paolo Lorenzi",
+      "player_2": "Gianluca Naso",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-06",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Carlos Berlocq",
+      "player_2": "Santiago Giraldo",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-06",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Rafael Nadal",
+      "player_2": "Federico Delbonis",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-06",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Horacio Zeballos",
+      "player_2": "Pablo Andujar",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Filippo Volandri",
+      "player_2": "Albert Ramos",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Daniel Gimeno-Traver",
+      "player_2": "Albert Montanes",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.html",
+      "date": "2013-02-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Tommy Robredo",
+      "player_2": "Paolo Lorenzi",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.html",
+      "date": "2013-02-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Horacio Zeballos",
+      "player_2": "Albert Ramos",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.html",
+      "date": "2013-02-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Rafael Nadal",
+      "player_2": "Daniel Gimeno-Traver",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.html",
+      "date": "2013-02-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Paolo Lorenzi",
+      "player_2": "Jeremy Chardy",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.html",
+      "date": "2013-02-08",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Jeremy Chardy",
+      "player_2": "Rafael Nadal",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-10",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "Horacio Zeballos",
+      "player_2": "Rafael Nadal",
+      "ppaulojr_tournament": "VTROpen-ATPVinaDelMar",
+      "date": "2013-02-10",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Santiago"
+    },
+    {
+      "player_1": "David Goffin",
+      "player_2": "Viktor Troicki",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells",
+      "date": "2013-03-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Bernard Tomic",
+      "player_2": "Thomaz Bellucci",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells",
+      "date": "2013-03-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Gilles Muller",
+      "player_2": "Paolo Lorenzi",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells",
+      "date": "2013-03-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "Lukasz Kubot",
+      "player_2": "Benoit Paire",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells",
+      "date": "2013-03-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    },
+    {
+      "player_1": "David Nalbandian",
+      "player_2": "Marcel Granollers",
+      "ppaulojr_tournament": "BNPParibasOpen-ATPIndianWells",
+      "date": "2013-03-07",
+      "old_category": "tournament_mismatch",
+      "resolved_hist_tournament": "Indian Wells Masters"
+    }
+  ],
+  "newly_ambiguous_count": 0,
+  "newly_ambiguous_examples": [],
+  "newly_conflicting_count": 0,
+  "newly_conflicting_examples": [],
+  "generated_at_utc": "2026-09-15T21:46:34.853080+00:00"
+}

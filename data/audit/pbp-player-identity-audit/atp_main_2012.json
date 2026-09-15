@@ -1,0 +1,204 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2012,
+  "no_historical_player_pair_total": 608,
+  "category_counts": {
+    "G_players_exist_individually_but_pair_never_met_per_hist": 275,
+    "A_one_player_absent_from_hist_this_year": 244,
+    "A_both_players_absent_from_hist_this_year": 89
+  },
+  "category_examples_sample": {
+    "G_players_exist_individually_but_pair_never_met_per_hist": [
+      {
+        "player_1": "Stanislas Wawrinka",
+        "player_2": "Edouard Roger-Vasselin",
+        "ppaulojr_tournament": "AircelChennaiOpen-ATPChennai20111",
+        "date": "2012-01-04"
+      },
+      {
+        "player_1": "Stanislas Wawrinka",
+        "player_2": "Go Soeda",
+        "ppaulojr_tournament": "AircelChennaiOpen-ATPChennai20111",
+        "date": "2012-01-06"
+      },
+      {
+        "player_1": "Denis Gremelmayr",
+        "player_2": "Marsel Ilhan",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-01"
+      },
+      {
+        "player_1": "James Ward",
+        "player_2": "Jesse Huta Galung",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-01"
+      },
+      {
+        "player_1": "Igor Sijsling",
+        "player_2": "Lukas Lacko",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-01"
+      },
+      {
+        "player_1": "Igor Sijsling",
+        "player_2": "David Goffin",
+        "ppaulojr_tournament": "ATPMontpellier",
+        "date": "2012-01-28"
+      },
+      {
+        "player_1": "Mardy Fish",
+        "player_2": "Stanislas Wawrinka",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-02-10"
+      },
+      {
+        "player_1": "Juan Monaco",
+        "player_2": "Philipp Petzschner",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-02-10"
+      },
+      {
+        "player_1": "David Nalbandian",
+        "player_2": "Florian Mayer",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-02-10"
+      },
+      {
+        "player_1": "Daniel Evans",
+        "player_2": "Lukas Lacko",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-02-10"
+      }
+    ],
+    "A_one_player_absent_from_hist_this_year": [
+      {
+        "player_1": "Andrey Golubev",
+        "player_2": "Mohammad Ghareeb",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-01"
+      },
+      {
+        "player_1": "Antonio Veic",
+        "player_2": "Rainer Schuettler",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-01"
+      },
+      {
+        "player_1": "Grega Zemlja",
+        "player_2": "Dominik Meffert",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-01"
+      },
+      {
+        "player_1": "Rainer Schuettler",
+        "player_2": "Denis Gremelmayr",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-02"
+      },
+      {
+        "player_1": "Alex Jr. Bogomolov",
+        "player_2": "Filippo Volandri",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatar20111",
+        "date": "2012-01-02"
+      },
+      {
+        "player_1": "Stephane Bohli",
+        "player_2": "Nikola Mektic",
+        "ppaulojr_tournament": "ATPZagreb2011",
+        "date": "2012-01-28"
+      },
+      {
+        "player_1": "Philipp Kohlschrieber",
+        "player_2": "Olivier Rochus",
+        "ppaulojr_tournament": "OpenSuddeFrance-ATPMontpellier.",
+        "date": "2012-01-31"
+      },
+      {
+        "player_1": "Pere Riba Madrid",
+        "player_2": "Fernando Gonzalez",
+        "ppaulojr_tournament": "VTROpen-ATPVinaDelMar.",
+        "date": "2012-01-31"
+      },
+      {
+        "player_1": "Benjamin Balleret",
+        "player_2": "Florent Scaccianoce",
+        "ppaulojr_tournament": "ATPMarseille",
+        "date": "2012-02-18"
+      },
+      {
+        "player_1": "Gregoire Burquier",
+        "player_2": "Jonathan Dasnieres De Veigy",
+        "ppaulojr_tournament": "ATPMarseille",
+        "date": "2012-02-18"
+      }
+    ],
+    "A_both_players_absent_from_hist_this_year": [
+      {
+        "player_1": "Gonzalo Lama",
+        "player_2": "Pablo Galdon",
+        "ppaulojr_tournament": "ATPVinadelMar",
+        "date": "2012-01-28"
+      },
+      {
+        "player_1": "Romain Jouan",
+        "player_2": "Alexandre Sidorenko",
+        "ppaulojr_tournament": "ATPMarseille",
+        "date": "2012-02-19"
+      },
+      {
+        "player_1": "Facundo Arguello",
+        "player_2": "Agustin Velotti",
+        "ppaulojr_tournament": "CopaClaro-ATPBuenosAires.",
+        "date": "2012-02-19"
+      },
+      {
+        "player_1": "Colin Fleming/Ross Hutchins",
+        "player_2": "Michal Mertinak/Filip Polasek",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-02-11"
+      },
+      {
+        "player_1": "Evgeny Korolev/Yuriy Schukin",
+        "player_2": "Marcel Granollers/Marc Lopez",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-02-11"
+      },
+      {
+        "player_1": "I Karlovic/F Moser",
+        "player_2": "M Mertinak/A Sa",
+        "ppaulojr_tournament": "DelrayBeachInternationalTennisChampionships-ATPDelrayBeach",
+        "date": "2012-03-03"
+      },
+      {
+        "player_1": "C Fleming/R Hutchins",
+        "player_2": "M Elgin/D Istomin",
+        "ppaulojr_tournament": "DelrayBeachInternationalTennisChampionships-ATPDelrayBeach",
+        "date": "2012-03-03"
+      },
+      {
+        "player_1": "Serbia Doubles",
+        "player_2": "Czech Republic Doubles",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-04-07"
+      },
+      {
+        "player_1": "Croatia Doubles",
+        "player_2": "Argentina Doubles",
+        "ppaulojr_tournament": "DavisCup",
+        "date": "2012-04-07"
+      },
+      {
+        "player_1": "David Marrero/Marcelo Melo",
+        "player_2": "Dustin Brown/Paul Hanley",
+        "ppaulojr_tournament": "GrandPrixHassanII-ATPCasablanca2012",
+        "date": "2012-04-13"
+      }
+    ]
+  },
+  "not_detectable_from_available_data": [
+    "D_married_name_change -- needs a real canonical player-alias history table (stats-engine's canonical_players/player_aliases, not queryable here -- no DATABASE_URL)",
+    "E_duplicate_canonical_player -- same reason",
+    "F_provider_id_mismatch -- N/A, neither Aneeshers-hist nor ppaulojr rows carry a shared provider ID"
+  ],
+  "generated_at_utc": "2026-09-15T21:48:52.207381+00:00"
+}

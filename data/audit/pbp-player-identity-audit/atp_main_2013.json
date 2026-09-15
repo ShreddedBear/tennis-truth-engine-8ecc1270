@@ -1,0 +1,204 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2013,
+  "no_historical_player_pair_total": 350,
+  "category_counts": {
+    "G_players_exist_individually_but_pair_never_met_per_hist": 207,
+    "A_one_player_absent_from_hist_this_year": 114,
+    "A_both_players_absent_from_hist_this_year": 29
+  },
+  "category_examples_sample": {
+    "G_players_exist_individually_but_pair_never_met_per_hist": [
+      {
+        "player_1": "Stanislas Wawrinka",
+        "player_2": "Cedrik-Marcel Stebe",
+        "ppaulojr_tournament": "AircelChennaiOpen-ATPChennai",
+        "date": "2013-01-02"
+      },
+      {
+        "player_1": "Stanislas Wawrinka",
+        "player_2": "Aljaz Bedene",
+        "ppaulojr_tournament": "AircelChennaiOpen-ATPChennai",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Luke Saville",
+        "player_2": "Tatsuma Ito",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Matteo Viola",
+        "player_2": "Evgeny Donskoy",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Ryan Harrison",
+        "player_2": "Matt Reid",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Pierre-Hugues Herbert",
+        "player_2": "Bjorn Phau",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Guillaume Rufin",
+        "player_2": "Joao Sousa",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Kenny De Schepper",
+        "player_2": "John Millman",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Jan Hajek",
+        "player_2": "Blaz Kavcic",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-05"
+      },
+      {
+        "player_1": "Andreas Haider-Maurer",
+        "player_2": "John-Patrick Smith",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-05"
+      }
+    ],
+    "A_one_player_absent_from_hist_this_year": [
+      {
+        "player_1": "Alex Bolt",
+        "player_2": "Benjamin Mitchell",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Jordan Thompson",
+        "player_2": "Guillermo Garcia-Lopez",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Matthew Barton",
+        "player_2": "Ivo Karlovic",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Adam Feeney",
+        "player_2": "Jimmy Wang",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "John Peers",
+        "player_2": "Di Wu",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "John-Patrick Smith",
+        "player_2": "Simon Ede",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Adam Feeney",
+        "player_2": "Joao Sousa",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-05"
+      },
+      {
+        "player_1": "Jay Andrijic",
+        "player_2": "Ryan Harrison",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-05"
+      },
+      {
+        "player_1": "Matthew Barton",
+        "player_2": "Tatsuma Ito",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-05"
+      },
+      {
+        "player_1": "Alex Bolt",
+        "player_2": "Guillermo Garcia-Lopez",
+        "ppaulojr_tournament": "ApiaInternationalSydney-ATPSydney",
+        "date": "2013-01-05"
+      }
+    ],
+    "A_both_players_absent_from_hist_this_year": [
+      {
+        "player_1": "C Fleming/J Murray",
+        "player_2": "D Goffin/G Muller",
+        "ppaulojr_tournament": "BrisbaneInternational-ATPBrisbane",
+        "date": "2013-01-02"
+      },
+      {
+        "player_1": "Marcus Daniell",
+        "player_2": "Sergio Gutierrez-Ferrol",
+        "ppaulojr_tournament": "HeinekenOpen-ATPAuckland",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Colin Fleming",
+        "player_2": "Michal Mertinak",
+        "ppaulojr_tournament": "HeinekenOpen-ATPAuckland",
+        "date": "2013-01-04"
+      },
+      {
+        "player_1": "Michael Venus",
+        "player_2": "Adam Thompson",
+        "ppaulojr_tournament": "HeinekenOpen-ATPAuckland",
+        "date": "2013-01-05"
+      },
+      {
+        "player_1": "Jonathan Erlich/Mikhail Youzhny",
+        "player_2": "Dustin Brown/Jonathan Marray",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+        "date": "2013-01-02"
+      },
+      {
+        "player_1": "Fabio Fognini/David Marrero",
+        "player_2": "Julian Knowle/Filip Polasek",
+        "ppaulojr_tournament": "QatarExxonMobilOpen-ATPQatarLive",
+        "date": "2013-01-02"
+      },
+      {
+        "player_1": "Mark",
+        "player_2": "David",
+        "ppaulojr_tournament": "MensAustralianOpen.html",
+        "date": "2013-01-25"
+      },
+      {
+        "player_1": "Jules Marie",
+        "player_2": "Yannick Mertens",
+        "ppaulojr_tournament": "OpenSuddeFrance-ATPMontpellier",
+        "date": "2013-02-02"
+      },
+      {
+        "player_1": "Danilo Petrovic",
+        "player_2": "Gregoire Burquier",
+        "ppaulojr_tournament": "OpenSuddeFrance-ATPMontpellier",
+        "date": "2013-02-02"
+      },
+      {
+        "player_1": "Arsenije Zlatanovic",
+        "player_2": "Ivan Arenas-Gualda",
+        "ppaulojr_tournament": "OpenSuddeFrance-ATPMontpellier",
+        "date": "2013-02-02"
+      }
+    ]
+  },
+  "not_detectable_from_available_data": [
+    "D_married_name_change -- needs a real canonical player-alias history table (stats-engine's canonical_players/player_aliases, not queryable here -- no DATABASE_URL)",
+    "E_duplicate_canonical_player -- same reason",
+    "F_provider_id_mismatch -- N/A, neither Aneeshers-hist nor ppaulojr rows carry a shared provider ID"
+  ],
+  "generated_at_utc": "2026-09-15T21:48:53.227806+00:00"
+}
