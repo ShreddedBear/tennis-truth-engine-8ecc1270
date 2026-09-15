@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse,csv,hashlib,io,json,re,time,unicodedata,urllib.request,zipfile
+import argparse,csv,hashlib,io,json,re,time,unicodedata,urllib.error,urllib.request,zipfile
 from collections import Counter,defaultdict
 from datetime import datetime,timezone
 from pathlib import Path
@@ -17,11 +17,18 @@ PBP_FILES={
 }
 MAIN_LEVELS={'G','M','A','F'}
 UA='tennis-truth-engine-pbp-v4/1.0'
-# tennis-data.co.uk sits behind bot-detection that rejects the plain script UA
-# above with a bare connection failure (no HTTP status), which previously made
-# every match in a year get marked ACCESS_LIMITATION even when a PBP candidate
-# had already been found. A browser-shaped UA + a couple of retries is enough
-# to tell "site blocked the request" apart from "site is actually down".
+# tennis-data.co.uk was previously failing every fetch with a bare TLS
+# handshake failure (SSL: TLSV1_ALERT_INTERNAL_ERROR), which made every match
+# in a year get marked ACCESS_LIMITATION even when a PBP candidate had already
+# been found. Confirmed via a plain-HTTP probe that this is NOT the site being
+# down or blocking us outright: HTTP got a real response from the same host --
+# "503 Service Temporarily Unavailable" with "Retry-After: 72" and the correct
+# xlsx Content-Type -- i.e. the request is valid and the server is load-
+# shedding, and for HTTPS specifically it appears to shed load by aborting the
+# TLS handshake instead of completing it and returning 503. So: retry with
+# backoff (honouring Retry-After when the server gives one), and fall back to
+# plain HTTP for this specific host if HTTPS still won't complete, since HTTP
+# demonstrably reaches the real server.
 TD_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 def fetch_bytes(url,timeout=90,headers=None,retries=1):
@@ -32,6 +39,14 @@ def fetch_bytes(url,timeout=90,headers=None,retries=1):
   req=urllib.request.Request(url,headers=hdrs)
   try:
    with urllib.request.urlopen(req,timeout=timeout) as r:return r.read()
+  except urllib.error.HTTPError as e:
+   last=e
+   if attempt<retries:
+    wait=2*(attempt+1)
+    if e.code==503:
+     try:wait=min(int(e.headers.get('Retry-After',wait)),90)
+     except (TypeError,ValueError):pass
+    time.sleep(wait);continue
   except Exception as e:
    last=e
    if attempt<retries:time.sleep(2*(attempt+1));continue
@@ -142,8 +157,14 @@ def read_td(tour,year):
  errs=[]
  td_headers={'User-Agent':TD_UA,'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8','Referer':'https://www.tennis-data.co.uk/alldata.php'}
  for url in td_candidates(tour,year):
+  data=None
+  for fetch_url in (url,'http://'+url[len('https://'):] if url.startswith('https://') else url):
+   try:
+    data=fetch_bytes(fetch_url,timeout=45,headers=td_headers,retries=2);break
+   except Exception as e:errs.append(f'{fetch_url}:{type(e).__name__}:{e}')
+  if data is None:continue
   try:
-   df=read_table(fetch_bytes(url,timeout=45,headers=td_headers,retries=2),url);rows=[]
+   df=read_table(data,url);rows=[]
    def pick(r,*names):
     lk={re.sub(r'[^a-z0-9]+','',str(k).lower()):v for k,v in r.items()}
     for n in names:
