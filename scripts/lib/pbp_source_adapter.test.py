@@ -11,6 +11,9 @@ from lib.pbp_source_adapter import (
     PBPRecord, VerificationStage, SourceRole, LicenseStatus,
     AneeshersSackmannHistAdapter, PpaulojrPbpAdapter,
     TennisDataCoUkAdapter, MatchChartingProjectAdapter,
+    SourceAuthorization, SourceProvenance, ValidationState,
+    CorroborationState, ProductionEligibility, PBPRecordEvidence,
+    PPAULOJR_CURRENT_STATUS,
 )
 
 
@@ -123,6 +126,64 @@ class TestPBPRecord(unittest.TestCase):
             player_1="A", player_2="B", winner="A", score="6-3 6-4", pbp_tape=None,
         )
         self.assertEqual(rec.stage, VerificationStage.RAW_SOURCE)
+
+
+class TestMultiDimensionalStatus(unittest.TestCase):
+    """These axes must never collapse into one boolean -- confirms the model can
+    hold the exact 'valid but blocked' state the task requires."""
+
+    def test_ppaulojr_worked_example_matches_task_spec(self):
+        s = PPAULOJR_CURRENT_STATUS
+        self.assertEqual(s.authorization, SourceAuthorization.AUTHORIZED)
+        self.assertEqual(s.license, LicenseStatus.LICENSE_UNCERTAIN)
+        self.assertEqual(s.validation, ValidationState.STRUCTURALLY_VALIDATED)
+        self.assertEqual(s.corroboration, CorroborationState.CURRENTLY_NONE)
+        # Structurally validated + license uncertain simultaneously -- not a contradiction.
+        self.assertEqual(s.production_eligibility, ProductionEligibility.LICENSE_BLOCKED)
+
+    def test_verified_but_still_license_blocked(self):
+        # Even a fully VERIFIED (independently corroborated) record must stay
+        # blocked from production if its license is unresolved -- license and
+        # validation are independent gates, and license blocks regardless of
+        # how strong the validation is.
+        s = PBPRecordEvidence(
+            authorization=SourceAuthorization.AUTHORIZED,
+            license=LicenseStatus.LICENSE_UNCERTAIN,
+            provenance=SourceProvenance.KNOWN,
+            validation=ValidationState.VERIFIED,
+            corroboration=CorroborationState.CORROBORATED,
+        )
+        self.assertEqual(s.production_eligibility, ProductionEligibility.LICENSE_BLOCKED)
+
+    def test_commercially_licensed_but_not_yet_validated_is_still_blocked(self):
+        # The reverse: a perfectly-licensed source with only a raw candidate
+        # (no validation done yet) must also be blocked -- license alone is
+        # not sufficient either.
+        s = PBPRecordEvidence(
+            authorization=SourceAuthorization.AUTHORIZED,
+            license=LicenseStatus.APPROVED_COMMERCIAL,
+            provenance=SourceProvenance.KNOWN,
+            validation=ValidationState.CANDIDATE,
+            corroboration=CorroborationState.NOT_ATTEMPTED,
+        )
+        self.assertEqual(s.production_eligibility, ProductionEligibility.VALIDATION_BLOCKED)
+
+    def test_only_licensed_and_verified_together_are_eligible(self):
+        s = PBPRecordEvidence(
+            authorization=SourceAuthorization.AUTHORIZED,
+            license=LicenseStatus.APPROVED_COMMERCIAL,
+            provenance=SourceProvenance.KNOWN,
+            validation=ValidationState.VERIFIED,
+            corroboration=CorroborationState.CORROBORATED,
+        )
+        self.assertEqual(s.production_eligibility, ProductionEligibility.PRODUCTION_ELIGIBLE)
+
+    def test_describe_never_claims_verified_for_uncorroborated_record(self):
+        # Regression guard against ever wording an uncorroborated record's
+        # description as if it were fully verified.
+        text = PPAULOJR_CURRENT_STATUS.describe()
+        self.assertNotIn("is independently corroborated", text)
+        self.assertIn("not independently corroborated", text)
 
 
 if __name__ == "__main__":

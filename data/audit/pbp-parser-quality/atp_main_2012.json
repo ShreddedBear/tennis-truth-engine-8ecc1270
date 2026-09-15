@@ -1,0 +1,20 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2012,
+  "candidates": 2645,
+  "missing_pbp_tape": 0,
+  "unusual_scoring_format_chars": 0,
+  "no_historical_player_pair": 608,
+  "score_tournament_winner_mismatch_reasons": {
+    "SCORE_MISMATCH": 29,
+    "TOURNAMENT_MISMATCH": 650,
+    "WINNER_MISMATCH": 9
+  },
+  "structural_parse_failure_reasons": {
+    "ILLEGAL_GAME": 17,
+    "EMPTY_SET": 44
+  },
+  "internal_disagreement_after_structural_pass": {},
+  "note": "Counts here explain WHY candidates are lost between overlap-experiment stages; they do not change or replace the committed funnel counts in data/audit/pbp-source-overlap/. Reference commit: 9c0ecb6.",
+  "generated_at_utc": "2026-09-15T21:33:24.005935+00:00"
+}

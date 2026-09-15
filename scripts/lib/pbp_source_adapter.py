@@ -56,6 +56,143 @@ class LicenseStatus(Enum):
     NOT_LICENSED_FOR_USE = "NOT_LICENSED_FOR_USE"
 
 
+# ---------------------------------------------------------------------------
+# Multi-dimensional status model.
+#
+# These axes are DELIBERATELY independent -- never collapse them into one
+# boolean or one "status" field. A record can be, and often is, positive on
+# some axes and blocked on others at the same time. See
+# docs/PBP_STATUS_TAXONOMY.md for the full design and worked examples.
+# ---------------------------------------------------------------------------
+
+class SourceAuthorization(Enum):
+    """Did this project decide to use this source at all? Independent of whether
+    its license is resolved -- a source can be authorized-to-evaluate while its
+    license remains uncertain."""
+    AUTHORIZED = "AUTHORIZED"
+    NOT_AUTHORIZED = "NOT_AUTHORIZED"
+
+
+class SourceProvenance(Enum):
+    """Is it clear where this data actually originated (who compiled it, from
+    what underlying source)? Independent of whether that origin grants a
+    license to reuse it."""
+    KNOWN = "KNOWN"
+    PARTIALLY_KNOWN = "PARTIALLY_KNOWN"
+    UNKNOWN = "UNKNOWN"
+
+
+class ValidationState(Enum):
+    """Progression through identity + structural + corroboration checks for one
+    candidate record. VERIFIED here means what LEVEL_1_VERIFIED means elsewhere
+    in this codebase (verify-sackmann-pbp-v4.py) -- independently corroborated,
+    not merely structurally sound."""
+    CANDIDATE = "CANDIDATE"
+    STRUCTURALLY_VALIDATED = "STRUCTURALLY_VALIDATED"
+    CORROBORATED = "CORROBORATED"
+    VERIFIED = "VERIFIED"
+    CONFLICT = "CONFLICT"                # structurally valid but disagrees with the historical record
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"  # ambiguous identity (e.g. a duplicate match)
+
+
+class CorroborationState(Enum):
+    """Whether an independent source (outside the PBP feed itself) has confirmed
+    this record's identity/result. Separate from ValidationState because a
+    record can be fully structurally validated while corroboration has simply
+    never been attempted or is currently unavailable."""
+    NOT_ATTEMPTED = "NOT_ATTEMPTED"
+    CURRENTLY_NONE = "CURRENTLY_NONE"    # attempted; no independent source was reachable
+    CORROBORATED = "CORROBORATED"
+    CONTRADICTED = "CONTRADICTED"
+
+
+class ProductionEligibility(Enum):
+    """Whether this record may be persisted into the COMMERCIAL production store
+    (tennis-stats-engine's pbp_evidence). This is gated by BOTH license and
+    validation state -- either one alone can block it. See
+    docs/PBP_STATUS_TAXONOMY.md's production_eligibility_reason() worked
+    examples."""
+    PRODUCTION_ELIGIBLE = "PRODUCTION_ELIGIBLE"
+    LICENSE_BLOCKED = "LICENSE_BLOCKED"
+    VALIDATION_BLOCKED = "VALIDATION_BLOCKED"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
+
+@dataclass
+class PBPRecordEvidence:
+    """The full, non-collapsed status of one PBP record. Six independent axes:
+    authorization, license, provenance, validation, corroboration, and the
+    derived production_eligibility. Never reduce this to a single boolean like
+    "is it verified" -- the whole point of this model is that a record can be
+    STRUCTURALLY_VALIDATED + LICENSE_BLOCKED + NOT PRODUCTION_ELIGIBLE at the
+    same time, and that is a valid, useful state to report, not a contradiction
+    to resolve."""
+    authorization: SourceAuthorization
+    license: LicenseStatus
+    provenance: SourceProvenance
+    validation: ValidationState
+    corroboration: CorroborationState
+
+    @property
+    def production_eligibility(self) -> ProductionEligibility:
+        if self.license in (LicenseStatus.NONCOMMERCIAL_ONLY, LicenseStatus.NOT_LICENSED_FOR_USE, LicenseStatus.LICENSE_UNCERTAIN):
+            return ProductionEligibility.LICENSE_BLOCKED
+        if self.validation != ValidationState.VERIFIED:
+            return ProductionEligibility.VALIDATION_BLOCKED
+        return ProductionEligibility.PRODUCTION_ELIGIBLE
+
+    def production_eligibility_reason(self) -> str:
+        elig = self.production_eligibility
+        if elig == ProductionEligibility.LICENSE_BLOCKED:
+            return f"license={self.license.value} -- not cleared for commercial persistence"
+        if elig == ProductionEligibility.VALIDATION_BLOCKED:
+            return f"validation={self.validation.value} -- requires VERIFIED (independently corroborated), not just structural validity"
+        return "eligible: license approved AND independently verified"
+
+    def describe(self) -> str:
+        """A one-sentence, human-readable summary -- the exact kind of statement
+        this model exists to make possible, e.g. 'This PBP reconstructs
+        correctly and matches the historical record, but it is not
+        independently corroborated and its redistribution rights are
+        unresolved.'"""
+        parts = []
+        if self.validation in (ValidationState.STRUCTURALLY_VALIDATED, ValidationState.CORROBORATED, ValidationState.VERIFIED):
+            parts.append("This PBP reconstructs correctly and matches the historical record")
+        elif self.validation == ValidationState.CONFLICT:
+            parts.append("This PBP reconstructs correctly but CONTRADICTS the historical record")
+        elif self.validation == ValidationState.REVIEW_REQUIRED:
+            parts.append("This PBP's match identity is ambiguous and needs manual review")
+        else:
+            parts.append("This PBP is an unverified candidate")
+
+        if self.corroboration == CorroborationState.CORROBORATED:
+            parts.append("and is independently corroborated")
+        elif self.corroboration == CorroborationState.CURRENTLY_NONE:
+            parts.append("but it is not independently corroborated (no source currently available)")
+        elif self.corroboration == CorroborationState.CONTRADICTED:
+            parts.append("but an independent source CONTRADICTS it")
+
+        if self.license == LicenseStatus.LICENSE_UNCERTAIN:
+            parts.append("and its redistribution rights are unresolved")
+        elif self.license == LicenseStatus.NONCOMMERCIAL_ONLY:
+            parts.append("and it is licensed for non-commercial use only")
+        elif self.license == LicenseStatus.NOT_LICENSED_FOR_USE:
+            parts.append("and it is not licensed for this use")
+
+        return ", ".join(parts) + "."
+
+
+# The worked example from docs/PBP_SOURCE_LICENSE_AUDIT.md / task instructions:
+# ppaulojr's CURRENT real status for an internally-validated ATP_MAIN 2012/2013 record.
+PPAULOJR_CURRENT_STATUS = PBPRecordEvidence(
+    authorization=SourceAuthorization.AUTHORIZED,
+    license=LicenseStatus.LICENSE_UNCERTAIN,
+    provenance=SourceProvenance.PARTIALLY_KNOWN,  # ppaulojr's own README doesn't name its upstream source
+    validation=ValidationState.STRUCTURALLY_VALIDATED,
+    corroboration=CorroborationState.CURRENTLY_NONE,
+)
+
+
 @dataclass
 class PBPRecord:
     source: str
