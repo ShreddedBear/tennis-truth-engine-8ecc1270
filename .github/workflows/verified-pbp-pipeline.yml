@@ -53,13 +53,19 @@ jobs:
       - name: Diagnose tennis-data.co.uk reachability (cheap, no python deps)
         continue-on-error: true
         run: |
-          for url in "https://www.tennis-data.co.uk/${{ inputs.year }}/${{ inputs.year }}.xlsx" "https://www.tennis-data.co.uk/alldata.php"; do
-            echo "=== $url ==="
-            curl -sS -v -o /dev/null -m 20 \
-              -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' \
-              "$url" 2>&1 | tail -25
-            echo
-          done
+          url="https://www.tennis-data.co.uk/${{ inputs.year }}/${{ inputs.year }}.xlsx"
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          echo "### default (curl decides TLS version + ALPN) ###"
+          curl -sS -v -o /dev/null -m 20 -H "User-Agent: $UA" "$url" 2>&1 | tail -15
+          echo
+          echo "### forced TLS 1.2 only ###"
+          curl -sS -v -o /dev/null -m 20 --tlsv1.2 --tls-max 1.2 -H "User-Agent: $UA" "$url" 2>&1 | tail -15
+          echo
+          echo "### TLS 1.3 but HTTP/1.1 only, no h2 ALPN offer ###"
+          curl -sS -v -o /dev/null -m 20 --http1.1 -H "User-Agent: $UA" "$url" 2>&1 | tail -15
+          echo
+          echo "### plain HTTP (no TLS at all, in case of a redirect) ###"
+          curl -sS -v -o /dev/null -m 20 -L -H "User-Agent: $UA" "http://www.tennis-data.co.uk/${{ inputs.year }}/${{ inputs.year }}.xlsx" 2>&1 | tail -15
 
       - name: Verify one ATP/WTA year batch with firewalls
         run: |
