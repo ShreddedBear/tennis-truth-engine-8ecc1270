@@ -4,3 +4,4 @@
 - [PBP reconstruction provenance](pbp-reconstruction-provenance.md) — never cite the nonexistent 24-tape verifier; score-snapshot reconstruction is validated only by current captured fixtures.
 - [OCR matchup boundaries](ocr-matchup-boundaries.md) — parse tennis screenshots by explicit card/record boundaries; never globally pair nearby name-like lines.
 - [Parlay Builder provider priority](parlay-builder-provider-priority.md) — LiveTennisAPI is Tier 1 for OCR identities and completed-match evidence.
+- [Approved tennis data sources](approved-tennis-data-sources.md) — use existing DB, Sackmann archive, approved PBP, then Live Tennis API; add no other providers.
