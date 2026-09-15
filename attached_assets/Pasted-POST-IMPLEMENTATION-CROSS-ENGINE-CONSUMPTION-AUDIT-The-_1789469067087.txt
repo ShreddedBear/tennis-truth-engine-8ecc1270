@@ -1,0 +1,77 @@
+POST-IMPLEMENTATION CROSS-ENGINE CONSUMPTION AUDIT
+
+The historical warehouse implementation is now committed at:
+
+ca20b96a0de91ec9ab92daad158d5a7b4925acde
+
+Do NOT rebuild the historical warehouse.
+
+Do NOT change the 60% threshold.
+Do NOT change LOFO.
+Do NOT change voting families.
+Do NOT change decision weights.
+Do NOT change tiers.
+Do NOT change the active denominator unless a specific metric independently passes its existing eligibility contract.
+
+Now perform a surgical consumption audit.
+
+OBJECTIVE:
+
+Determine exactly which of the newly available historical evidence/data are currently accessible and actually consumed by:
+
+1. Statistical/Prediction Engine
+2. Truth/Validation Engine
+3. Decision/Parlay Engine
+
+For every metric that was previously unavailable, partial, withheld, protected, or outside the active denominator:
+
+- identify its underlying historical-data requirement
+- identify whether that data now exists
+- identify the exact adapter/producer supplying it
+- identify whether it produces valid evidence
+- identify whether both players can be evaluated
+- identify sample size/denominator
+- identify evidence state
+- identify whether the metric is currently active, persistence-only, protected, quarantined, or eligible
+- identify which engine(s) can consume it
+- identify which engine(s) actually consume it in production
+
+IMPORTANT:
+
+Shared historical DATA should be available through the existing canonical evidence/data layer to all three engines where their contracts require it.
+
+Do NOT make Truth Engine the exclusive owner of the historical warehouse.
+
+Do NOT duplicate the historical warehouse for each engine.
+
+Do NOT merge the three engines.
+
+Do NOT make one engine's prediction the input to another engine's prediction logic.
+
+Do NOT automatically promote withheld metrics into voting.
+
+If a metric now has enough legitimate evidence to pass its EXISTING eligibility contract, report that explicitly.
+
+If it still fails eligibility, explain exactly why.
+
+For metrics 020, 037, 038, 039, 040, 043, 044, 046, 047, 052, 061, and 062, provide an explicit status.
+
+Also identify any other implemented metric codes outside the current denominator that now have newly available historical evidence.
+
+Run targeted tests and at least one real production-path verification for each engine where practical.
+
+Do not make unrelated changes.
+
+FINAL REPORT:
+
+METRIC | HISTORICAL DATA NOW AVAILABLE | EVIDENCE PRODUCED | SAMPLE | ELIGIBILITY | ACTIVE/VOTING | STAT ENGINE | TRUTH ENGINE | DECISION ENGINE
+
+Then report:
+
+- exact files inspected
+- exact files changed, if any
+- tests
+- real production verification
+- remaining blocked metrics
+- whether any metric legitimately earned eligibility
+- git hash
