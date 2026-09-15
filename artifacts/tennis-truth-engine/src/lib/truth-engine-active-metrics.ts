@@ -28,6 +28,21 @@ export function isActiveMetricCode(code: string | null | undefined) {
   return ACTIVE_METRIC_CODES.includes(normalizeMetricCode(code));
 }
 
+/**
+ * Implemented player-evidence producers that must execute and persist their raw findings,
+ * but are not yet allowed to grade a match. Keeping this separate from ACTIVE_METRIC_CODES
+ * preserves the comparison/readiness denominator until each metric has a measured,
+ * defensible ComparisonSpec.
+ */
+export const PERSISTENCE_ONLY_METRIC_CODES: readonly string[] = [
+  "020", "038", "043", "044", "052",
+];
+
+export function isExecutableMetricCode(code: string | null | undefined) {
+  const normalized = normalizeMetricCode(code);
+  return ACTIVE_METRIC_CODES.includes(normalized) || PERSISTENCE_ONLY_METRIC_CODES.includes(normalized);
+}
+
 export function normalizeMetricCode(code: string | null | undefined) {
   const match = String(code ?? "").match(/(\d{1,3})$/);
   return match ? match[1].padStart(3, "0") : String(code ?? "").padStart(3, "0");

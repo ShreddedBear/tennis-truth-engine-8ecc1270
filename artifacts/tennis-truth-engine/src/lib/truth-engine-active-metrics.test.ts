@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVE_METRIC_CODES, activeMetricReadiness, isActiveMetricCode, type MetricRowForReadiness } from "./truth-engine-active-metrics";
+import { ACTIVE_METRIC_CODES, PERSISTENCE_ONLY_METRIC_CODES, activeMetricReadiness, isActiveMetricCode, isExecutableMetricCode, type MetricRowForReadiness } from "./truth-engine-active-metrics";
 import { COMPARISON_SPECS } from "./truth-engine-metric-comparison";
 import { MATRIX_SUMMARY_REQUIRED_CODES } from "./metric-classification";
 
@@ -35,6 +35,22 @@ describe("the active registry is derived, not declared", () => {
     expect(isActiveMetricCode("METRIC 016")).toBe(true);
     expect(isActiveMetricCode("062")).toBe(false);   // evaluated, deliberately not activated
     expect(isActiveMetricCode("004")).toBe(false);   // too thin, not activated
+  });
+
+  it("executes implemented persistence-only producers without promoting them into voting", () => {
+    expect(PERSISTENCE_ONLY_METRIC_CODES).toEqual(["020", "038", "043", "044", "052"]);
+    for (const code of PERSISTENCE_ONLY_METRIC_CODES) {
+      expect(isExecutableMetricCode(code)).toBe(true);
+      expect(isActiveMetricCode(code)).toBe(false);
+      expect(ACTIVE_METRIC_CODES).not.toContain(code);
+    }
+  });
+
+  it("does not execute implemented producers that remain explicitly quarantined", () => {
+    for (const code of ["037", "039", "040"]) {
+      expect(MATRIX_SUMMARY_REQUIRED_CODES).toContain(code);
+      expect(isExecutableMetricCode(code)).toBe(false);
+    }
   });
 
   it("contains no quarantined code", () => {

@@ -13,7 +13,7 @@ import { unmetDependencies, canonicalizeStageRows, INVALIDATED_RUN_STATUS } from
 import { dispatchAuditBatch } from "./audit-pipeline.functions";
 import { STRESS_TESTS, UNDERDOG_PATHWAYS } from "./constants";
 import { MATRIX_SUMMARY_REQUIRED_CODES, META_OR_NON_PLAYER_CODES } from "./metric-classification";
-import { ACTIVE_METRIC_CODES } from "./truth-engine-active-metrics";
+import { ACTIVE_METRIC_CODES, PERSISTENCE_ONLY_METRIC_CODES } from "./truth-engine-active-metrics";
 
 // Code 070 ("Support Team / Prep") is a genuine LEGITIMATE_PLAYER_METRIC in the real
 // canonical registry (metric-classification.ts) -- distinct from and never overlapping
@@ -41,9 +41,9 @@ const P1_ID = "22222222-2222-2222-2222-222222222222";
 const P2_ID = "33333333-3333-3333-3333-333333333333";
 
 const DEF_COUNTS = { METRICS: 81, VERIFICATION: 60, DISAGREEMENT: 70 } as const;
-// The Truth Engine execution universe is the 25 active codes (ACTIVE_METRIC_CODES)
-// plus two narrow, documented exceptions kept instantiated for real downstream
-// writers -- see instantiate()'s comment in audit-pipeline.ts. Every OTHER code in
+// The Truth Engine execution universe is the 25 active codes (ACTIVE_METRIC_CODES),
+// the implemented persistence-only producers, plus two narrow documented exceptions
+// kept instantiated for real downstream writers. Every OTHER code in
 // the 81-code registry (including every genuinely PROTECTED_UNAVAILABLE/quarantined
 // one) now gets zero metric_results rows at all, not even a settled NO_SOURCE/
 // EXCLUDED placeholder. Derived from the live registry, not hardcoded, so a
@@ -51,6 +51,7 @@ const DEF_COUNTS = { METRICS: 81, VERIFICATION: 60, DISAGREEMENT: 70 } as const;
 const TRUTH_ENGINE_NON_ACTIVE_EXECUTION_EXCEPTIONS = new Set(["042"]);
 const EXPECTED_INSTANTIATED_METRIC_COUNT = new Set([
   ...ACTIVE_METRIC_CODES,
+  ...PERSISTENCE_ONLY_METRIC_CODES,
   ...META_OR_NON_PLAYER_CODES,
   ...TRUTH_ENGINE_NON_ACTIVE_EXECUTION_EXCEPTIONS,
 ]).size;
@@ -1193,8 +1194,10 @@ describe("Run Audit pipeline", () => {
     expect(after).toEqual(before);
   }, 60_000);
 
-  // Truth Engine execution-universe guardrail (fix-all task): the pipeline must
-  // instantiate, and send to research, ONLY the 25 ACTIVE_METRIC_CODES plus the two
+  // Truth Engine execution-universe guardrail: the pipeline must instantiate and send
+  // to research the ACTIVE_METRIC_CODES plus implemented persistence-only producers,
+  // while keeping the persistence-only codes outside the graded/voting denominator.
+  // It also keeps the two
   // documented exceptions kept for real downstream writers ("042" for Dangerous
   // Underdog's opponent-win-pathways enrichment, and the 7 META_OR_NON_PLAYER codes
   // for meta-derived-evidence.server.ts's composite writer). Every other code in the
@@ -1210,7 +1213,7 @@ describe("Run Audit pipeline", () => {
   // EXCLUDED, never researched -- unchanged behavior). "04"/"05"/"06" are real player
   // metrics (Combined Efficiency/Recent Form/Opponent Quality) that are NOT among the
   // 25 active codes, so -- unlike before this task -- they now get no row at all.
-  it("instantiates only the 25 active codes plus the two documented exceptions; every other registry code gets zero rows and zero research calls", async () => {
+  it("instantiates active and persistence-only producers plus documented exceptions; every other registry code gets zero rows and zero research calls", async () => {
     const META_SUFFIXES = ["48", "49", "50", "56", "57", "58", "59"];
     const seenByResearch = new Set<string>();
     const { deps, tables } = makeMemoryDeps();
@@ -1250,13 +1253,24 @@ describe("Run Audit pipeline", () => {
     expect(row042!["status"], `metric ${code042} status`).toBe("NO_SOURCE");
     expect(seenByResearch.has(code042), `metric ${code042} was sent to the research provider`).toBe(false);
 
-    // Every remaining instantiated row must be exactly the 25 active codes, and every
-    // one of THOSE must have been sent to research (none of the 25 are META/NO_SOURCE-
-    // classified).
-    const expectedPlayerCodes = new Set(ACTIVE_METRIC_CODES.map((code) => `M${code.replace(/^0/, "")}`));
+    // Every remaining instantiated row must be an active or persistence-only producer,
+    // and every one must have been sent to research.
+    const expectedPlayerCodes = new Set(
+      [...ACTIVE_METRIC_CODES, ...PERSISTENCE_ONLY_METRIC_CODES].map((code) => `M${code.replace(/^0/, "")}`),
+    );
     const playerCodes = metricRows.map((r) => String(r["metric_code"])).filter((c) => !metaCodes.includes(c) && c !== code042);
     expect(new Set(playerCodes)).toEqual(expectedPlayerCodes);
     for (const code of playerCodes) expect(seenByResearch.has(code), `player metric ${code} was never sent to research`).toBe(true);
+    for (const code of PERSISTENCE_ONLY_METRIC_CODES) {
+      const storedCode = `M${code.replace(/^0/, "")}`;
+      expect(metricRows.some((row) => row["metric_code"] === storedCode), `${storedCode} was not persisted`).toBe(true);
+      expect(seenByResearch.has(storedCode), `${storedCode} did not reach normalization/research`).toBe(true);
+    }
+    for (const code of ["037", "039", "040"]) {
+      const quarantinedCode = `M${code.replace(/^0/, "")}`;
+      expect(metricRows.some((row) => row["metric_code"] === quarantinedCode), `${quarantinedCode} quarantine was bypassed`).toBe(false);
+      expect(seenByResearch.has(quarantinedCode), `${quarantinedCode} quarantine reached research`).toBe(false);
+    }
 
     // Codes genuinely classified PROTECTED_UNAVAILABLE (017, 054, 063, 065, 066, 067,
     // 069, 072, 073, 074, 076, 078, 079, 081), every OTHER MATRIX_SUMMARY_REQUIRED
