@@ -14,5 +14,5 @@
   "coverage_pct": 0.0,
   "independent_result_source": null,
   "independent_result_source_error": "https://www.tennis-data.co.uk/2012/2012.xlsx:URLError:<urlopen error [SSL: TLSV1_ALERT_INTERNAL_ERROR] tlsv1 alert internal error (_ssl.c:1000)>; https://www.tennis-data.co.uk/2012/2012.xls:URLError:<urlopen error [SSL: TLSV1_ALERT_INTERNAL_ERROR] tlsv1 alert internal error (_ssl.c:1000)>; https://www.tennis-data.co.uk/2012/2012.csv:URLError:<urlopen error [SSL: TLSV1_ALERT_INTERNAL_ERROR] tlsv1 alert internal error (_ssl.c:1000)>; https://www.tennis-data.co.uk/2012/2012.zip:URLError:<urlopen error [SSL: TLSV1_ALERT_INTERNAL_ERROR] tlsv1 alert internal error (_ssl.c:1000)>",
-  "generated_at_utc": "2026-09-15T17:55:08.352156+00:00"
+  "generated_at_utc": "2026-09-15T17:58:05.896986+00:00"
 }
