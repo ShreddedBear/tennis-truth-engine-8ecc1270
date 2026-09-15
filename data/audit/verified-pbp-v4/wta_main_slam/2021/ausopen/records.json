@@ -1,0 +1,675 @@
+[
+  {
+    "match_id": "2021-ausopen-WS101",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS102",
+    "status": "NO_HIST_MATCH",
+    "player1": "S Sorribes Tormo",
+    "player2": "D Gavrilova"
+  },
+  {
+    "match_id": "2021-ausopen-WS103",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS104",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS105",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS106",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS107",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS108",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS109",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS110",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS111",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS112",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS113",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS114",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS115",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS116",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS117",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS118",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS119",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS120",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS121",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS122",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS123",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS124",
+    "status": "PBP_UNUSABLE",
+    "reason": "ILLEGAL_SET",
+    "detail": {
+      "set": 2,
+      "a": 2,
+      "b": 0
+    }
+  },
+  {
+    "match_id": "2021-ausopen-WS125",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS126",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS127",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS128",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS129",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS130",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS131",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS132",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS133",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS134",
+    "status": "NO_HIST_MATCH",
+    "player1": "S Hsieh",
+    "player2": "T Pironkova"
+  },
+  {
+    "match_id": "2021-ausopen-WS135",
+    "status": "PBP_UNUSABLE",
+    "reason": "ILLEGAL_GAME",
+    "detail": {
+      "set": 1,
+      "a": 0,
+      "b": 2
+    }
+  },
+  {
+    "match_id": "2021-ausopen-WS136",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS137",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS138",
+    "status": "PBP_UNUSABLE",
+    "reason": "ILLEGAL_GAME",
+    "detail": {
+      "set": 2,
+      "a": 0,
+      "b": 2
+    }
+  },
+  {
+    "match_id": "2021-ausopen-WS139",
+    "status": "NO_HIST_MATCH",
+    "player1": "P Tig",
+    "player2": "S Cirstea"
+  },
+  {
+    "match_id": "2021-ausopen-WS140",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS141",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS142",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS143",
+    "status": "PBP_UNUSABLE",
+    "reason": "ILLEGAL_GAME",
+    "detail": {
+      "set": 1,
+      "a": 3,
+      "b": 0
+    }
+  },
+  {
+    "match_id": "2021-ausopen-WS144",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS145",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS146",
+    "status": "NO_HIST_MATCH",
+    "player1": "M Hibi",
+    "player2": "A Schmiedlova"
+  },
+  {
+    "match_id": "2021-ausopen-WS147",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS148",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS149",
+    "status": "NO_HIST_MATCH",
+    "player1": "A Sabalenka",
+    "player2": "V Kuzmova"
+  },
+  {
+    "match_id": "2021-ausopen-WS150",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS151",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS152",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS153",
+    "status": "NO_HIST_MATCH",
+    "player1": "A Riske",
+    "player2": "A Potapova"
+  },
+  {
+    "match_id": "2021-ausopen-WS154",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS155",
+    "status": "NO_HIST_MATCH",
+    "player1": "N Stojanovic",
+    "player2": "I Begu"
+  },
+  {
+    "match_id": "2021-ausopen-WS156",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS157",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS158",
+    "status": "PBP_UNUSABLE",
+    "reason": "ILLEGAL_GAME",
+    "detail": {
+      "set": 1,
+      "a": 2,
+      "b": 3
+    }
+  },
+  {
+    "match_id": "2021-ausopen-WS159",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS160",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS161",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS162",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS163",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS164",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS201",
+    "status": "NO_HIST_MATCH",
+    "player1": "A Barty",
+    "player2": "D Gavrilova"
+  },
+  {
+    "match_id": "2021-ausopen-WS202",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS203",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS204",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS205",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS206",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS207",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS208",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS209",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS210",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS211",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS212",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS213",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS214",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS215",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS216",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS217",
+    "status": "NO_HIST_MATCH",
+    "player1": "B Andreescu",
+    "player2": "S Hsieh"
+  },
+  {
+    "match_id": "2021-ausopen-WS218",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS219",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS220",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS221",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS222",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS223",
+    "status": "NO_HIST_MATCH",
+    "player1": "O Jabeur",
+    "player2": "A Schmiedlova"
+  },
+  {
+    "match_id": "2021-ausopen-WS224",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS225",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS226",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS227",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS228",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS229",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS230",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS231",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS232",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS301",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS302",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS303",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS304",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS305",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS306",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS307",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS308",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS309",
+    "status": "NO_HIST_MATCH",
+    "player1": "S Hsieh",
+    "player2": "S Errani"
+  },
+  {
+    "match_id": "2021-ausopen-WS310",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS311",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS312",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS313",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS314",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS315",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS316",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS401",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS402",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS403",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS404",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS405",
+    "status": "NO_HIST_MATCH",
+    "player1": "S Hsieh",
+    "player2": "M Vondrousova"
+  },
+  {
+    "match_id": "2021-ausopen-WS406",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS407",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS408",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS501",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS502",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS503",
+    "status": "NO_HIST_MATCH",
+    "player1": "S Hsieh",
+    "player2": "N Osaka"
+  },
+  {
+    "match_id": "2021-ausopen-WS504",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS601",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS602",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2021-ausopen-WS701",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  }
+]

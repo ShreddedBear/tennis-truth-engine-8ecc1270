@@ -1,0 +1,655 @@
+[
+  {
+    "match_id": "2020-ausopen-2101",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2102",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2103",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2104",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2105",
+    "status": "NO_HIST_MATCH",
+    "player1": "A. Riske",
+    "player2": "Y. Wang"
+  },
+  {
+    "match_id": "2020-ausopen-2106",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2107",
+    "status": "NO_HIST_MATCH",
+    "player1": "J. Goerges",
+    "player2": "V. Kuzmova"
+  },
+  {
+    "match_id": "2020-ausopen-2108",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2109",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2110",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2111",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2112",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2113",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2114",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2115",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2116",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2117",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2118",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2119",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2120",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2121",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2122",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2123",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2124",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2125",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2126",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2127",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2128",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2129",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2130",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2131",
+    "status": "NO_HIST_MATCH",
+    "player1": "T. Zidansek",
+    "player2": "N. Han"
+  },
+  {
+    "match_id": "2020-ausopen-2132",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2133",
+    "status": "NO_HIST_MATCH",
+    "player1": "B. Bencic",
+    "player2": "A. Schmiedlova"
+  },
+  {
+    "match_id": "2020-ausopen-2134",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2135",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2136",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2137",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2138",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2139",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2140",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2141",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2142",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2143",
+    "status": "NO_HIST_MATCH",
+    "player1": "C. Bellis",
+    "player2": "T. Maria"
+  },
+  {
+    "match_id": "2020-ausopen-2144",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2145",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2146",
+    "status": "NO_HIST_MATCH",
+    "player1": "Y. Putintseva",
+    "player2": "S. Hsieh"
+  },
+  {
+    "match_id": "2020-ausopen-2147",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2148",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2149",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2150",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2151",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2152",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2153",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2154",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2155",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2156",
+    "status": "NO_HIST_MATCH",
+    "player1": "I. Begu",
+    "player2": "K. Bertens"
+  },
+  {
+    "match_id": "2020-ausopen-2157",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2158",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2159",
+    "status": "NO_HIST_MATCH",
+    "player1": "K. Kozlova",
+    "player2": "P. Hon"
+  },
+  {
+    "match_id": "2020-ausopen-2160",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2161",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2162",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2163",
+    "status": "PBP_UNUSABLE",
+    "reason": "ILLEGAL_GAME",
+    "detail": {
+      "set": 2,
+      "a": 2,
+      "b": 0
+    }
+  },
+  {
+    "match_id": "2020-ausopen-2164",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2201",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2202",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2203",
+    "status": "NO_HIST_MATCH",
+    "player1": "A. Riske",
+    "player2": "L. Zhu"
+  },
+  {
+    "match_id": "2020-ausopen-2204",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2205",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2206",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2207",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2208",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2209",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2210",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2211",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2212",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2213",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2214",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2215",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2216",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2217",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2218",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2219",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2220",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2221",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2222",
+    "status": "NO_HIST_MATCH",
+    "player1": "C. Bellis",
+    "player2": "K. Muchova"
+  },
+  {
+    "match_id": "2020-ausopen-2223",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2224",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2225",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2226",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2227",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2228",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2229",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2230",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2231",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2232",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2301",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2302",
+    "status": "NO_HIST_MATCH",
+    "player1": "A. Riske",
+    "player2": "J. Goerges"
+  },
+  {
+    "match_id": "2020-ausopen-2303",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2304",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2305",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2306",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2307",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2308",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2309",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2310",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2311",
+    "status": "NO_HIST_MATCH",
+    "player1": "E. Mertens",
+    "player2": "C. Bellis"
+  },
+  {
+    "match_id": "2020-ausopen-2312",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2313",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2314",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2315",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2316",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2401",
+    "status": "NO_HIST_MATCH",
+    "player1": "A. Barty",
+    "player2": "A. Riske"
+  },
+  {
+    "match_id": "2020-ausopen-2402",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2403",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2404",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2405",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2406",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2407",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2408",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2501",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2502",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2503",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2504",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2601",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2602",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  },
+  {
+    "match_id": "2020-ausopen-2701",
+    "status": "RESULT_VERIFIED_PBP",
+    "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED"
+  }
+]

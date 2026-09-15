@@ -52,10 +52,17 @@ export const YELLOW_METRIC_SOURCES: YellowSectionSource[] = [
     name: "Point-by-Point & Score-State Metrics",
     sources: [
       { id: "mcp", name: "Match Charting Project", url: "https://github.com/JeffSackmann/tennis_MatchChartingProject", role: "shot type/direction, serve direction, return depth, errors, rally and net data for charted matches", access: "NONCOMMERCIAL_ONLY" },
+      // WTA Main historical PBP (docs/WTA_MAIN_HISTORICAL_PBP_ATTRIBUTION.md): non-Slam
+      // 2011-2015 lane has NO stated license at all (weaker than CC BY-NC-SA -- flagged
+      // NONCOMMERCIAL_ONLY as the conservative default pending direct confirmation, not
+      // because the source itself states those terms). Slam 2016-2024 lane is confirmed
+      // CC BY-NC-SA 4.0, same as MCP above.
+      { id: "sackmann_wta_main_nonslam", name: "ppaulojr/tennis_pointbypoint (WTA Main, 2011-2015)", url: "https://github.com/ppaulojr/tennis_pointbypoint", role: "server/point-winner/ace/double-fault sequence for non-Slam WTA Main matches, cross-verified against a local Tennis-Data.co.uk sync", access: "NONCOMMERCIAL_ONLY" },
+      { id: "sackmann_wta_main_slam", name: "Jeff Sackmann tennis_slam_pointbypoint (WTA Main, 2016-2024)", url: "https://github.com/JeffSackmann/tennis_slam_pointbypoint", role: "per-point server/winner/ace/double-fault sequence for WTA Grand Slam matches", access: "NONCOMMERCIAL_ONLY" },
     ],
     reconstruct: true,
     universalCoverage: false,
-    limitation: "MCP covers only charted matches and is CC BY-NC-SA 4.0. Universal shot-level history is impossible from this source.",
+    limitation: "MCP covers only charted matches and is CC BY-NC-SA 4.0. Universal shot-level history is impossible from this source. WTA Main historical PBP (2011-2024, both lanes) is real point-level data, not merely charted, but is licensed/attributed only for non-commercial use -- see docs/WTA_MAIN_HISTORICAL_PBP_ATTRIBUTION.md -- and does not cover 2016-2024 non-Slam matches or any year before 2011 at all.",
   },
   {
     section: 19,

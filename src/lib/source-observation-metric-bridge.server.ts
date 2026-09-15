@@ -5,6 +5,7 @@ import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-
 import { inferRepositoryMatchContext } from "./repository-results-history.server";
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
+import { buildSackmannWtaMainPbpContext } from "./sackmann-wta-main-pbp.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
 import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
 
@@ -117,7 +118,20 @@ async function approvedPbpPacket(args: { metrics: MetricLike[]; p1: string; p2: 
   if (!tour || !context) return {} as Record<string, any>;
   const input = { metrics: args.metrics, p1: args.p1, p2: args.p2, asOfDate: args.asOfDate, context };
   if (tour === "ATP_MAIN") return (await buildBsdAtpMainPbpContext(input)).packet as Record<string, any>;
-  if (tour === "WTA_MAIN") return (await buildBsdWtaMainPbpContext(input)).packet as Record<string, any>;
+  if (tour === "WTA_MAIN") {
+    // Merge two independent WTA Main PBP sources: the live BSD/Bzzoiro feed
+    // (2024-12-02 onward, fetched per-query, never persisted) and the persisted
+    // historical Sackmann-sourced archive (2011-2015 non-Slam, 2016-2024 Grand
+    // Slam -- see sackmann-wta-main-pbp.server.ts). Their date ranges do not
+    // overlap, but merging both through mergePacketEntry (already used just below
+    // to merge the PBP packet into the base observation packet) keeps engine
+    // callers agnostic to which source actually served a given match, while each
+    // observation's own provenance.approval_source/trust_level still says which one.
+    const [bsd, sackmann] = await Promise.all([buildBsdWtaMainPbpContext(input), buildSackmannWtaMainPbpContext(input)]);
+    const merged: Record<string, any> = { ...bsd.packet };
+    for (const code of Object.keys(sackmann.packet)) merged[code] = mergePacketEntry(merged[code], (sackmann.packet as Record<string, any>)[code]);
+    return merged;
+  }
   if (tour === "ATP_CHALLENGER") return (await buildBsdAtpChallengerPbpContext(input)).packet as Record<string, any>;
   return (await buildBsdWtaChallengerPbpContext(input)).packet as Record<string, any>;
 }

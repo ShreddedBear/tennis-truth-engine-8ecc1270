@@ -1,0 +1,15 @@
+{
+  "verifier_version": 1,
+  "tour": "WTA_MAIN",
+  "year": 2016,
+  "slam": "ausopen",
+  "womens_singles_matches_listed": 116,
+  "historical_grand_slam_matches_this_slam_year": 127,
+  "verified": 93,
+  "no_points_for_match": 0,
+  "pbp_unusable": 4,
+  "no_hist_match": 19,
+  "conflicts": 0,
+  "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED",
+  "generated_at_utc": "2026-09-15T15:48:34.509822+00:00"
+}

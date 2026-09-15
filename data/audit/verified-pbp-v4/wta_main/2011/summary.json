@@ -1,0 +1,18 @@
+{
+  "verifier_version": 1,
+  "tour": "WTA_MAIN",
+  "year": 2011,
+  "historical_matches": 2467,
+  "pbp_candidates": 1433,
+  "verified": 156,
+  "review_required": 239,
+  "ambiguous": 127,
+  "conflicts": 275,
+  "no_pbp": 1670,
+  "retrieval_failures": 0,
+  "access_limitations": 0,
+  "coverage_pct": 6.32,
+  "independent_result_source": "data/public/tennis-data-wta/wta_matches_2007_2016.csv",
+  "independent_result_source_error": null,
+  "generated_at_utc": "2026-09-15T15:49:33.413621+00:00"
+}

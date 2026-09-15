@@ -21,6 +21,7 @@ import { appendMetricObservationContext, buildMetricObservationContext } from ".
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
 import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
+import { buildSackmannWtaMainPbpContext } from "./sackmann-wta-main-pbp.server";
 import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
 import { localMetricRows } from "./hybrid-audit-research.server";
 import { officialWtaMetricRows } from "./wta-official-match-evidence.server";
@@ -336,7 +337,7 @@ export const warehouseFirstResearcher: Researcher = {
     let liveRows: MetricFinding[] = [];
     if (liveMissing.length) {
       const sourceFallback = { packet: {}, status: { outcome: "SOURCE_TIMEOUT" } } as any;
-      const [warehouseResult, challengerResult, atpMainResult, wtaMainResult, wtaChallengerResult] = await researchWorkPool.runWithBudget(
+      const [warehouseResult, challengerResult, atpMainResult, wtaMainResult, wtaChallengerResult, sackmannWtaMainResult] = await researchWorkPool.runWithBudget(
         "source-packets",
         SOURCE_PACKET_BUDGET_MS,
         () => Promise.all([
@@ -345,8 +346,11 @@ export const warehouseFirstResearcher: Researcher = {
           buildBsdAtpMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
           buildBsdWtaMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
           buildBsdWtaChallengerPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
+          // Persisted historical WTA Main PBP (Sackmann-sourced, 2011-2024), distinct from
+          // bsdWtaMainPbp's live-only BSD feed above -- see sackmann-wta-main-pbp.server.ts.
+          buildSackmannWtaMainPbpContext({ metrics: liveMissing, p1, p2, asOfDate: date, context: input.context }),
         ]),
-        () => [{}, sourceFallback, sourceFallback, sourceFallback, sourceFallback],
+        () => [{}, sourceFallback, sourceFallback, sourceFallback, sourceFallback, sourceFallback],
       );
       console.log(`[research-timing] source packets ${Date.now()-callStartedAt}ms`);
       const unavailablePbp = sourceFallback;
@@ -355,10 +359,12 @@ export const warehouseFirstResearcher: Researcher = {
       const bsdAtpMainPbp = atpMainResult ?? unavailablePbp;
       const bsdWtaMainPbp = wtaMainResult ?? unavailablePbp;
       const bsdWtaChallengerPbp = wtaChallengerResult ?? unavailablePbp;
+      const sackmannWtaMainPbp = sackmannWtaMainResult ?? unavailablePbp;
       let observationPacket = mergeObservationPackets(warehousePacket, bsdAtpChallengerPbp.packet);
       observationPacket = mergeObservationPackets(observationPacket, bsdAtpMainPbp.packet);
       observationPacket = mergeObservationPackets(observationPacket, bsdWtaMainPbp.packet);
       observationPacket = mergeObservationPackets(observationPacket, bsdWtaChallengerPbp.packet);
+      observationPacket = mergeObservationPackets(observationPacket, sackmannWtaMainPbp.packet);
 
       for (const metric of liveMissing) {
         const code = codeOf(metric.code);

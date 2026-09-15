@@ -1,0 +1,15 @@
+{
+  "verifier_version": 1,
+  "tour": "WTA_MAIN",
+  "year": 2021,
+  "slam": "ausopen",
+  "womens_singles_matches_listed": 127,
+  "historical_grand_slam_matches_this_slam_year": 127,
+  "verified": 109,
+  "no_points_for_match": 0,
+  "pbp_unusable": 5,
+  "no_hist_match": 13,
+  "conflicts": 0,
+  "trust_level": "LEVEL_2_SINGLE_SOURCE_STRUCTURALLY_VALIDATED",
+  "generated_at_utc": "2026-09-15T15:49:06.160676+00:00"
+}
