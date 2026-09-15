@@ -598,6 +598,115 @@ diff`); this is audit-only, as requested. If there is a specific "Live Tennis AP
 account/domain/product this project already holds that wasn't surfaced by this search, naming it
 would let this be checked directly rather than left as a negative result.
 
+## Addendum 5 — precise licensing classification of `ppaulojr/tennis_pointbypoint`
+
+Prior addenda called this source "unlicensed" and excluded it. That word was doing too much
+work: it correctly describes the absence of an explicit grant, but on its own it invites the
+wrong inference — that absence of a license is equivalent to a blanket "never usable." It isn't.
+This addendum gives the actual restriction, precisely, and separates two things that were being
+treated as one: reproducing ppaulojr's specific file, versus using the underlying match facts.
+
+### What was actually checked (not assumed)
+
+- **GitHub's license field**: `null` (confirmed via `api.github.com/repos/ppaulojr/tennis_pointbypoint`
+  in Addendum 3) — GitHub's own license detector finds nothing.
+- **Full git history, this session**: exactly one commit ever
+  (`3d3bfc6`, 2015-04-18, "Update README.md"). No `LICENSE`, `COPYING`, or `TERMS` file has
+  existed at any point in this repository's history — checked with `git log --all --diff-filter=A
+  --name-only` across every commit, not just the current tree.
+- **`.gitattributes`/`.gitignore`**: boilerplate (line-ending rules, OS/IDE junk-file excludes)
+  from a generic project template — no license or terms text hidden there.
+- **README.md**: read in full (Addendum 3) — no license section, no terms-of-use statement, no
+  attribution requirement, no permission statement of any kind, by ppaulojr or referencing anyone
+  else.
+- **GitHub user profile** (`api.github.com/users/ppaulojr`): could not be retrieved this session
+  (rate-limited); not load-bearing for the conclusion below, which rests on the repository
+  contents themselves.
+
+**Conclusion: this is not "a restrictive license." It is the complete absence of any license or
+usage statement, from the author, anywhere, ever.**
+
+### What "no license" actually means — and what it does not mean
+
+Silence is not the same as public domain, and it is not the same as "permitted because the
+product is free." Under default copyright law and GitHub's own Terms of Service (Section D —
+"License Grant to Other Users"), a public repository with no license file grants other GitHub
+users only a narrow right to **view and fork it on GitHub's platform**. That default grant does
+**not** extend to copying, storing, transforming, or redistributing the content outside GitHub,
+for any purpose — and critically, **this has nothing to do with whether the downstream use is
+paid or free, internal or public**. A "no license" repository is not more permissive for
+non-commercial use; it grants no use permission at all, commercial or non-commercial. This is
+the precise point that needed correcting: **Tennis Matrix AI being free does not change this
+source's status**, not because free products are held to a stricter standard, but because the
+absence of a license doesn't grant an exception for free/internal use in the first place — there
+is no grant to carve an exception out of.
+
+### The distinction that does matter: the compiled file vs. the underlying facts
+
+This is the real, substantive distinction the prior wording collapsed, and it is genuine:
+
+1. **ppaulojr's specific CSV files** — the exact rows, the specific parsing/cleaning/exclusion
+   choices described in his README ("I've done what I can to present only relatively clean
+   data... exclusion of retirements... probably imperfect parser") — are very plausibly protected
+   by compilation copyright as *his* particular selection, arrangement, and cleaned expression of
+   the underlying data, even though he holds no rights over the underlying tennis matches
+   themselves. **Reproducing his file verbatim — which is exactly what the existing pipeline
+   does** (`verify-challenger-pbp.py` fetches his exact CSVs, and `pbp_ref.pbp_sha256` records a
+   hash of his exact `pbp` string, byte-for-byte) **is the higher-risk case**: it is literal
+   copying of his specific compiled artifact, not independent re-derivation of the facts.
+2. **The underlying facts** (which player served a given point, who won it, the resulting score)
+   are, under U.S. case law such as *Feist Publications, Inc. v. Rural Telephone Service Co.*
+   (1991), generally not copyrightable in themselves — facts and scores are not "original
+   expression" regardless of who first recorded them. If this project (or an approved source it
+   already uses) **independently re-derived the same point sequence from its own original
+   source** — e.g., BSD/Bzzoiro's own live feed, or a licensed provider — rather than copying
+   ppaulojr's file, that would not carry ppaulojr's compilation-copyright risk at all, because
+   nothing of his would have been reproduced. This is exactly the shape of the recommendation
+   already given for MCP in Addendum 2 (use MCP's own independently-compiled file, not ppaulojr's).
+
+So the honest classification is not "ppaulojr is contaminated, forever unusable." It is: **the
+specific file ppaulojr compiled cannot be verbatim-copied or redistributed without a license from
+him** (none exists), **while the underlying match facts it describes are not, by themselves, his
+to restrict** — but this project has no *independent* way to re-obtain those specific 2010–2015
+point sequences without going back through his file, since the underlying source data he scraped
+was never identified in his README and is not otherwise available to this project. That is the
+actual blocker: not "no license = never usable" as a blanket rule, but "no license, and no
+independent path to the same facts that doesn't route through his specific compiled artifact."
+
+### Internal statistical use vs. redistribution — also a real distinction, also not a full cure
+
+Computing derived, aggregate statistics internally from ppaulojr's file, and never republishing
+his raw rows or raw `pbp` strings to end users, is a materially different — and lower-risk —
+posture than redistributing his file wholesale. This project already applies exactly this
+pattern elsewhere (e.g., the API-Tennis integration in the sibling stats-engine repo is
+restricted to derived proxies "because... any serve/return... module must be a proxy derived
+from set/game score margins," per that provider's own terms). Applied here, internal-only,
+aggregate-only use of ppaulojr's data would reduce real-world exposure relative to redistributing
+his CSVs directly. **It does not eliminate the underlying reproduction event** — the existing
+pipeline already fetches and stores (transiently) his exact file content and hashes his exact
+`pbp` string to identify a match; under a strict reading of a reproduction right, that copying
+already occurred regardless of what is or isn't shown externally afterward. Internal use lowers
+enforcement risk; it does not convert an unlicensed copy into a licensed one.
+
+### Where this leaves the classification
+
+This project's own existing written standard for third-party data
+(`THIRD_PARTY_DATA.md`: *"Do not add a dataset to the production evidence store unless its
+commercial reuse terms have been verified"*) sets the bar at **verified terms**, not **absence of
+a known prohibition**. Silence is the opposite of verified. By that already-existing,
+already-applied internal standard — not a new rule invented for this addendum — ppaulojr's file
+does not currently clear the bar for the production evidence store, **for the specific reason
+that no terms exist to verify**, not because "no license" was assumed to mean "forbidden." This
+is not a legal opinion (this audit is not a substitute for legal counsel and does not attempt to
+give one) and it is not this audit's call to make unilaterally: **it is exactly the kind of
+determination `THIRD_PARTY_DATA.md` already designates for a human to resolve.** What can be
+stated as fact rather than opinion: no license exists, no terms have been stated by the author at
+any point in the repository's history, and the specific compiled artifact (not the underlying
+facts) is the part that would need either a license grant or independent re-derivation before
+this project's own written bar is met. No mapping, code, or policy file was changed to reflect a
+new classification — this is a precision correction to the prior wording, recorded for whoever
+makes that call.
+
 ## Remaining gaps
 
 1. **2023 BSD scan incomplete.** `data/audit/bsd-atp-challenger-pbp-history/queue.json`
