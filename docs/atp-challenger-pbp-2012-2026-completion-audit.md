@@ -514,6 +514,90 @@ Sackmann corpus — it points at the same unlicensed file this repository alread
 only legitimate expansion path already identified remains Addendum 2's MCP corpus (407 matches,
 51 of them 2012–2015, 12 of those already identity-matched to the existing 9,218).
 
+## Addendum 4 — second expansion audit: Source 1 reconfirmed, "Live Tennis API" not found
+
+**Source 1 (JeffSackmann/tennis_pointbypoint) — reconfirmed nonexistent, three independent
+ways this pass**, in response to a report of "conflicting evidence": (1) a direct fetch of
+`api.github.com/repos/JeffSackmann/tennis_pointbypoint` returned HTTP 403 this time rather than
+404 — this is almost certainly unauthenticated GitHub API rate-limiting noise on the fetch path,
+not a signal that the repository exists (a 403 on a private repo and a rate-limit 403 are
+indistinguishable from an unauthenticated caller, so it is not treated as evidence either way);
+(2) the GitHub search API, queried authenticated via this session's GitHub App integration with
+`repo:JeffSackmann/tennis_pointbypoint`, returned: *"The listed users and repositories cannot be
+searched either because the resources do not exist or you do not have permission to view them"*
+— GitHub's own authenticated API explicitly rejecting the path; (3) `user:JeffSackmann` search
+still returns exactly one repository, `tennis_MatchChartingProject` (the MCP corpus already
+counted in Addendum 2). A direct anonymous git clone attempt also still fails the same way as in
+Addendum 3 (falls through to requiring credentials, the proxy's behavior for a target that
+doesn't resolve). **Conclusion unchanged from Addendum 3: this repository does not exist. Answer
+remains 0.** Per source policy for this pass, `ppaulojr/tennis_pointbypoint` (the real repository
+holding those four filenames, already fully audited in Addendum 3) is not treated as an approved
+source and was not re-ingested or re-counted here.
+
+**Source 2 ("Live Tennis API") — no service by that name found in either repository.** A broad,
+repeated search (case-insensitive, across code, docs, memory files, and every `*_API_KEY`-style
+env var name referenced in both repos) found no service literally named "Live Tennis API" in
+`tennis-truth-engine-8ecc1270` or `tennis-stats-engine`. Two candidates were checked because they
+are the closest real matches to that description:
+
+1. **`api-tennis.com` ("API-Tennis"), `API_TENNIS_KEY`** — the actual live tennis data API
+   integrated in `tennis-stats-engine` (`artifacts/api-server/src/services/tennisData/apiTennisProvider.ts`),
+   already approved and in production use there for fixtures, H2H, standings, and live scores
+   (not PBP). Checked directly in the source code (`get_fixtures`, `get_H2H`, `get_standings`,
+   `get_players`, `get_tournaments` — no `get_pointbypoint`-style method exists) and against a
+   dedicated memory note (`.agents/memory/api-tennis-provider.md`): **"No point-level serve/return
+   stats exist from this provider — any serve/return or style-matchup module must be a proxy
+   derived from set/game score margins."** This is a direct, in-repo, previously-recorded
+   statement that this provider has zero point-by-point capability, for any tour or level — not
+   just Challenger. `API_TENNIS_KEY` is not set in this session, so no live call could be made to
+   double-check that finding, and `api-tennis.com`'s own public documentation is unreachable from
+   this sandbox (blocked by the network egress proxy at the domain level) — both limits are
+   reported rather than worked around. Based on the evidence that is available (source code plus
+   a note written from direct prior testing against the live API), this provider does not offer
+   the Challenger PBP coverage described in this pass's brief.
+2. **ProTennisLive, `PROTENNISLIVE_API_KEY`** (found in `tennis-truth-engine-8ecc1270`) — not a
+   PBP source at all (rankings/results only), and not currently approved: two regression tests
+   (`src/lib/ingestion/tour-results-schedule.test.ts`, `src/lib/github-oidc-ingestion-bridge.test.ts`)
+   explicitly assert the current results/schedule adapter does **not** contain
+   `PROTENNISLIVE_API_KEY` or `api.protennislive.com`, and `docs/historical-hard-pull-source-inventory.md`
+   describes it as a later, non-required addition. This is a previously-removed/rejected source
+   actively guarded against reintroduction, not an approved one.
+
+**Neither candidate matches this pass's description** (Challenger PBP from January 2023 onward,
+under an already-approved account). No number is fabricated for either. If a specific product
+name, domain, or account is meant that isn't one of the two checked here, naming it precisely
+would let this audit check it directly rather than guessing further.
+
+**Source 3 (MCP)** — unchanged, treated strictly as the existing 407-match baseline. Not
+re-counted, not duplicated, not modified.
+
+### Source-by-source table
+
+| Source | Years | Raw PBP matches | Valid matches | Overlap w/ 407 | Overlap w/ 9,218 | Overlap w/ BSD (1,740) | New legitimate matches | License/access status | Ingest? |
+|---|---|---:|---:|---:|---:|---:|---:|---|---|
+| `JeffSackmann/tennis_pointbypoint` | — | — | — | — | — | — | 0 | Does not exist (confirmed 3 ways) | NO |
+| `ppaulojr/tennis_pointbypoint` (for reference only — same file re-verified in Addendum 3) | 2010–2015 | 16,505 | 16,505 (charset-valid) | 15 | 9,218 (100% — this file is their source) | 0 | 0 | No license (`license: null`), unaffiliated, explicitly excluded by this pass's source policy | NO |
+| "Live Tennis API" (as named) | — | — | — | — | — | — | 0 | Not found under that name in either repo | N/A |
+| `api-tennis.com` / API-Tennis (`API_TENNIS_KEY`) | N/A | 0 | 0 | 0 | 0 | 0 | 0 | Approved & active for non-PBP data; confirmed no PBP capability in code + memory note; key not present this session; provider docs unreachable (egress-blocked) | NO (no PBP product) |
+| ProTennisLive (`PROTENNISLIVE_API_KEY`) | N/A | 0 | 0 | 0 | 0 | 0 | 0 | Previously removed; actively blocked from reintroduction by tests; not PBP | NO |
+| MCP (baseline) | 2013–2026 | 407 | 407 | — (is the 407) | 12 (of 51 in 2012–2015) | 0 | 0 (already counted) | CC BY-NC-SA 4.0, same category already accepted for `tennis_atp` | Baseline, unchanged |
+
+### Answer
+
+**What is the maximum legitimate ATP Challenger PBP coverage we can add beyond the 407 MCP
+matches, using sources we are actually authorized to use, verified this session?**
+
+**Zero**, from every source checked in this pass. The requested Jeff Sackmann repository does
+not exist; the file that does exist under similar names is the same unlicensed, already-exhausted
+source excluded by this pass's own policy; and no "Live Tennis API" with Challenger PBP from
+2023 could be located in either repository — the two closest real candidates are either
+demonstrably PBP-incapable (API-Tennis) or not currently approved and actively blocked
+(ProTennisLive). **The 407 MCP matches remain the only legitimate expansion identified across
+all audit passes.** No production writes were made this turn (confirmed by `git status`/`git
+diff`); this is audit-only, as requested. If there is a specific "Live Tennis API"
+account/domain/product this project already holds that wasn't surfaced by this search, naming it
+would let this be checked directly rather than left as a negative result.
+
 ## Remaining gaps
 
 1. **2023 BSD scan incomplete.** `data/audit/bsd-atp-challenger-pbp-history/queue.json`
