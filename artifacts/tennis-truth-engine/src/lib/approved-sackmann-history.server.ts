@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 import { boolean, jsonb, pgTable, serial, text as pgText, timestamp } from "drizzle-orm/pg-core";
 
 import { tryQuery } from "@/db/try-query";
@@ -25,6 +25,7 @@ const historicalMatchesTable = pgTable("historical_matches", {
   sourceUrl: pgText("source_url"),
   sourceLicense: pgText("source_license"),
   importProvenance: jsonb("import_provenance"),
+  rawSource: jsonb("raw_source"),
 });
 const canonicalPlayersTable = pgTable("canonical_players", {
   id: pgText("id"),
@@ -79,6 +80,7 @@ export type SackmannMatchRow = {
   sourceUrl?: string | null;
   sourceLicense?: string | null;
   importProvenance?: unknown;
+  rawTournamentLevel?: string | null;
 };
 
 type Provenance = {
@@ -172,6 +174,13 @@ function approvedProvenance(row: SackmannMatchRow): row is SackmannMatchRow & {
 function familyFor(row: SackmannMatchRow): "ATP_MAIN" | "WTA_MAIN" | "ATP_CHALLENGER" | "WTA_CHALLENGER" | null {
   const tour = text(row.tour).toUpperCase();
   if (tour !== "ATP" && tour !== "WTA") return null;
+  const rawLevel = text(row.rawTournamentLevel).toUpperCase();
+  const sourceFile = text(row.sourceFile);
+  // WTA supplementary files mix tour qualifying with ITF prize-money levels. The normalized
+  // warehouse level cannot preserve that distinction, so admit only the non-ITF raw levels.
+  if (/^wta\/wta_matches_qual_itf_\d{4}\.csv$/i.test(sourceFile) && (/^\d+$/.test(rawLevel) || rawLevel === "W")) {
+    return null;
+  }
   const level = `${text(row.tournamentLevel)} ${text(row.tournamentName)}`.toLowerCase();
   // The existing HistoryLane has four families. ITF rows are deliberately not
   // relabeled as tour-level history; they remain unavailable rather than being
@@ -328,6 +337,7 @@ async function loadApprovedSackmannHistoryUncached(asOfDate: string): Promise<Ap
     sourceUrl: historicalMatchesTable.sourceUrl,
     sourceLicense: historicalMatchesTable.sourceLicense,
     importProvenance: historicalMatchesTable.importProvenance,
+    rawTournamentLevel: sql<string | null>`${historicalMatchesTable.rawSource}->>'tourney_level'`,
   }).from(historicalMatchesTable).where(and(
     eq(historicalMatchesTable.provider, PROVIDER),
     lt(historicalMatchesTable.scheduledStartAt, new Date(cutoff)),

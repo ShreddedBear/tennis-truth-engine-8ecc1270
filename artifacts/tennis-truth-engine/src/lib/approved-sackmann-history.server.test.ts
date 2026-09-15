@@ -81,6 +81,30 @@ describe("approved Sackmann HistoryLane adapter", () => {
     expect(result.lanes.ATP_MAIN).toEqual({});
   });
 
+  it("does not relabel WTA ITF prize-money rows as tour-level history", () => {
+    const sourceFile = "wta/wta_matches_qual_itf_2024.csv";
+    const sourceUrl = `https://raw.githubusercontent.com/Aneeshers/tennis-sackmann-archive/main/${sourceFile}`;
+    const result = buildApprovedSackmannHistoryLanes([
+      row({
+        tour: "WTA",
+        sourceFile,
+        sourceUrl,
+        rawTournamentLevel: "25",
+        importProvenance: {
+          importer: "approved-aneeshers-sackmann",
+          repository: "Aneeshers/tennis-sackmann-archive",
+          branch: "main",
+          sourceFile,
+          sourceUrl,
+          sourceLicense: "CC BY-NC-SA 4.0",
+        },
+      }),
+    ], identities, aliases, "2024-01-11");
+
+    expect(result.accepted).toBe(0);
+    expect(result.lanes.WTA_MAIN).toEqual({});
+  });
+
   it("fails closed before querying when the requested cutoff is invalid", async () => {
     const result = await loadApprovedSackmannHistory("not-a-date");
     expect(result.available).toBe(false);
