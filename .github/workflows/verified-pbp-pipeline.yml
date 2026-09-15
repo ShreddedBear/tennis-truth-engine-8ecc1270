@@ -50,6 +50,17 @@ jobs:
       - name: Install verifier dependencies
         run: python3 -m pip install --quiet pandas openpyxl xlrd
 
+      - name: Diagnose tennis-data.co.uk reachability (cheap, no python deps)
+        continue-on-error: true
+        run: |
+          for url in "https://www.tennis-data.co.uk/${{ inputs.year }}/${{ inputs.year }}.xlsx" "https://www.tennis-data.co.uk/alldata.php"; do
+            echo "=== $url ==="
+            curl -sS -v -o /dev/null -m 20 \
+              -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' \
+              "$url" 2>&1 | tail -25
+            echo
+          done
+
       - name: Verify one ATP/WTA year batch with firewalls
         run: |
           python3 scripts/verify-sackmann-pbp-v4.py --tour "${{ inputs.tour }}" --year "${{ inputs.year }}"

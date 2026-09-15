@@ -161,7 +161,7 @@ def read_td(tour,year):
       except Exception:sets.append(f'{a}-{b}')
     rows.append({'date':d,'winner':w,'loser':l,'tournament':pick(r,'Tournament'),'surface':pick(r,'Surface'),'round':pick(r,'Round'),'score':' '.join(sets),'source_url':url})
    if rows:return rows,url,None
-  except Exception as e:errs.append(f'{url}:{type(e).__name__}')
+  except Exception as e:errs.append(f'{url}:{type(e).__name__}:{e}')
  return [],'', '; '.join(errs) or 'NO_INDEPENDENT_RESULT_SOURCE'
 
 def run(tour,year):
