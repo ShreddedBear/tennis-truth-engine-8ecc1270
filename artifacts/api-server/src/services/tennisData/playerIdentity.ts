@@ -1,4 +1,4 @@
-import { and, desc, eq, sql, type SQLWrapper } from "drizzle-orm";
+import { and, asc, desc, eq, gt, sql, type SQLWrapper } from "drizzle-orm";
 import { db, historicalMatchesTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import type { PlayerProfile, PlayerSummary, TennisDataProvider } from "./types";
@@ -244,31 +244,49 @@ export interface PlayerIdentityIndex {
 
 /** Builds a fresh `PlayerIdentityIndex` from every singles sighting in `historical_matches`. */
 export async function buildPlayerIdentityIndex(): Promise<PlayerIdentityIndex> {
-  const [player1Rows, player2Rows] = await Promise.all([
-    db
-      .select({ id: historicalMatchesTable.player1Id, name: historicalMatchesTable.player1Name, scheduledStartAt: historicalMatchesTable.scheduledStartAt })
-      .from(historicalMatchesTable),
-    db
-      .select({ id: historicalMatchesTable.player2Id, name: historicalMatchesTable.player2Name, scheduledStartAt: historicalMatchesTable.scheduledStartAt })
-      .from(historicalMatchesTable),
-  ]);
-
   // normalizedName -> (playerId -> { minSeenAt, maxSeenAt } under that name)
   const byName = new Map<string, Map<string, { minSeenAt: number; maxSeenAt: number }>>();
-  for (const row of [...player1Rows, ...player2Rows]) {
-    if (!isSinglesName(row.name)) continue;
-    const normalized = normalizePlayerName(row.name);
-    if (!normalized) continue;
+  const consume = (id: string, name: string, scheduledStartAt: Date) => {
+    if (!isSinglesName(name)) return;
+    const normalized = normalizePlayerName(name);
+    if (!normalized) return;
     const idMap = byName.get(normalized) ?? new Map<string, { minSeenAt: number; maxSeenAt: number }>();
-    const seenAt = row.scheduledStartAt.getTime();
-    const existing = idMap.get(row.id);
+    const seenAt = scheduledStartAt.getTime();
+    const existing = idMap.get(id);
     if (existing) {
       existing.minSeenAt = Math.min(existing.minSeenAt, seenAt);
       existing.maxSeenAt = Math.max(existing.maxSeenAt, seenAt);
     } else {
-      idMap.set(row.id, { minSeenAt: seenAt, maxSeenAt: seenAt });
+      idMap.set(id, { minSeenAt: seenAt, maxSeenAt: seenAt });
     }
     byName.set(normalized, idMap);
+  };
+
+  // Keep memory proportional to the identity index, not to the entire match corpus.
+  // A single paged query also avoids retaining two full player-side arrays plus a spread copy.
+  const pageSize = 10_000;
+  let cursor = 0;
+  for (;;) {
+    const rows = await db
+      .select({
+        rowId: historicalMatchesTable.id,
+        player1Id: historicalMatchesTable.player1Id,
+        player1Name: historicalMatchesTable.player1Name,
+        player2Id: historicalMatchesTable.player2Id,
+        player2Name: historicalMatchesTable.player2Name,
+        scheduledStartAt: historicalMatchesTable.scheduledStartAt,
+      })
+      .from(historicalMatchesTable)
+      .where(gt(historicalMatchesTable.id, cursor))
+      .orderBy(asc(historicalMatchesTable.id))
+      .limit(pageSize);
+    if (rows.length === 0) break;
+    for (const row of rows) {
+      consume(row.player1Id, row.player1Name, row.scheduledStartAt);
+      consume(row.player2Id, row.player2Name, row.scheduledStartAt);
+    }
+    cursor = rows[rows.length - 1].rowId;
+    if (rows.length < pageSize) break;
   }
 
   const canonicalIdByName = new Map<string, string>();
