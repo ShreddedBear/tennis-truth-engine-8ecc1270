@@ -1,0 +1,240 @@
+# Truth Engine — Insufficient-Evidence Decision-Recovery Fix
+
+**Repo:** `tennis-truth-engine-8ecc1270` → actual app code lives at
+`artifacts/tennis-truth-engine/` (not the repo root — the root has a different,
+older/parallel app tree; don't edit outside `artifacts/tennis-truth-engine/`).
+
+This brief was pre-scoped by reading the live source directly (via the Replit
+read-only file API, not Agent) so you can start on the real root cause instead
+of re-discovering the architecture from zero. Everything under "CONFIRMED FROM
+SOURCE" below was read verbatim from the current code, not inferred.
+
+---
+
+## Objective
+
+The Truth Engine is too conservative: matches get classified `INSUFFICIENT_EVIDENCE`
+even when meaningful, usable evidence exists for both players. We have a verified
+105-match ground-truth dataset (actual winners) for **evaluation/calibration only**
+— never as a decision input, never allowed to leak into what evidence is treated as
+"available" for a match.
+
+Change the logic from *"are all preferred fields available?"* to *"given the
+evidence actually available for both players, is it sufficient to defensibly pick
+a side?"* `INSUFFICIENT_EVIDENCE` should mean the usable evidence genuinely can't
+discriminate — not that some fields are missing.
+
+**No hindsight leakage, ever:** don't use the actual winner as a decision input,
+don't let match outcome influence what evidence is "available" for that match, and
+don't declare a metric predictive because it happened to call one match right —
+that has to be shown on a separate calibration sample and confirmed on held-out
+data (walk-forward / cross-validation / leave-one-out).
+
+---
+
+## CONFIRMED FROM SOURCE — read this before writing any code
+
+### 1. The decision layer is already fairly sophisticated. Don't rebuild it.
+
+`src/lib/truth-engine-decision.ts` (`decideTruthEngineSelection`) already implements:
+
+- **Evidence families**, not raw metric counting — correlated metrics are grouped
+  into a family (e.g. `POINT_BY_POINT`, `RECENT_FORM`, `SET_PROFILE`) and a family
+  votes exactly once (anti-double-counting).
+- A family whose own members disagree becomes `INTERNALLY_CONFLICTED` and drags
+  down the leader's share rather than cancelling silently.
+- **`EVIDENCE_SELECTION_THRESHOLD = 60`** — a leader is selected once it holds ≥60%
+  of the *directional* evidence (support + contradiction + conflicted families;
+  NEUTRAL families are excluded from the denominator). A code comment confirms this
+  **already replaced a stricter hard gate** ("previously... a leader supported by
+  fewer than two independent families could never be selected"). Corroboration
+  (`MIN_INDEPENDENT_SUPPORT_FAMILIES = 2`) is now *reported*, not enforced.
+- **Leave-one-family-out (LOFO) stability** — the leader is genuinely recomputed
+  with each family removed. `flipping_families` = removal reverses the leader
+  (→ `INSUFFICIENT_EVIDENCE`, `FRAGILE`). `tie_inducing_families` = removal just
+  ties it (reported, not treated as a reversal). Stability is `ROBUST` /
+  `STABLE` / `FRAGILE`.
+- `UNAVAILABLE` metrics are structurally excluded from every count — never zero,
+  never a lean for the other side.
+
+**This already covers most of Phases 2–6 of the original spec** (evidence
+hierarchy via families, completeness-vs-sufficiency via the 60% share threshold,
+winner-inference-by-balance, conflict handling, ablation/robustness). Treat
+changes here as **additive and surgical**, not a rewrite — the anti-double-counting
+and LOFO logic are exactly the "smallest robust architectural change" territory;
+duplicating this behavior elsewhere would be a regression.
+
+### 2. The real bottleneck is very likely one layer up: the comparison-spec registry.
+
+`src/lib/truth-engine-metric-comparison.ts` defines `COMPARISON_SPECS`: a
+metric can only ever become a `COMPARED` (votable) comparison if it has an entry
+here declaring its field, direction, family, and materiality/sample floor. **Any
+metric without an entry is automatically `NO_COMPARISON_SPEC` → `UNAVAILABLE`,
+permanently, no matter how much real signal it carries.** This is exactly the
+"completeness gate masquerading as a sufficiency gate" the objective describes.
+
+The canonical metric registry is `src/lib/evidence-gap.ts` (`EVIDENCE_REQUIREMENTS`,
+codes 001–081 — this is confirmed canonical: `metric-recoverability-map.ts`
+explicitly disclaims itself in its own header as **stale/non-authoritative** and
+says to use `evidence-gap.ts` + `metric-classification.ts` +
+`public/seed/metrics.txt` instead — don't use its code numbers for anything).
+
+`COMPARISON_SPECS` currently only covers **24 of the 81 canonical codes**:
+`001, 002, 003, 005, 006, 007, 008, 009, 010, 011, 016, 018, 029, 031, 032, 034,
+036, 041, 045, 051, 053, 055, 068, 080`.
+
+Many of the missing 57 are legitimately out of scope (meta-metrics about the
+pipeline itself like `047 Uncertainty-Adjusted Advantage`, `048
+Independent-Evidence Count`, `056 Data-Integrity Layer`; or genuinely
+`TRULY_UNAVAILABLE` per the recoverability classification — no source data
+exists at all). **But several have a dedicated, already-built
+`audit-metric-XXX-*.ts` implementation file — meaning they're actively computed
+and likely persisting real `DIRECT`/`RECONSTRUCTED` P1/P2 values right now — and
+still have no entry in `COMPARISON_SPECS`, so their computed evidence can never
+reach a family vote:**
+
+| Code | File(s) that compute it | In `COMPARISON_SPECS`? |
+|---|---|---|
+| 020 | `audit-metric-020-level-tour-transition.ts` (+ leakage test) | **No** |
+| 037 | `audit-metric-036-037-loss-win-autopsy.ts`, `audit-metric-036-037-039-live.server.ts` | **No** |
+| 038 | `audit-metric-038-opponent-adjusted-residual-performance.ts` | **No** |
+| 039 | `audit-metric-039-performance-surprise.ts`, `audit-metric-036-037-039-live.server.ts` | **No** |
+| 040 | `audit-metric-040-hidden-decline-detector.ts` | **No** |
+| 043 | `audit-metric-043-favorite-failure-mode.ts` | **No** |
+| 044 | `audit-metric-044-opponent-upset-compatibility.ts` | **No** |
+| 047 | `audit-metric-047-uncertainty-adjusted-advantage.ts` | No — but check if 047 is a meta-metric (per evidence-gap.ts, "Uncertainty-Adjusted Advantage" reads like `META_DERIVED`); may be legitimately excluded |
+| 052 | `audit-metric-052-entropy-lead-durability.ts` | **No** |
+| 061 | (referenced by `task18c-*` / final-advanced-meta) | **No** |
+| 062 | `audit-metric-062-motivation-stakes.ts` | **No** — evidence-gap.ts classifies 062 as `PUBLIC_CONTEXT`, so check whether it's actually a comparable player-vs-player field or genuinely contextual |
+| 046 | `audit-metric-046-match-state-elo.ts` | Deliberately excluded — **do not re-add without resolving the documented issue** (see below) |
+
+`046` is a **documented, deliberate** exclusion — a code comment in
+`truth-engine-metric-comparison.ts` explains it has two co-equal,
+differently-scoped candidate fields (Elo after winning set 1 vs. after losing set
+1) with no basis for picking one, and persists **no denominator at all** in any
+live row, so no thin-evidence guard can be built. Leave it out unless that
+ambiguity is actually resolved — don't "fix" INSUFFICIENT_EVIDENCE by re-adding it
+unguarded.
+
+**This is the highest-leverage, most evidence-backed place to start Phase 1.**
+For each candidate above: read the actual persisted field name(s) the audit-metric
+file writes, its natural direction (higher/lower-is-better — the file should say,
+per the `041` example where direction was taken from the producer's own
+"improvement" definition rather than guessed), which existing family it
+correlates with (or whether it's genuinely independent — check if it shares a data
+source with an already-specced metric, the same way `031`/`080` deliberately share
+`COMMON_OPPONENT`), and what its real live sample size looks like so a materiality/
+`minSample` floor can be set from data, not invented (see the Phase-12 comments in
+`truth-engine-metric-comparison.ts` for the pattern: floor ≈ 1 standard error of
+the P1–P2 difference of a proportion, computed from the metric's own observed `n`).
+**Do not add a spec by guessing a direction or family** — that's precisely the
+mistake the file's own header warns against.
+
+### 3. Other relevant files (read, don't necessarily change)
+
+- `src/lib/truth-engine-audit.ts`, `truth-engine-calibration.ts` — likely where
+  `PLAY` / `MONITOR-REDUCE` / `INSUFFICIENT_EVIDENCE` tiers and confidence get
+  assigned downstream of the decision (Phase 9 territory).
+- `src/lib/evidence-availability-accounting.ts`, `evidence-coverage-runtime-diagnostic.ts`
+  — likely where "how much evidence do we have" is tallied; check whether these
+  conflate *completeness* and *sufficiency* anywhere (Phase 3).
+- `src/lib/metric-classification.ts` — part of the canonical registry per
+  `metric-recoverability-map.ts`'s own header; cross-check against `evidence-gap.ts`.
+- `src/lib/metric-recoverability-map.ts` — **stale, self-disclaimed, not imported by
+  the live pipeline.** Don't use its code/name pairs for anything; it's left in the
+  repo only as a historical artifact.
+- Every `audit-metric-*.ts` file typically has a matching `.test.ts` and often a
+  `.leakage.test.ts` — read the leakage test before touching a metric's wiring, it
+  usually encodes exactly the temporal-boundary rule you must not violate.
+
+### 4. Open item — locate the 105-match dataset
+
+A shallow scan of `data/` (empty except an empty `data/audit/` folder) and the repo
+root didn't turn up the 105-match ground-truth file. Check `attached_assets/`,
+`docs/`, or ask the user where it lives / have them attach it before Phase 7–8 (the
+recovery classification and calibration phases need it).
+
+---
+
+## Full requirement set (condensed from the original spec)
+
+**Phase 1 — Audit the pipeline.** Trace raw data → metric generation → evidence
+construction/validation → comparison → family voting → LOFO stability → outcome.
+You already have the #1 lead (§2 above); also check for: metrics marked
+`UNAVAILABLE` despite persisted usable values (`TREATMENT_NOT_USABLE`,
+`VALUE_NOT_PARSEABLE`, `ONE_SIDED_EVIDENCE`, `INSUFFICIENT_SAMPLE` in
+`truth-engine-metric-comparison.ts` — are any of these firing more than they
+should for reasons unrelated to genuine evidence quality?); anywhere completeness
+is used as a proxy for sufficiency outside the decision layer.
+
+**Phase 2 — Evidence hierarchy.** Mostly exists via families + treatment
+(`DIRECT`/`RECONSTRUCTED`/`PARTIAL`) + sample floors. Extend it for any
+newly-specced metric rather than inventing a parallel system.
+
+**Phase 3 — Completeness vs. sufficiency.** Confirm `evidence-availability-accounting.ts`
+/ coverage diagnostics never feed a "how many fields are missing" number into the
+decision path — only into reporting.
+
+**Phase 4 — Winner-inference layer.** Already exists (`decideTruthEngineSelection`).
+Don't duplicate; only touch it if the audit finds a genuine defect in the 60%
+threshold logic itself (unlikely — it's well-guarded and well-commented).
+
+**Phase 5 — Conflicting evidence.** Already handled via `INTERNALLY_CONFLICTED`
+families and the directional-share denominator. Verify it behaves correctly once
+more families can vote (after Phase 1's fix widens `COMPARISON_SPECS`).
+
+**Phase 6 — Ablation/robustness.** Already implemented as LOFO
+(`flipping_families` / `tie_inducing_families`). No new work expected here unless
+the audit finds a gap.
+
+**Phase 7 — Recover INSUFFICIENT_EVIDENCE matches.** For each of the 105 matches
+currently landing on `INSUFFICIENT_EVIDENCE`, audit what evidence existed at
+prediction time (never using the known winner to pick) and classify:
+RECOVERABLE / PARTIALLY RECOVERABLE / NOT RECOVERABLE / DATA PIPELINE FAILURE /
+METRIC IMPLEMENTATION FAILURE / DECISION-LOGIC FAILURE.
+
+**Phase 8 — Calibrate, don't memorize.** On the 105-match set: baseline vs.
+improved accuracy, selection counts, `INSUFFICIENT_EVIDENCE` counts, recovered-match
+accuracy, PLAY/MONITOR-REDUCE precision, calibration by evidence-count/reliability/
+disagreement. Optimize for *defensible* picks, not just more picks.
+
+**Phase 9 — Decision tiers.** Preserve PLAY / MONITOR-REDUCE / INSUFFICIENT_EVIDENCE
+as genuinely distinct outcomes — don't force every INSUFFICIENT case into a pick.
+
+**Phase 10 — Provenance.** Every recovered decision must show, from real stored
+evidence only: winner, which families support which player, reliability/conflict
+adjustments, usable evidence counts, evidence quality, LOFO robustness, decision
+sufficiency, resulting action. `evidence_chain` / `families` on
+`TruthEngineDecision` already carry most of this — extend, don't replace.
+
+**Phase 11 — Safety rules to preserve.** No fabricated evidence, no market-odds
+dependence, no hindsight leakage, no forced picks when genuinely undecidable,
+bankroll protection, evidence-before-confidence, existing reliability/injury/
+fatigue/travel/weather adjustments, existing provenance/audit trail, additive-only
+output-shape changes.
+
+**Phase 12 — Test against the 105 matches.** Produce a per-match table (actual
+winner, old result/action, new result/action, evidence sufficiency, evidence
+count, metrics complete, reliability, robustness, recovery status,
+correct/incorrect) plus summary stats: baseline vs. improved accuracy, baseline
+vs. improved selection count, baseline vs. remaining `INSUFFICIENT_EVIDENCE`
+count, recovered-match count and accuracy, PLAY precision, MONITOR/REDUCE
+precision, overall precision, calibration results, and the biggest remaining
+failure modes.
+
+---
+
+## Final requirement
+
+"We lowered the threshold" is not an acceptable fix. This has to be genuine
+reasoning over partial evidence — is what we *have* sufficient, not do we have
+everything. Implement the smallest robust change that achieves this (§2 above is
+the strongest candidate for that smallest change — widening `COMPARISON_SPECS`
+for metrics that are already computed and already reconstructable, with
+data-derived floors, before touching the decision layer itself).
+
+Before declaring success, report: exact root cause; exact code/logic changed;
+before-vs-after metrics; how many `INSUFFICIENT_EVIDENCE` cases were recovered and
+their accuracy; how many remain genuinely insufficient; proof of no hindsight
+leakage; test results; git commit hash; files changed. Don't claim success until
+it's actually been tested against the 105-match set.
