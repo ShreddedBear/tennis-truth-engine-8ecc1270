@@ -6,7 +6,8 @@
  * resolves a player name → BSD player ID (via a lazy-loaded rankings cache)
  * and then fetches their completed match history.
  *
- * Auth: Authorization: Token $BSD_TENNIS_API_KEY header.
+ * Auth: Authorization: Token $BSD_TENNIS_API_KEY header (BSD_TENNIS_API is
+ * accepted as a compatibility alias).
  * No API key → module returns empty results silently (non-fatal).
  */
 
@@ -73,7 +74,7 @@ interface BsdPaginatedResponse<T> {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getKey(): string | null {
-  return process.env.BSD_TENNIS_API_KEY ?? null;
+  return process.env.BSD_TENNIS_API_KEY ?? process.env.BSD_TENNIS_API ?? null;
 }
 
 function bsdFetch(path: string): Promise<Response> {

@@ -28,3 +28,18 @@ test("live-search and paper-trading paths use predictFromSnapshot", async () => 
   assert.doesNotMatch(predictionsRoute, /runPredictionEngine\(/, "predictions route should not call runPredictionEngine directly");
   assert.doesNotMatch(paperTradingService, /runPredictionEngine\(/, "paper trading should not call runPredictionEngine directly");
 });
+
+test("snapshot keeps odds for audit but excludes them from official engine input", async () => {
+  const snapshot = await read("services/evaluation/predictionSnapshot.ts");
+  assert.match(snapshot, /fetchMarketOddsWithStatus\(/, "snapshot must retain the live odds fetch for audit/display");
+  assert.match(snapshot, /marketOdds: marketOddsResult\.quote/, "snapshot must return the fetched quote");
+  assert.match(snapshot, /marketOddsStatus: marketOddsResult\.status/, "snapshot must return the odds status");
+
+  const engineCall = snapshot.match(/runPredictionEngine\(\{([\s\S]*?)\n\s*\}\);/);
+  assert.ok(engineCall, "snapshot must invoke the engine through the canonical input object");
+  assert.doesNotMatch(
+    engineCall[1]!,
+    /marketOdds\s*:/,
+    "official prediction engine input must not contain market odds",
+  );
+});

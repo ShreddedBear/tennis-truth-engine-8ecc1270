@@ -174,7 +174,8 @@ export async function predictFromSnapshot(input: PredictionSnapshotInput): Promi
       ? getUpcomingConditions(input.tournamentName ?? null, input.scheduledStartAt)
       : Promise.resolve(null),
     // Real pre-match market odds (The Odds API primary → Odds-API.io fallback).
-    // Passed to the engine so the Market Consensus module can vote when real odds are available.
+    // Retained for display/audit persistence. It is deliberately not passed to
+    // runPredictionEngine, whose official probability is tennis-evidence-only.
     // fetchMarketOddsWithStatus never throws — returns { quote, status } distinguishing
     // "outside window" (no odds yet, expected) from "provider_error" (quota/network failure).
     fetchMarketOddsWithStatus(player1.name, player2.name, input.scheduledStartAt ?? null),
@@ -199,7 +200,6 @@ export async function predictFromSnapshot(input: PredictionSnapshotInput): Promi
     tournamentLevel: input.tournamentLevel ?? null,
     segment,
     simulatorAdoption,
-    marketOdds: marketOddsResult.quote,
   });
   perfPhase("prediction engine (incl. Monte Carlo)", t4);
 

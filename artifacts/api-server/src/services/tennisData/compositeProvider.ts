@@ -24,7 +24,6 @@ import type {
 } from "./types";
 import { ProviderUnavailableError } from "./types";
 import { inferSurfaceAndLevel } from "./surfaceMap.js";
-import { fetchFromSofascore } from "../parlayBuilder/sofascoreProvider.js";
 import { fetchFromBsdTennis } from "./bsdTennisProvider.js";
 import { getPlayerMatchesFromDb } from "./dbHistoryFallback.js";
 import { getCachedPlayerIdentityIndex, getAliasIds } from "./playerIdentity.js";
@@ -148,8 +147,34 @@ async function fetchSofascoreFixturesRange(dateStart: string, dateStop: string):
   return perDay.flat();
 }
 
-// Minimum number of match records below which supplemental tiers are attempted.
-const SOFASCORE_MIN_RECORDS_THRESHOLD = 5;
+// A provider with fewer than this many rows may have incomplete tour coverage, so the
+// next history tier is queried and its rows are merged. This deliberately does not mean
+// that a provider's empty response is an error: empty and failed attempts are distinct
+// in the routing diagnostics.
+const HISTORY_SUPPLEMENT_THRESHOLD = 5;
+
+export type HistoryAttemptStatus = "records" | "empty" | "failed" | "skipped";
+
+export interface HistoryRoutingAttempt {
+  provider: string;
+  status: HistoryAttemptStatus;
+  recordCount: number;
+  error?: string;
+}
+
+export interface HistoryRoutingDiagnostics {
+  playerId: string;
+  attemptedProviders: HistoryRoutingAttempt[];
+  selectedProvider: string | null;
+  selectedTier: number | null;
+  dbUsed: boolean;
+  totalRecordCount: number;
+  completedAt: string;
+}
+
+export type BsdHistoryFetcher = (
+  playerName: string,
+) => Promise<{ records: MatchRecord[]; resolvedVia?: string }>;
 
 /**
  * Union two MatchRecord arrays, deduplicating by id.
@@ -174,17 +199,19 @@ export class CompositeTennisProvider implements TennisDataProvider {
   readonly name: string;
 
   /**
-   * Caches player names keyed by player ID so the Sofascore tier-3 fallback in
-   * getPlayerMatches can do a name-based search (Sofascore has no ID-based lookup).
+   * Caches provider-resolved player names so BSD's name-based history lookup can
+   * run without treating an arbitrary request string as an identity.
    * Populated automatically on every successful getPlayer() call.
    */
   private readonly playerNameCache = new Map<string, string>();
   private sofascoreLastSuccessfulCallAt: string | null = null;
+  private readonly historyDiagnostics = new Map<string, HistoryRoutingDiagnostics>();
 
   constructor(
     private readonly primary: TennisDataProvider,
     private readonly fallback: TennisDataProvider,
     private readonly fixturePrimary?: LiveTennisFixturesProvider,
+    private readonly bsdHistoryFetcher: BsdHistoryFetcher = fetchFromBsdTennis,
   ) {
     this.name = `${primary.name}+${fallback.name}`;
   }
@@ -230,14 +257,19 @@ export class CompositeTennisProvider implements TennisDataProvider {
 
   async searchPlayers(query: string): Promise<PlayerSummary[]> {
     let candidates: PlayerSummary[] = [];
-    try {
-      candidates = await this.primary.searchPlayers(query);
-    } catch (err) {
-      if (!(err instanceof ProviderUnavailableError)) throw err;
-      logger.warn(
-        { method: "searchPlayers", primaryError: err.message },
-        `${this.primary.name} player search unavailable`,
-      );
+    // Live Tennis owns the first search attempt when configured. Keeping its
+    // source-issued IDs ahead of ranking-provider IDs prevents an otherwise
+    // identical name from being resolved to a different identity space.
+    if (this.fixturePrimary) {
+      try {
+        candidates = await this.fixturePrimary.searchPlayers(query);
+      } catch (err) {
+        if (!(err instanceof ProviderUnavailableError)) throw err;
+        logger.warn(
+          { method: "searchPlayers", liveTennisError: err.message },
+          "Live Tennis player search unavailable — trying ranking providers",
+        );
+      }
     }
 
     // A healthy rankings feed can legitimately return no lower-tour players. An empty
@@ -248,20 +280,19 @@ export class CompositeTennisProvider implements TennisDataProvider {
       } catch (err) {
         if (!(err instanceof ProviderUnavailableError)) throw err;
         logger.warn(
-          { method: "searchPlayers", fallbackError: err.message },
+          { method: "searchPlayers", apiTennisError: err.message },
           `${this.fallback.name} player search unavailable`,
         );
       }
     }
-
-    if (this.fixturePrimary) {
+    if (candidates.length === 0) {
       try {
-        candidates = [...candidates, ...(await this.fixturePrimary.searchPlayers(query))];
+        candidates = await this.primary.searchPlayers(query);
       } catch (err) {
         if (!(err instanceof ProviderUnavailableError)) throw err;
         logger.warn(
-          { method: "searchPlayers", liveTennisError: err.message },
-          "Live Tennis player search unavailable — retaining ranking-provider results",
+          { method: "searchPlayers", rapidApiError: err.message },
+          `${this.primary.name} player search unavailable`,
         );
       }
     }
@@ -272,8 +303,8 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   /**
-   * Pre-seed the player name cache so the Sofascore tier-3 in getPlayerMatches
-   * can activate even when both primary and fallback fail for getPlayer. Should
+   * Pre-seed the player name cache so the BSD history tier can activate even when
+   * both primary and fallback fail for getPlayer. Should
    * be called by any code that already has the player name from fixture data
    * (e.g. predictFromSnapshot when submittedPlayerName is available). Has no
    * effect if the ID is already cached from a prior getPlayer call.
@@ -284,13 +315,22 @@ export class CompositeTennisProvider implements TennisDataProvider {
     }
   }
 
+  /**
+   * Returns the most recent routing result for a player. This is intentionally
+   * read-only and contains provider names/counts only — no upstream payloads,
+   * credentials, or player-sensitive match details.
+   */
+  getHistoryRoutingDiagnostics(playerId: string): HistoryRoutingDiagnostics | null {
+    return this.historyDiagnostics.get(playerId) ?? null;
+  }
+
   async getPlayer(playerId: string): Promise<PlayerProfile | null> {
     const profile = await this.withFallback(
       "getPlayer",
-      () => this.primary.getPlayer(playerId),
       () => this.fallback.getPlayer(playerId),
+      () => this.primary.getPlayer(playerId),
     );
-    // Cache name for Sofascore tier-3 in getPlayerMatches (name-based search).
+    // Cache name for BSD's name-based getPlayerMatches lookup.
     if (profile?.name) {
       this.playerNameCache.set(playerId, profile.name);
     }
@@ -298,85 +338,117 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   async getPlayerMatches(playerId: string): Promise<MatchRecord[]> {
-    // Match history is enrichment data — the prediction engine degrades gracefully to a
-    // lower data-quality score when history is absent. If BOTH providers are unavailable
-    // (MatchStat has no history endpoint; API-Tennis times out under load), return [] so
-    // the prediction still runs rather than surfacing a 502 to the user.
+    // History priority is intentionally different from fixtures/search:
+    // Live Tennis (only for its own IDs), API-Tennis, BSD (name lookup), Rapid/MatchStat,
+    // then historical_matches. MatchStat does not currently support this operation, but
+    // keeping it in the chain makes the capability explicit and preserves future support.
     let records: MatchRecord[] = [];
-    try {
-      records = await this.primary.getPlayerMatches(playerId);
-    } catch (err) {
-      if (!(err instanceof ProviderUnavailableError)) {
-        throw err;
-      }
-      logger.warn({ playerId, err: err.message }, "Primary provider unavailable for getPlayerMatches — trying fallback");
-    }
-
-    // Empty or sparse success is not proof that the fallback has no data. Provider coverage
-    // differs by tour and endpoint, so always query API-Tennis when the primary did not produce
-    // a complete history, then retain the richer result.
-    if (records.length < SOFASCORE_MIN_RECORDS_THRESHOLD) {
+    const attempts: HistoryRoutingAttempt[] = [];
+    let selectedProvider: string | null = null;
+    let selectedTier: number | null = null;
+    const attempt = async (
+      provider: TennisDataProvider,
+      tier: number,
+      call: () => Promise<MatchRecord[]>,
+    ): Promise<void> => {
       try {
-        const fallbackRecords = await this.fallback.getPlayerMatches(playerId);
-        records = mergeMatchRecords(records, fallbackRecords);
+        const result = await call();
+        attempts.push({
+          provider: provider.name,
+          status: result.length > 0 ? "records" : "empty",
+          recordCount: result.length,
+        });
+        if (result.length > 0 && selectedProvider === null) {
+          selectedProvider = provider.name;
+          selectedTier = tier;
+        }
+        records = mergeMatchRecords(records, result);
       } catch (err) {
         if (!(err instanceof ProviderUnavailableError)) throw err;
-        logger.warn({ playerId, err: err.message }, "Fallback provider unavailable for getPlayerMatches — continuing to tertiary tiers");
+        attempts.push({
+          provider: provider.name,
+          status: "failed",
+          recordCount: 0,
+          error: err.message,
+        });
+        logger.warn({ playerId, provider: provider.name, err: err.message }, "History provider unavailable — continuing routing chain");
       }
+    };
+
+    // Live Tennis IDs are source-issued identities. Never send a non-Live ID to
+    // this provider: a name/number collision must not silently alias history.
+    const isLiveTennisId = playerId.startsWith("live-tennis-player-");
+    if (this.fixturePrimary && isLiveTennisId) {
+      await attempt(
+        this.fixturePrimary as unknown as TennisDataProvider,
+        1,
+        () => this.fixturePrimary!.getPlayerMatches(playerId),
+      );
+    } else if (this.fixturePrimary) {
+      attempts.push({
+        provider: this.fixturePrimary.name,
+        status: "skipped",
+        recordCount: 0,
+        error: "unsupported player identity",
+      });
+    }
+
+    // API-Tennis is always the second history tier, ahead of BSD and RapidAPI.
+    if (records.length < HISTORY_SUPPLEMENT_THRESHOLD) {
+      await attempt(this.fallback, 2, () => this.fallback.getPlayerMatches(playerId));
     }
 
     const playerName = this.playerNameCache.get(playerId);
 
-    // Tier-3: BSD Tennis (sports.bzzoiro.com). Structured JSON API, covers top ATP/WTA
-    // ranked players. Only fires when BSD_TENNIS_API_KEY is configured and both primary
-    // and fallback are unavailable or return sparse history.
-    if (records.length < SOFASCORE_MIN_RECORDS_THRESHOLD && playerName) {
-      try {
-        const priorBsd = records.length;
-        const bsdResult = await fetchFromBsdTennis(playerName);
-        records = mergeMatchRecords(records, bsdResult.records);
-        if (records.length > priorBsd) {
-          logger.debug(
-            { playerId, playerName, prior: priorBsd, bsd: bsdResult.records.length, merged: records.length, resolvedVia: bsdResult.resolvedVia ?? "rankings-cache" },
-            "compositeProvider: BSD Tennis tier-3 supplemented match history",
-          );
-        }
-      } catch (bsdErr) {
-        logger.debug({ playerId, playerName, err: bsdErr }, "compositeProvider: BSD Tennis tier-3 failed (non-fatal)");
-      }
+    // Tier-3: BSD Tennis uses only the cached provider-resolved name. It must not
+    // infer an identity from an arbitrary request string.
+    if (records.length < HISTORY_SUPPLEMENT_THRESHOLD && playerName) {
+      const bsdProvider = { name: "BSD Tennis" } as TennisDataProvider;
+      await attempt(bsdProvider, 3, async () => {
+        const bsdResult = await this.bsdHistoryFetcher(playerName);
+        logger.debug(
+          { playerId, playerName, bsd: bsdResult.records.length, resolvedVia: bsdResult.resolvedVia ?? "none" },
+          "compositeProvider: BSD Tennis history attempt",
+        );
+        return bsdResult.records;
+      });
+    } else if (records.length < HISTORY_SUPPLEMENT_THRESHOLD) {
+      attempts.push({
+        provider: "BSD Tennis",
+        status: "skipped",
+        recordCount: 0,
+        error: "player name not cached",
+      });
     }
 
-    // Tier-4: Sofascore (public unauthenticated API). Broader coverage for Challenger/ITF/
-    // WTA-lower players not in BSD's top-500 rankings. Only attempted when a player name
-    // is cached (i.e. getPlayer was called first, which is the normal prediction flow).
-    if (records.length < SOFASCORE_MIN_RECORDS_THRESHOLD && playerName) {
-      try {
-        const priorSf = records.length;
-        const sfResult = await fetchFromSofascore(playerName);
-        records = mergeMatchRecords(records, sfResult.records);
-        if (records.length > priorSf) {
-          logger.debug(
-            { playerId, playerName, prior: priorSf, sofascore: sfResult.records.length, merged: records.length },
-            "compositeProvider: Sofascore tier-4 supplemented match history",
-          );
-        }
-      } catch (sfErr) {
-        logger.debug({ playerId, playerName, err: sfErr }, "compositeProvider: Sofascore tier-4 failed (non-fatal)");
-      }
+    // Tier-4: RapidAPI/MatchStat is attempted only when the chain is still sparse.
+    if (records.length < HISTORY_SUPPLEMENT_THRESHOLD) {
+      await attempt(this.primary, 4, () => this.primary.getPlayerMatches(playerId));
     }
 
-    // Tier-5: historical_matches DB. Final safety net when all live providers (MatchStat,
-    // API-Tennis, BSD Tennis, Sofascore) are unavailable or return sparse history.
+    // Tier-5: historical_matches DB. This remains reachable even when optional
+    // Rapid/API keys are absent because the factory always constructs this composite.
     // Resolve the full alias group (includes any sackmann-* ID bridged to this live ID) so
-    // the Sackmann archive rows (pre-2024) are returned alongside 2025+ api-tennis rows.
-    if (records.length < SOFASCORE_MIN_RECORDS_THRESHOLD) {
+    // the Sackmann archive rows (pre-2024) are returned alongside live-provider rows.
+    let dbUsed = false;
+    if (records.length < HISTORY_SUPPLEMENT_THRESHOLD) {
       try {
+        dbUsed = true;
         const aliasIds = await this.resolveAliasIds(playerId);
         // Capture prior count before the merge so the warning below can accurately
         // distinguish "live providers returned nothing" from "some live data exists".
         const priorCount = records.length;
         const dbRecords = await this.fetchDbHistory(aliasIds.length > 1 ? aliasIds : playerId);
         records = mergeMatchRecords(records, dbRecords);
+        attempts.push({
+          provider: "historical_matches",
+          status: dbRecords.length > 0 ? "records" : "empty",
+          recordCount: dbRecords.length,
+        });
+        if (dbRecords.length > 0 && selectedProvider === null) {
+          selectedProvider = "historical_matches";
+          selectedTier = 5;
+        }
         if (records.length > priorCount) {
           logger.info(
             { playerId, aliasCount: aliasIds.length, prior: priorCount, db: dbRecords.length, merged: records.length },
@@ -389,16 +461,44 @@ export class CompositeTennisProvider implements TennisDataProvider {
         // a walk-forward run — has no DB fallback during an API-Tennis + BSD correlated
         // outage. Scoring will fall through to the thin-data path without this being
         // visible anywhere else in the logs.
-        if (priorCount === 0 && dbRecords.length < SOFASCORE_MIN_RECORDS_THRESHOLD) {
+        if (priorCount === 0 && dbRecords.length < HISTORY_SUPPLEMENT_THRESHOLD) {
           logger.warn(
             { playerId, prior: 0, db: dbRecords.length },
             "compositeProvider: no DB fallback available for this player during live-provider outage — all providers returned zero records and historical_matches has no history for this player; scoring will use thin-data path",
           );
         }
       } catch (dbErr) {
+        attempts.push({
+          provider: "historical_matches",
+          status: "failed",
+          recordCount: 0,
+          error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+        });
         logger.debug({ playerId, err: dbErr }, "compositeProvider: DB tier-5 failed (non-fatal)");
       }
     }
+
+    const diagnostics: HistoryRoutingDiagnostics = {
+      playerId,
+      attemptedProviders: attempts,
+      selectedProvider,
+      selectedTier,
+      dbUsed,
+      totalRecordCount: records.length,
+      completedAt: new Date().toISOString(),
+    };
+    this.historyDiagnostics.set(playerId, diagnostics);
+    logger.info(
+      {
+        playerId,
+        attemptedProviders: attempts.map(({ provider, status, recordCount }) => ({ provider, status, recordCount })),
+        selectedProvider,
+        selectedTier,
+        dbUsed,
+        totalRecordCount: records.length,
+      },
+      "compositeProvider: history routing diagnostic",
+    );
 
     return records;
   }
@@ -431,8 +531,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
       }
     }
 
-    // Tier-1: RapidAPI (MatchStat) — confirmed working endpoints, 30-min cache.
-    // Tier-2: API-Tennis — only when tier-1 is rate-limited/quota-exhausted.
+    // After Live Tennis, API-Tennis is attempted before RapidAPI/MatchStat.
     // Tier-3: Sofascore public API — when both tier-1 and tier-2 are unavailable
     //         (e.g. API-Tennis billing lapsed and RapidAPI quota exhausted for the day).
     //         No auth required; covers ATP, WTA, Challenger, ITF.
@@ -440,19 +539,19 @@ export class CompositeTennisProvider implements TennisDataProvider {
     let usedTier = "";
 
     try {
-      fixtures = await this.primary.getUpcomingFixturesRange(dateStart, dateStop, opts);
-      usedTier = "primary";
+      fixtures = await this.fallback.getUpcomingFixturesRange(dateStart, dateStop, opts);
+      usedTier = "api-tennis";
     } catch (primaryErr) {
       if (!(primaryErr instanceof ProviderUnavailableError)) throw primaryErr;
       logger.warn({ method: "getUpcomingFixturesRange", primaryError: (primaryErr as Error).message },
-        `${this.primary.name} unavailable for fixtures — trying ${this.fallback.name}`);
+        `${this.fallback.name} unavailable for fixtures — trying ${this.primary.name}`);
       try {
-        fixtures = await this.fallback.getUpcomingFixturesRange(dateStart, dateStop, opts);
-        usedTier = "fallback";
+        fixtures = await this.primary.getUpcomingFixturesRange(dateStart, dateStop, opts);
+        usedTier = "rapidapi";
       } catch (fallbackErr) {
         if (!(fallbackErr instanceof ProviderUnavailableError)) throw fallbackErr;
         logger.warn({ method: "getUpcomingFixturesRange", fallbackError: (fallbackErr as Error).message },
-          `${this.fallback.name} also unavailable — using Sofascore tertiary for fixtures`);
+          `${this.primary.name} also unavailable — using Sofascore tertiary for fixtures`);
       }
     }
 
@@ -492,8 +591,8 @@ export class CompositeTennisProvider implements TennisDataProvider {
   async getHeadToHead(player1Id: string, player2Id: string): Promise<HeadToHeadRecord> {
     return this.withFallback(
       "getHeadToHead",
-      () => this.primary.getHeadToHead(player1Id, player2Id),
       () => this.fallback.getHeadToHead(player1Id, player2Id),
+      () => this.primary.getHeadToHead(player1Id, player2Id),
     );
   }
 

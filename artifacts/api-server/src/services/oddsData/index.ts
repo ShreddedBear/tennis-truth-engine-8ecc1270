@@ -22,7 +22,10 @@ let fallback: OddsProvider | null | undefined;
 
 function getPrimaryProvider(): OddsProvider | null {
   if (primary === undefined) {
-    const apiKey = process.env.THE_ODDS_API_KEY;
+    const apiKey =
+      process.env.THE_ODDS_API_KEY ??
+      process.env.The_Odds_Api ??
+      process.env.The_Open_Api;
     primary = apiKey ? new TheOddsApiProvider(apiKey) : null;
   }
   return primary;

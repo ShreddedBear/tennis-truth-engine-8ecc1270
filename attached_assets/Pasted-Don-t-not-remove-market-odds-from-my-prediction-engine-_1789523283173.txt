@@ -1,0 +1,1401 @@
+Don't not remove market odds from my prediction engine and or parlaybuilder
+Understood. I will not remove market odds from the Prediction Engine or Parlay Builder.
+
+That conflicts with the attached task’s instruction that odds must never influence prediction probability, confidence, model selection, or parlay safety scoring. I need one clarification before editing that part so I preserve the behavior you actually want.
+How should market odds behave?
+Keep their current scoring influence
+Additional comments
+Absolutely. The clean architecture for Tennis Matrix AI should be built as a layered system where every component has one job, and where tennis evidence, market information, prediction, and parlay selection are connected but not allowed to corrupt one another.
+
+Based on the architecture we’ve already uncovered in your repository, I would structure the entire system like this.
+
+Tennis Matrix AI — Complete Architecture
+
+1. Master Principle
+
+The system should answer four separate questions:
+
+1. What is actually happening with this match?
+2. Who does the tennis data say is more likely to win?
+3. What is the market currently pricing?
+4. Is this particular prediction/pricing combination suitable for a parlay?
+
+Those questions should interact, but they should never be treated as the same question.
+
+The most important separation is:
+
+Tennis evidence → Prediction Engine → Model Probability
+
+and independently:
+
+Odds providers → Market Engine → Market Probability
+
+Then:
+
+Model Probability + Market Probability + Price → Value Analysis
+
+And finally:
+
+Prediction + Evidence + Value + Risk → Independent Parlay Builder
+
+That is the architecture I would want you to lock in.
+
+⸻
+
+2. Layer One — Match Ingestion
+
+Everything begins with the match itself.
+
+The system receives a match from:
+
+* Today’s fixtures
+* Screenshot/OCR import
+* Bulk upload
+* Paste Search
+* Player Search
+* Custom Match
+* Live match feed
+* Tournament feed
+
+The ingestion layer identifies:
+
+* Player 1
+* Player 2
+* Match date
+* Match time
+* Tournament
+* Tour
+* Event level
+* Surface
+* Round
+* Match status
+* Tournament location
+* Match ID where available
+
+The system then creates a canonical match identity.
+
+This is extremely important because every downstream system needs to know that:
+
+Player A vs Player B at Tournament X on Date Y
+
+is the same match regardless of which API supplied the information.
+
+⸻
+
+3. Layer Two — Tennis Data Provider Router
+
+This is where I would make the biggest change from the current architecture.
+
+The router should be capability-based, not simply key-based.
+
+Your priority should be:
+
+Tier 1 — Live_Tennis_Api
+
+This becomes your primary provider.
+
+Whenever Live_Tennis_Api supports the requested piece of information, it gets first opportunity.
+
+That includes whatever coverage the API actually provides, such as:
+
+* live matches
+* schedules
+* results
+* player information
+* rankings
+* tournament information
+* statistics
+* match statistics
+* historical information
+* whatever other endpoints its actual implementation supports
+
+The system should not assume Live_Tennis_Api covers something it doesn’t.
+
+If it doesn’t support an operation, the router immediately moves down the chain.
+
+⸻
+
+Tier 2 — API-Tennis
+
+API-Tennis becomes the second source.
+
+It fills gaps left by Live_Tennis_Api and becomes the fallback if Live_Tennis_Api fails.
+
+⸻
+
+Tier 3 — BSD Tennis API
+
+BSD becomes the third source.
+
+Again, it should only be called for capabilities it actually supports.
+
+⸻
+
+Tier 4 — RapidAPI / MatchStat
+
+Your X_RAPIDAPI_KEY-backed provider becomes the fourth source.
+
+It should not control whether your entire composite provider exists.
+
+This is particularly important because we found the existing architecture has a path where the absence of the RapidAPI key can cause the system to fall back to the raw API-Tennis provider and bypass the historical database fallback.
+
+That needs to stay fixed.
+
+⸻
+
+Tier 5 — Historical Database
+
+The historical database becomes the final historical-data safety net.
+
+This is not merely a backup API.
+
+It is your permanent historical evidence layer.
+
+If the live providers cannot supply a player’s historical matches, the engine should query the historical database before giving up.
+
+⸻
+
+4. Provider Routing Must Be Per Data Type
+
+This is important.
+
+You don’t want:
+
+“Live_Tennis_Api failed, therefore use API-Tennis for everything.”
+
+Instead:
+
+Player rankings
+
+→ Live_Tennis_Api if supported
+→ API-Tennis if needed
+→ BSD
+→ other provider
+
+Historical matches
+
+→ Live_Tennis_Api if supported
+→ API-Tennis
+→ BSD
+→ MatchStat
+→ historical DB
+
+Point-by-point
+
+→ whichever provider actually has verified PBP coverage
+→ next provider
+→ database if stored
+
+Weather
+
+→ weather source
+
+Odds
+
+→ odds providers
+
+This prevents one weak provider from becoming a bottleneck for the entire prediction.
+
+⸻
+
+5. Layer Three — Data Normalization
+
+Raw API data should never go directly into the prediction model.
+
+Every provider gets converted into your canonical Tennis Matrix data format.
+
+That means:
+
+Player names are normalized.
+
+Tournament names are normalized.
+
+Surfaces are normalized.
+
+Rounds are normalized.
+
+Dates are normalized.
+
+Match IDs are reconciled.
+
+Winner/loser relationships are standardized.
+
+Scores are standardized.
+
+Statistics are standardized.
+
+Provider-specific terminology is converted into your internal terminology.
+
+This is where the system handles differences such as one provider saying:
+
+“Hard”
+
+while another says:
+
+“Outdoor Hard.”
+
+They should become the same internal surface.
+
+⸻
+
+6. Layer Four — Evidence Quality Engine
+
+Before prediction, the system should determine:
+
+How much trustworthy evidence do we actually have?
+
+This is your Data Quality layer.
+
+It should evaluate things such as:
+
+* number of historical matches
+* recency of matches
+* surface-specific sample size
+* quality of player identification
+* completeness of statistics
+* provider reliability
+* duplicate records
+* conflicting records
+* missing rankings
+* missing serve/return data
+* missing PBP
+* stale information
+* contradictory tournament metadata
+
+The output should be something like:
+
+Data Quality: 91%
+
+But that number must be meaningful.
+
+It should not simply mean:
+
+“Several APIs responded.”
+
+It should represent how complete and reliable the actual evidence supporting the prediction is.
+
+⸻
+
+7. Layer Five — Evidence Assembly
+
+Now the system builds the player’s evidence profile.
+
+For each player:
+
+Surface Elo
+
+Current surface-specific strength.
+
+Serve Performance
+
+Including whatever verified serve metrics are available.
+
+Return Performance
+
+Including return effectiveness.
+
+Recent Form
+
+Recent matches with recency weighting.
+
+Opponent-Adjusted Performance
+
+A win over a strong opponent should not be treated exactly like a win over a weak opponent.
+
+Surface Record
+
+Current and historical performance on the relevant surface.
+
+Tournament/Event Context
+
+Where relevant.
+
+Head-to-Head
+
+Used as contextual evidence rather than automatically overriding stronger current evidence.
+
+Set/Game Performance
+
+When sufficiently available.
+
+PBP / Point-Level Evidence
+
+When verified and sufficiently complete.
+
+Fatigue/Rest
+
+Only when the data is sufficiently reliable.
+
+Travel
+
+Only when reliable location/timing information exists.
+
+Injury/Availability
+
+Only when the system has legitimate evidence.
+
+And importantly:
+
+Missing data should not automatically become neutral data.
+
+Missing evidence and evidence showing a player is average are two different things.
+
+⸻
+
+8. Correlation Control
+
+This is one of the most important parts of your architecture.
+
+Your modules cannot simply vote independently if they are measuring essentially the same thing.
+
+For example:
+
+Surface Elo and recent surface performance may overlap.
+
+Serve/return statistics and match win percentage may overlap.
+
+Ranking and Elo may overlap.
+
+If you allow every correlated module to independently contribute full weight, you artificially inflate confidence.
+
+Therefore the engine needs an evidence-dependency layer.
+
+It determines which modules are:
+
+* independent
+* partially correlated
+* strongly correlated
+
+Then adjusts their contribution accordingly.
+
+This prevents:
+
+“Five modules agree!”
+
+when in reality they are all partially measuring the same underlying player strength.
+
+⸻
+
+9. Layer Six — Prediction Engine
+
+Now the actual prediction occurs.
+
+The prediction engine should produce a raw model probability from tennis evidence.
+
+For example:
+
+Player A: 63.8%
+
+Player B: 36.2%
+
+This is the engine’s opinion based on tennis evidence.
+
+At this stage:
+
+NO MARKET ODDS ARE ALLOWED TO CHANGE THE MODEL.
+
+The model does not care whether sportsbooks have Player A at 1.40 or 2.00.
+
+The model produces its own probability.
+
+⸻
+
+10. Monte Carlo Simulation
+
+Your Monte Carlo engine then tests the matchup repeatedly using the available model inputs.
+
+Your existing architecture uses approximately 20,000 simulations for the higher-tier output.
+
+The Monte Carlo layer should produce:
+
+* simulated win probability
+* expected match outcomes
+* set-score distribution
+* potentially game/set distributions where supported
+
+The Monte Carlo simulation should use the model’s tennis inputs, not sportsbook prices.
+
+⸻
+
+11. Ensemble
+
+Your individual tennis models then combine into the final raw prediction.
+
+For example:
+
+* Surface Elo
+* Serve/Return
+* Recent Form
+* H2H
+* other validated specialists
+
+The ensemble should not simply average everything.
+
+It should account for:
+
+* module reliability
+* sample size
+* correlation
+* historical performance
+* environment
+* missing data
+
+The result is the Raw Model Probability.
+
+⸻
+
+12. Calibration
+
+Then calibration happens.
+
+This is a critical distinction.
+
+If the raw engine historically says:
+
+“Players predicted at 70% win only 64% of the time”
+
+the calibration layer corrects that systematic overconfidence.
+
+It does NOT look at today’s sportsbook odds and say:
+
+“The market thinks 65%, so let’s make our model 65%.”
+
+That’s not calibration.
+
+Calibration is learned from historical model performance.
+
+The final output becomes:
+
+Calibrated Model Probability
+
+For example:
+
+Raw:
+
+63.8%
+
+Calibrated:
+
+61.9%
+
+That 61.9% is now the official model probability.
+
+⸻
+
+13. Prediction Confidence
+
+Confidence should be derived from evidence quality and model reliability.
+
+It should consider:
+
+* Data Quality
+* Model Agreement
+* probability separation
+* calibration reliability
+* evidence completeness
+* matchup difficulty
+* upset risk
+* sample size
+
+It should not simply be “probability > 60 = green.”
+
+A 64% prediction with excellent data and four independent models agreeing is fundamentally different from a 64% prediction generated from incomplete data.
+
+⸻
+
+14. The Anti-50% Safety System
+
+This needs to be permanent.
+
+If the engine suddenly produces:
+
+50.0%
+
+50.3%
+
+49.8%
+
+51.1%
+
+for a huge percentage of matches, the system should immediately recognize that as a potential data/system failure.
+
+It should investigate:
+
+* Did providers return zero?
+* Did the player lookup fail?
+* Did historical matches disappear?
+* Did the database fallback execute?
+* Did the ensemble receive empty features?
+* Did calibration collapse?
+* Did normalization fail?
+* Did both players receive identical feature vectors?
+
+A 50/50 result should mean:
+
+The available evidence genuinely cannot distinguish the players.
+
+It must NOT mean:
+
+The data pipeline broke.
+
+This is one of the most important safeguards for your entire system.
+
+⸻
+
+15. Market Odds Engine
+
+Now — and only now — the market enters.
+
+Your existing odds APIs provide market information.
+
+You have:
+
+* ODDS_API_IO_KEY
+* The_Odds_Api
+* The_Open_Api
+
+These should feed a dedicated Market Odds Engine.
+
+The Market Engine collects available prices and normalizes them.
+
+It should identify:
+
+* bookmaker
+* market
+* player
+* decimal odds
+* timestamp
+* available price
+* source
+* market status
+
+⸻
+
+16. Market Consensus
+
+If multiple odds providers/bookmakers are available, the system calculates a market consensus.
+
+It should account for:
+
+* different books
+* stale quotes
+* missing books
+* duplicate markets
+* outlier prices
+
+Then calculate:
+
+Raw Implied Probability
+
+and:
+
+De-vigged Market Probability
+
+The de-vigged number is what you compare against your model.
+
+⸻
+
+17. Model vs Market
+
+Now the two worlds finally meet.
+
+You have:
+
+Model Probability: 63.8%
+
+and:
+
+Market Probability: 56.2%
+
+The system calculates:
+
+Model/Market Edge: +7.6 percentage points
+
+This is incredibly valuable information.
+
+But it does NOT change the model probability.
+
+The model remains:
+
+63.8%
+
+⸻
+
+18. Fair Odds
+
+The model probability can also generate theoretical fair odds.
+
+If the model says 63.8%, fair decimal odds are approximately:
+
+1.57
+
+If the market is offering:
+
+1.75
+
+the market price is better than the model’s theoretical fair price.
+
+That becomes a potential value signal.
+
+Again:
+
+Prediction ≠ Value.
+
+A player can be your predicted winner and still have a bad price.
+
+⸻
+
+19. Expected Value
+
+Now calculate EV using the actual available odds.
+
+This tells the system whether the price is attractive relative to the model’s probability.
+
+So you can have:
+
+Prediction: Player A
+
+Model Probability: 63.8%
+
+Market Probability: 56.2%
+
+Best Odds: 1.75
+
+Model Edge: +7.6%
+
+Model EV: positive
+
+That is a much more informative output than simply:
+
+“Player A is 63.8%.”
+
+⸻
+
+20. Market Disagreement
+
+Your system should also identify when your model and market disagree substantially.
+
+For example:
+
+Model:
+
+68%
+
+Market:
+
+51%
+
+That should trigger a:
+
+Large Market Disagreement
+
+flag.
+
+But that flag should NOT mean:
+
+“Bet the model.”
+
+It means:
+
+The model and market have materially different assessments. Investigate the reason.
+
+Potential reasons could include:
+
+* missing injury information
+* lineup/withdrawal information
+* stale model data
+* unusual market movement
+* genuinely different assessment
+* data error
+
+This is an audit signal, not a prediction signal.
+
+Your existing Parlay Builder already has market disagreement logic, so this is an area worth tightening around de-vigged probabilities.
+
+⸻
+
+21. Prediction Card
+
+The user-facing prediction should therefore show separate sections.
+
+Prediction
+
+Predicted Winner: Player A
+
+Model Probability: 63.8%
+
+Set Score Projection: 2–1
+
+Confidence: Strong
+
+⸻
+
+Evidence
+
+Data Quality: 92%
+
+Model Agreement: 4/4
+
+Upset Risk: Low
+
+Surface Evidence: Strong
+
+Recent Form: Positive
+
+⸻
+
+Market
+
+Market Probability: 56.2%
+
+Best Available Odds: 1.75
+
+Model/Market Edge: +7.6%
+
+Model Fair Odds: 1.57
+
+Expected Value: +11.7%
+
+⸻
+
+That is a professional separation of information.
+
+⸻
+
+22. Independent Parlay Builder
+
+This is where your architecture becomes different from a normal betting model.
+
+The Parlay Builder should remain independent from the Prediction Engine.
+
+Your repository already has this design intention: the Independent Validation Engine is intended to independently validate picks rather than simply trusting the prediction table.
+
+The Parlay Builder should therefore receive the prediction as one piece of evidence, not as an automatic command.
+
+⸻
+
+23. Parlay Builder’s First Question
+
+For every potential leg:
+
+Does the underlying tennis evidence support this player?
+
+It should independently examine:
+
+* historical performance
+* surface performance
+* serve/return
+* recent form
+* opponent quality
+* H2H where useful
+* data quality
+* model agreement
+* upset risk
+* matchup difficulty
+
+⸻
+
+24. Parlay Builder’s Second Question
+
+Then:
+
+Is the market price attractive relative to the model?
+
+It examines:
+
+* market probability
+* best available odds
+* model probability
+* model edge
+* EV
+* market disagreement
+* price deterioration
+
+This means the builder doesn’t simply choose the highest model probabilities.
+
+⸻
+
+25. Parlay Builder’s Third Question
+
+Does this leg belong in a multi-leg combination?
+
+This introduces:
+
+* leg reliability
+* correlation
+* duplication
+* exposure
+* matchup difficulty
+* overall parlay risk
+
+This is where your existing KEEP/REMOVE architecture belongs.
+
+⸻
+
+26. KEEP / REMOVE
+
+A leg should be considered for KEEP only when it satisfies the builder’s independent requirements.
+
+For example:
+
+Strong underlying evidence.
+
+Adequate Data Quality.
+
+Acceptable upset risk.
+
+Independent validation supports the pick.
+
+Reasonable market price.
+
+Acceptable model/market relationship.
+
+No major unresolved data conflict.
+
+No excessive exposure elsewhere in the parlay set.
+
+If those conditions aren’t met:
+
+REMOVE / DO NOT RECOMMEND
+
+And importantly:
+
+If the match is genuinely a toss-up:
+
+DO NOT RECOMMEND THIS MATCH
+
+rather than forcing a winner.
+
+⸻
+
+27. Parlay Probability
+
+Once the individual legs are selected, calculate the model probability of the entire parlay.
+
+For genuinely independent legs, multiply their probabilities.
+
+But you should not blindly assume independence.
+
+If there are correlations, the system should identify them.
+
+For example:
+
+* Same tournament
+* Same environmental conditions
+* Related match outcomes
+* Same player appearing twice
+* Duplicate market exposure
+
+The builder should account for these rather than pretending every leg is independent.
+
+⸻
+
+28. Parlay Market Price
+
+Then calculate:
+
+Combined Market Odds
+
+from the actual selected prices.
+
+Compare that against:
+
+Model Parlay Probability
+
+This produces:
+
+Parlay EV
+
+and:
+
+Model-vs-Market Parlay Edge
+
+Again, market odds don’t change the underlying predictions.
+
+They determine whether the price is attractive.
+
+⸻
+
+29. Parlay Risk Engine
+
+Then evaluate:
+
+* number of legs
+* weakest leg
+* upset risk
+* data quality
+* model disagreement
+* market disagreement
+* correlation
+* probability concentration
+* duplicated exposure
+
+This produces your:
+
+Risk Score
+
+and:
+
+Reliability Grade
+
+Those are properties of the parlay construction, not merely the individual predictions.
+
+⸻
+
+30. The Final Parlay Decision
+
+The system should ultimately have something like:
+
+Prediction Quality
+
+Independent Validation
+
+Market Price
+
+EV
+
+Risk
+
+Correlation
+
+=
+
+Parlay Decision
+
+The market is therefore extremely important.
+
+But it enters at the right point in the pipeline.
+
+⸻
+
+31. Prediction Ledger
+
+Every prediction should permanently record the state of the system at prediction time.
+
+Store:
+
+* match
+* players
+* provider used
+* fallback provider
+* data quality
+* model inputs
+* raw probability
+* calibrated probability
+* predicted winner
+* model agreement
+* upset risk
+* Monte Carlo result
+* odds
+* market probability
+* best available price
+* model edge
+* EV
+* timestamp
+
+This is crucial because you eventually need to answer:
+
+“Why did the model make this prediction?”
+
+and:
+
+“What did the market look like when the prediction was made?”
+
+⸻
+
+32. Evaluation Engine
+
+After the match ends, the system resolves the prediction.
+
+It records:
+
+* actual winner
+* predicted winner
+* correct/incorrect
+* probability
+* calibration bucket
+* market probability
+* closing/current odds where available
+* model-vs-market relationship
+* data quality
+* model agreement
+* upset risk
+* provider used
+
+Then you can analyze:
+
+Did the model perform well?
+
+Did the market perform better?
+
+Did high-edge predictions perform better?
+
+Did high Data Quality predictions perform better?
+
+Did model/market disagreement help identify opportunities or data problems?
+
+This is where your market data becomes scientifically useful.
+
+⸻
+
+33. Market Ablation
+
+You should preserve the ability to test two systems historically:
+
+Model A
+
+Tennis evidence only.
+
+Model B
+
+Tennis evidence plus market information.
+
+Then walk-forward test both.
+
+Do not decide in advance that market information improves the model.
+
+Let historical out-of-sample testing determine that.
+
+Your repository already has a market-consensus ablation script specifically for investigating whether market data belongs inside the ensemble.
+
+That is the correct way to answer that question.
+
+⸻
+
+34. Admin / Developer Dashboard
+
+The developer side should expose the health of the entire architecture.
+
+I would want to see:
+
+Provider Health
+
+Live_Tennis_Api: Healthy
+
+API-Tennis: Healthy
+
+BSD: Healthy
+
+RapidAPI: Healthy
+
+Historical DB: Healthy
+
+⸻
+
+Today’s Data Flow
+
+Matches received.
+
+Matches successfully normalized.
+
+Matches with complete history.
+
+Matches requiring fallback.
+
+Matches using database fallback.
+
+Matches with insufficient data.
+
+⸻
+
+Prediction Health
+
+Predictions generated.
+
+Predictions near 50%.
+
+Predictions with missing features.
+
+Predictions with low Data Quality.
+
+Predictions with calibration warnings.
+
+⸻
+
+Market Health
+
+Odds requests.
+
+Successful odds responses.
+
+Missing odds.
+
+Market disagreement.
+
+Outlier prices.
+
+Stale prices.
+
+⸻
+
+35. The Critical Health Alarm
+
+You should specifically create a:
+
+Prediction Degeneracy Monitor
+
+It watches for things like:
+
+* excessive 50% predictions
+* identical probabilities
+* identical player feature vectors
+* sudden Data Quality collapse
+* sudden provider failure
+* sudden fallback spike
+* missing historical data
+* calibration anomalies
+
+For example, if the system normally produces a broad probability distribution and suddenly 80% of predictions are between 49% and 51%, that should be an automatic system-health warning.
+
+The engine should not quietly keep producing predictions.
+
+⸻
+
+36. What Happens When a Provider Goes Down
+
+The correct behavior is:
+
+Live_Tennis_Api fails.
+
+↓
+
+Try API-Tennis.
+
+↓
+
+If insufficient, try BSD.
+
+↓
+
+If insufficient, try RapidAPI.
+
+↓
+
+If historical information is required, query historical DB.
+
+↓
+
+Build prediction from whatever verified evidence remains.
+
+↓
+
+Lower Data Quality if appropriate.
+
+↓
+
+Expose fallback information internally.
+
+↓
+
+If evidence becomes insufficient:
+
+NO RECOMMENDATION
+
+rather than manufacturing confidence.
+
+⸻
+
+37. What Happens When Odds Go Down
+
+Odds APIs failing should never break the prediction engine.
+
+The model should still produce:
+
+Predicted Winner.
+
+Model Probability.
+
+Model Confidence.
+
+Data Quality.
+
+etc.
+
+The market section simply says:
+
+Market Data Unavailable
+
+The prediction does not become 50%.
+
+The model does not stop.
+
+The Parlay Builder, however, may decide it cannot perform a price/EV evaluation without odds.
+
+That’s appropriate.
+
+⸻
+
+38. What Happens When Tennis Data Goes Down
+
+This is the opposite.
+
+If the tennis evidence disappears, the system should not pretend everything is normal.
+
+That’s the problem we’re investigating right now.
+
+If the historical DB has enough information:
+
+Use it.
+
+If it doesn’t:
+
+Reduce Data Quality.
+
+If the evidence is inadequate:
+
+Do Not Recommend.
+
+Do not silently turn it into 50%.
+
+⸻
+
+39. The Final Architecture in Plain English
+
+The entire Tennis Matrix system should effectively work like this:
+
+Match comes in.
+
+↓
+
+Identify and canonicalize the match.
+
+↓
+
+Ask Live_Tennis_Api for everything it can provide.
+
+↓
+
+Fill missing capabilities from API-Tennis.
+
+↓
+
+Then BSD.
+
+↓
+
+Then RapidAPI/MatchStat.
+
+↓
+
+Then historical database.
+
+↓
+
+Normalize all evidence.
+
+↓
+
+Check data quality and conflicts.
+
+↓
+
+Build each player’s evidence profile.
+
+↓
+
+Run Surface Elo, Serve/Return, Form, H2H, and other validated modules.
+
+↓
+
+Control correlation between modules.
+
+↓
+
+Generate raw model probability.
+
+↓
+
+Run Monte Carlo.
+
+↓
+
+Run ensemble.
+
+↓
+
+Calibrate the model.
+
+↓
+
+Generate final Model Probability.
+
+↓
+
+Generate Confidence / Data Quality / Upset Risk / Model Agreement.
+
+↓
+
+Separately collect market odds.
+
+↓
+
+Calculate raw implied probability.
+
+↓
+
+De-vig the market.
+
+↓
+
+Calculate Model vs Market Edge.
+
+↓
+
+Calculate model fair odds.
+
+↓
+
+Calculate EV.
+
+↓
+
+Display prediction and market information separately.
+
+↓
+
+Send the candidate to the Independent Parlay Builder.
+
+↓
+
+Parlay Builder independently validates the tennis evidence.
+
+↓
+
+Then evaluates price/value.
+
+↓
+
+Then evaluates risk/correlation/exposure.
+
+↓
+
+KEEP / REMOVE / NO RECOMMENDATION.
+
+↓
+
+Record everything in the Prediction Ledger.
+
+↓
+
+Resolve results after matches.
+
+↓
+
+Measure accuracy, calibration, EV, model-vs-market performance, and parlay performance.
+
+↓
+
+Feed those results into developer validation and future model improvements.
+
+⸻
+
+The Most Important Rule
+
+If I were locking the architecture today, I would put this principle at the top of the engineering documentation:
+
+The model determines probability. The market determines price. The Parlay Builder determines whether the combination of prediction, price, evidence, and risk qualifies for selection.
+
+That gives you a system where the market is fully integrated and useful, without allowing the market to secretly become the prediction engine.
+
+And it also gives you the ability to prove, historically, whether your model actually has an edge rather than accidentally teaching the model to agree with the market.
+The tennis-provider routing work completed independently. The cancelled odds worker appears to have left a partial edit that broke a comment in the prediction engine; I’m checking the diff now and will restore that file without changing its odds behavior. I’ll keep the provider-routing changes and wait for your odds-choice answer before touching any odds logic.

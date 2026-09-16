@@ -6,39 +6,47 @@ import { ProviderUnavailableError, type ProviderStatusInfo, type TennisDataProvi
 
 export * from "./types";
 
+export const TENNIS_PROVIDER_CAPABILITIES = {
+  "Live Tennis API": ["playerSearch", "scheduledMatches", "liveMatches", "historicalMatches"],
+  "API-Tennis": ["playerSearch", "playerProfile", "rankings", "scheduledMatches", "matchResults", "historicalMatches", "headToHead", "liveScores", "tournamentMetadata"],
+  "BSD Tennis": ["rankings", "historicalMatches"],
+  "MatchStat/RapidAPI": ["playerSearch", "rankings", "scheduledMatches", "tournamentMetadata"],
+  historical_matches: ["historicalMatches"],
+} as const;
+
 const NOT_CONFIGURED_MESSAGE =
-  "API_TENNIS_KEY is not set yet. Add a real tennis data provider API key -- this app never falls back to mock data.";
+  "No API key is configured for this tennis data provider. Add a real provider key -- this app never falls back to mock data.";
 
 /** Used until a real API key is configured. Every data method reports a clean 502, never fake data. */
 class NotConfiguredProvider implements TennisDataProvider {
-  readonly name = "API-Tennis";
+  constructor(readonly name: string, private readonly message = NOT_CONFIGURED_MESSAGE) {}
 
   getStatus(): ProviderStatusInfo {
-    return { provider: this.name, connected: false, lastSuccessfulCallAt: null, lastError: NOT_CONFIGURED_MESSAGE };
+    return { provider: this.name, connected: false, lastSuccessfulCallAt: null, lastError: this.message };
   }
   async searchPlayers(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getPlayer(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getPlayerMatches(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getUpcomingFixtures(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getUpcomingFixturesRange(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getHeadToHead(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getCompletedMatchesByDateRange(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
   async getLiveScores(): Promise<never> {
-    throw new ProviderUnavailableError(NOT_CONFIGURED_MESSAGE);
+    throw new ProviderUnavailableError(`${this.name}: ${this.message}`);
   }
 }
 
@@ -47,14 +55,9 @@ let cachedProvider: TennisDataProvider | null = null;
 /**
  * Factory for the active tennis data provider.
  *
- * When both API_TENNIS_KEY and X_RAPIDAPI_KEY are configured, returns a composite provider
- * that tries RapidAPI (tennis-api-atp-wta-itf.p.rapidapi.com) first and falls back to API-Tennis on any
- * error. This gives the app access to MatchStat's richer data (H2H, stats, rankings) while
- * preserving the proven API-Tennis path for anything MatchStat can't serve.
- *
- * When only API_TENNIS_KEY is set, returns the ApiTennisProvider directly (no change from
- * before this task). When neither key is set, returns NotConfiguredProvider so routes get a
- * clean 502 rather than a crash.
+ * Always returns a composite so missing optional keys never make the DB history
+ * fallback unreachable. Capability-unavailable providers fail explicitly and
+ * are handled by the composite's routing chain.
  */
 export function getTennisDataProvider(): TennisDataProvider {
   if (cachedProvider) return cachedProvider;
@@ -62,28 +65,22 @@ export function getTennisDataProvider(): TennisDataProvider {
   const apiTennisKey = process.env.API_TENNIS_KEY;
   // Secret was renamed from X_RAPIDAPI_KEY → x_rapidapi_key; accept both for compatibility.
   const rapidApiKey = process.env.X_RAPIDAPI_KEY ?? process.env.x_rapidapi_key;
+  const apiTennisProvider: TennisDataProvider = apiTennisKey
+    ? new ApiTennisProvider(apiTennisKey)
+    : new NotConfiguredProvider("API-Tennis");
+  const matchStatProvider: TennisDataProvider = rapidApiKey
+    ? new MatchStatProvider(rapidApiKey)
+    : new NotConfiguredProvider("MatchStat/RapidAPI");
+  const liveTennisApiKey = process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API;
+  const liveTennisFixturesProvider = liveTennisApiKey
+    ? new LiveTennisFixturesProvider(liveTennisApiKey)
+    : undefined;
 
-  if (!apiTennisKey) {
-    cachedProvider = new NotConfiguredProvider();
-    return cachedProvider;
-  }
-
-  const apiTennisProvider = new ApiTennisProvider(apiTennisKey);
-
-  if (rapidApiKey) {
-    const matchStatProvider = new MatchStatProvider(rapidApiKey);
-    const liveTennisApiKey = process.env.Live_Tennis_Api;
-    const liveTennisFixturesProvider = liveTennisApiKey
-      ? new LiveTennisFixturesProvider(liveTennisApiKey)
-      : undefined;
-    cachedProvider = new CompositeTennisProvider(
-      matchStatProvider,
-      apiTennisProvider,
-      liveTennisFixturesProvider,
-    );
-  } else {
-    cachedProvider = apiTennisProvider;
-  }
+  cachedProvider = new CompositeTennisProvider(
+    matchStatProvider,
+    apiTennisProvider,
+    liveTennisFixturesProvider,
+  );
 
   return cachedProvider;
 }

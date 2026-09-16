@@ -34,4 +34,26 @@ router.get("/provider/bsd-probe", requireAdmin, async (req, res): Promise<void> 
   }
 });
 
+/**
+ * Admin diagnostic: returns the most recent safe routing summary for one player.
+ * The normal player-history request records this summary; this endpoint never
+ * exposes upstream payloads, credentials, or match details.
+ */
+router.get("/provider/history-diagnostics/:playerId", requireAdmin, (req, res): void => {
+  const provider = getTennisDataProvider();
+  const diagnosticsProvider = provider as typeof provider & {
+    getHistoryRoutingDiagnostics?: (playerId: string) => unknown;
+  };
+  const rawPlayerId = req.params.playerId;
+  const playerId = Array.isArray(rawPlayerId) ? rawPlayerId[0] : rawPlayerId;
+  const diagnostics = playerId
+    ? diagnosticsProvider.getHistoryRoutingDiagnostics?.(playerId) ?? null
+    : null;
+  if (!diagnostics) {
+    res.status(404).json({ error: "No history routing diagnostic is available for this player yet." });
+    return;
+  }
+  res.json(diagnostics);
+});
+
 export default router;
