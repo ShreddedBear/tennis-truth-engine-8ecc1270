@@ -1,17 +1,18 @@
 import { db, evaluationPredictionsTable, evaluationRunsTable, calibrationModelsTable, historicalMatchesTable } from "@workspace/db";
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lt, or } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { fitBestCalibration, applyCalibration, applyCalibrationOriented, isKnownBadCascadeRow, type CalibrationPoint } from "./calibration";
 import { scoreHistoricalMatch, type HistoricalScoringContext } from "./historicalScoring";
 import { getPredictionSettings } from "./settle";
 import { computeAndStoreSpecialistSegments, getActiveSpecialistSegments, type SpecialistComputedData } from "./specialistWeights";
-import { buildMatchHistoryIndex } from "../historicalData/matchRecordReconstruction";
+import { buildMatchHistoryIndex, type HistoricalMatchContextRow } from "../historicalData/matchRecordReconstruction";
 import { buildEloHistoryIndex } from "../predictionEngine/opponentStrength";
 import { buildPlayerIdentityIndex } from "../tennisData/playerIdentity";
 import { defaultPredictionMode, derivePredictionStrategyIdentity } from "./strategyIdentity";
 import { eloFallbackTracker, fallbackRateWarning } from "../predictionEngine/fallbackTracking";
 import { HISTORICAL_MODEL_VERSION, type ResultType, type RetirementRule } from "./types";
 import type { CalibrationKnot } from "./types";
+import { latestTargetCutoff, selectWalkForwardTargets } from "./walkForwardSelection";
 
 export interface WalkForwardOptions {
   /** Number of expanding-window folds to run over the back portion of the timeline. */
@@ -31,9 +32,9 @@ export interface WalkForwardOptions {
   evaluationOnly?: boolean;
   /**
    * When provided, restricts the walk-forward to only these historical match IDs. The scoring
-   * context (Elo index, match history) is built only from these rows too, which makes the
-   * run fast. Intended for integration tests that seed a small synthetic corpus — never use
-   * this in production (omit the field entirely, or pass undefined).
+   * targets are restricted to these rows, while match-history context still includes every
+   * eligible record before the target cutoffs. Intended for integration tests that seed a small
+   * synthetic corpus — never use this in production (omit the field entirely, or pass undefined).
    */
   matchIds?: number[];
   /**
@@ -201,8 +202,8 @@ export async function checkTrainingModeGuard({
 }
 
 /**
- * Runs a fresh sequence of expanding-window walk-forward folds over the entire leak-proof
- * historical store and persists per-fold results. Each run supersedes prior evaluation_runs /
+   * Runs a fresh sequence of expanding-window walk-forward folds over the leak-proof
+   * historical store and persists per-fold results. Each run preserves prior evaluation_runs /
  * evaluation_predictions rows of runKind='historical_test' (deleted up front) so re-running
  * after a model change never mixes stale and fresh fold results together.
  *
@@ -237,11 +238,77 @@ export async function runWalkForwardEvaluation(options: WalkForwardOptions = {})
 
   const settings = await getPredictionSettings();
 
-  const allMatches = await db
-    .select()
+  const compactHistoricalMatchSelect = {
+    id: historicalMatchesTable.id,
+    provider: historicalMatchesTable.provider,
+    tour: historicalMatchesTable.tour,
+    tournamentName: historicalMatchesTable.tournamentName,
+    tournamentLevel: historicalMatchesTable.tournamentLevel,
+    surface: historicalMatchesTable.surface,
+    round: historicalMatchesTable.round,
+    matchFormat: historicalMatchesTable.matchFormat,
+    player1Id: historicalMatchesTable.player1Id,
+    player1Name: historicalMatchesTable.player1Name,
+    player2Id: historicalMatchesTable.player2Id,
+    player2Name: historicalMatchesTable.player2Name,
+    winnerId: historicalMatchesTable.winnerId,
+    score: historicalMatchesTable.score,
+    retired: historicalMatchesTable.retired,
+    walkover: historicalMatchesTable.walkover,
+    cancelled: historicalMatchesTable.cancelled,
+    gameMarginsPlayer1: historicalMatchesTable.gameMarginsPlayer1,
+    indoor: historicalMatchesTable.indoor,
+    player1Rank: historicalMatchesTable.player1Rank,
+    player2Rank: historicalMatchesTable.player2Rank,
+    scheduledStartAt: historicalMatchesTable.scheduledStartAt,
+    cutoffAt: historicalMatchesTable.cutoffAt,
+  } as const;
+  type CompactHistoricalMatchRow = Omit<HistoricalMatchContextRow, "rawSource">;
+
+  // Scoped IDs choose the targets only. Their context is independently loaded from every
+  // eligible row before the latest target cutoff; restricting this query to matchIds would
+  // silently erase the target's prior history.
+  const scopedTargetRows: CompactHistoricalMatchRow[] = scopedMatchIds
+    ? await db.select(compactHistoricalMatchSelect).from(historicalMatchesTable)
+      .where(inArray(historicalMatchesTable.id, scopedMatchIds))
+    : [];
+  const scopedTargetsInWindow = scopedMatchIds
+    ? selectWalkForwardTargets(scopedTargetRows.map((row) => ({ ...row, rawSource: {} })), {
+      matchIds: scopedMatchIds,
+      startDate,
+      endDate,
+    })
+    : [];
+  const contextUpperBound = scopedMatchIds ? latestTargetCutoff(scopedTargetsInWindow) : null;
+  const contextRows: CompactHistoricalMatchRow[] = await db
+    .select(compactHistoricalMatchSelect)
     .from(historicalMatchesTable)
-    .where(scopedMatchIds ? inArray(historicalMatchesTable.id, scopedMatchIds) : undefined)
+    .where(and(
+      eq(historicalMatchesTable.cancelled, false),
+      isNotNull(historicalMatchesTable.winnerId),
+      contextUpperBound ? lt(historicalMatchesTable.scheduledStartAt, contextUpperBound) : undefined,
+    ))
     .orderBy(asc(historicalMatchesTable.scheduledStartAt), asc(historicalMatchesTable.id));
+  const contextAndTargets = new Map<number, CompactHistoricalMatchRow>();
+  for (const row of contextRows) contextAndTargets.set(row.id, row);
+  for (const row of scopedTargetRows) contextAndTargets.set(row.id, row);
+
+  const rawSourceRows = await db
+    .select({ id: historicalMatchesTable.id, rawSource: historicalMatchesTable.rawSource })
+    .from(historicalMatchesTable)
+    .where(and(
+      eq(historicalMatchesTable.provider, "API-Tennis"),
+      contextUpperBound
+        ? or(
+          lt(historicalMatchesTable.scheduledStartAt, contextUpperBound),
+          inArray(historicalMatchesTable.id, scopedMatchIds ?? []),
+        )
+        : undefined,
+    ));
+  const rawSourceById = new Map(rawSourceRows.map((row) => [row.id, row.rawSource]));
+  const allMatches: HistoricalMatchContextRow[] = [...contextAndTargets.values()]
+    .map((row) => ({ ...row, rawSource: rawSourceById.get(row.id) ?? {} }))
+    .sort((a, b) => a.scheduledStartAt.getTime() - b.scheduledStartAt.getTime() || a.id - b.id);
 
   // Task #109: append-only fold preservation — never wipe prior walk-forward results.
   // Build the set of historical match IDs already scored in a prior run so this run skips
@@ -258,18 +325,12 @@ export async function runWalkForwardEvaluation(options: WalkForwardOptions = {})
     ).map(r => r.historicalMatchId as number)
   );
 
-  const eligible = allMatches.filter(
-    // cancelled matches never reach scoring; already-scored matches are preserved across runs.
-    // Task #127: when startDate/endDate are provided, further restrict to matches whose
-    // scheduled_start_at falls within [startDate, endDate]. allMatches is intentionally kept as
-    // the full corpus above so the Elo/history context is still built from all available data
-    // (point-in-time accuracy for the scored subset requires the full historical backdrop).
-    (m) =>
-      !m.cancelled &&
-      !alreadyScoredIds.has(m.id) &&
-      (startDate === null || m.scheduledStartAt >= startDate) &&
-      (endDate === null || m.scheduledStartAt <= endDate),
-  );
+  const eligible = selectWalkForwardTargets(allMatches, {
+    matchIds: scopedMatchIds,
+    startDate,
+    endDate,
+    alreadyScoredIds,
+  });
   if (eligible.length < 20) {
     logger.warn({ count: eligible.length, alreadyScored: alreadyScoredIds.size }, "Not enough new historical matches to run a meaningful walk-forward evaluation");
     return { foldsRun: 0, foldIds: [], skippedNoEligibleMatches: true, fallbackRate: 0, warnings: [], evaluationOnly };

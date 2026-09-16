@@ -1,7 +1,7 @@
-import type { HistoricalMatchRow, SpecialistModelRow } from "@workspace/db";
+import type { SpecialistModelRow } from "@workspace/db";
 import { runPredictionEngine } from "../predictionEngine";
 import { resolveOpponentStrengthFromIndex, type EloHistoryIndex } from "../predictionEngine/opponentStrength";
-import { reconstructHeadToHead, reconstructPlayerMatchHistory, type MatchHistoryIndex } from "../historicalData/matchRecordReconstruction";
+import { reconstructHeadToHead, reconstructPlayerMatchHistory, type HistoricalMatchContextRow, type MatchHistoryIndex } from "../historicalData/matchRecordReconstruction";
 import { resolveSegmentSpecialistInputSync } from "./specialistWeights";
 import { LIVE_MODEL_VERSION, type LiveFeatureSnapshot, type CalibrationKnot } from "./types";
 import type { MatchFormat, PlayerProfile, Surface } from "../tennisData/types";
@@ -97,7 +97,7 @@ function minimalProfile(id: string, name: string): PlayerProfile {
  * either case, so the caller must treat it as "insufficient data" rather than a fabricated guess.
  */
 export async function scoreHistoricalMatch(
-  match: HistoricalMatchRow,
+  match: HistoricalMatchContextRow,
   context: HistoricalScoringContext,
   activeCalibrationOverride?: CalibrationKnot[] | null,
 ): Promise<{

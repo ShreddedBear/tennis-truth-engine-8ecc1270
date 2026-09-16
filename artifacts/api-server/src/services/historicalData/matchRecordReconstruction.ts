@@ -4,6 +4,15 @@ import { mapStatistics, type RawMatch } from "../tennisData/apiTennisProvider";
 
 type GameMargins = Array<{ player1Games: number; player2Games: number }>;
 
+/** The columns needed by the historical engine. Raw provider JSON is hydrated separately. */
+export type HistoricalMatchContextRow = Pick<
+  HistoricalMatchRow,
+  | "id" | "provider" | "tour" | "tournamentName" | "tournamentLevel" | "surface" | "round"
+  | "matchFormat" | "player1Id" | "player1Name" | "player2Id" | "player2Name" | "winnerId"
+  | "score" | "retired" | "walkover" | "cancelled" | "gameMarginsPlayer1" | "indoor"
+  | "player1Rank" | "player2Rank" | "scheduledStartAt" | "cutoffAt"
+> & { rawSource: unknown };
+
 /**
  * In-memory index over the WHOLE historical corpus, built ONCE per walk-forward run and reused
  * for every match scored. Walk-forward scores potentially thousands of matches per run, and each
@@ -14,12 +23,12 @@ type GameMargins = Array<{ player1Games: number; player2Games: number }>;
  * in-memory filtering against it -- no I/O per match.
  */
 export interface MatchHistoryIndex {
-  byPlayer: Map<string, HistoricalMatchRow[]>;
+  byPlayer: Map<string, HistoricalMatchContextRow[]>;
 }
 
 /** Builds a `MatchHistoryIndex` from every non-cancelled, determinate-result row in `rows`. */
-export function buildMatchHistoryIndex(rows: HistoricalMatchRow[]): MatchHistoryIndex {
-  const byPlayer = new Map<string, HistoricalMatchRow[]>();
+export function buildMatchHistoryIndex(rows: HistoricalMatchContextRow[]): MatchHistoryIndex {
+  const byPlayer = new Map<string, HistoricalMatchContextRow[]>();
   for (const row of rows) {
     if (row.cancelled || row.winnerId === null) continue;
     for (const playerId of [row.player1Id, row.player2Id]) {
@@ -39,12 +48,12 @@ export function buildMatchHistoryIndex(rows: HistoricalMatchRow[]): MatchHistory
  * rather than silently reusing this one; until then, a row from any other provider honestly
  * yields no stats (never a fabricated/interpolated line).
  */
-function statsFor(row: HistoricalMatchRow, playerId: string): MatchStatLine | null {
+function statsFor(row: HistoricalMatchContextRow, playerId: string): MatchStatLine | null {
   if (row.provider !== "API-Tennis") return null;
   return mapStatistics(row.rawSource as RawMatch, playerId);
 }
 
-function toMatchRecord(row: HistoricalMatchRow, playerId: string): MatchRecord {
+function toMatchRecord(row: HistoricalMatchContextRow, playerId: string): MatchRecord {
   const isPlayer1 = row.player1Id === playerId;
   const opponentId = isPlayer1 ? row.player2Id : row.player1Id;
   const opponentName = isPlayer1 ? row.player2Name : row.player1Name;

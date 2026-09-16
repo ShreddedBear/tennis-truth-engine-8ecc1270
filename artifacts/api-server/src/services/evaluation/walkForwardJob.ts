@@ -7,7 +7,9 @@
  */
 
 import { logger } from "../../lib/logger";
-import { runWalkForwardEvaluation, type WalkForwardSummary } from "./walkForward";
+import type { WalkForwardSummary } from "./walkForward";
+import { acquireHeavyJobLease, spawnEvaluationWorker, type EvaluationWorkerHandle } from "./evaluationWorkerControl";
+import path from "node:path";
 
 export type WalkForwardJobStatus =
   | { state: "idle" }
@@ -16,6 +18,8 @@ export type WalkForwardJobStatus =
   | { state: "error"; startedAt: string; finishedAt: string; evaluationOnly: boolean; error: string };
 
 let currentJob: WalkForwardJobStatus = { state: "idle" };
+let activeWorker: EvaluationWorkerHandle<WalkForwardSummary> | null = null;
+let releaseLease: (() => void) | null = null;
 
 // Simple in-process counter updated by the walk-forward progress callback.
 let _matchesScored = 0;
@@ -43,6 +47,9 @@ export function startWalkForwardJob(opts: {
   if (currentJob.state === "running") {
     return { started: false, reason: "A walk-forward run is already in progress." };
   }
+  const lease = acquireHeavyJobLease("walk-forward");
+  if (!lease.acquired) return { started: false, reason: lease.reason };
+  releaseLease = lease.release;
 
   const startedAt = new Date().toISOString();
   const evaluationOnly = opts.evaluationOnly ?? true;
@@ -50,7 +57,7 @@ export function startWalkForwardJob(opts: {
 
   currentJob = { state: "running", startedAt, evaluationOnly, matchesScored: 0 };
 
-  // Intentionally not awaited — job runs in the background inside this long-lived server process.
+  // The heavy corpus/indexes run in a bounded one-shot worker, never in the API heap.
   void runJob(startedAt, evaluationOnly, opts);
 
   return { started: true };
@@ -62,7 +69,12 @@ async function runJob(
   opts: { foldCount?: number; evaluationOnly?: boolean; matchIds?: number[]; startDate?: string; endDate?: string; requireApproval?: boolean },
 ): Promise<void> {
   try {
-    const result = await runWalkForwardEvaluation({ ...opts, requireApproval: opts.requireApproval });
+    const worker = spawnEvaluationWorker<WalkForwardSummary>(
+      path.join(__dirname, "walkForwardWorker.mjs"),
+      { ...opts, requireApproval: opts.requireApproval },
+    );
+    activeWorker = worker;
+    const result = await worker.promise;
 
     currentJob = {
       state: "done",
@@ -82,5 +94,17 @@ async function runJob(
       evaluationOnly,
       error: message,
     };
+  } finally {
+    activeWorker = null;
+    releaseLease?.();
+    releaseLease = null;
   }
+}
+
+export function cancelWalkForwardJob(): { cancelled: boolean; reason?: string } {
+  if (currentJob.state !== "running" || !activeWorker) {
+    return { cancelled: false, reason: "No walk-forward run is currently running." };
+  }
+  activeWorker.cancel();
+  return { cancelled: true };
 }

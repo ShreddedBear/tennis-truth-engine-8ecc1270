@@ -6,7 +6,9 @@
  */
 
 import { logger } from "../../lib/logger";
-import { runOptimizerRun } from "./candidateOptimizer";
+import type { runOptimizerRun } from "./candidateOptimizer";
+import { acquireHeavyJobLease, spawnEvaluationWorker, type EvaluationWorkerHandle } from "./evaluationWorkerControl";
+import path from "node:path";
 
 type OptimizerResult = {
   candidateConfigId: number;
@@ -41,6 +43,8 @@ export type OptimizerJobStatus =
   | { state: "error"; startedAt: string; finishedAt: string; error: string };
 
 let currentJob: OptimizerJobStatus = { state: "idle" };
+let activeWorker: EvaluationWorkerHandle<Awaited<ReturnType<typeof runOptimizerRun>>> | null = null;
+let releaseLease: (() => void) | null = null;
 
 export function getOptimizerJobStatus(): OptimizerJobStatus {
   return currentJob;
@@ -54,11 +58,14 @@ export function startOptimizerJob(opts: {
   if (currentJob.state === "running") {
     return { started: false, reason: "An optimizer run is already in progress." };
   }
+  const lease = acquireHeavyJobLease("optimizer");
+  if (!lease.acquired) return { started: false, reason: lease.reason };
+  releaseLease = lease.release;
 
   const startedAt = new Date().toISOString();
   currentJob = { state: "running", startedAt, phase: "initializing" };
 
-  // Intentionally not awaited.
+  // The optimizer and its nested walk-forward run are isolated from the API heap.
   void runJob(startedAt, opts);
 
   return { started: true };
@@ -70,12 +77,12 @@ async function runJob(
 ): Promise<void> {
   try {
     currentJob = { state: "running", startedAt, phase: "walk-forward" };
-    const result = await runOptimizerRun({
-      ...opts,
-      onPhase: (phase) => {
-        currentJob = { state: "running", startedAt, phase };
-      },
-    });
+    const worker = spawnEvaluationWorker<Awaited<ReturnType<typeof runOptimizerRun>>>(
+      path.join(__dirname, "optimizerWorker.mjs"),
+      opts,
+    );
+    activeWorker = worker;
+    const result = await worker.promise;
 
     currentJob = {
       state: "done",
@@ -109,5 +116,17 @@ async function runJob(
       finishedAt: new Date().toISOString(),
       error: message,
     };
+  } finally {
+    activeWorker = null;
+    releaseLease?.();
+    releaseLease = null;
   }
+}
+
+export function cancelOptimizerJob(): { cancelled: boolean; reason?: string } {
+  if (currentJob.state !== "running" || !activeWorker) {
+    return { cancelled: false, reason: "No optimizer run is currently running." };
+  }
+  activeWorker.cancel();
+  return { cancelled: true };
 }
