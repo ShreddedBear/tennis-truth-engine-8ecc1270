@@ -205,32 +205,50 @@ class CompoundSurnameTests(unittest.TestCase):
 
 
 class DateToleranceTests(unittest.TestCase):
-    """A Miami 2013 match: ppaulojr's own per-match date field says 2013-03-18, the local
-    Tennis-Data.co.uk row for the identical match (same players, same score) says
-    2013-03-20 -- both real dates from real rows, 2 days apart, inside the same
-    tournament. Confirmed by direct inspection."""
+    """DATE_TOLERANCE_DAYS = 1: per the promotion-reconciliation audit
+    (docs/audit-wta-main-pbp-promotion-reconciliation.md Sec.7), the empirical distribution of
+    |ppaulojr date - Tennis-Data date| across all 815 real promotion candidates is 84.7% exact
+    (0 days), 15.3% one day apart, and 0% two or more days apart -- e.g. Laura Robson d. Camila
+    Giorgi, Miami 2013 R128 (record 2013|1487): both sources agree exactly, 2013-03-20. A wider
+    tolerance (this file previously used 3 days) was measured to produce a byte-identical
+    result on this dataset, so it bought no coverage while needlessly widening the risk surface
+    -- narrowed to 1 day, the widest value actually evidenced by real data. The
+    dates_within_tolerance() function itself still accepts an arbitrary max_days for testing
+    and for any future dataset that empirically needs a different value; only the module's own
+    default (DATE_TOLERANCE_DAYS) changed."""
 
     def test_exact_match_still_true(self):
-        self.assertTrue(m.dates_within_tolerance("2013-03-18", "2013-03-18", m.DATE_TOLERANCE_DAYS))
+        self.assertTrue(m.dates_within_tolerance("2013-03-20", "2013-03-20", m.DATE_TOLERANCE_DAYS))
 
-    def test_two_days_apart_within_tolerance(self):
-        self.assertTrue(m.dates_within_tolerance("2013-03-18", "2013-03-20", m.DATE_TOLERANCE_DAYS))
+    def test_one_day_apart_within_the_current_default_tolerance(self):
+        # Real, confirmed example: Ksenia Pervak d. Anna Tatishvili, Montreal 2012 R64
+        # (record 2012|1784) -- ppaulojr says 2012-08-07, Tennis-Data says 2012-08-08.
+        self.assertTrue(m.dates_within_tolerance("2012-08-07", "2012-08-08", m.DATE_TOLERANCE_DAYS))
+
+    def test_two_days_apart_is_rejected_by_the_current_default_tolerance(self):
+        # Never actually needed by any of the 815 real promotions (0% of them are 2+ days
+        # apart) -- confirming the narrowed default actually excludes this case, not just that
+        # dates_within_tolerance() can be parameterized to accept it (see test below).
+        self.assertFalse(m.dates_within_tolerance("2013-03-18", "2013-03-20", m.DATE_TOLERANCE_DAYS))
 
     def test_order_independent(self):
-        self.assertTrue(m.dates_within_tolerance("2013-03-20", "2013-03-18", m.DATE_TOLERANCE_DAYS))
+        self.assertTrue(m.dates_within_tolerance("2013-03-20", "2013-03-19", m.DATE_TOLERANCE_DAYS))
 
-    def test_exactly_at_the_boundary(self):
+    def test_dates_within_tolerance_still_supports_a_wider_explicit_window(self):
+        # The function itself is general-purpose; only the module's chosen DEFAULT narrowed.
+        self.assertTrue(m.dates_within_tolerance("2013-03-18", "2013-03-20", 3))
         self.assertTrue(m.dates_within_tolerance("2013-03-18", "2013-03-21", 3))
-
-    def test_one_day_beyond_the_boundary_rejected(self):
         self.assertFalse(m.dates_within_tolerance("2013-03-18", "2013-03-22", 3))
 
-    def test_empty_dates_never_match(self):
-        self.assertFalse(m.dates_within_tolerance("", "2013-03-18", m.DATE_TOLERANCE_DAYS))
-        self.assertFalse(m.dates_within_tolerance("2013-03-18", "", m.DATE_TOLERANCE_DAYS))
+    def test_one_day_beyond_the_current_default_boundary_rejected(self):
+        self.assertFalse(m.dates_within_tolerance("2013-03-18", "2013-03-20", m.DATE_TOLERANCE_DAYS))
 
-    def test_old_exact_equality_would_have_rejected_this_real_pair(self):
-        self.assertNotEqual("2013-03-18", "2013-03-20")
+    def test_empty_dates_never_match(self):
+        self.assertFalse(m.dates_within_tolerance("", "2013-03-20", m.DATE_TOLERANCE_DAYS))
+        self.assertFalse(m.dates_within_tolerance("2013-03-20", "", m.DATE_TOLERANCE_DAYS))
+
+    def test_old_exact_equality_would_have_rejected_this_real_one_day_pair(self):
+        self.assertNotEqual("2012-08-07", "2012-08-08")
 
 
 if __name__ == "__main__":

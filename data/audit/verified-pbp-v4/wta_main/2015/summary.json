@@ -4,15 +4,21 @@
   "year": 2015,
   "historical_matches": 2506,
   "pbp_candidates": 833,
-  "verified": 375,
-  "review_required": 291,
+  "verified": 486,
+  "review_required": 180,
   "ambiguous": 0,
   "conflicts": 11,
   "no_pbp": 1829,
   "retrieval_failures": 0,
   "access_limitations": 0,
-  "coverage_pct": 14.96,
+  "coverage_pct": 19.39,
   "independent_result_source": "data/public/tennis-data-wta/wta_matches_2007_2016.csv",
   "independent_result_source_error": null,
-  "generated_at_utc": "2026-09-15T15:49:44.973566+00:00"
+  "generated_at_utc": "2026-09-16T07:10:43.435927+00:00",
+  "promotion_applied": {
+    "records_promoted": 111,
+    "source_doc": "docs/audit-wta-main-pbp-promotion-reconciliation.md",
+    "manifest": "data/audit/wta-main-pbp-promotion-audit-2012-2015/promotion-manifest-NOT-APPLIED.json",
+    "applied_at_utc": "2026-09-16T07:10:43.435927+00:00"
+  }
 }

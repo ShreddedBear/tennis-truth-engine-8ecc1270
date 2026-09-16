@@ -340,3 +340,20 @@ scope):
 **No promotion has been executed.** All 7,165 rows in
 `data/metrics/pbp/wta_main/approved-index.jsonl` and all files under
 `data/audit/verified-pbp-v4/` remain exactly as they were before this audit began.
+
+## 11. Addendum: promotion applied
+
+Approved and applied in a follow-up commit. Per that approval, `DATE_TOLERANCE_DAYS` was
+reduced from 3 to 1 first (the zero-cost hardening step recommended in §7 above), the full test
+suite and before/after regression check were re-run and passed, and the exact 815-record
+promotion set was re-confirmed unchanged (byte-for-byte identical set of record keys) before
+applying. The promotion was applied as a surgical per-record patch — not a wholesale re-run of
+`run()` — specifically so that the 217 demotions characterized in §2 (which are an inseparable
+side effect of the same matching-code fix, not part of what was approved) are **not** applied;
+they remain at their pre-existing status pending a separate, explicit decision. Full detail of
+the application, its verification, and why a wholesale re-run was not used:
+`data/audit/wta-main-pbp-promotion-audit-2012-2015/promotion-APPLIED-confirmation.json`.
+
+Post-promotion totals (2012-2015 combined): verified 4,018 → **4,833** (+815), REVIEW_REQUIRED
+1,865 → **1,050** (−815). Ambiguous (11) and conflict/structural-failure (56) counts are
+unchanged, exactly as expected since those records were not touched.

@@ -1,0 +1,63 @@
+{
+  "confirmation_type": "WTA_MAIN_PBP_PROMOTION_APPLIED",
+  "status": "APPLIED",
+  "applied_from_manifest": "data/audit/wta-main-pbp-promotion-audit-2012-2015/promotion-manifest-NOT-APPLIED.json",
+  "note_on_manifest_filename": "The manifest file above keeps its original NOT-APPLIED filename and NOT_APPLIED_DRY_RUN_ONLY status field as a historically accurate record of the state at the time it was generated (before this promotion). This file records the subsequent execution event -- provenance is preserved by adding, not by mutating the original manifest.",
+  "pre_application_hardening_change": {
+    "change": "DATE_TOLERANCE_DAYS reduced from 3 to 1 in scripts/verify-sackmann-wta-main-pbp.py",
+    "reason": "Reconciliation audit found DATE_TOLERANCE_DAYS=3 and =1 produce a byte-identical result across the full 2012-2015 dataset (100% of the 815 promotions have a date gap of 0 or 1 day; 0% have 2+ days).",
+    "verified_before_applying": {
+      "re-ran_full_test_suite": "32/32 pass",
+      "re-ran_before_after_regression_check": "both invariants pass (old-logic-reproduced=4018/1865, new-logic=4616/1253)",
+      "re-ran_dry_run_promotion_set_at_tolerance_1": "815 records, EXACT SET MATCH against the tolerance=3 audited manifest (0 added, 0 removed)"
+    }
+  },
+  "records_promoted": 815,
+  "promoted_by_year": { "2012": 156, "2013": 287, "2014": 261, "2015": 111 },
+  "status_transition_applied": "REVIEW_REQUIRED -> RESULT_VERIFIED_PBP / LEVEL_1_RESULT_VERIFIED_PBP",
+  "explicitly_not_promoted": {
+    "remaining_unresolved_records": 1050,
+    "known_given_given_surname_false_negatives": 25,
+    "ambiguous_records": 11,
+    "conflict_and_structural_failure_records": 56,
+    "note": "These are all still present on disk with their pre-existing statuses, byte-identical to before this promotion. Verified programmatically: for every record NOT in the audited 815, the on-disk status after this promotion is identical to the status before it."
+  },
+  "files_modified": [
+    "data/audit/verified-pbp-v4/wta_main/2012/records.json",
+    "data/audit/verified-pbp-v4/wta_main/2012/verified-mappings.json",
+    "data/audit/verified-pbp-v4/wta_main/2012/summary.json",
+    "data/audit/verified-pbp-v4/wta_main/2013/records.json",
+    "data/audit/verified-pbp-v4/wta_main/2013/verified-mappings.json",
+    "data/audit/verified-pbp-v4/wta_main/2013/summary.json",
+    "data/audit/verified-pbp-v4/wta_main/2014/records.json",
+    "data/audit/verified-pbp-v4/wta_main/2014/verified-mappings.json",
+    "data/audit/verified-pbp-v4/wta_main/2014/summary.json",
+    "data/audit/verified-pbp-v4/wta_main/2015/records.json",
+    "data/audit/verified-pbp-v4/wta_main/2015/verified-mappings.json",
+    "data/audit/verified-pbp-v4/wta_main/2015/summary.json",
+    "data/metrics/pbp/wta_main/approved-index.jsonl",
+    "scripts/verify-sackmann-wta-main-pbp.py",
+    "scripts/test_verify_sackmann_wta_main_pbp.py"
+  ],
+  "how_applied": {
+    "method": "surgical per-record patch, not a wholesale re-run of run() or the standard build-wta-main-pbp-approved-index.py script",
+    "why_not_a_wholesale_rerun": "A wholesale re-run of run() for 2012-2015 would ALSO apply the 217 demotions the reconciliation audit found as an inseparable side effect of the same matching-code fix, which was explicitly out of scope for this promotion (only the 815 were approved). The patch therefore updates only the exact 815 record keys identified in the audited manifest, using content captured from a real (unmodified) execution of run(), leaving every other record's on-disk content byte-identical to its pre-promotion state.",
+    "approved_index_build_note": "scripts/build-wta-main-pbp-approved-index.py could not be re-run wholesale either: it is a destructive, one-shot tool (it strips reconstructed_games from verified-mappings.json after reading it) and was found to already be broken for any second invocation even before this promotion (the 2011 non-Slam file was already fully stripped from an earlier, pre-existing production run, so any fresh invocation of the script crashes with KeyError on the very first file -- confirmed pre-existing, not introduced by this change; git status after the failed run showed zero additional file changes). The 815 new rows were instead built by importing and calling the same convert_nonslam() function the production script uses, verified to produce byte-identical existing rows plus exactly 815 new ones, and reconstructed_games was then stripped from the newly-appended verified-mappings.json entries to restore the standard on-disk invariant for the future."
+  },
+  "verification_performed_after_applying": [
+    "Exactly 815 records changed status on disk across all 4 years, zero unexpected changes (programmatically diffed every record's hist field for byte-identity)",
+    "verified-mappings.json: exactly 815 new entries added per year total, zero removals",
+    "approved-index.jsonl: 7165 -> 7980 rows (+815), all 7165 pre-existing rows byte-identical, 0 duplicate pbp_sha256",
+    "Independent re-check of score and tournament agreement performed AGAIN directly from the final on-disk records.json (not from staged/cached data): 0 mismatches across all 815",
+    "Spot-checked 3 of the 815 new approved-index.jsonl rows for correct shape and non-empty games arrays consumable by src/lib/sackmann-wta-main-pbp.server.ts",
+    "Full unit test suite (scripts/test_verify_sackmann_wta_main_pbp.py): 32/32 pass",
+    "Before/after regression script (scripts/regression_check_wta_main_pbp_before_after.py): both invariants pass"
+  ],
+  "not_modified": [
+    "predictionEngine (this repository has no such directory; confirmed out of scope and untouched)",
+    "any calibration, market-odds, or licensing logic",
+    "the Grand Slam lane (2016-2024, SACKMANN_SLAM_ARCHIVE rows) -- 2991 rows, unchanged",
+    "the 2011 non-Slam lane -- unchanged",
+    "the 1050 still-unresolved records, the 11 ambiguous records, the 56 conflict/structural-failure records, and the 25 known given-given-surname false negatives"
+  ]
+}

@@ -182,14 +182,17 @@ def parse_date(v):
 
 
 # ppaulojr's per-match `date` and the local Tennis-Data.co.uk sync's `date` are not always
-# the same calendar day for the same real match -- confirmed by direct inspection (e.g. a
-# Miami 2013 match ppaulojr dates 2013-03-18, Tennis-Data dates 2013-03-20; both are inside
-# the same 12-day tournament, so this is a per-source logging-convention difference, not
-# two different matches). Exact date equality was too strict a filter for the pair+date
-# lookup below. A short tolerance window is safe here specifically because every other
-# check (player-pair identity, winner name, score, tournament) still must also match exactly
-# -- widening only the date comparison does not on its own let an unrelated match through.
-DATE_TOLERANCE_DAYS = 3
+# the same calendar day for the same real match -- confirmed empirically across the full
+# 2012-2015 promotion-candidate population (docs/audit-wta-main-pbp-promotion-reconciliation.md
+# Sec.7): 84.7% agree exactly, 15.3% differ by exactly 1 day, and 0% differ by 2+ days. Exact
+# date equality was too strict a filter for the pair+date lookup below. A short tolerance
+# window is safe here specifically because every other check (player-pair identity, winner
+# name, score, tournament) still must also match exactly -- widening only the date comparison
+# does not on its own let an unrelated match through. Set to 1 day (not wider) because the
+# reconciliation audit found DATE_TOLERANCE_DAYS=3 and =1 produce a byte-identical result
+# across the entire 2012-2015 dataset -- the wider window bought no additional coverage while
+# needlessly widening the risk surface for future years.
+DATE_TOLERANCE_DAYS = 1
 
 
 def dates_within_tolerance(a: str, b: str, max_days: int) -> bool:

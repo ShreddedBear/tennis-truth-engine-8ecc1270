@@ -379,8 +379,20 @@
       "match_num": "2",
       "tourney_id": "2014-W-INT-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6624,
+      "date": "2014-01-06",
+      "tournament": "HobartInternational-WTAHobart2014",
+      "server1": "Kristina Mladenovic",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "1",
+      "score": "6-7(7) 6-4 6-4",
+      "pbp_sha256": "936d3b3bcbb49ba133000859338d59f3adb57cb6f4292fd74cb00f3ab099ae3f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -477,8 +489,20 @@
       "match_num": "6",
       "tourney_id": "2014-W-INT-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6623,
+      "date": "2014-01-06",
+      "tournament": "HobartInternational-WTAHobart2014",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Casey Dellacqua",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "7fc46949e37434a4f001d1e2a66586d4fad12d1e85d555423077cf69c3859b10",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -499,8 +523,20 @@
       "match_num": "7",
       "tourney_id": "2014-W-INT-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6621,
+      "date": "2014-01-05",
+      "tournament": "HobartInternational-WTAHobart2014",
+      "server1": "Shuai Zhang",
+      "server2": "Jie Zheng",
+      "winner": "1",
+      "score": "6-3 6-1",
+      "pbp_sha256": "ae1fa7002b2825084add46a805dc4691055110c50acfb0b2a12ceb485a4e601c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -610,8 +646,20 @@
       "match_num": "11",
       "tourney_id": "2014-W-INT-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6622,
+      "date": "2014-01-05",
+      "tournament": "HobartInternational-WTAHobart2014",
+      "server1": "Karin Knapp",
+      "server2": "Estrella Cabeza Candela",
+      "winner": "2",
+      "score": "7-5 6-4",
+      "pbp_sha256": "a4e954e01772921390c157351f597ce040a21f5e38d2e823b48e951ad40f473e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -1506,8 +1554,20 @@
       "match_num": "12",
       "tourney_id": "2014-W-INT-AUT-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8078,
+      "date": "2014-07-08",
+      "tournament": "NURNBERGERGasteinLadies-WTABadGastein",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Laura Siegemund",
+      "winner": "1",
+      "score": "7-6(3) 1-6 6-4",
+      "pbp_sha256": "7e7e629212063b6cbbfc84253b40b201b83f7536e8641aac8cf567ee311a7256",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -1800,8 +1860,20 @@
       "match_num": "22",
       "tourney_id": "2014-W-INT-AUT-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8085,
+      "date": "2014-07-10",
+      "tournament": "NURNBERGERGasteinLadies-WTABadGastein",
+      "server1": "Shelby Rogers",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-4 6-0",
+      "pbp_sha256": "455c1f764cc6dfa419af1a755704cb3f1bf579747ef7eca6b329c1564f5bf197",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -3491,8 +3563,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-INT-AZE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8101,
+      "date": "2014-07-22",
+      "tournament": "BakuCup-WTABaku",
+      "server1": "Danka Kovinic",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "702b2cefb1004387718d207ee56e7a2274622f9a895fcba6b3a4116a61f83cb8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -3772,8 +3856,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-INT-AZE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8109,
+      "date": "2014-07-24",
+      "tournament": "BakuCup-WTABaku",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Elina Svitolina",
+      "winner": "2",
+      "score": "7-5 6-2",
+      "pbp_sha256": "8f0e6b80a70010517ab33bbeaf418567f9f69e15fc3c26cf889b9b97ecc531e9",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4053,8 +4149,20 @@
       "match_num": "2",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6955,
+      "date": "2014-02-17",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Laura Pigossi",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "2",
+      "score": "6-0 6-1",
+      "pbp_sha256": "70173bfbc281d2f156d13073d67eeed05db40e9da88c5553597ffaf172ecc01c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4075,8 +4183,20 @@
       "match_num": "3",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6959,
+      "date": "2014-02-17",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Beatriz Haddad Maia",
+      "server2": "Katarzyna Piter",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "1632a6e5f1a58b73425554dc4c1cfd1ad8bb6b476a1b0b79445eb2dc06a32002",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4239,8 +4359,20 @@
       "match_num": "10",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6957,
+      "date": "2014-02-17",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Johanna Larsson",
+      "server2": "Alison Van Uytvanck",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "6617d0a27ed018dcca45ff3affd511214f7dc407d0943e513b6e42f649b9f929",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4431,8 +4563,20 @@
       "match_num": "16",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6964,
+      "date": "2014-02-18",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Francesca Schiavone",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "0ee236300784d0241434f4f9fbe6f929c0fd884bab476a20d181da144fb4cfa7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4530,8 +4674,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6976,
+      "date": "2014-02-20",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Irina-Camelia Begu",
+      "server2": "Veronica Cepede Royg",
+      "winner": "1",
+      "score": "6-3 5-7 6-1",
+      "pbp_sha256": "92245b77f1c12b6054d3c8110b1772fe6f298e751677f77dc5e9b48e2535464c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4552,8 +4708,20 @@
       "match_num": "21",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6973,
+      "date": "2014-02-19",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Nastassja Burnett",
+      "server2": "Alison Van Uytvanck",
+      "winner": "1",
+      "score": "0-6 6-3 6-2",
+      "pbp_sha256": "e32d6b16624eb47dc4adbce454e4fdbf4c225afeb03b04ddc67d210c5a93c828",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4642,8 +4810,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-INT-BRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6977,
+      "date": "2014-02-20",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Lourdes Dominguez-Lino",
+      "server2": "Chanelle Scheepers",
+      "winner": "1",
+      "score": "2-6 7-6(7) 6-1",
+      "pbp_sha256": "2e60acd730dfe46b19656f9522758c5a06b7339b86179d6886fbfbbac2aae915",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -4850,8 +5030,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6988,
+      "date": "2014-02-24",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Timea Babos",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "34467bbac1946c5e742eeaa811e9049d7f41fe54db2283a4164f8a4bcf99bb4d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5016,8 +5208,20 @@
       "match_num": "7",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6995,
+      "date": "2014-02-25",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Mariana Duque-Marino",
+      "server2": "Alexandra Dulgheru",
+      "winner": "2",
+      "score": "6-1 7-6(5)",
+      "pbp_sha256": "fbc60827ad5b3813fa85197244aa763b48141251acc01d23d2b4ae292d1fd39b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5103,8 +5307,20 @@
       "match_num": "11",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6981,
+      "date": "2014-02-24",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Yaroslava Shvedova",
+      "winner": "2",
+      "score": "7-6(1) 7-6(1)",
+      "pbp_sha256": "284fecd8b1f7a3f19516fd00e973da555d735008835a3660160f00e849120a37",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5146,8 +5362,20 @@
       "match_num": "13",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6989,
+      "date": "2014-02-24",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Beatriz Haddad Maia",
+      "server2": "Paula Ormaechea",
+      "winner": "2",
+      "score": "6-1 6-2",
+      "pbp_sha256": "36b7780c771333f93b36671bec2dc2aca8804df3b033596715b5f2985fc2936d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5258,8 +5486,20 @@
       "match_num": "17",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7004,
+      "date": "2014-02-26",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Kiki Bertens",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 7-6(2)",
+      "pbp_sha256": "5e46e967e9784f44b21776956e6496224ea240140498003d2c04e3cee0ef9632",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5411,8 +5651,20 @@
       "match_num": "23",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7000,
+      "date": "2014-02-26",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Paula Ormaechea",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "a203925c64997b79322d4d2d0fbaa7abe83a1f777f3546c247c57e5d4cfbc2a3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5530,8 +5782,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-INT-BRA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7006,
+      "date": "2014-02-27",
+      "tournament": "BrasilTennisCup-WTAFlorianopolis",
+      "server1": "Garbine Muguruza",
+      "server2": "Alison Van Uytvanck",
+      "winner": "1",
+      "score": "6-2 6-7(1) 6-3",
+      "pbp_sha256": "090f530b584746063c24dd7ec5be3c965a51c5460d71bb5462014fb1f970aa8f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -5730,8 +5994,20 @@
       "match_num": "4",
       "tourney_id": "2014-W-INT-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8574,
+      "date": "2014-09-09",
+      "tournament": "CoupeBanqueNationale-WTAQuebecCity",
+      "server1": "Michelle Larcher De Brito",
+      "server2": "Lucie Hradecka",
+      "winner": "2",
+      "score": "7-6(4) 6-1",
+      "pbp_sha256": "bca4be1e14a16e4a5c43b6e83a9a255d9e06e54feab04f414d4e4666a7b88647",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -8439,8 +8715,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-INT-CHN-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8959,
+      "date": "2014-10-07",
+      "tournament": "TianjinOpen2014-WTATianjin",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Elizaveta Kulichkova",
+      "winner": "2",
+      "score": "7-6(6) 4-6 6-1",
+      "pbp_sha256": "0cc84d09c7abfc9d4e91ddc63fbda2a1d42a63405733c27157c397a7f5b9b536",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -9114,8 +9402,20 @@
       "match_num": "8",
       "tourney_id": "2014-W-INT-COL-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7332,
+      "date": "2014-04-07",
+      "tournament": "CopaClaroColsanitas-WTABogota",
+      "server1": "Teliana Pereira",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "fad0434672dda50c1be92d61e052db4fb67f258a966cadb3c240992fc70a599c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -9335,8 +9635,20 @@
       "match_num": "16",
       "tourney_id": "2014-W-INT-COL-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7341,
+      "date": "2014-04-08",
+      "tournament": "CopaClaroColsanitas-WTABogota",
+      "server1": "Mariana Duque-Marino",
+      "server2": "Sloane Stephens",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "a488a29efd4637663fe7a96504cdb57702453015b560d2c5f4aa8989c278692e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -9446,8 +9758,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-INT-COL-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7347,
+      "date": "2014-04-09",
+      "tournament": "CopaClaroColsanitas-WTABogota",
+      "server1": "Yuliana Lizarazo",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "2",
+      "score": "6-2 6-3",
+      "pbp_sha256": "bbf995d80880a5e9591e56d433967101757f4567b801251cdc8b3c3885b437bf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -9613,8 +9937,20 @@
       "match_num": "26",
       "tourney_id": "2014-W-INT-COL-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7355,
+      "date": "2014-04-11",
+      "tournament": "CopaClaroColsanitas-WTABogota",
+      "server1": "Lourdes Dominguez-Lino",
+      "server2": "Chanelle Scheepers",
+      "winner": "2",
+      "score": "6-2 6-1",
+      "pbp_sha256": "6800780cd3c7743c84720a5344a2b5b63013056805a05f3df998583950758b68",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -9669,8 +10005,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-INT-COL-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7356,
+      "date": "2014-04-11",
+      "tournament": "CopaClaroColsanitas-WTABogota",
+      "server1": "Mariana Duque-Marino",
+      "server2": "Vania King",
+      "winner": "2",
+      "score": "7-6(4) 7-5",
+      "pbp_sha256": "461cbf85c688da09edf491f31262740221b3b6ec5d5e498be0070c7a601a9203",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -10184,8 +10532,20 @@
       "match_num": "14",
       "tourney_id": "2014-W-INT-FRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7627,
+      "date": "2014-05-20",
+      "tournament": "InternationauxdeStrasbourg-WTAStrasbourg",
+      "server1": "Stefanie Voegele",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "2",
+      "score": "6-0 7-6(5)",
+      "pbp_sha256": "a7aabc443136f17e1394f99f065661787ed57fd2f6f622aeca8ec9e845328498",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -10452,8 +10812,20 @@
       "match_num": "23",
       "tourney_id": "2014-W-INT-FRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7639,
+      "date": "2014-05-21",
+      "tournament": "InternationauxdeStrasbourg-WTAStrasbourg",
+      "server1": "Shuai Peng",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "2",
+      "score": "6-4 4-6 6-2",
+      "pbp_sha256": "de18e3e1725071cd8986f4bfd7faab21f81fc78d610de39ab65ee266cc774f16",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -10597,8 +10969,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-INT-FRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7642,
+      "date": "2014-05-22",
+      "tournament": "InternationauxdeStrasbourg-WTAStrasbourg",
+      "server1": "Camila Giorgi",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "2",
+      "score": "3-6 6-4 7-5",
+      "pbp_sha256": "741cba101ffbf5fafeae9aa7dfab55d5ab4add0775755019fb99d075f4e83cc0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -10653,8 +11037,20 @@
       "match_num": "30",
       "tourney_id": "2014-W-INT-FRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7645,
+      "date": "2014-05-23",
+      "tournament": "InternationauxdeStrasbourg-WTAStrasbourg",
+      "server1": "Christina McHale",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "2",
+      "score": "5-7 7-6(7) 6-3",
+      "pbp_sha256": "056658e6624169e7d5556696f5aa2a79bceb58ab9ba22932053b2e6784e2f5f5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -10675,8 +11071,20 @@
       "match_num": "31",
       "tourney_id": "2014-W-INT-FRA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7617,
+      "date": "2014-05-24",
+      "tournament": "InternationauxdeStrasbourg-WTAStrasbourg",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Monica Puig",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "faddbe5c22f2e843648bf886e88d2eae59a02399bb1ee6175e25aa65b4116284",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -11505,8 +11913,20 @@
       "match_num": "6",
       "tourney_id": "2014-W-INT-HKG-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8656,
+      "date": "2014-09-09",
+      "tournament": "PrudentialHongKongTennisOpen-WTAHongKong",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Johanna Larsson",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "75d7dc8f0a80dbb081c30f4028831cf2dfd5174383485a759ee73a4eb5955ae7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -11774,8 +12194,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-INT-HKG-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8659,
+      "date": "2014-09-09",
+      "tournament": "PrudentialHongKongTennisOpen-WTAHongKong",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Katarzyna Piter",
+      "winner": "1",
+      "score": "6-2 6-1",
+      "pbp_sha256": "426fe5f8cb4f420b6370c18c9496ffb9406c72774fb2da65daf95e4d44e8247c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -12020,8 +12452,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-INT-HKG-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8668,
+      "date": "2014-09-11",
+      "tournament": "PrudentialHongKongTennisOpen-WTAHongKong",
+      "server1": "Daniela Hantuchova",
+      "server2": "Alison Van Uytvanck",
+      "winner": "2",
+      "score": "3-6 6-2 6-4",
+      "pbp_sha256": "41ff1f20073aa9d1641ccafd5dd71959218a97df45d142584d79ad7d155a375a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -12144,8 +12588,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-INT-HKG-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8644,
+      "date": "2014-09-12",
+      "tournament": "PrudentialHongKongTennisOpen-WTAHongKong",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Jarmila Gajdosova",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "b8812ee8ff27504d043133e86b70a9c912472c32ace88ab64862bf480a531f4c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -14256,8 +14712,20 @@
       "match_num": "11",
       "tourney_id": "2014-W-INT-LUX-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8846,
+      "date": "2014-10-14",
+      "tournament": "BGLBNPParibasLuxembourgOpen-WTALuxembourg",
+      "server1": "Stefanie Voegele",
+      "server2": "Alison Van Uytvanck",
+      "winner": "2",
+      "score": "5-7 6-2 6-2",
+      "pbp_sha256": "fe9a013156a822c24ff9b7b00704c2ad46576a139f8973d094c411efa97ff21b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -16903,8 +17371,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-INT-MEX-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7240,
+      "date": "2014-04-01",
+      "tournament": "MonterreyOpen-WTAMonterrey",
+      "server1": "Flavia Pennetta",
+      "server2": "Kimiko Date-Krumm",
+      "winner": "2",
+      "score": "7-5 6-2",
+      "pbp_sha256": "503901f672b0dc941cee487678335f44a507d47897b9c1662403aaf7ab8f02aa",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -17367,8 +17847,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-INT-MEX-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7246,
+      "date": "2014-04-01",
+      "tournament": "MonterreyOpen-WTAMonterrey",
+      "server1": "Aleksandra Wozniak",
+      "server2": "Marcela Zacarias",
+      "winner": "1",
+      "score": "3-6 6-0 6-1",
+      "pbp_sha256": "004f77367e84e48e1c1d53964accf710f50ccd118eddf9563e446496f66bd75f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -17423,8 +17915,20 @@
       "match_num": "17",
       "tourney_id": "2014-W-INT-MEX-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7250,
+      "date": "2014-04-02",
+      "tournament": "MonterreyOpen-WTAMonterrey",
+      "server1": "Timea Babos",
+      "server2": "Kimiko Date-Krumm",
+      "winner": "2",
+      "score": "6-4 6-7(4) 6-4",
+      "pbp_sha256": "e68f9a42f9629f80bcff0452e30c2c4daeaedecc28f942306423fd72a442e7f8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -17445,8 +17949,20 @@
       "match_num": "18",
       "tourney_id": "2014-W-INT-MEX-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7254,
+      "date": "2014-04-03",
+      "tournament": "MonterreyOpen-WTAMonterrey",
+      "server1": "Nicole Gibbs",
+      "server2": "Monica Puig",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "668a0b8d7fa511de0dccea4840ac370f0ebb5fa0ac970d532d1b56f095464bee",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -17658,8 +18174,20 @@
       "match_num": "25",
       "tourney_id": "2014-W-INT-MEX-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7390,
+      "date": "2014-04-04",
+      "tournament": "MonterreyOpen-WTAMonterrey",
+      "server1": "Monica Puig",
+      "server2": "Kimiko Date-Krumm",
+      "winner": "2",
+      "score": "6-4 6-7(2) 6-4",
+      "pbp_sha256": "10a9a6af8b3dfa4d76e2a45a2b29c8bc288f86cf964ae9ee3d76e6152d849c94",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -17825,8 +18353,20 @@
       "match_num": "31",
       "tourney_id": "2014-W-INT-MEX-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7396,
+      "date": "2014-04-07",
+      "tournament": "MonterreyOpen-WTAMonterrey",
+      "server1": "Ana Ivanovic",
+      "server2": "Jovana Jaksic",
+      "winner": "1",
+      "score": "6-2 6-1",
+      "pbp_sha256": "9467f0c5151ec6eba0562be7609a77241b8740aabdfc6fea3d4ced6cc5e7773a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -20296,8 +20836,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-INT-POR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7485,
+      "date": "2014-04-29",
+      "tournament": "PortugalOpen-WTAOeiras",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Alla Kudryavtseva",
+      "winner": "1",
+      "score": "6-1 6-2",
+      "pbp_sha256": "1203f01dfff223151065777707fbaa0b2d6d124a49368a99e543c3cb21ab00d5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21037,8 +21589,20 @@
       "match_num": "25",
       "tourney_id": "2014-W-INT-POR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7498,
+      "date": "2014-05-01",
+      "tournament": "PortugalOpen-WTAOeiras",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Polona Hercog",
+      "winner": "1",
+      "score": "6-1 6-3",
+      "pbp_sha256": "425828543ac08bba0551cee03d83864b9e0fff6dd5f6895e1534a5805d2c84bb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21152,8 +21716,20 @@
       "match_num": "29",
       "tourney_id": "2014-W-INT-POR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7615,
+      "date": "2014-05-02",
+      "tournament": "PortugalOpen-WTAOeiras",
+      "server1": "Irina-Camelia Begu",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "7-6(3) 6-1",
+      "pbp_sha256": "c968402c3def00ee55ca76a23619fa7bd34aa51d1ac3e4a41a0324e0ea71f887",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21208,8 +21784,20 @@
       "match_num": "31",
       "tourney_id": "2014-W-INT-POR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7616,
+      "date": "2014-05-03",
+      "tournament": "PortugalOpen-WTAOeiras",
+      "server1": "Svetlana Kuznetsova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-4 3-6 6-4",
+      "pbp_sha256": "0b6a235df34b49c4c9a4aa2f6d426027d3d3398c1bed7c43935a0e6e4dd054cf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21230,8 +21818,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-INT-ROU-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8028,
+      "date": "2014-07-09",
+      "tournament": "BucharestOpen-WTABucharest",
+      "server1": "Simona Halep",
+      "server2": "Indy De Vroome",
+      "winner": "1",
+      "score": "6-0 6-4",
+      "pbp_sha256": "4a1751853a98077b513fc9f92e23c22f6634fab9e38c56644a7a0b1de2ff7c07",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21286,8 +21886,20 @@
       "match_num": "3",
       "tourney_id": "2014-W-INT-ROU-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8011,
+      "date": "2014-07-07",
+      "tournament": "BucharestOpen-WTABucharest",
+      "server1": "Cagla Buyukakcay",
+      "server2": "Veronica Cepede Royg",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "37af20c7ede868b20f1d2b3d284b04ab54fbf2226fc6845bfafc90e22c221e69",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21643,8 +22255,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-INT-ROU-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8022,
+      "date": "2014-07-08",
+      "tournament": "BucharestOpen-WTABucharest",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Sesil Karatantcheva",
+      "winner": "1",
+      "score": "6-2 6-1",
+      "pbp_sha256": "2f6b9c4cbe7e78c777ff50812a769317c976764bbc8fb15c023af426fa99ef88",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -21937,8 +22561,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-INT-ROU-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8034,
+      "date": "2014-07-10",
+      "tournament": "BucharestOpen-WTABucharest",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Roberta Vinci",
+      "winner": "2",
+      "score": "3-6 6-2 6-1",
+      "pbp_sha256": "e0680fa2481cdc366c75bad016bc8584911cd1265e5c043939583fbb0471e52f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -22354,8 +22990,20 @@
       "match_num": "6",
       "tourney_id": "2014-W-INT-SWE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8118,
+      "date": "2014-07-14",
+      "tournament": "CollectorSwedishOpen-WTABastad",
+      "server1": "Chanelle Scheepers",
+      "server2": "Mariana Duque-Marino",
+      "winner": "1",
+      "score": "6-3 6-4",
+      "pbp_sha256": "89017c682b45e110cf347b436f189d8e1b2c5981625a3006db1abf1e9cb7d87f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -22563,8 +23211,20 @@
       "match_num": "14",
       "tourney_id": "2014-W-INT-SWE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8128,
+      "date": "2014-07-16",
+      "tournament": "CollectorSwedishOpen-WTABastad",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Sofia Arvidsson",
+      "winner": "1",
+      "score": "6-7(3) 6-3 6-3",
+      "pbp_sha256": "603ce63b57db420578f3873b58689b64953eeeb5ed116b0c966bfb5a5de3e2c5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -22831,8 +23491,20 @@
       "match_num": "23",
       "tourney_id": "2014-W-INT-SWE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8134,
+      "date": "2014-07-17",
+      "tournament": "CollectorSwedishOpen-WTABastad",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Julia Goerges",
+      "winner": "1",
+      "score": "4-6 6-1 6-3",
+      "pbp_sha256": "939b420d4765154c67ef6896697f2579cf08671a97a888acd033ba46514838c9",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -22976,8 +23648,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-INT-SWE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8136,
+      "date": "2014-07-18",
+      "tournament": "CollectorSwedishOpen-WTABastad",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Alexandra Panova",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "9fafa8306e2c7b147d589f15a0e05d39e63ea4ef397381d2b94faf3443e22053",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -23032,8 +23716,20 @@
       "match_num": "30",
       "tourney_id": "2014-W-INT-SWE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8141,
+      "date": "2014-07-19",
+      "tournament": "CollectorSwedishOpen-WTABastad",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Mona Barthel",
+      "winner": "2",
+      "score": "6-2 4-6 7-5",
+      "pbp_sha256": "cc3fe6beedfca414312d36a03c5b09b8bb2b93539335ca22dda4cc8f853dc6ed",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -23985,8 +24681,20 @@
       "match_num": "8",
       "tourney_id": "2014-W-INT-TUR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8151,
+      "date": "2014-07-14",
+      "tournament": "TEBBNPParibasIstanbulCup-WTAIstanbul",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Bojana Jovanovski",
+      "winner": "2",
+      "score": "1-6 6-4 7-5",
+      "pbp_sha256": "3167b725acd016ed162d5f7b2cd0ae1ac80c3e604d43208765a95d716c163613",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -24784,8 +25492,20 @@
       "match_num": "2",
       "tourney_id": "2014-W-INT-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8237,
+      "date": "2014-07-28",
+      "tournament": "CitiOpen-WTAWashingtonD.C.",
+      "server1": "Julia Goerges",
+      "server2": "Taylor Townsend",
+      "winner": "2",
+      "score": "3-6 6-2 6-3",
+      "pbp_sha256": "e4091077dbdf4858db2796dd3a0f09fb2bb5b7c2708e0d0341e79435a78c7e73",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -24874,8 +25594,20 @@
       "match_num": "5",
       "tourney_id": "2014-W-INT-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8238,
+      "date": "2014-07-28",
+      "tournament": "CitiOpen-WTAWashingtonD.C.",
+      "server1": "Alize Cornet",
+      "server2": "Shelby Rogers",
+      "winner": "2",
+      "score": "7-5 4-6 6-4",
+      "pbp_sha256": "6cbbbdbcac35b2bab75e72392f8380cf0a1788978c30c51a90fc2182bf59dfe7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -26669,8 +27401,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-PM-CHN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8750,
+      "date": "2014-09-29",
+      "tournament": "ChinaOpen-WTABeijing",
+      "server1": "Serena Williams",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "1",
+      "score": "7-5 6-2",
+      "pbp_sha256": "7782b9b628904670e9dbae6ec11142ef17ead31eea46aede2837b2495e4adb47",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -27251,8 +27995,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-PM-CHN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8735,
+      "date": "2014-09-27",
+      "tournament": "ChinaOpen-WTABeijing",
+      "server1": "Kirsten Flipkens",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "20d6445e80cbd6552e6c66a7d33116ef5d075a7812662011bde9749efde39f19",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -27833,8 +28589,20 @@
       "match_num": "39",
       "tourney_id": "2014-W-PM-CHN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8764,
+      "date": "2014-09-30",
+      "tournament": "ChinaOpen-WTABeijing",
+      "server1": "Flavia Pennetta",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-1 3-6 6-2",
+      "pbp_sha256": "c5188904c5abb6550a87065a042835beeee5196a297a54d030dc942eccdd7e6b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -28169,8 +28937,20 @@
       "match_num": "50",
       "tourney_id": "2014-W-PM-CHN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8771,
+      "date": "2014-10-01",
+      "tournament": "ChinaOpen-WTABeijing",
+      "server1": "Maria Sharapova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-1 7-6(3)",
+      "pbp_sha256": "123e11130f95e33034b6a6729e471c53d74373322711eab311b1717553df4f1c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -28560,8 +29340,20 @@
       "match_num": "4",
       "tourney_id": "2014-W-PM-ESP-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7609,
+      "date": "2014-05-05",
+      "tournament": "MutuaMadridOpen-WTAMadrid",
+      "server1": "Yvonne Meusburger",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "7-6(6) 6-4",
+      "pbp_sha256": "e920e7774a27a75d1450083daf81e31d86b089e093e64b86defb46ee001d8c7a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -29279,8 +30071,20 @@
       "match_num": "27",
       "tourney_id": "2014-W-PM-ESP-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7580,
+      "date": "2014-05-03",
+      "tournament": "MutuaMadridOpen-WTAMadrid",
+      "server1": "Garbine Muguruza",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "1",
+      "score": "6-7(4) 6-3 7-6(2)",
+      "pbp_sha256": "43eea86acd764fc041361ec3baeb1289f5d9fd96f1e615735856868f3c99339d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -29403,8 +30207,20 @@
       "match_num": "31",
       "tourney_id": "2014-W-PM-ESP-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7590,
+      "date": "2014-05-04",
+      "tournament": "MutuaMadridOpen-WTAMadrid",
+      "server1": "Jie Zheng",
+      "server2": "Mariana Duque-Marino",
+      "winner": "1",
+      "score": "7-6(5) 6-2",
+      "pbp_sha256": "67953c9abebe76631c5a8d99b1f55d098cb6709d22ffb50ccb8122e7e2287ab0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -29977,8 +30793,20 @@
       "match_num": "49",
       "tourney_id": "2014-W-PM-ESP-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7567,
+      "date": "2014-05-08",
+      "tournament": "MutuaMadridOpen-WTAMadrid",
+      "server1": "Serena Williams",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "8ea0a7fb98d484a4ff9e362ddd08e1981545ccc9eb1508676a4b28353c2554d3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30586,8 +31414,20 @@
       "match_num": "5",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7075,
+      "date": "2014-03-06",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Olivia Rogowska",
+      "server2": "Donna Vekic",
+      "winner": "2",
+      "score": "6-0 7-5",
+      "pbp_sha256": "31e73f76023a70b14194ae273ce10fc98601dbc6a30425ac5fc00f8678c5a082",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30608,8 +31448,20 @@
       "match_num": "6",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7074,
+      "date": "2014-03-06",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Marina Erakovic",
+      "server2": "Monica Niculescu",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "085579a99407b661a40ccfe2031f2b09e68bc02e0562e5dd59f42e81df007fc3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30808,8 +31660,20 @@
       "match_num": "13",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7073,
+      "date": "2014-03-06",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Elina Svitolina",
+      "server2": "Monica Puig",
+      "winner": "1",
+      "score": "6-4 7-5",
+      "pbp_sha256": "adcd368dbb5158591cbf3ce3d47f0e9526789b9a7619e3973609f38a979a5fcc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30830,8 +31694,20 @@
       "match_num": "14",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7069,
+      "date": "2014-03-06",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Ajla Tomljanovic",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "1",
+      "score": "6-4 7-6(2)",
+      "pbp_sha256": "c866fca3796812001de9fc2fb368e4b603f3bdea8def8aa39512b06760ab592e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30907,8 +31783,20 @@
       "match_num": "17",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7058,
+      "date": "2014-03-05",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Kurumi Nara",
+      "server2": "Allie Kiick",
+      "winner": "1",
+      "score": "6-4 6-0",
+      "pbp_sha256": "349c3ff21a57f4f340339269d261f75fb6ac3be0fcf4c5cb6ca3bdd42b8e3151",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30984,8 +31872,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7059,
+      "date": "2014-03-05",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Sharon Fichman",
+      "server2": "Shahar Peer",
+      "winner": "1",
+      "score": "4-6 6-3 6-4",
+      "pbp_sha256": "5974a2e254a16711be638c5becb430d831ff3d6db22554d9a9446acf834caf13",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31074,8 +31974,20 @@
       "match_num": "23",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7063,
+      "date": "2014-03-06",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Varvara Lepchenko",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "bb3ffb8d1c519c958a203deb4080b1922c9e1058d1fe667d446f58f238d21b81",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31185,8 +32097,20 @@
       "match_num": "27",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7060,
+      "date": "2014-03-05",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Chanelle Scheepers",
+      "server2": "Yaroslava Shvedova",
+      "winner": "2",
+      "score": "4-6 6-4 6-3",
+      "pbp_sha256": "fa81ca8c4c692f1cbe812f1747124dbfe5bff26a37ef4d29d2323594f864c6a0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31228,8 +32152,20 @@
       "match_num": "29",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7057,
+      "date": "2014-03-05",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Shuai Zhang",
+      "server2": "Kristina Mladenovic",
+      "winner": "2",
+      "score": "6-2 6-1",
+      "pbp_sha256": "e172eac3ef1d93326db1aa071052214e882f1a673d93e89eacd363cb17ddd0d2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31428,8 +32364,20 @@
       "match_num": "36",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7180,
+      "date": "2014-03-08",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Sabine Lisicki",
+      "server2": "Aleksandra Wozniak",
+      "winner": "2",
+      "score": "7-5 1-6 7-6(5)",
+      "pbp_sha256": "b0a7c69eec7a35f90153b064aa0e436413d7e87412270e287d558b4d0337c548",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31560,8 +32508,20 @@
       "match_num": "41",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7183,
+      "date": "2014-03-08",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Julia Goerges",
+      "server2": "Maria Sharapova",
+      "winner": "2",
+      "score": "6-1 6-4",
+      "pbp_sha256": "ead3bc37dfba50cb7cee456fb25d6a6cfe5f784eed56474ea055f30d30e229c1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31582,8 +32542,20 @@
       "match_num": "42",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7181,
+      "date": "2014-03-08",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Camila Giorgi",
+      "server2": "Sorana Cirstea",
+      "winner": "1",
+      "score": "7-6(3) 6-3",
+      "pbp_sha256": "7a3ca88564cc7f69b1213843c21a2cf5b4182bb2881067b5c0536a0983107431",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31604,8 +32576,20 @@
       "match_num": "43",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7182,
+      "date": "2014-03-08",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Flavia Pennetta",
+      "server2": "Taylor Townsend",
+      "winner": "1",
+      "score": "6-3 6-7(4) 6-3",
+      "pbp_sha256": "b7d63d892cd31046da99c28108115efcb3298adfa9c06172f1d5c51d917ee716",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -32158,8 +33142,20 @@
       "match_num": "60",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7168,
+      "date": "2014-03-07",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Caroline Wozniacki",
+      "server2": "Bojana Jovanovski",
+      "winner": "1",
+      "score": "6-1 6-3",
+      "pbp_sha256": "e1136de04be8566143d29f1fa253d7d7c5c32dd074e5595df580dea93bea316b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -32180,8 +33176,20 @@
       "match_num": "61",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7163,
+      "date": "2014-03-07",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Kristina Mladenovic",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "abbbdd2f160802ca46e2ff6454024233bc14814a1361232dc48c7af373d68277",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -32202,8 +33210,20 @@
       "match_num": "62",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7158,
+      "date": "2014-03-07",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Alize Cornet",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "1",
+      "score": "6-3 4-6 6-2",
+      "pbp_sha256": "933959457c082e25c08a861181599d756159c6d0493063db2216725815d793c6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -32381,8 +33401,20 @@
       "match_num": "68",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7136,
+      "date": "2014-03-10",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Petra Kvitova",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "1",
+      "score": "6-3 2-6 6-0",
+      "pbp_sha256": "45374c9aaa13d76f907781bfcee098753b8faa591eab21fdf37c442c042f9850",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -32731,8 +33763,20 @@
       "match_num": "79",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7125,
+      "date": "2014-03-09",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Alize Cornet",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-7(4) 7-5 6-3",
+      "pbp_sha256": "a713d8a6cc8b77d86ba6396989d4b986ac619986964ae85dc4e00011a124f696",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -32753,8 +33797,20 @@
       "match_num": "80",
       "tourney_id": "2014-W-PM-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7129,
+      "date": "2014-03-09",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Annika Beck",
+      "winner": "1",
+      "score": "6-0 6-0",
+      "pbp_sha256": "1909138b566bfe9b74b8c1b1a9049e794b862ad73fa40187f422c7e5bdf25a14",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33272,8 +34328,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7082,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Yaroslava Shvedova",
+      "server2": "Francesca Schiavone",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "5b016740748692253a0804fc8073a3badf1949507b60532f8b4ecd053ca486bc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33294,8 +34362,20 @@
       "match_num": "2",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7077,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Caroline Garcia",
+      "server2": "Aleksandra Wozniak",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "ab985b8ae627c2f1aea07e849ccf11db1db3b6883a4f1497ec570ea1658f7883",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33316,8 +34396,20 @@
       "match_num": "3",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7098,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Marina Erakovic",
+      "server2": "Coco Vandeweghe",
+      "winner": "2",
+      "score": "6-4 7-6(6)",
+      "pbp_sha256": "9c4ac609a7c584fe35f4016d0bfe784bf5fc18e40f7f43541c7e19b1abc4b4c9",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33338,8 +34430,20 @@
       "match_num": "4",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7094,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Victoria Duval",
+      "server2": "Kiki Bertens",
+      "winner": "2",
+      "score": "7-6(5) 6-1",
+      "pbp_sha256": "2684c6e1ad29887484cbf111bcc5a1de9d3aec319ca7907248eeb1101764a70f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33403,8 +34507,20 @@
       "match_num": "7",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7078,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Galina Voskoboeva",
+      "server2": "Tsvetana Pironkova",
+      "winner": "2",
+      "score": "6-2 7-5",
+      "pbp_sha256": "cca73fdb8d11b7852752081c1b0b725087011b3512fd495648ae4692a46b973f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33447,8 +34563,20 @@
       "match_num": "9",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7080,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kurumi Nara",
+      "server2": "Annika Beck",
+      "winner": "1",
+      "score": "7-6(2) 6-4",
+      "pbp_sha256": "20683832a87a8b55b996443de41b91673d60ca34ffd14988770bd23ca228d3dc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33469,8 +34597,20 @@
       "match_num": "10",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7092,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Estrella Cabeza-Candela",
+      "server2": "Vania King",
+      "winner": "2",
+      "score": "6-0 6-0",
+      "pbp_sha256": "25b03e337fde4ada7dc003ceb18c4f341c5721c993c92461e1992fa782ec3741",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33491,8 +34631,20 @@
       "match_num": "11",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7096,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Heather Watson",
+      "server2": "Virginie Razzano",
+      "winner": "2",
+      "score": "6-4 6-0",
+      "pbp_sha256": "8923b25c319c49338224fb8bd69bea9a3a8f3056e59a2143db8d8911da71b3f0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33513,8 +34665,20 @@
       "match_num": "12",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7093,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Nadia Petrova",
+      "server2": "Urszula Radwanska",
+      "winner": "1",
+      "score": "7-5 1-6 6-4",
+      "pbp_sha256": "2ff67080c9c9c6e9d42f96cea8fcd1ddc684b45ef44941f484619b23217d04ff",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33535,8 +34699,20 @@
       "match_num": "13",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7090,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Lauren Davis",
+      "server2": "Shuai Zhang",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "f9b8f4cc3041ebf83e359fb19a884ac9e818abf856051a1da00d27a4df440dee",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33557,8 +34733,20 @@
       "match_num": "14",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7097,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Shahar Peer",
+      "server2": "Olga Govortsova",
+      "winner": "2",
+      "score": "2-6 6-0 6-3",
+      "pbp_sha256": "90896ad1974dab2a30f351d7f7cd64f6b8930e2b8f7fb172051044661aeab643",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33579,8 +34767,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7099,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Donna Vekic",
+      "winner": "2",
+      "score": "7-6(2) 6-2",
+      "pbp_sha256": "3ab574ff97cb0e07570079d92c01055d7455ba063762db60109a97d7628908fa",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33601,8 +34801,20 @@
       "match_num": "16",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7095,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Katarzyna Piter",
+      "server2": "Paula Ormaechea",
+      "winner": "2",
+      "score": "7-6(0) 6-1",
+      "pbp_sha256": "eb5f525936f7514093e399dc75aeef7d815b9fcf4493084e923c4d2fb62cb16f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33623,8 +34835,20 @@
       "match_num": "17",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7083,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Stefanie Voegele",
+      "server2": "Casey Dellacqua",
+      "winner": "2",
+      "score": "6-3 6-2",
+      "pbp_sha256": "6ab1fd4ce8c211714ebfe69a865e69473fbd77046c5deb7c38db9c0e2f43108f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33688,8 +34912,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7103,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Yvonne Meusburger",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "1",
+      "score": "6-3 6-0",
+      "pbp_sha256": "cb31103c9dcb03036b285f40cbc0fdae395e939ccd886ebeb2979ac17231845f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33731,8 +34967,20 @@
       "match_num": "22",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7079,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Elina Svitolina",
+      "server2": "Bethanie Mattek-Sands",
+      "winner": "1",
+      "score": "6-3 3-6 6-3",
+      "pbp_sha256": "d3b000855c32c7f0e8471bcbb0517937b6b0cc847e9628da5962dc5f317c318f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33774,8 +35022,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7081,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Bojana Jovanovski",
+      "server2": "Romina Oprandi",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "f1af3fdfb7d750bb6c4e88fced2b00312b5c6d7f0f718ff1413425fb9a07eb25",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33796,8 +35056,20 @@
       "match_num": "25",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7084,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Yanina Wickmayer",
+      "server2": "Varvara Lepchenko",
+      "winner": "2",
+      "score": "7-5 6-1",
+      "pbp_sha256": "99f788da042df7283e20c571f0495031886a594de7473cb7c7cf22e6f25af32b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33818,8 +35090,20 @@
       "match_num": "26",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7102,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Ajla Tomljanovic",
+      "server2": "Kristina Mladenovic",
+      "winner": "1",
+      "score": "7-6(4) 6-4",
+      "pbp_sha256": "852a9d25114fcd26bc6966f44f88fe687e90fea6a2bd36238c087e87dfe0047c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33861,8 +35145,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7085,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Monica Puig",
+      "server2": "Magdalena Rybarikova",
+      "winner": "1",
+      "score": "6-1 7-6(7)",
+      "pbp_sha256": "9d1fbf8894beb7218565e655b4064154e30525b8e7e02af2f5ed9fb57298342d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33883,8 +35179,20 @@
       "match_num": "29",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7086,
+      "date": "2014-03-18",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Chanelle Scheepers",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "1",
+      "score": "6-3 6-0",
+      "pbp_sha256": "9c678ebaf13c5801be3f87579e31639a6c2dc1248b847625d400326365ad7f6c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33905,8 +35213,20 @@
       "match_num": "30",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7100,
+      "date": "2014-03-19",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Jie Zheng",
+      "server2": "Christina McHale",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "2deb95453e6b90d882f235f02c870a59582e8c055bc02c54e23375770970a8e7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33927,8 +35247,20 @@
       "match_num": "31",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7107,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Madison Keys",
+      "server2": "Anett Kontaveit",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "86a5bcd9181a0ad995634b24df4bf04f2777fdec34d8fad36d83ee3c8fb9b97b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -33970,8 +35302,20 @@
       "match_num": "33",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7122,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Yaroslava Shvedova",
+      "winner": "1",
+      "score": "7-6(7) 6-2",
+      "pbp_sha256": "5eebcf0aa174ee43d671dd1e9f89d1ea0c7e6ef793ff844e27f275d923068dcc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34013,8 +35357,20 @@
       "match_num": "35",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7119,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Anastasia Pavlyuchenkova",
+      "server2": "Coco Vandeweghe",
+      "winner": "2",
+      "score": "7-6(7) 7-5",
+      "pbp_sha256": "14bb63e8ecafa45b89d16de5b245caf254a5094403d4a9a0252d1577075e2323",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34035,8 +35391,20 @@
       "match_num": "36",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7111,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Samantha Stosur",
+      "server2": "Kiki Bertens",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "28e1547da3907813894863a0bee49a179e33b164fcd72bd2ebe1eaa29f1cc6dc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34100,8 +35468,20 @@
       "match_num": "39",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7108,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Sorana Cirstea",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "aa6e224774726b5ad04defb5918a2dfa296bc17ff2acbec00c984c9bdbb6d842",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34122,8 +35502,20 @@
       "match_num": "40",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7110,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Shuai Peng",
+      "server2": "Angelique Kerber",
+      "winner": "2",
+      "score": "6-3 1-6 7-6(5)",
+      "pbp_sha256": "90431c46d4bb16f39455832a1d6f5042480108843bf6810d05151d0fcb33b962",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34144,8 +35536,20 @@
       "match_num": "41",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7123,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kurumi Nara",
+      "server2": "Maria Sharapova",
+      "winner": "2",
+      "score": "6-3 6-4",
+      "pbp_sha256": "4a3a61e518feaace306467034c0e38efee786035648f800bec0033b2f6a8d74f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34166,8 +35570,20 @@
       "match_num": "42",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7114,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Lucie Safarova",
+      "server2": "Vania King",
+      "winner": "1",
+      "score": "6-3 7-6(2)",
+      "pbp_sha256": "956840c2a4e26d5b2f5066e9274e0cbcf3802f058c7e9ff3d8f019885d23f0e9",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34188,8 +35604,20 @@
       "match_num": "43",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7121,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kirsten Flipkens",
+      "server2": "Virginie Razzano",
+      "winner": "1",
+      "score": "6-1 3-6 6-3",
+      "pbp_sha256": "521c55800cc656ad873c3188df854bc1321f2367084e79dc36bc63a966f0e011",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34210,8 +35638,20 @@
       "match_num": "44",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7116,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Nadia Petrova",
+      "server2": "Sabine Lisicki",
+      "winner": "2",
+      "score": "3-6 6-4 6-4",
+      "pbp_sha256": "e04d45c22afd4f8571803ae9abb7d882b97532f640433dd06498352161306da8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34232,8 +35672,20 @@
       "match_num": "45",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7112,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Ana Ivanovic",
+      "server2": "Lauren Davis",
+      "winner": "1",
+      "score": "6-1 6-1",
+      "pbp_sha256": "348082e93898e33ee88659cba157864a37daba20f3160f1b6d3ccd0c50f49d31",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34254,8 +35706,20 @@
       "match_num": "46",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7117,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Flavia Pennetta",
+      "server2": "Olga Govortsova",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "b194c8d8ea7985c68ab17fa60885b60d57d78cc2962cc1e1067aa705e745d81d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34276,8 +35740,20 @@
       "match_num": "47",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7113,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Svetlana Kuznetsova",
+      "server2": "Donna Vekic",
+      "winner": "2",
+      "score": "7-6(5) 7-5",
+      "pbp_sha256": "c7b77f34c4a279734f88b73168ff5c568b8a52e2abc93fe35bcfc101ffbe2ed6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34298,8 +35774,20 @@
       "match_num": "48",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7118,
+      "date": "2014-03-20",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Petra Kvitova",
+      "server2": "Paula Ormaechea",
+      "winner": "1",
+      "score": "6-3 6-4",
+      "pbp_sha256": "88cb1a9b9b7fe64c8d6ce5f11a7836982e51b9f56667bb3ecaa7eb2a4516670f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34320,8 +35808,20 @@
       "match_num": "49",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7289,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Jana Cepelova",
+      "server2": "Casey Dellacqua",
+      "winner": "2",
+      "score": "6-4 1-6 6-4",
+      "pbp_sha256": "eb63eb531e358570c04c0082bbb8862faaac49422aa202e70b98e9a558d43b46",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34363,8 +35863,20 @@
       "match_num": "51",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7285,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Alize Cornet",
+      "server2": "Andrea Petkovic",
+      "winner": "1",
+      "score": "6-2 6-7(0) 6-4",
+      "pbp_sha256": "ea854bd4381f4a8fde129bc4e16d1edf6af6ba1a69865876ec96d96606348c48",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34385,8 +35897,20 @@
       "match_num": "52",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7280,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Yvonne Meusburger",
+      "server2": "Dominika Cibulkova",
+      "winner": "2",
+      "score": "6-1 6-2",
+      "pbp_sha256": "635b48cec80aaac5dd46cb1af4f4a69a11971c7b464ab42cfb348f984227d7ee",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34428,8 +35952,20 @@
       "match_num": "54",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7284,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Eugenie Bouchard",
+      "server2": "Elina Svitolina",
+      "winner": "2",
+      "score": "1-6 6-1 6-2",
+      "pbp_sha256": "4c9d623ea5f00a4461a2917e03bb392b3b71e76da5607342de63c9d6d22a7976",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34471,8 +36007,20 @@
       "match_num": "56",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7290,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Romina Oprandi",
+      "winner": "1",
+      "score": "6-0 6-4",
+      "pbp_sha256": "e04f429574c60befd7c90bceca374dfbec579c0e72ee41f0366fceb285a76b7e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34493,8 +36041,20 @@
       "match_num": "57",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7283,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Varvara Lepchenko",
+      "server2": "Jelena Jankovic",
+      "winner": "1",
+      "score": "6-3 2-6 7-6(2)",
+      "pbp_sha256": "7df9c9752038a4e60e364f41d17dc4897636e60fb663436d051b025e25449268",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34515,8 +36075,20 @@
       "match_num": "58",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7286,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Ajla Tomljanovic",
+      "server2": "Garbine Muguruza",
+      "winner": "1",
+      "score": "3-6 7-6(6) 6-1",
+      "pbp_sha256": "657c2f37f62d137b72f9ad3a2b780cdee139ce73ea8ff71946a4ea39c3a8ecb8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34537,8 +36109,20 @@
       "match_num": "59",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7292,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Zarina Diyas",
+      "server2": "Sloane Stephens",
+      "winner": "2",
+      "score": "7-5 6-3",
+      "pbp_sha256": "d5a6da69f656cecb7a95577831c7f14b49e091ba3d9e0053c9a357a84d1c12de",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34559,8 +36143,20 @@
       "match_num": "60",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7293,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Monica Puig",
+      "winner": "1",
+      "score": "6-1 1-6 6-3",
+      "pbp_sha256": "d554a4f77faea64c81b094d2b14ddfbb5822e72bd0ff07cbd9dfeaa172ea2687",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34581,8 +36177,20 @@
       "match_num": "61",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7291,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Chanelle Scheepers",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-4 6-1",
+      "pbp_sha256": "fb3188acbbeb8432bfa527ab5930df7f72b1ecf34c0dccef1493ca49e6824395",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34603,8 +36211,20 @@
       "match_num": "62",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7287,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kaia Kanepi",
+      "server2": "Christina McHale",
+      "winner": "1",
+      "score": "7-6(5) 7-6(0)",
+      "pbp_sha256": "802e62c11711cb9875f93ec5e735b1941d89cc49719c18289e8cbbb196d01ef5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34625,8 +36245,20 @@
       "match_num": "63",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7288,
+      "date": "2014-03-21",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Daniela Hantuchova",
+      "server2": "Madison Keys",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "4452ac3a1db3220c9d564049a80392f9e3c6fe4b0e8360fd00198967bffa8233",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34668,8 +36300,20 @@
       "match_num": "65",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7299,
+      "date": "2014-03-22",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Caroline Garcia",
+      "server2": "Serena Williams",
+      "winner": "2",
+      "score": "6-4 4-6 6-4",
+      "pbp_sha256": "77da633574d0c0b37110a89f5b01fee2eeedc04e465b6c7ff0a3734b38ea9dc9",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34690,8 +36334,20 @@
       "match_num": "66",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7256,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Samantha Stosur",
+      "server2": "Coco Vandeweghe",
+      "winner": "2",
+      "score": "5-7 7-5 7-5",
+      "pbp_sha256": "b3f7599b919fb96385adcc2c58712b1cf8b4b15356a7d91ff72a1bf096c38a6c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34733,8 +36389,20 @@
       "match_num": "68",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7296,
+      "date": "2014-03-22",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Angelique Kerber",
+      "winner": "2",
+      "score": "6-0 6-2",
+      "pbp_sha256": "5ab980189c6cfded7d6a939379bdf599b4d0ea8e8d49e569b20f34aa571bb29d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34755,8 +36423,20 @@
       "match_num": "69",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7255,
+      "date": "2014-03-22",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Maria Sharapova",
+      "server2": "Lucie Safarova",
+      "winner": "1",
+      "score": "6-4 6-7(7) 6-2",
+      "pbp_sha256": "be40b1ca85437f653623560f8a6905603d9e100eac6ada078cce4ba7f226e115",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34798,8 +36478,20 @@
       "match_num": "71",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7297,
+      "date": "2014-03-22",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Ana Ivanovic",
+      "server2": "Flavia Pennetta",
+      "winner": "1",
+      "score": "6-4 6-3",
+      "pbp_sha256": "6fdf3103ca1c4b590ab4280759028173a53a9ecb220ae90f920279b8761fb073",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34820,8 +36512,20 @@
       "match_num": "72",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7298,
+      "date": "2014-03-22",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Petra Kvitova",
+      "server2": "Donna Vekic",
+      "winner": "1",
+      "score": "6-3 6-4",
+      "pbp_sha256": "7275bce6a01963cc501a201095c583e8d5eb2e421dd3d8bb4720c48bd9ba8ebc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34842,8 +36546,20 @@
       "match_num": "73",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7263,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Venus Williams",
+      "server2": "Casey Dellacqua",
+      "winner": "1",
+      "score": "6-4 5-7 6-4",
+      "pbp_sha256": "d32b309b52e39f25f0bad191714374dacc32e819047110f1bc2b512e6e5843e1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34864,8 +36580,20 @@
       "match_num": "74",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7261,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Dominika Cibulkova",
+      "server2": "Alize Cornet",
+      "winner": "1",
+      "score": "7-6(6) 6-4",
+      "pbp_sha256": "b54ff41fc9644810610ba56f33a6d5840b13ecbc75880d010387e45de800832a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34907,8 +36635,20 @@
       "match_num": "76",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7260,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Elena Vesnina",
+      "winner": "1",
+      "score": "7-5 6-3",
+      "pbp_sha256": "181907025359ae505f4931d05778071570313a1830b894bfb1c18ae7a3a21b3a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34929,8 +36669,20 @@
       "match_num": "77",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7262,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Ajla Tomljanovic",
+      "server2": "Varvara Lepchenko",
+      "winner": "2",
+      "score": "6-4 6-7(4) 7-6(2)",
+      "pbp_sha256": "4b97ab1f3ca55a321ad54cdf5758851e8e772ca9d357da5032be5dd8f692959c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34951,8 +36703,20 @@
       "match_num": "78",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7264,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Sloane Stephens",
+      "winner": "1",
+      "score": "6-1 6-0",
+      "pbp_sha256": "92728a1b28e05d8778613fb85888e7d4b79250be585af4041e6f3465573c97eb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34973,8 +36737,20 @@
       "match_num": "79",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7259,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kaia Kanepi",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-2 6-1",
+      "pbp_sha256": "e2d83cd024a892709708150f12b69c1ace7a2e3d7f16a40dd75e00a924c51774",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -34995,8 +36771,20 @@
       "match_num": "80",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7258,
+      "date": "2014-03-23",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Madison Keys",
+      "server2": "Na Li",
+      "winner": "2",
+      "score": "7-6(3) 6-3",
+      "pbp_sha256": "f74e1cfcc24acc18121129f438155a6adf6dbea422a43eec24e9fbccdcfabba0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35017,8 +36805,20 @@
       "match_num": "81",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7267,
+      "date": "2014-03-24",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Coco Vandeweghe",
+      "winner": "1",
+      "score": "6-3 6-1",
+      "pbp_sha256": "7492dd1ad26372726dbd6652a4a29f5b23de425f834243e005c0cf58a1e3fb2f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35060,8 +36860,20 @@
       "match_num": "83",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7266,
+      "date": "2014-03-24",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Kirsten Flipkens",
+      "server2": "Maria Sharapova",
+      "winner": "2",
+      "score": "3-6 6-4 6-1",
+      "pbp_sha256": "4635884c6213cfd19d39fd4d98064b6a0727128307a100fa026e72b3a1836d7a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35082,8 +36894,20 @@
       "match_num": "84",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7269,
+      "date": "2014-03-24",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Ana Ivanovic",
+      "server2": "Petra Kvitova",
+      "winner": "2",
+      "score": "3-6 6-0 6-0",
+      "pbp_sha256": "dff2b883e029235447e9b550412ed4d98df8358fbf0a814374e5b00a30d7540c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35104,8 +36928,20 @@
       "match_num": "85",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7272,
+      "date": "2014-03-25",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Dominika Cibulkova",
+      "server2": "Venus Williams",
+      "winner": "1",
+      "score": "6-1 5-7 6-3",
+      "pbp_sha256": "d98e1d4ba43184838784072c194ae8d9f5e92cb58b656e3e3a7dcf6117e14da3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35126,8 +36962,20 @@
       "match_num": "86",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7268,
+      "date": "2014-03-24",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Elina Svitolina",
+      "winner": "1",
+      "score": "7-6(5) 5-7 6-2",
+      "pbp_sha256": "bed7a8ace451d0024ba75819bf53f0cdddf18537945a874845b1b8768d19a63e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35148,8 +36996,20 @@
       "match_num": "87",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7271,
+      "date": "2014-03-24",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Varvara Lepchenko",
+      "winner": "1",
+      "score": "6-0 6-1",
+      "pbp_sha256": "4eb0375a5bf379c849f91c4c778a6fce1808dc91fdd7a8dee8d989490d693b2d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35170,8 +37030,20 @@
       "match_num": "88",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7270,
+      "date": "2014-03-24",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Na Li",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-0 6-2",
+      "pbp_sha256": "ef9ae6b5581b4e62d297dc7875e01bd7269a65af0cfd53bc831670d724eaca54",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35192,8 +37064,20 @@
       "match_num": "89",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7274,
+      "date": "2014-03-25",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Angelique Kerber",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "536045f737e09225db99ed122396daf5c9279394be386ffbc4a1ecfd95e2e842",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35214,8 +37098,20 @@
       "match_num": "90",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7273,
+      "date": "2014-03-25",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Maria Sharapova",
+      "server2": "Petra Kvitova",
+      "winner": "1",
+      "score": "7-5 6-1",
+      "pbp_sha256": "8ac06f5cd72b0c1145616df00420d8dffa22450a7c64dd9ad90183c892ec56b4",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35236,8 +37132,20 @@
       "match_num": "91",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7275,
+      "date": "2014-03-26",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Dominika Cibulkova",
+      "server2": "Agnieszka Radwanska",
+      "winner": "1",
+      "score": "3-6 7-6(5) 6-3",
+      "pbp_sha256": "5e8e52ddb2fb7d45e19a5bde47e0858f8919499ef5aebb26a000a9e5340ea9d7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35258,8 +37166,20 @@
       "match_num": "92",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7276,
+      "date": "2014-03-26",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Na Li",
+      "winner": "2",
+      "score": "7-5 7-5",
+      "pbp_sha256": "8b7b11fbaf559b516bcf995645dd702c41c9874faaa364dc900989188c4016f5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35280,8 +37200,20 @@
       "match_num": "93",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7277,
+      "date": "2014-03-27",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Maria Sharapova",
+      "server2": "Serena Williams",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "556160abaf464f39d4efac75bf89aa3496ee3d08996e07e16ab4f7b052f1bc02",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -35323,8 +37255,20 @@
       "match_num": "95",
       "tourney_id": "2014-W-PM-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7279,
+      "date": "2014-03-29",
+      "tournament": "SonyOpenTennis-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Na Li",
+      "winner": "1",
+      "score": "7-5 6-1",
+      "pbp_sha256": "1f0c0baf6696f9b49c7991bf205a47b5fb76e0bea06951202eb07cf2dca25b9f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -36943,8 +38887,20 @@
       "match_num": "9",
       "tourney_id": "2014-W-PR-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8289,
+      "date": "2014-08-05",
+      "tournament": "RogersCup-WTAMontreal",
+      "server1": "Bojana Jovanovski",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "4319219012a5831b91cc9460fbbc5a1a065a195bc4d29de979c772c82413f299",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -37525,8 +39481,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-PR-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8291,
+      "date": "2014-08-05",
+      "tournament": "RogersCup-WTAMontreal",
+      "server1": "Eugenie Bouchard",
+      "server2": "Shelby Rogers",
+      "winner": "2",
+      "score": "6-0 2-6 6-0",
+      "pbp_sha256": "b396e5781b57fdcabf9a468e71a85bbb35989875fad28de61bd767a67bd4883f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -37603,8 +39571,20 @@
       "match_num": "31",
       "tourney_id": "2014-W-PR-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8303,
+      "date": "2014-08-06",
+      "tournament": "RogersCup-WTAMontreal",
+      "server1": "Venus Williams",
+      "server2": "Yulia Putintseva",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "f0a0a811b54bd5ec5012b6963509d970572aab659c20247be989d819d99392b2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -37973,8 +39953,20 @@
       "match_num": "43",
       "tourney_id": "2014-W-PR-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8264,
+      "date": "2014-08-07",
+      "tournament": "RogersCup-WTAMontreal",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Maria Sharapova",
+      "winner": "1",
+      "score": "6-2 4-6 6-2",
+      "pbp_sha256": "a15388b6e9391dc15d71ab052e54bffb5fad589740274d9becca407df4e1b32e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -37995,8 +39987,20 @@
       "match_num": "44",
       "tourney_id": "2014-W-PR-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8268,
+      "date": "2014-08-07",
+      "tournament": "RogersCup-WTAMontreal",
+      "server1": "Venus Williams",
+      "server2": "Angelique Kerber",
+      "winner": "1",
+      "score": "6-3 3-6 6-4",
+      "pbp_sha256": "68ee84e068b9599cbae0bc38dc52200a70a5327c1c20d80d302cbcc9a847f2b1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38174,8 +40178,20 @@
       "match_num": "50",
       "tourney_id": "2014-W-PR-CAN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8348,
+      "date": "2014-08-08",
+      "tournament": "RogersCup-WTAMontreal",
+      "server1": "Venus Williams",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "4-6 6-2 6-3",
+      "pbp_sha256": "ca1d8f5d6095b150d6fea2d46d3d1a47af64bf29bb86dae8172df7c9de2d4915",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40721,8 +42737,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-PR-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7791,
+      "date": "2014-06-09",
+      "tournament": "AegonClassic-WTABirmingham",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Paula Ormaechea",
+      "winner": "1",
+      "score": "6-3 6-1",
+      "pbp_sha256": "4ea1057ef8a887cd2b01dbacfe80eaad49cfcedf0eeac8b7d5fab10ff1c1aba8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40811,8 +42839,20 @@
       "match_num": "23",
       "tourney_id": "2014-W-PR-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7788,
+      "date": "2014-06-09",
+      "tournament": "AegonClassic-WTABirmingham",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Varvara Lepchenko",
+      "winner": "2",
+      "score": "6-4 6-0",
+      "pbp_sha256": "d1400059c6a728e00edb54a704c0422f78c8905a97097acf513d6928cf34421d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -41270,8 +43310,20 @@
       "match_num": "38",
       "tourney_id": "2014-W-PR-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7814,
+      "date": "2014-06-11",
+      "tournament": "AegonClassic-WTABirmingham",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Monica Puig",
+      "winner": "1",
+      "score": "2-6 6-4 7-6(7)",
+      "pbp_sha256": "857edd4a0183dcc4d8502b81697c558bbc3dfd0dd7ffe84234c23a30aea3328c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -41538,8 +43590,20 @@
       "match_num": "47",
       "tourney_id": "2014-W-PR-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7780,
+      "date": "2014-06-12",
+      "tournament": "AegonClassic-WTABirmingham",
+      "server1": "Daniela Hantuchova",
+      "server2": "Kimiko Date-Krumm",
+      "winner": "2",
+      "score": "6-4 6-0",
+      "pbp_sha256": "39de6924c92079378b3dd3c08e13b1d46174e528e87125358eabb85cbcc8ee5f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -41683,8 +43747,20 @@
       "match_num": "52",
       "tourney_id": "2014-W-PR-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7854,
+      "date": "2014-06-13",
+      "tournament": "AegonClassic-WTABirmingham",
+      "server1": "Casey Dellacqua",
+      "server2": "Kimiko Date-Krumm",
+      "winner": "1",
+      "score": "6-1 6-0",
+      "pbp_sha256": "667706bae929ae17d389e908dbe3fcc5eee380765c8f228cc68ccba72513d982",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -43233,8 +45309,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-PR-GER-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7464,
+      "date": "2014-04-24",
+      "tournament": "PorscheTennisGrandPrix-WTAStuttgart",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Angelique Kerber",
+      "winner": "1",
+      "score": "7-5 6-4",
+      "pbp_sha256": "28478d2bbc724db25be4e6d61f6ce9bdfdfaba8abd564e5887f6ab1b86e9543c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -43909,8 +45997,20 @@
       "match_num": "9",
       "tourney_id": "2014-W-PR-ITA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7548,
+      "date": "2014-05-13",
+      "tournament": "InternazionaliBNLd'Italia-WTARome",
+      "server1": "Mona Barthel",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "d361a2af9cb94b63b5cdb1b5c8b4681e396d30261247f98b25695afda9383452",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -44598,8 +46698,20 @@
       "match_num": "30",
       "tourney_id": "2014-W-PR-ITA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7512,
+      "date": "2014-05-14",
+      "tournament": "InternazionaliBNLd'Italia-WTARome",
+      "server1": "Venus Williams",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "aaccd95d52266d67d61821b77753604d369dab10243e21aa69d5d1eb5ca4728c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45218,8 +47330,20 @@
       "match_num": "50",
       "tourney_id": "2014-W-PR-ITA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7648,
+      "date": "2014-05-16",
+      "tournament": "InternazionaliBNLd'Italia-WTARome",
+      "server1": "Ana Ivanovic",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-4 3-6 6-4",
+      "pbp_sha256": "091cc6ecca60d3e7c85c15a3d1bf74ad4f19f3e754adf7d693d09b42e7460e24",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45499,8 +47623,20 @@
       "match_num": "4",
       "tourney_id": "2014-W-PR-JPN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8713,
+      "date": "2014-09-16",
+      "tournament": "TorayPanPacificOpen-WTATokyo",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Victoria Azarenka",
+      "winner": "2",
+      "score": "3-6 6-0 6-2",
+      "pbp_sha256": "6bf8933848ae48d44843a12544a14a58536be53ee0afc8588500e9bc260839ae",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45691,8 +47827,20 @@
       "match_num": "10",
       "tourney_id": "2014-W-PR-JPN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8711,
+      "date": "2014-09-16",
+      "tournament": "TorayPanPacificOpen-WTATokyo",
+      "server1": "Kurumi Nara",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-1 2-6 6-2",
+      "pbp_sha256": "a750adabd80882508f22af9278c788d88def6d34e0a2676b209bec9aafcc243d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -46129,8 +48277,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-PR-JPN-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8783,
+      "date": "2014-09-19",
+      "tournament": "TorayPanPacificOpen-WTATokyo",
+      "server1": "Caroline Wozniacki",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-3 6-3",
+      "pbp_sha256": "615f785a736b52ee566c0fb5cc27ca503163b39db124783cfddffb282528a809",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -46758,8 +48918,20 @@
       "match_num": "17",
       "tourney_id": "2014-W-PR-QAT-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6933,
+      "date": "2014-02-11",
+      "tournament": "QatarTotalOpen-WTADoha",
+      "server1": "Monica Niculescu",
+      "server2": "Fatma Al Nabhani",
+      "winner": "1",
+      "score": "6-1 6-0",
+      "pbp_sha256": "184324d90a507206d132eb42455dbc8f0e4a742a85e5a611d3980997257bbeec",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -48923,8 +51095,20 @@
       "match_num": "4",
       "tourney_id": "2014-W-PR-UAE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6882,
+      "date": "2014-02-17",
+      "tournament": "DubaiDutyFreeTennisChampionships-WTADubai",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Nadia Petrova",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "4a9b85f49435b6303f8e037bd4866987bed64271124b93ab6119e367608991fc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -49259,8 +51443,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-PR-UAE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6898,
+      "date": "2014-02-19",
+      "tournament": "DubaiDutyFreeTennisChampionships-WTADubai",
+      "server1": "Petra Kvitova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "1-6 6-4 7-6(4)",
+      "pbp_sha256": "89eb57edb02f15357f593a9907f888f8b3994a432b5f378136e6d9a546dd0476",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -49485,8 +51681,20 @@
       "match_num": "22",
       "tourney_id": "2014-W-PR-UAE-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6902,
+      "date": "2014-02-20",
+      "tournament": "DubaiDutyFreeTennisChampionships-WTADubai",
+      "server1": "Alize Cornet",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "7-5 6-3",
+      "pbp_sha256": "7727e44ca029c8e0abe22225e795ed645e40337a32ba2f0caa322c62162c845c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -50708,8 +52916,20 @@
       "match_num": "35",
       "tourney_id": "2014-W-PR-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7228,
+      "date": "2014-04-02",
+      "tournament": "FamilyCircleCup-WTACharleston",
+      "server1": "Andrea Petkovic",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "1",
+      "score": "6-0 6-0",
+      "pbp_sha256": "d3647ee2a4850f05dae8cc442bac048946311e4d40eb7678f3b307bcc4168bc5",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -51023,8 +53243,20 @@
       "match_num": "45",
       "tourney_id": "2014-W-PR-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7195,
+      "date": "2014-04-03",
+      "tournament": "FamilyCircleCup-WTACharleston",
+      "server1": "Samantha Stosur",
+      "server2": "Lucie Safarova",
+      "winner": "2",
+      "score": "3-6 6-4 6-4",
+      "pbp_sha256": "45c093b03ba7c239ddde6c372703996233ca26cc842601bc77e2e39cf8b9d3f3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -51666,8 +53898,20 @@
       "match_num": "10",
       "tourney_id": "2014-W-PR-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8214,
+      "date": "2014-07-29",
+      "tournament": "BankOfTheWestClassic-WTAStanford",
+      "server1": "Monica Puig",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "022b3fee7df9b851c03e463cc05eb406d8aa6b1ac9d261d0a00b25fb75f97249",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -51858,8 +54102,20 @@
       "match_num": "16",
       "tourney_id": "2014-W-PR-USA-02A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8221,
+      "date": "2014-07-30",
+      "tournament": "BankOfTheWestClassic-WTAStanford",
+      "server1": "Andrea Petkovic",
+      "server2": "Naomi Osaka",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "ad75177a9b4cc7cfef279001637d59f54758025754cca5783eaba454912104b0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52275,8 +54531,20 @@
       "match_num": "2",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8384,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Klara Koukalova",
+      "server2": "Taylor Townsend",
+      "winner": "2",
+      "score": "6-3 4-6 7-5",
+      "pbp_sha256": "e8554c0d13fbac86a37e55989fd5a5de3da660c946f42bb9b532780db1fc43c7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52297,8 +54565,20 @@
       "match_num": "3",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8391,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Chanelle Scheepers",
+      "server2": "Flavia Pennetta",
+      "winner": "2",
+      "score": "6-3 6-7(3) 6-2",
+      "pbp_sha256": "0c21fdaab4f3d9121a392adecf7c4e0f93638a3404d5b4fcb2acdd28bd3dd228",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52340,8 +54620,20 @@
       "match_num": "5",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8405,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Andrea Petkovic",
+      "server2": "Sloane Stephens",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "ebff4d174cac1b1dc0d56258a8477d13d7cd16e687f6e71f7ff6df74e5818c9a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52362,8 +54654,20 @@
       "match_num": "6",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8401,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Garbine Muguruza",
+      "server2": "Annika Beck",
+      "winner": "2",
+      "score": "6-3 2-6 6-3",
+      "pbp_sha256": "45890d5bd958d3a13494cd37c45e15b73bb88ddfc34745d8cfbae6a093ed4470",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52384,8 +54688,20 @@
       "match_num": "7",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8394,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Kurumi Nara",
+      "server2": "Romina Oprandi",
+      "winner": "1",
+      "score": "6-0 6-2",
+      "pbp_sha256": "8ff726be0861bac1948e3642f71ec343a01caca9f304cbd3be031ec40b5fe025",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52406,8 +54722,20 @@
       "match_num": "8",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8404,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Sabine Lisicki",
+      "server2": "Roberta Vinci",
+      "winner": "1",
+      "score": "6-3 2-6 6-2",
+      "pbp_sha256": "7b31092757e4faffb7cb0703b4232d346322a0ba168f7cf579fb0fd3ba7be9c2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52428,8 +54756,20 @@
       "match_num": "9",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8402,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Yanina Wickmayer",
+      "server2": "Sara Errani",
+      "winner": "2",
+      "score": "7-5 3-6 7-6(2)",
+      "pbp_sha256": "19d91b58fa3c9c88986e0d1f76c72a91dc1319334a3947b7ddf916ea196184a0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52450,8 +54790,20 @@
       "match_num": "10",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8389,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Caroline Wozniacki",
+      "server2": "Magdalena Rybarikova",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "46ef6e4dd9cbc9c78f707f679329734085db5a1c7df6c1f4c3e1eda2b6ee0dbf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52514,8 +54866,20 @@
       "match_num": "13",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8400,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Camila Giorgi",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "2",
+      "score": "6-4 6-7(4) 6-3",
+      "pbp_sha256": "a93d9f253d8f7faf26733727fd995d51fa203616b1c68cf56e8e6699885aa430",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52536,8 +54900,20 @@
       "match_num": "14",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8397,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Christina McHale",
+      "server2": "Nicole Gibbs",
+      "winner": "1",
+      "score": "4-6 6-3 6-1",
+      "pbp_sha256": "23071b3ddc93fac3151e214f6f4d4e271e85ef405a7d6e01dafd8d5c6a22bead",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52558,8 +54934,20 @@
       "match_num": "15",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8392,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Ana Ivanovic",
+      "server2": "Sorana Cirstea",
+      "winner": "1",
+      "score": "6-1 7-5",
+      "pbp_sha256": "f6fdf4d9cccaaac1e43020abc3319023dd58fb3f328af7770aa24c0afd1004c0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52580,8 +54968,20 @@
       "match_num": "16",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8395,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 1-6 6-2",
+      "pbp_sha256": "b8ea103de77463e02a3d4705e20cdf36dd2e788c63b050fb40486830edadda0c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52602,8 +55002,20 @@
       "match_num": "17",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8387,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Casey Dellacqua",
+      "server2": "Pauline Parmentier",
+      "winner": "2",
+      "score": "7-6(4) 6-2",
+      "pbp_sha256": "ae4ff4f1a49e2241f0f4ca442c47a10da82887f92cbe0bc9233a50541e3f5e8c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52624,8 +55036,20 @@
       "match_num": "18",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8382,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Lauren Davis",
+      "server2": "Elina Svitolina",
+      "winner": "2",
+      "score": "6-3 6-2",
+      "pbp_sha256": "8cf9d80447611849f443f44da9b457438e2e7fc39d83a332e7eca1f7f8e4e119",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52646,8 +55070,20 @@
       "match_num": "19",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8386,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Alize Cornet",
+      "server2": "Madison Keys",
+      "winner": "2",
+      "score": "6-2 6-4",
+      "pbp_sha256": "67ca99983389ddf8ed5dabeb4079509c0252246d6b0c606938657df634813ddf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52668,8 +55104,20 @@
       "match_num": "20",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8388,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Karin Knapp",
+      "server2": "Belinda Bencic",
+      "winner": "1",
+      "score": "6-2 7-6(1)",
+      "pbp_sha256": "9fdc24571a1c6fa28a33ed2d3a1b522af7ab7f3dd12cf5c979fbbe77727d2c28",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52712,8 +55160,20 @@
       "match_num": "22",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8396,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Venus Williams",
+      "server2": "Lucie Safarova",
+      "winner": "2",
+      "score": "6-7(2) 6-3 6-4",
+      "pbp_sha256": "7adb0ac4eb07e6e85f125d06baa9bbba57e91624b71bf70440e5a56952d6c01a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52734,8 +55194,20 @@
       "match_num": "23",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8398,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Zarina Diyas",
+      "server2": "Irina-Camelia Begu",
+      "winner": "1",
+      "score": "7-6(4) 7-6(5)",
+      "pbp_sha256": "870ab5c66ca365433e20569d53493980e725d6527b3b30df382f2693be920db6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52756,8 +55228,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8385,
+      "date": "2014-08-11",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Kirsten Flipkens",
+      "server2": "Polona Hercog",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "e6f12bb43a564f86f9c0e1e5853aa9048d3385fa75ba77c8cc2b6377d83ca46b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52778,8 +55262,20 @@
       "match_num": "25",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8359,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Serena Williams",
+      "server2": "Samantha Stosur",
+      "winner": "1",
+      "score": "7-6(7) 7-6(7)",
+      "pbp_sha256": "4487d170a30e8e46582698716a5e66c364abfa10ddf84d14a5d3578dbae4c6e0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52800,8 +55296,20 @@
       "match_num": "26",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8362,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Taylor Townsend",
+      "server2": "Flavia Pennetta",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "da3c993990d4a9c25a4920dc79ecb3bdbd1705bfb39e2283262c6fe2426e05b8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52843,8 +55351,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8364,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Jelena Jankovic",
+      "server2": "Annika Beck",
+      "winner": "1",
+      "score": "6-1 7-6(0)",
+      "pbp_sha256": "40d70b1725df7efbf731d15fa4c2e288d99003188158d80c1e91f404ee6bfed8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52865,8 +55385,20 @@
       "match_num": "29",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8363,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Kurumi Nara",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "764627f34d927c32b876314848c053c62691675bdd1057ed33015ecf8450cba5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52887,8 +55419,20 @@
       "match_num": "30",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8357,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Sabine Lisicki",
+      "server2": "Sara Errani",
+      "winner": "1",
+      "score": "6-4 2-6 7-6(2)",
+      "pbp_sha256": "b19f31851e767baf88b36c5b3fa539b3345c10e34c722529ba85865650c9dcd7",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52951,8 +55495,20 @@
       "match_num": "33",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8366,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Eugenie Bouchard",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "2",
+      "score": "6-4 3-6 6-2",
+      "pbp_sha256": "3cd19455d910cc3bec2f1d24c77b8560630baced6602ddd9cd4e6fa35db8ba6f",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52973,8 +55529,20 @@
       "match_num": "34",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8365,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Ana Ivanovic",
+      "server2": "Christina McHale",
+      "winner": "1",
+      "score": "6-4 6-0",
+      "pbp_sha256": "83eb5c4f1bbac5ee535cb0274051adeee78b7a1610b6ee0f4cdaae84080f472d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -52995,8 +55563,20 @@
       "match_num": "35",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8356,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Pauline Parmentier",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "06575ae960727d936e8ea4f2b9d42b9738c5ea2908b1411bdd010c4b73cbb43a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53017,8 +55597,20 @@
       "match_num": "36",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8354,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Petra Kvitova",
+      "server2": "Elina Svitolina",
+      "winner": "2",
+      "score": "6-2 7-6(2)",
+      "pbp_sha256": "7d8eb36d472712cec22fca036c4498e0c2b599669f1ba645cd30ddf83dd3027c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53039,8 +55631,20 @@
       "match_num": "37",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8406,
+      "date": "2014-08-12",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Maria Sharapova",
+      "server2": "Madison Keys",
+      "winner": "1",
+      "score": "6-1 3-6 6-3",
+      "pbp_sha256": "7cb4a080742415a6d8a0f806042fdf8ce347e1db7339e1b7d78ad5eeefc52726",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53061,8 +55665,20 @@
       "match_num": "38",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8358,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Karin Knapp",
+      "server2": "Anastasia Pavlyuchenkova",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "bf0f04689148711c5f1073981ba99799a781f976e13b686aebf08f769ebd6cad",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53083,8 +55699,20 @@
       "match_num": "39",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8361,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Zarina Diyas",
+      "server2": "Lucie Safarova",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "6050bbbe66a9cc09b5828c2aea093ba1e4aef6d5448551949a6958bef12ea58d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53105,8 +55733,20 @@
       "match_num": "40",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8408,
+      "date": "2014-08-13",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Kirsten Flipkens",
+      "server2": "Simona Halep",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "5f86359dfa63e65f19a19373c4b123caa5111d1d747222f6fa274880c251a190",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53127,8 +55767,20 @@
       "match_num": "41",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8368,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Serena Williams",
+      "server2": "Flavia Pennetta",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "14aca722eb3595315f13eabfd8311419000a119b58570cafcfca14ec22cb0b48",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53149,8 +55801,20 @@
       "match_num": "42",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8370,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Jelena Jankovic",
+      "server2": "Sloane Stephens",
+      "winner": "1",
+      "score": "7-6(4) 6-4",
+      "pbp_sha256": "369b61810244dd2b4295960b9cddd48351c6061ca6ad12240c05b1d42d56ccb9",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53171,8 +55835,20 @@
       "match_num": "43",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8373,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Sabine Lisicki",
+      "winner": "1",
+      "score": "6-1 6-1",
+      "pbp_sha256": "1b321e0407b8ef544d280b9b80ecfa9a332485c979d8a81006abae20fa340cff",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53193,8 +55869,20 @@
       "match_num": "44",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8374,
+      "date": "2014-08-15",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Caroline Wozniacki",
+      "server2": "Angelique Kerber",
+      "winner": "1",
+      "score": "7-5 6-2",
+      "pbp_sha256": "74ed8174247561c31472a4a83cf580272c5883702daf546a2cdc51902b3e303e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53215,8 +55903,20 @@
       "match_num": "45",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8372,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Ana Ivanovic",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "1",
+      "score": "6-2 2-6 6-3",
+      "pbp_sha256": "028bd42ba7aaa683d9e742844ddc7530dee739aa9cf86fee0556ecfad7cbefa3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53237,8 +55937,20 @@
       "match_num": "46",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8369,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Elina Svitolina",
+      "winner": "2",
+      "score": "4-6 6-4 6-4",
+      "pbp_sha256": "0077c5fba53eb20e2148df0ec33c7c33a924f14ce5a22062abcc09ce64ecb161",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53259,8 +55971,20 @@
       "match_num": "47",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8371,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Maria Sharapova",
+      "server2": "Anastasia Pavlyuchenkova",
+      "winner": "1",
+      "score": "6-4 7-6(2)",
+      "pbp_sha256": "56d64cb37645231b6e3dad29a8d626633455a8099c0c9fa234d0adace8f76bae",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53281,8 +56005,20 @@
       "match_num": "48",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8367,
+      "date": "2014-08-14",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Lucie Safarova",
+      "server2": "Simona Halep",
+      "winner": "2",
+      "score": "6-4 7-5",
+      "pbp_sha256": "1a08ffbff1c7891046e80a326099b2287d0527fa34debb2a422f537eb3cf9b45",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53303,8 +56039,20 @@
       "match_num": "49",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8375,
+      "date": "2014-08-15",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Jelena Jankovic",
+      "server2": "Serena Williams",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "41a9ea823b777e7335d8a59ef522d278734e989df5aeb4f0172a27b866c5433a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53325,8 +56073,20 @@
       "match_num": "50",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8376,
+      "date": "2014-08-15",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Caroline Wozniacki",
+      "server2": "Agnieszka Radwanska",
+      "winner": "1",
+      "score": "6-4 7-6(5)",
+      "pbp_sha256": "9926f79bf19886650de0d815d35f9f88c9ae1a49a6fc41bd164334b7a2351b88",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53347,8 +56107,20 @@
       "match_num": "51",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8378,
+      "date": "2014-08-16",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Ana Ivanovic",
+      "server2": "Elina Svitolina",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "69c49b8a9cfb94d6faee927f25af1228c93e18f16889f9b5c4297e0b116087d4",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53369,8 +56141,20 @@
       "match_num": "52",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8377,
+      "date": "2014-08-15",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Maria Sharapova",
+      "server2": "Simona Halep",
+      "winner": "1",
+      "score": "3-6 6-4 6-4",
+      "pbp_sha256": "a1e5afbc4c0b4a1bf251c478883b46c983bce948d2a813474bc2b0c80eada729",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53391,8 +56175,20 @@
       "match_num": "53",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8379,
+      "date": "2014-08-16",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Caroline Wozniacki",
+      "server2": "Serena Williams",
+      "winner": "2",
+      "score": "2-6 6-2 6-4",
+      "pbp_sha256": "ee8cd9de54ccc12673fbb25d76dab5848416152ff79e007a4eb137a242293d1d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53413,8 +56209,20 @@
       "match_num": "54",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8380,
+      "date": "2014-08-16",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Ana Ivanovic",
+      "server2": "Maria Sharapova",
+      "winner": "1",
+      "score": "6-2 5-7 7-5",
+      "pbp_sha256": "6aad04dd23b76d52b5ddc8271e85f199561bd1e9d225314c92edc4c48df8f5c0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53435,8 +56243,20 @@
       "match_num": "55",
       "tourney_id": "2014-W-PR-USA-03A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8381,
+      "date": "2014-08-17",
+      "tournament": "Western&amp;SouthernOpen-WTACincinnati",
+      "server1": "Serena Williams",
+      "server2": "Ana Ivanovic",
+      "winner": "1",
+      "score": "6-4 6-1",
+      "pbp_sha256": "36969687edd8ab6c189cb5ee749b854b23b1a26b02e50065c093ece1c59c944a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -53457,8 +56277,20 @@
       "match_num": "1",
       "tourney_id": "2014-W-PR-USA-04A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8330,
+      "date": "2014-08-18",
+      "tournament": "ConnecticutOpen-WTANewHaven",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Magdalena Rybarikova",
+      "winner": "2",
+      "score": "6-4 6-3",
+      "pbp_sha256": "0022c2ff52ef0083707b868d3179eb4db06049ddc87929c6b5a432666bc95dcf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -54233,8 +57065,20 @@
       "match_num": "28",
       "tourney_id": "2014-W-PR-USA-04A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8436,
+      "date": "2014-08-22",
+      "tournament": "ConnecticutOpen-WTANewHaven",
+      "server1": "Petra Kvitova",
+      "server2": "Samantha Stosur",
+      "winner": "1",
+      "score": "6-3 6-1",
+      "pbp_sha256": "52f6f81dfeffde3bfb3343912e45778c7cf0c6cfb2cc7e47eed54daff8e88f99",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -54434,8 +57278,20 @@
       "match_num": "6",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6779,
+      "date": "2014-01-13",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Silvia Soler-Espinosa",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "ad947e43ca88c4772a192a3a7069127ca99fe4abbed6e104ebe3c1b8e6ed919a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -54788,8 +57644,20 @@
       "match_num": "18",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6759,
+      "date": "2014-01-13",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Belinda Bencic",
+      "winner": "2",
+      "score": "6-4 4-6 6-3",
+      "pbp_sha256": "aedc85ccad4ebfefd930f41a3c509812d1feffd80f4361146884b4622d68da45",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -55471,8 +58339,20 @@
       "match_num": "41",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6786,
+      "date": "2014-01-14",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Vania King",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "a779adec530a3cede8bcbc5ef66714ed2e00e18bf761e406bfb37c8f21b5f17c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -55930,8 +58810,20 @@
       "match_num": "56",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6788,
+      "date": "2014-01-14",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Caroline Wozniacki",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "1",
+      "score": "6-0 6-2",
+      "pbp_sha256": "27be9c6bd4dffae28625d4c29f38a681e0b6daf2e73a6ca2114ad439fe299b16",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -56020,8 +58912,20 @@
       "match_num": "59",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6681,
+      "date": "2014-01-14",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Mariana Duque-Marino",
+      "server2": "Olivia Rogowska",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "f8c820e2871d0dad743c5696efb2275c3fb2dd370b66e028e1b15abe9aacac85",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -56835,8 +59739,20 @@
       "match_num": "85",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6710,
+      "date": "2014-01-16",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Galina Voskoboeva",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "7-6(2) 3-6 8-6",
+      "pbp_sha256": "1be4f03ff5c4d517d8c66b73470d48e5a43a5e242e1cc41589c759122afeef56",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -57510,8 +60426,20 @@
       "match_num": "107",
       "tourney_id": "2014-W-SL-AUS-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 6734,
+      "date": "2014-01-18",
+      "tournament": "Women'sAustralianOpen.",
+      "server1": "Dominika Cibulkova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-1 6-0",
+      "pbp_sha256": "1cdd1ce58e1f30c89cd565d7983c102406f1a0e2bf257a6153af7ee4a6ba95a5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -61057,8 +63985,20 @@
       "match_num": "7",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7982,
+      "date": "2014-06-24",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Olga Govortsova",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "8a1fe4215ecfdcf372d44d00894cfe164f192805d10f66e9e13607ef60f9453a",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -61181,8 +64121,20 @@
       "match_num": "11",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7979,
+      "date": "2014-06-24",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Lourdes Dominguez-Lino",
+      "server2": "Petra Martic",
+      "winner": "1",
+      "score": "6-0 6-1",
+      "pbp_sha256": "9bca8ad8def0fd34ffe092ea36e01c2fe2337e835a3a78027260e3ba0aaea2be",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -61585,8 +64537,20 @@
       "match_num": "24",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7891,
+      "date": "2014-06-24",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Shuai Zhang",
+      "winner": "1",
+      "score": "6-1 6-2",
+      "pbp_sha256": "37ee03e431bed05c3b3e5bf7369ca6c33da94a992e755e59d4355c87b093c521",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -62057,8 +65021,20 @@
       "match_num": "39",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7952,
+      "date": "2014-06-23",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Monica Niculescu",
+      "winner": "1",
+      "score": "7-5 6-3",
+      "pbp_sha256": "a442481e2310868421be07c239b6f3b0322c684df70304b86e00ae44191a207f",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -62236,8 +65212,20 @@
       "match_num": "45",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7973,
+      "date": "2014-06-24",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Michelle Larcher De Brito",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "1",
+      "score": "3-6 6-3 6-1",
+      "pbp_sha256": "11789c0ef62d6608f862dcb361bb11bb69991c85178fdaf5da3b42b28af4c6c5",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -62956,8 +65944,20 @@
       "match_num": "68",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7934,
+      "date": "2014-06-26",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Eugenie Bouchard",
+      "winner": "2",
+      "score": "7-5 6-1",
+      "pbp_sha256": "e49bf26c5badb850c600a9c00a1b1fbcd73e40c1fcf70bbdd3ddd680c5198f9c",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -63012,8 +66012,20 @@
       "match_num": "70",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7923,
+      "date": "2014-06-26",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Kirsten Flipkens",
+      "server2": "Lourdes Dominguez-Lino",
+      "winner": "1",
+      "score": "6-2 6-1",
+      "pbp_sha256": "316dfd9833a2f855b7e62f38b88687955f674f5b51aac4c32c476da0a08cf711",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -63191,8 +66203,20 @@
       "match_num": "76",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7926,
+      "date": "2014-06-26",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Zarina Diyas",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "7-6(12) 5-7 6-2",
+      "pbp_sha256": "c47a5abe38216c748bf0f4f6d9529cc9dcd3a55731c8793e45505d86ae2ddb82",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -63451,8 +66475,20 @@
       "match_num": "84",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7916,
+      "date": "2014-06-25",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Dominika Cibulkova",
+      "winner": "2",
+      "score": "3-6 6-3 8-6",
+      "pbp_sha256": "1e6587c12b33e833d51adf5eb5292c860454975599e53aceeadbf6e93e1a2b84",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -63528,8 +66564,20 @@
       "match_num": "87",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 7914,
+      "date": "2014-06-25",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Michelle Larcher De Brito",
+      "server2": "Jarmila Gajdosova",
+      "winner": "1",
+      "score": "6-3 4-6 6-3",
+      "pbp_sha256": "46ac7c8653e3049ecb6062b4c9305d59d8f15c2c98c7d4b315b1d4e43e7d2ba9",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -64169,8 +67217,20 @@
       "match_num": "108",
       "tourney_id": "2014-W-SL-GBR-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8042,
+      "date": "2014-06-27",
+      "tournament": "Ladies'WimbledonSingles.",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Michelle Larcher De Brito",
+      "winner": "1",
+      "score": "6-2 6-0",
+      "pbp_sha256": "9b2ea75bd6b7a63d8de41d485e865a74722fce59c8be046095cdbc05ba671b96",
+      "adf_flag": "0"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -64827,8 +67887,20 @@
       "match_num": "3",
       "tourney_id": "2014-W-SL-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8541,
+      "date": "2014-08-26",
+      "tournament": "Women'sUSOpen.",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Varvara Lepchenko",
+      "winner": "2",
+      "score": "7-5 6-2",
+      "pbp_sha256": "af9f672f4a79ef1af6892542415180a7a311f7fad970f4b3bbbd75011c589808",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -64972,8 +68044,20 @@
       "match_num": "8",
       "tourney_id": "2014-W-SL-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8445,
+      "date": "2014-08-26",
+      "tournament": "Women'sUSOpen.",
+      "server1": "Ajla Tomljanovic",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "3-6 6-2 6-1",
+      "pbp_sha256": "4d2fa256e92760046cd11a863076cd055c2ff4811d043d2de7989f4109e7aa6c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -66201,8 +69285,20 @@
       "match_num": "46",
       "tourney_id": "2014-W-SL-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8538,
+      "date": "2014-08-25",
+      "tournament": "Women'sUSOpen.",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Irina-Camelia Begu",
+      "winner": "2",
+      "score": "7-6(4) 6-3",
+      "pbp_sha256": "4d482da2f528cd97b20f1db3b7e61dbec7f776a617e15ebca2f94f621c8e72ec",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -66630,8 +69726,20 @@
       "match_num": "60",
       "tourney_id": "2014-W-SL-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8525,
+      "date": "2014-08-25",
+      "tournament": "Women'sUSOpen.",
+      "server1": "Venus Williams",
+      "server2": "Kimiko Date-Krumm",
+      "winner": "1",
+      "score": "2-6 6-3 6-3",
+      "pbp_sha256": "6508253e27a4b5488f4d4325ade02bff296acf7b69875e35f2b7fc7a7dad0f4d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -66852,8 +69960,20 @@
       "match_num": "68",
       "tourney_id": "2014-W-SL-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8479,
+      "date": "2014-08-28",
+      "tournament": "Women'sUSOpen.",
+      "server1": "Coco Vandeweghe",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "5ef1e3b769f5bfcc6a8d1d4248a2a5e813c468fb4110c0d960d2ccc0ee2c32bb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -67812,8 +70932,20 @@
       "match_num": "98",
       "tourney_id": "2014-W-SL-USA-01A-2014"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_archive.csv",
+      "source_row": 8496,
+      "date": "2014-08-30",
+      "tournament": "Women'sUSOpen.",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Kaia Kanepi",
+      "winner": "2",
+      "score": "7-5 6-0",
+      "pbp_sha256": "826e28688b108617fb7ae5f5d8508761fdf362178fab72bf26df2e4a80e13651",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {

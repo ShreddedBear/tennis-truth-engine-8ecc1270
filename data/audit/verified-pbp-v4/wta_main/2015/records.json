@@ -463,8 +463,20 @@
       "match_num": "16",
       "tourney_id": "2015-W-INT-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 120,
+      "date": "2015-01-12",
+      "tournament": "HobartInternational-WTAHobart",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Zarina Diyas",
+      "winner": "2",
+      "score": "6-3 6-4",
+      "pbp_sha256": "0c6f2498460837fd7fa35713bc819b9ace495705b600e32aa73b8ac8c08803c4",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -2895,8 +2907,20 @@
       "match_num": "2",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 385,
+      "date": "2015-02-16",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Montserrat Gonzalez",
+      "server2": "Lourdes Dominguez Lino",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "41860773c8e91b976a75b437d516e019dc62fcc0a591a323d99c1f756805e0f3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -2917,8 +2941,20 @@
       "match_num": "3",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 391,
+      "date": "2015-02-17",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Maria Irigoyen",
+      "server2": "Beatriz Haddad Maia",
+      "winner": "2",
+      "score": "6-1 6-1",
+      "pbp_sha256": "713b212d08acb4612cb806127c04f2954045ccceb4faca0d4fc49a6ca6d31271",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -2994,8 +3030,20 @@
       "match_num": "6",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 389,
+      "date": "2015-02-17",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Estrella Cabeza Candela",
+      "server2": "Dinah Pfizenmaier",
+      "winner": "2",
+      "score": "6-7(5) 6-4 6-4",
+      "pbp_sha256": "6acb8282286ef2aa9cbaf46596e38a5e033c1b4d050a6754f6a8c7264ba56bb3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -3092,8 +3140,20 @@
       "match_num": "10",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 393,
+      "date": "2015-02-17",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Sara Sorribes Tormo",
+      "server2": "Paula Ormaechea",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "5e6bb24cb50bbc05002b124a3e151dd90d6aa63cdca1bd49ed31c4915be9e243",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -3280,8 +3340,20 @@
       "match_num": "17",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 403,
+      "date": "2015-02-19",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Lourdes Dominguez-Lino",
+      "server2": "Sara Errani",
+      "winner": "2",
+      "score": "6-0 7-5",
+      "pbp_sha256": "00c0d19ac074e47cb90b50671677fcb14d26fb3d21245d810b4eb704e183e4c3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -3302,8 +3374,20 @@
       "match_num": "18",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 401,
+      "date": "2015-02-19",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Beatriz Haddad Maia",
+      "server2": "Polona Hercog",
+      "winner": "1",
+      "score": "6-1 6-2",
+      "pbp_sha256": "d27bfb7305fc2ad4d1a0c97ad6bbd8e61bd9cdde8d939b413c6e516ac9fd6deb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -3413,8 +3497,20 @@
       "match_num": "22",
       "tourney_id": "2015-W-INT-BRA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 400,
+      "date": "2015-02-19",
+      "tournament": "RioOpen-WTARioDeJaneiro",
+      "server1": "Veronica Cepede Royg",
+      "server2": "Roberta Vinci",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "cad8711a8867e933dd9925efcb4a9d430ccddfef4e29b332fe13716b64731668",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -16887,8 +16983,20 @@
       "match_num": "13",
       "tourney_id": "2015-W-INT-NZL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 5,
+      "date": "2015-01-05",
+      "tournament": "ASBClassic-WTAAuckland",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Sloane Stephens",
+      "winner": "2",
+      "score": "6-3 6-1",
+      "pbp_sha256": "719a61872d1f4af63586b60a8cce30a9f1352346bf41d4a46e0e9b3f53bf9073",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -30757,8 +30865,20 @@
       "match_num": "8",
       "tourney_id": "2015-W-P700-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 765,
+      "date": "2015-04-06",
+      "tournament": "FamilyCircleCup-WTACharleston",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Shelby Rogers",
+      "winner": "2",
+      "score": "6-3 6-1",
+      "pbp_sha256": "197bf0b977b47aa0534d112b4a1db61ece97577534f8544e3a1aaeff92ac6943",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31433,8 +31553,20 @@
       "match_num": "30",
       "tourney_id": "2015-W-P700-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 789,
+      "date": "2015-04-08",
+      "tournament": "FamilyCircleCup-WTACharleston",
+      "server1": "Sara Sorribes Tormo",
+      "server2": "Shelby Rogers",
+      "winner": "1",
+      "score": "7-5 6-1",
+      "pbp_sha256": "ba3665adf4e18b2beb8d019ff361b70ec04af389baea56ba044009e2d2b1eb42",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -31824,8 +31956,20 @@
       "match_num": "43",
       "tourney_id": "2015-W-P700-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 800,
+      "date": "2015-04-09",
+      "tournament": "FamilyCircleCup-WTACharleston",
+      "server1": "Sara Errani",
+      "server2": "Sara Sorribes Tormo",
+      "winner": "1",
+      "score": "6-2 5-7 6-2",
+      "pbp_sha256": "c0b4d739682febd6416383fb5a6797c6e7b83fbf8a03dd9b4c1744cfc70b52f3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -36068,8 +36212,20 @@
       "match_num": "4",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 599,
+      "date": "2015-03-11",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Sloane Stephens",
+      "server2": "Chanelle Scheepers",
+      "winner": "1",
+      "score": "7-5 7-5",
+      "pbp_sha256": "533eb69c0719a85578705d9828bb69d9e448238b2de897824a87d6fd6cd77074",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -36124,8 +36280,20 @@
       "match_num": "6",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 596,
+      "date": "2015-03-11",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Kurumi Nara",
+      "winner": "1",
+      "score": "4-6 6-3 6-2",
+      "pbp_sha256": "30608d6e83e38da14b1af1100abc56c923edcc0f65a2b48f449f8de178b0c271",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -36277,8 +36445,20 @@
       "match_num": "12",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 598,
+      "date": "2015-03-11",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Lara Arruabarrena",
+      "server2": "Magdalena Rybarikova",
+      "winner": "1",
+      "score": "6-0 6-1",
+      "pbp_sha256": "6085f9d7de4fcc8b2a14c27ac253c3c920789e045453a28595983f32e995785a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -37310,8 +37490,20 @@
       "match_num": "45",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 631,
+      "date": "2015-03-14",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Monica Puig",
+      "winner": "1",
+      "score": "6-1 6-1",
+      "pbp_sha256": "fa68a497bb87de541e0e8b5c2f9a3da9028985e0f0ca54d50c1819e1a4cddbe1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -37837,8 +38029,20 @@
       "match_num": "62",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 554,
+      "date": "2015-03-14",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Samantha Stosur",
+      "server2": "Taylor Townsend",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "5549f682b3e4125b5b8ad3ac39467066313bf82f1971e7addd3ce5ec2f3a2e5b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38118,8 +38322,20 @@
       "match_num": "71",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 565,
+      "date": "2015-03-15",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Anastasia Pavlyuchenkova",
+      "winner": "1",
+      "score": "7-6(4) 6-7(5) 6-0",
+      "pbp_sha256": "116a321669ad979ea2dff9721ccf92244d79b1b40a1b034ed68a0f83c30b6d86",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38535,8 +38751,20 @@
       "match_num": "84",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 576,
+      "date": "2015-03-17",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Heather Watson",
+      "winner": "1",
+      "score": "7-6(5) 3-6 6-1",
+      "pbp_sha256": "6e7a61dd1fa160d0c86573443da181b44395f0438eaf63b123c870e4288f0963",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38646,8 +38874,20 @@
       "match_num": "88",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 584,
+      "date": "2015-03-19",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Maria Sharapova",
+      "server2": "Flavia Pennetta",
+      "winner": "2",
+      "score": "3-6 6-3 6-2",
+      "pbp_sha256": "e480024e5cd6ceaf2d59992822e8a12d1feb8c2a8484f870aa4b841b213f4220",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38702,8 +38942,20 @@
       "match_num": "90",
       "tourney_id": "2015-W-PM-USA-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 583,
+      "date": "2015-03-18",
+      "tournament": "BNPParibasOpen-WTAIndianWells",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Simona Halep",
+      "winner": "2",
+      "score": "5-7 6-1 6-1",
+      "pbp_sha256": "ed2c537e16931af74f11dde1abd70ad4de8076a26194c9358d021ce7ff114746",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38868,8 +39120,20 @@
       "match_num": "1",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 686,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Monica Niculescu",
+      "server2": "Shelby Rogers",
+      "winner": "1",
+      "score": "7-6(1) 6-1",
+      "pbp_sha256": "11eecc151ab0a4aa4f671ad17c153552bce10ab681dacd1646aa29985eb41a46",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38932,8 +39196,20 @@
       "match_num": "4",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 698,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Heather Watson",
+      "server2": "Evgeniya Rodina",
+      "winner": "1",
+      "score": "3-6 6-1 7-5",
+      "pbp_sha256": "69c1934b06624d553c3c30746e4f48d8a58aefe6c4a1d2e571751bc51830ec8f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38954,8 +39230,20 @@
       "match_num": "5",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 706,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Vera Zvonareva",
+      "server2": "Anastasia Pavlyuchenkova",
+      "winner": "2",
+      "score": "6-2 3-6 7-5",
+      "pbp_sha256": "9cc98da3437159cba78ace826386408d68c030695da55b849f5135504e3cd5e6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38976,8 +39264,20 @@
       "match_num": "6",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 710,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Sesil Karatantcheva",
+      "server2": "Lauren Davis",
+      "winner": "1",
+      "score": "6-3 7-6(5)",
+      "pbp_sha256": "2da4c4d507e0ce088432755a02828f2217e499c28a271fe92f5c198c6ca4e737",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -38998,8 +39298,20 @@
       "match_num": "7",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 707,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Julia Goerges",
+      "server2": "Jana Cepelova",
+      "winner": "1",
+      "score": "6-1 6-0",
+      "pbp_sha256": "adebaa3469f8e0cfd54922781668ef63a0445d1b5057bd68fbe1619a8a16e8b5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39020,8 +39332,20 @@
       "match_num": "8",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 708,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Irina Falconi",
+      "server2": "Monica Puig",
+      "winner": "1",
+      "score": "7-6(9) 7-6(3)",
+      "pbp_sha256": "433965032c20c54856b0aee10efbe3bef2a569847193ac9985abebc0004b75dd",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39042,8 +39366,20 @@
       "match_num": "9",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 703,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Nicole Vaidisova",
+      "server2": "Timea Babos",
+      "winner": "1",
+      "score": "6-1 7-6(4)",
+      "pbp_sha256": "0d1bf991cbe9a66a4746ecd42efa9ce495c4f8c3df580ae028feaff2153e1cb2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39064,8 +39400,20 @@
       "match_num": "10",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 709,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Magdalena Rybarikova",
+      "winner": "1",
+      "score": "7-5 2-6 6-0",
+      "pbp_sha256": "f21a4fff553363624505b91301869454aaa7cfcb9e383b9b158d8cb399396ae1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39086,8 +39434,20 @@
       "match_num": "11",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 705,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Victoria Azarenka",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "b53fdcf31e0ef9721657522e435dea941bf9f4907c5e4e32632851e0d65b5fb4",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39129,8 +39489,20 @@
       "match_num": "13",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 687,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Johanna Larsson",
+      "server2": "Yaroslava Shvedova",
+      "winner": "1",
+      "score": "6-4 7-6(4)",
+      "pbp_sha256": "3a5657902acd18b6cdd0a1c41bbaf7b6e283ea168481b61b93677c9f5aaa5fdd",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39151,8 +39523,20 @@
       "match_num": "14",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 711,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Yanina Wickmayer",
+      "server2": "Sloane Stephens",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "19843a8cd766eff5fffabcf1af9518ef500921e7bf5668ea5861302caed781d2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39173,8 +39557,20 @@
       "match_num": "15",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 694,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Daniela Hantuchova",
+      "server2": "Belinda Bencic",
+      "winner": "2",
+      "score": "6-1 7-6(5)",
+      "pbp_sha256": "f5ac751576f6f55abf193292f0b0adb0a9c4c1a1b256fc7c89d3a4e2066358b5",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39195,8 +39591,20 @@
       "match_num": "16",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 704,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Roberta Vinci",
+      "server2": "Tatjana Maria",
+      "winner": "2",
+      "score": "7-6(9) 6-3",
+      "pbp_sha256": "a4c273e87b4d988efa862206a11a91bbc6b9485aaf9868b5d82952f251084bac",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39238,8 +39646,20 @@
       "match_num": "18",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 690,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Tereza Smitkova",
+      "server2": "Natalia Vikhlyantseva",
+      "winner": "1",
+      "score": "0-6 7-5 6-2",
+      "pbp_sha256": "e6ce40bd29e5bef89150eecd06547966fc1fae7f946236e4b12b322d41e58eaa",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39260,8 +39680,20 @@
       "match_num": "19",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 699,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Elena Vesnina",
+      "server2": "Alexandra Dulgheru",
+      "winner": "1",
+      "score": "6-4 6-2",
+      "pbp_sha256": "4392f2998218a714f2894787bfe94083c1c4bf5ec91e91a7db4fc26fdd96e940",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39282,8 +39714,20 @@
       "match_num": "20",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 701,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Kirsten Flipkens",
+      "server2": "Stefanie Voegele",
+      "winner": "2",
+      "score": "6-2 6-2",
+      "pbp_sha256": "91b8c04cb1df4c97f3dda8cd9e51fe2b2d893ce0cfbb50f315912c6fc6f1d33a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39304,8 +39748,20 @@
       "match_num": "21",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 702,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Coco Vandeweghe",
+      "server2": "Urszula Radwanska",
+      "winner": "2",
+      "score": "6-4 6-7(2) 6-3",
+      "pbp_sha256": "d4ce1bc6353a4bdcc64436e70665ffe3d24005c850b5f4b8fdc1d344f7df1e03",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39326,8 +39782,20 @@
       "match_num": "22",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 700,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Kiki Bertens",
+      "server2": "Pauline Parmentier",
+      "winner": "2",
+      "score": "4-6 6-2 6-3",
+      "pbp_sha256": "799a590459d3ced670fbd79a2af7f1460556be91acda4761ddb2dfaace189184",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39369,8 +39837,20 @@
       "match_num": "24",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 683,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Madison Brengle",
+      "server2": "Aleksandra Krunic",
+      "winner": "1",
+      "score": "6-0 6-2",
+      "pbp_sha256": "2e2b249517c96640fd29d11a3ee0ac16767c353c69a82694e06a4f930e3fee28",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39391,8 +39871,20 @@
       "match_num": "25",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 684,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Katerina Siniakova",
+      "server2": "Karin Knapp",
+      "winner": "2",
+      "score": "6-2 6-0",
+      "pbp_sha256": "1d04d8a858f69417c37e6ed654eafff7d48a2a935fd584481963503c354dbb3e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39413,8 +39905,20 @@
       "match_num": "26",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 691,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Bojana Jovanovski",
+      "server2": "Mona Barthel",
+      "winner": "1",
+      "score": "3-6 6-3 6-2",
+      "pbp_sha256": "02e70f95e4ade08ebe621e09a38e5e87606b095c9c30bbd3e8c64ca0356492ae",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39435,8 +39939,20 @@
       "match_num": "27",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 689,
+      "date": "2015-03-24",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Klara Koukalova",
+      "server2": "Kristina Mladenovic",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "ef39ec3477f5a6cf75b9493cf512d3f4e564f958c50de1d338cf448cbb9c89cb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39457,8 +39973,20 @@
       "match_num": "28",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 695,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Christina McHale",
+      "server2": "Sorana Cirstea",
+      "winner": "1",
+      "score": "7-5 6-4",
+      "pbp_sha256": "8e2464552dd283e9772ab2d4f34f288b97eb2f3e2e3aa2174d03ee5236af1ca6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39479,8 +40007,20 @@
       "match_num": "29",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 696,
+      "date": "2015-03-25",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Shuai Zhang",
+      "server2": "Annika Beck",
+      "winner": "2",
+      "score": "6-4 4-6 6-4",
+      "pbp_sha256": "4481e6a713365e45f41ca21f7087f50dadb4ca67b46e5366a338822fbe2cab3d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39564,8 +40104,20 @@
       "match_num": "33",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 655,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Monica Niculescu",
+      "winner": "1",
+      "score": "6-3 6-1",
+      "pbp_sha256": "c801341fe2e32bf1390dffe3b96ffa1da476975ff7d2495358409fe09755fee1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39629,8 +40181,20 @@
       "match_num": "36",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 652,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Heather Watson",
+      "server2": "Angelique Kerber",
+      "winner": "2",
+      "score": "7-5 3-6 6-4",
+      "pbp_sha256": "0fe0e9709c60a1f44c74393c155a9a524f2bfbc73770c2b942aa409178eb0edb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39651,8 +40215,20 @@
       "match_num": "37",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 653,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Sara Errani",
+      "server2": "Anastasia Pavlyuchenkova",
+      "winner": "1",
+      "score": "6-1 7-6(5)",
+      "pbp_sha256": "32a8eaadd6db4e27c4c9f1c65f21f692713b04c963f0db3a4b71ac5b9fde6a8c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39673,8 +40249,20 @@
       "match_num": "38",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 642,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Sesil Karatantcheva",
+      "server2": "Garbine Muguruza",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "3c4adcdbb225129af3144dd5d9609328bfd884b1aa2aa37b82bff80489a1beaf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39695,8 +40283,20 @@
       "match_num": "39",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 644,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Julia Goerges",
+      "server2": "Sabine Lisicki",
+      "winner": "2",
+      "score": "7-6(1) 6-7(5) 6-4",
+      "pbp_sha256": "2d666c333dab1c80fd9d489c8ffc2fc7eea05d296989cac1e55be87611a6e133",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39717,8 +40317,20 @@
       "match_num": "40",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 646,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Ana Ivanovic",
+      "server2": "Irina Falconi",
+      "winner": "1",
+      "score": "7-5 6-7(4) 6-3",
+      "pbp_sha256": "de7aea660fec4870942f60d42d958ea25ff4d6fed610bc92bf503b9320d08dcf",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39739,8 +40351,20 @@
       "match_num": "41",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 639,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Nicole Vaidisova",
+      "server2": "Simona Halep",
+      "winner": "2",
+      "score": "6-4 2-6 6-1",
+      "pbp_sha256": "43bce557e0c73890e0c6cf89cfd8432860f0bee2eefaef210bd2ff9da8ca445f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39761,8 +40385,20 @@
       "match_num": "42",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 640,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Camila Giorgi",
+      "server2": "Alison Van Uytvanck",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "a3fa449ca52e6ae1cdf7eacd65b841422239c8dd0cc73f09bf564060d7a4d379",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39783,8 +40419,20 @@
       "match_num": "43",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 641,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Jelena Jankovic",
+      "server2": "Victoria Azarenka",
+      "winner": "2",
+      "score": "6-1 6-1",
+      "pbp_sha256": "fb77f3e9206ae2b54a9cac9f63127936c4f6a1cdd8dd80170fdc8b70acbd4870",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39805,8 +40453,20 @@
       "match_num": "44",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 643,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Flavia Pennetta",
+      "winner": "2",
+      "score": "6-7(1) 6-3 6-3",
+      "pbp_sha256": "87ce92c11cc335c046391c37846fd08dbc26d60bcd488deb5f699a36475ed47a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39827,8 +40487,20 @@
       "match_num": "45",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 728,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Lucie Safarova",
+      "server2": "Johanna Larsson",
+      "winner": "2",
+      "score": "7-6(5) 6-2",
+      "pbp_sha256": "a0fb6b0cb684bf3d6e4d4e64f203dad2b7147eb64c3ee660d9c1169dadf794e4",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39849,8 +40521,20 @@
       "match_num": "46",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 645,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Madison Keys",
+      "server2": "Sloane Stephens",
+      "winner": "2",
+      "score": "6-4 6-2",
+      "pbp_sha256": "d1e447e5e08387bb44ea8296659a1f34acfdbcbb3fbbde261590fdade3c659cd",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39871,8 +40555,20 @@
       "match_num": "47",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 647,
+      "date": "2015-03-27",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Casey Dellacqua",
+      "server2": "Belinda Bencic",
+      "winner": "2",
+      "score": "6-2 4-6 6-2",
+      "pbp_sha256": "d69215b69f9c5d25fb0216c954563dd725e4f6809d546ba63c26a8d81f343324",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39893,8 +40589,20 @@
       "match_num": "48",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 651,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Tatjana Maria",
+      "server2": "Eugenie Bouchard",
+      "winner": "1",
+      "score": "6-0 7-6(4)",
+      "pbp_sha256": "0ab52cdd630d30a19977459fe0c5d7182dc77d3e529a74712d0c8a64076bd0cb",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39936,8 +40644,20 @@
       "match_num": "50",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 713,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Tereza Smitkova",
+      "server2": "Irina-Camelia Begu",
+      "winner": "2",
+      "score": "5-7 6-4 6-4",
+      "pbp_sha256": "92bcb3d45cb08595c0f3b3ff54399287223900297d473da03639192fc3db4579",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39958,8 +40678,20 @@
       "match_num": "51",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 720,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Alize Cornet",
+      "server2": "Elena Vesnina",
+      "winner": "1",
+      "score": "6-4 6-1",
+      "pbp_sha256": "764c6da48b61b1a8f85c86d95b342108a002b1d41eee7b945a034f96787e506f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -39980,8 +40712,20 @@
       "match_num": "52",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 718,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Stefanie Voegele",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 6-1",
+      "pbp_sha256": "3931041f30f0a436ebcb9746340e14d6e15f77c125421a07e32d0aed04b17021",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40002,8 +40746,20 @@
       "match_num": "53",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 724,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Venus Williams",
+      "server2": "Urszula Radwanska",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "a473982f13b39997295dfe48e1baea99817c3619649a4bb744dbe9666b0e383e",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40024,8 +40780,20 @@
       "match_num": "54",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 725,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Samantha Stosur",
+      "server2": "Pauline Parmentier",
+      "winner": "1",
+      "score": "6-1 3-6 6-0",
+      "pbp_sha256": "714e4f78848f8921ab7bb1487c9894e0795de640dfaf4f4e680a05a25e3c9c49",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40046,8 +40814,20 @@
       "match_num": "55",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 715,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Kaia Kanepi",
+      "server2": "Varvara Lepchenko",
+      "winner": "1",
+      "score": "6-2 6-4",
+      "pbp_sha256": "21f5f7c7cca85cc99a5f8b33cc02e3f3f5d1c6983faebcdf4bd564547ff818ee",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40068,8 +40848,20 @@
       "match_num": "56",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 721,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Madison Brengle",
+      "winner": "1",
+      "score": "6-0 6-1",
+      "pbp_sha256": "314f2686b84763dfc628698355ff6e50628868c1004163c9a9486c7534fdeb87",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40111,8 +40903,20 @@
       "match_num": "58",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 723,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Bojana Jovanovski",
+      "server2": "Elina Svitolina",
+      "winner": "2",
+      "score": "6-3 7-6(3)",
+      "pbp_sha256": "c04d2202a9b6c244c22853b2d7ba3ba756fcb3addbbc9643893f3e03b2572d32",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40154,8 +40958,20 @@
       "match_num": "60",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 717,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Andrea Petkovic",
+      "server2": "Christina McHale",
+      "winner": "1",
+      "score": "6-2 6-2",
+      "pbp_sha256": "9d2ede1562cf33652c728da77b5d89d8c07cc466d7041d9e4cfbdbde98322d57",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40219,8 +41035,20 @@
       "match_num": "63",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 726,
+      "date": "2015-03-26",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Kurumi Nara",
+      "server2": "Caroline Garcia",
+      "winner": "1",
+      "score": "6-3 7-6(9)",
+      "pbp_sha256": "596ddbe27c87eb35bac4a3202a5a63cd3fba21e35583d0de245b3d8219d3caa6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40283,8 +41111,20 @@
       "match_num": "66",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 661,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Angelique Kerber",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "2",
+      "score": "6-3 3-6 6-3",
+      "pbp_sha256": "74d730aa7c272e08ea9645b691b44091d3e1c85928b20067d0c407579633a65d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40305,8 +41145,20 @@
       "match_num": "67",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 663,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Garbine Muguruza",
+      "server2": "Sara Errani",
+      "winner": "2",
+      "score": "4-6 6-4 6-1",
+      "pbp_sha256": "50b800c51b35280a01dfa8ba37d0abd23d87f1550c513d390217bc8573bd0ebe",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40327,8 +41179,20 @@
       "match_num": "68",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 667,
+      "date": "2015-03-30",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Sabine Lisicki",
+      "server2": "Ana Ivanovic",
+      "winner": "1",
+      "score": "7-6(4) 7-5",
+      "pbp_sha256": "7561ae968febc009f6e80415007c7d0ebe4a577cf702974ee8c83e4328ddfa0f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40349,8 +41213,20 @@
       "match_num": "69",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 660,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Camila Giorgi",
+      "server2": "Simona Halep",
+      "winner": "2",
+      "score": "6-4 7-5",
+      "pbp_sha256": "0e8243e1d8c20da8559b1d905f2e9c95e54f08f261004bf0fc4328039b2fe29c",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40371,8 +41247,20 @@
       "match_num": "70",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 662,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Flavia Pennetta",
+      "server2": "Victoria Azarenka",
+      "winner": "1",
+      "score": "7-6(5) 7-6(6)",
+      "pbp_sha256": "576954391103633517b246943f707776f22092f0ac42b735553acbdaff0acbd0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40393,8 +41281,20 @@
       "match_num": "71",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 666,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Johanna Larsson",
+      "server2": "Sloane Stephens",
+      "winner": "2",
+      "score": "6-4 6-4",
+      "pbp_sha256": "443a572f2fdcd8733003258742e8e9f4cbd5cabc092042925f6529672a20f57f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40415,8 +41315,20 @@
       "match_num": "72",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 664,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Tatjana Maria",
+      "server2": "Belinda Bencic",
+      "winner": "2",
+      "score": "6-4 7-5",
+      "pbp_sha256": "c0371a8d649c8c92fbbee7a121aa89a5b2075f54cc2e4e174d4e7af2b4e45e2d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40437,8 +41349,20 @@
       "match_num": "73",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 659,
+      "date": "2015-03-29",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Irina-Camelia Begu",
+      "winner": "1",
+      "score": "6-2 4-6 6-2",
+      "pbp_sha256": "f3d527fd76a20675b5e3391c299a9f23e23e87cfcb89cd6e9d3389f0189b81dc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40459,8 +41383,20 @@
       "match_num": "74",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 649,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Alize Cornet",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-0 6-4",
+      "pbp_sha256": "38754c85e361eed99247f683b4e45fae7f59574e5377cf1aa5e0940e4af73675",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40481,8 +41417,20 @@
       "match_num": "75",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 657,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Samantha Stosur",
+      "server2": "Venus Williams",
+      "winner": "2",
+      "score": "6-4 7-6(3)",
+      "pbp_sha256": "3d7043a7cfe4e354b03c5cdaac3c460b17e46a26358358f695b088ae15f3be57",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40503,8 +41451,20 @@
       "match_num": "76",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 648,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Kaia Kanepi",
+      "winner": "1",
+      "score": "4-6 6-1 6-3",
+      "pbp_sha256": "447d8aa6112ac0a4a0e4ecfef9b9bb7e670ce702f07c868c8225f08c5e386adc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40546,8 +41506,20 @@
       "match_num": "78",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 654,
+      "date": "2015-03-28",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Andrea Petkovic",
+      "server2": "Kristina Mladenovic",
+      "winner": "1",
+      "score": "6-0 6-2",
+      "pbp_sha256": "ecde45fbad12d95cb639c146efda5d966755a144d3cd1a16487ab680d4072315",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40610,8 +41582,20 @@
       "match_num": "81",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 670,
+      "date": "2015-03-30",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Svetlana Kuznetsova",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "79b4df4573d351d6d68f91be85914c725a180643385f50069be9bc88567d95c4",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40632,8 +41616,20 @@
       "match_num": "82",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 673,
+      "date": "2015-03-30",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Sabine Lisicki",
+      "server2": "Sara Errani",
+      "winner": "1",
+      "score": "6-1 6-2",
+      "pbp_sha256": "8eeacaf76f40e171c5aec732747ab3c6ea9e6fa01e044331c4d12d4abcf04c1a",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40654,8 +41650,20 @@
       "match_num": "83",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 675,
+      "date": "2015-03-31",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Simona Halep",
+      "server2": "Flavia Pennetta",
+      "winner": "1",
+      "score": "6-3 7-5",
+      "pbp_sha256": "e382aa2c0f7aaa69c4efd03985d4cb30c12c6655f7af4806f15480a0d8008116",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40676,8 +41684,20 @@
       "match_num": "84",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 674,
+      "date": "2015-03-30",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Sloane Stephens",
+      "server2": "Belinda Bencic",
+      "winner": "1",
+      "score": "6-4 7-6(5)",
+      "pbp_sha256": "3b2ed2a0b7d65e9dd83ae6d4cd954501cf81f844fc79057a3ee73c88fc42f0e4",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40698,8 +41718,20 @@
       "match_num": "85",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 669,
+      "date": "2015-03-30",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Agnieszka Radwanska",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "5-7 6-0 6-4",
+      "pbp_sha256": "b26844da09e206c830627a822039bb8a8981dbac059c24416537cb1522274346",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40720,8 +41752,20 @@
       "match_num": "86",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 668,
+      "date": "2015-03-30",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Caroline Wozniacki",
+      "server2": "Venus Williams",
+      "winner": "2",
+      "score": "6-3 7-6(1)",
+      "pbp_sha256": "b3882a455e3e35b2253c05793fdc41d131da4354359441088cfb91596108ff65",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40784,8 +41828,20 @@
       "match_num": "89",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 678,
+      "date": "2015-04-01",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Sabine Lisicki",
+      "winner": "1",
+      "score": "7-6(4) 1-6 6-3",
+      "pbp_sha256": "0a6edcbf1e44af855091986d8c1ce531d101f40113698bfa6e9de0f1cf96561b",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40806,8 +41862,20 @@
       "match_num": "90",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 679,
+      "date": "2015-04-02",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Simona Halep",
+      "server2": "Sloane Stephens",
+      "winner": "1",
+      "score": "6-1 7-5",
+      "pbp_sha256": "fef1d417a6be8a8489c6862fbd6c539f01029284b3e5dea65858e8e11926a8a2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40828,8 +41896,20 @@
       "match_num": "91",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 677,
+      "date": "2015-04-01",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Venus Williams",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "0-6 6-1 7-5",
+      "pbp_sha256": "a5f4cdcf78afa215db806d67b9647f05b66811f29c64f686d064e0532eb3ddd1",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40872,8 +41952,20 @@
       "match_num": "93",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 833,
+      "date": "2015-04-03",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Simona Halep",
+      "winner": "1",
+      "score": "6-2 4-6 7-5",
+      "pbp_sha256": "f511ba12320c1b4c0355389b0ee1243db6fcce12de236f6811dbc4040af58920",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40894,8 +41986,20 @@
       "match_num": "94",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 680,
+      "date": "2015-04-02",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Andrea Petkovic",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 6-3",
+      "pbp_sha256": "354becbb2d0a0da408e09984262e51653019ec87e00f38829571d94d929a2e0d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40916,8 +42020,20 @@
       "match_num": "95",
       "tourney_id": "2015-W-PM-USA-02A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 834,
+      "date": "2015-04-04",
+      "tournament": "MiamiOpen-WTAMiami",
+      "server1": "Serena Williams",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-2 6-0",
+      "pbp_sha256": "c00cfe5ff5e8b377854972902afb27975fef12aa110c1f739232a746b26d9e26",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -40993,8 +42109,20 @@
       "match_num": "3",
       "tourney_id": "2015-W-PR-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 33,
+      "date": "2015-01-04",
+      "tournament": "BrisbaneInternational-WTABrisbane",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "3-6 6-2 6-1",
+      "pbp_sha256": "4b9ef81211851d65d79d0064e110a871774e22bc2415ef7fd8fa6df985fe10fa",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -41609,8 +42737,20 @@
       "match_num": "23",
       "tourney_id": "2015-W-PR-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 53,
+      "date": "2015-01-08",
+      "tournament": "BrisbaneInternational-WTABrisbane",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Maria Sharapova",
+      "winner": "2",
+      "score": "6-1 6-3",
+      "pbp_sha256": "2ab8a81b7e25d20bf4577d104e5898efbb99001ca8b28e47002120dfd0a4f26f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -42551,8 +43691,20 @@
       "match_num": "4",
       "tourney_id": "2015-W-PR-BEL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 283,
+      "date": "2015-02-10",
+      "tournament": "BNPParibasFortisDiamondGames-WTAAntwerp",
+      "server1": "Alison Van Uytvanck",
+      "server2": "Magdalena Rybarikova",
+      "winner": "1",
+      "score": "6-2 6-3",
+      "pbp_sha256": "a4f6fc47f620842f429cd27ae9d40ddc024d3e7d22fdf64b2007656ac32f48ce",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -42573,8 +43725,20 @@
       "match_num": "5",
       "tourney_id": "2015-W-PR-BEL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 287,
+      "date": "2015-02-11",
+      "tournament": "BNPParibasFortisDiamondGames-WTAAntwerp",
+      "server1": "Tsvetana Pironkova",
+      "server2": "Indy De Vroome",
+      "winner": "2",
+      "score": "5-7 6-3 6-3",
+      "pbp_sha256": "155e7505e3d4d038167b7c1bc7822e7e26362da4b5a33cae21d22122775a3108",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -42849,8 +44013,20 @@
       "match_num": "15",
       "tourney_id": "2015-W-PR-BEL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 292,
+      "date": "2015-02-11",
+      "tournament": "BNPParibasFortisDiamondGames-WTAAntwerp",
+      "server1": "Andrea Petkovic",
+      "server2": "Alison Van Uytvanck",
+      "winner": "1",
+      "score": "6-7(7) 7-6(5) 6-2",
+      "pbp_sha256": "e1a7d106acb4dfebc0ede6983e5eb8dcd1cdfe113efcf4870df28335f36e2b2d",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -42871,8 +44047,20 @@
       "match_num": "16",
       "tourney_id": "2015-W-PR-BEL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 293,
+      "date": "2015-02-12",
+      "tournament": "BNPParibasFortisDiamondGames-WTAAntwerp",
+      "server1": "Dominika Cibulkova",
+      "server2": "Indy De Vroome",
+      "winner": "1",
+      "score": "6-3 3-6 6-2",
+      "pbp_sha256": "b26432beb96b9e163a177491fcab53dcd3b1d9363646e8f47bc3a20bee53d182",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -42952,8 +44140,20 @@
       "match_num": "19",
       "tourney_id": "2015-W-PR-BEL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 295,
+      "date": "2015-02-12",
+      "tournament": "BNPParibasFortisDiamondGames-WTAAntwerp",
+      "server1": "Carla Suarez Navarro",
+      "server2": "Monica Niculescu",
+      "winner": "1",
+      "score": "4-6 6-0 6-2",
+      "pbp_sha256": "1079a2133ae0a689bfa5dda5b323c70d691af0ef57838dee18fea055823dbda3",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -43084,8 +44284,20 @@
       "match_num": "24",
       "tourney_id": "2015-W-PR-BEL-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 301,
+      "date": "2015-02-13",
+      "tournament": "BNPParibasFortisDiamondGames-WTAAntwerp",
+      "server1": "Francesca Schiavone",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 6-2",
+      "pbp_sha256": "ff4519eb2168d27348556b82bb45f7e5853ede8cde651d01b6cc0c17c102afc6",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -43747,8 +44959,20 @@
       "match_num": "21",
       "tourney_id": "2015-W-PR-QAT-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 518,
+      "date": "2015-02-26",
+      "tournament": "QatarTotalOpen-WTADoha",
+      "server1": "Petra Kvitova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "3-6 6-0 6-3",
+      "pbp_sha256": "d673339412f33a0be1822ca0e1a72531537bf0c2bc3701eb0f72f10042565472",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -43871,8 +45095,20 @@
       "match_num": "25",
       "tourney_id": "2015-W-PR-QAT-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 520,
+      "date": "2015-02-27",
+      "tournament": "QatarTotalOpen-WTADoha",
+      "server1": "Lucie Safarova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-3 6-2",
+      "pbp_sha256": "1e2eb5db3cdd208ef8c757f2c7a1acee1a689a7004645b6b70cc88af42a6eb81",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45094,8 +46330,20 @@
       "match_num": "37",
       "tourney_id": "2015-W-PR-UAE-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 329,
+      "date": "2015-02-17",
+      "tournament": "DubaiDutyFreeTennisChampionships-WTADubai",
+      "server1": "Camila Giorgi",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 6-4",
+      "pbp_sha256": "e69c064997b7991986d11555cc0cfbe0790e9cf8c971ba61bb3d23ad6fe972e2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45375,8 +46623,20 @@
       "match_num": "46",
       "tourney_id": "2015-W-PR-UAE-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 348,
+      "date": "2015-02-18",
+      "tournament": "DubaiDutyFreeTennisChampionships-WTADubai",
+      "server1": "Petra Kvitova",
+      "server2": "Carla Suarez Navarro",
+      "winner": "2",
+      "score": "6-3 4-6 6-3",
+      "pbp_sha256": "20fdffebf257dac1bb640705eec9fb5801d4c7ae6544418525d19df32e98a2d8",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45486,8 +46746,20 @@
       "match_num": "50",
       "tourney_id": "2015-W-PR-UAE-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 352,
+      "date": "2015-02-19",
+      "tournament": "DubaiDutyFreeTennisChampionships-WTADubai",
+      "server1": "Garbine Muguruza",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-7(4) 6-3 6-3",
+      "pbp_sha256": "5a3afd7a7d8d1cb711720e66b2129efb85f465446ad1670115a57946b16edb1f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45601,8 +46873,20 @@
       "match_num": "1",
       "tourney_id": "2015-W-SL-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 168,
+      "date": "2015-01-20",
+      "tournament": "Women'sAustralianOpen",
+      "server1": "Serena Williams",
+      "server2": "Alison Van Uytvanck",
+      "winner": "1",
+      "score": "6-0 6-4",
+      "pbp_sha256": "b933969ad1b546116aca9495d96b35828f42e885de1da61cc6cc8357d18bf44f",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -45793,8 +47077,20 @@
       "match_num": "7",
       "tourney_id": "2015-W-SL-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 167,
+      "date": "2015-01-20",
+      "tournament": "Women'sAustralianOpen",
+      "server1": "Kimiko Date-Krumm",
+      "server2": "Anna Tatishvili",
+      "winner": "2",
+      "score": "7-5 6-4",
+      "pbp_sha256": "b5e35062946a2b8677a182c34c0899bd0b381b792291b4471c36e5cc8b77c3f2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -46859,8 +48155,20 @@
       "match_num": "42",
       "tourney_id": "2015-W-SL-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 238,
+      "date": "2015-01-19",
+      "tournament": "Women'sAustralianOpen",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Annika Beck",
+      "winner": "1",
+      "score": "7-5 6-4",
+      "pbp_sha256": "797515f6c5efc15dffd6cba1e8d3aa05f49671805ebc4597141e3cd4e6d229dc",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -47199,8 +48507,20 @@
       "match_num": "53",
       "tourney_id": "2015-W-SL-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 242,
+      "date": "2015-01-19",
+      "tournament": "Women'sAustralianOpen",
+      "server1": "Carina Witthoeft",
+      "server2": "Carla Suarez Navarro",
+      "winner": "1",
+      "score": "6-3 6-1",
+      "pbp_sha256": "b7040d15164b96af5760a14edaf31bebe67eda407dd9e5d8e03a791253795cc0",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
@@ -48184,8 +49504,20 @@
       "match_num": "85",
       "tourney_id": "2015-W-SL-AUS-01A-2015"
     },
-    "status": "REVIEW_REQUIRED",
-    "candidate_count": 1
+    "status": "RESULT_VERIFIED_PBP",
+    "pbp_ref": {
+      "source_file": "pbp_matches_wta_main_current.csv",
+      "source_row": 180,
+      "date": "2015-01-21",
+      "tournament": "Women'sAustralianOpen",
+      "server1": "Silvia Soler-Espinosa",
+      "server2": "Sara Errani",
+      "winner": "2",
+      "score": "7-6(3) 6-3",
+      "pbp_sha256": "6d469fa02e1a1ba6431c7a45d3b12f3e93669c494564b3965477cdd131a17ef2",
+      "adf_flag": "1"
+    },
+    "trust_level": "LEVEL_1_RESULT_VERIFIED_PBP"
   },
   {
     "hist": {
