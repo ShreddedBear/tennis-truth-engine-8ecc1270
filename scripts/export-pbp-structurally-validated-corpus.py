@@ -44,29 +44,48 @@ ROOT = Path("data/audit/pbp-structurally-validated-export")
 
 def resolve_and_validate(p, hist_candidates):
     """Identical logic to atp-pbp-identity-resolution-experiment.py's classify_new,
-    returning (category, matched_hist_record_or_None, reconstructed_dict_or_None).
-    Kept in lock-step with that script deliberately -- this is the SAME
-    classification, just also carrying the reconstruction dict + matched hist
-    record forward instead of discarding them into a count."""
+    returning (category, matched_hist_record_or_None, reconstructed_dict_or_None,
+    identity_tier_or_None). Kept in lock-step with that script deliberately --
+    this is the SAME classification, just also carrying the reconstruction dict,
+    matched hist record, and identity-resolution tier forward instead of
+    discarding them into a count."""
     result = resolve_match_identity(p, hist_candidates)
     if result.resolution == IdentityResolution.UNRESOLVED:
-        return ("no_historical_player_pair" if not hist_candidates else "unresolved_other"), None, None
+        return ("no_historical_player_pair" if not hist_candidates else "unresolved_other"), None, None, None
     if result.resolution == IdentityResolution.AMBIGUOUS:
-        return "ambiguous", None, None
+        return "ambiguous", None, None, None
 
     matched = result.matched
+    tier = result.tier.value if result.tier else None
     rec = reconstruct_pbp(p.pbp_tape or "")
     if not rec.get("valid"):
-        return "structural_failure", None, rec
+        return "structural_failure", None, rec, tier
 
+    # rec["sets"]/rec["winner"] are in ppaulojr's OWN server1/server2 orientation, which does NOT
+    # necessarily agree with `matched`'s (Sackmann's) winner-is-always-player1 convention -- e.g.
+    # ppaulojr's player_1 (server1) can be the LOSER of the match. flip_needed captures exactly
+    # that: True means ppaulojr's own player_1 was the loser, so both sets and winner must be
+    # flipped before this reconstruction can be safely paired with `matched.player_1`/`player_2`
+    # (which this module's caller always exports as player1Name/player2Name). Caught by
+    # atp-main-pbp-integrity-check.py's score_agrees_with_reconstruction check, which independently
+    # re-derives the winner-first orientation from `score` and found the first export of this
+    # manifest had NOT applied this flip to the exported `reconstructed` field (only to a local,
+    # discarded variable used for the internal score_ok check) -- 1,924 of 4,065 records were
+    # affected. Fixed here so the exported `reconstructed.sets`/`winner` are ALWAYS relative to
+    # player1Name/player2Name as exported, with no ambiguity for a downstream consumer.
+    flip_needed = norm_name(matched.winner) == norm_name(p.player_2)
     pg = [tuple(x) for x in rec["sets"]]
-    if norm_name(matched.winner) == norm_name(p.player_2):
+    if flip_needed:
         pg = [(b, a) for a, b in pg]
     score_ok = pg == score_games(matched.score)
     winner_ok = rec["winner"] == (0 if norm_name(matched.winner) == norm_name(p.player_1) else 1)
-    if score_ok and winner_ok:
-        return "internally_validated", matched, rec
-    return "conflict", matched, rec
+    if not (score_ok and winner_ok):
+        return "conflict", matched, rec, tier
+
+    canonical_rec = dict(rec)
+    canonical_rec["sets"] = [list(s) for s in pg]
+    canonical_rec["winner"] = 0  # player1Name (=matched.player_1, the winner) always wins in this frame
+    return "internally_validated", matched, canonical_rec, tier
 
 
 def export_year(tour: str, year: int) -> dict:
@@ -81,7 +100,7 @@ def export_year(tour: str, year: int) -> dict:
 
     for p in pbp:
         cands = by_pair.get(pairkey(p.player_1, p.player_2), [])
-        category, matched, rec = resolve_and_validate(p, cands)
+        category, matched, rec, identity_tier = resolve_and_validate(p, cands)
         category_counts[category] += 1
         if category != "internally_validated":
             continue
@@ -99,15 +118,23 @@ def export_year(tour: str, year: int) -> dict:
             # Identity key for tennis-stats-engine's historical_matches FK lookup.
             "provider": "sackmann",
             "externalId": external_id,
-            "sackmannWinnerId": winner_id,
-            "sackmannLoserId": loser_id,
-            "tour": tour,
+            "tour": "ATP" if tour == "ATP_MAIN" else tour,  # ATP/WTA tour designation, not the internal ATP_MAIN label
             "year": year,
             "tournamentId": matched.tournament_id,
             "tournamentName": matched.tournament_name,
             "date": matched.date,
-            "player1": p.player_1,
-            "player2": p.player_2,
+            "round": matched.round,
+            "surface": matched.surface,
+            "level": matched.level,
+            # Player identity: from `matched` (the canonical identity-source record), NOT
+            # ppaulojr's own player_1/player_2 -- Sackmann's convention (which tennis-stats-engine's
+            # sackmannBackfill.ts also follows) is winner is always "player1". Using ppaulojr's own
+            # ordering here would silently disagree with that convention for any match ppaulojr
+            # lists loser-first.
+            "player1Name": matched.player_1,
+            "player2Name": matched.player_2,
+            "player1Id": f"sackmann-{winner_id}" if winner_id else None,
+            "player2Id": f"sackmann-{loser_id}" if loser_id else None,
             "winner": matched.winner,
             "score": matched.score,
             # Raw PBP evidence -- exactly as pulled from the source, never edited.
@@ -118,17 +145,58 @@ def export_year(tour: str, year: int) -> dict:
             "pbpSha256": p.provenance.get("pbp_sha256") or hashlib.sha256(raw_tape.encode()).hexdigest(),
             "reconstructed": rec,
             "verifierVersion": PpaulojrPbpAdapter.source_version,
+            # Identity/provenance for the axis this record's canonical match came from -- kept
+            # distinct from the PBP source above (they are two different sources with two
+            # different roles: CORROBORATOR/identity vs PBP_SOURCE).
+            "identitySourceName": AneeshersSackmannHistAdapter.source_name,
+            "identitySourceLicense": AneeshersSackmannHistAdapter.license_status.value,
+            "identityResolutionTier": identity_tier,
             # Axis B (never upgraded by this script) and axis C, copied verbatim.
             "validationLevel": "STRUCTURALLY_VALIDATED",
             "licenseStatus": "LICENSE_UNCERTAIN",  # PpaulojrPbpAdapter.license_status.value
+            # Cutoff metadata: truth-engine does not itself compute a cutoff timestamp (that is a
+            # deployment-configured, downstream concept -- see tennis-stats-engine's
+            # historicalMatchesTable.cutoffMinutes/cutoffAt). What this record DOES assert,
+            # authoritatively, is the real-world date this match was played (`date` above) --
+            # the fact a downstream cutoff computation must be based on. A downstream consumer
+            # must never treat this record as available before that date.
+            "cutoffBasisDate": matched.date,
         })
+
+    # De-duplicate by (provider, externalId) -- see docs/PBP_SOURCE_LICENSE_AUDIT.md and this
+    # script's own commit history: ppaulojr's own source CSV genuinely lists the same real match
+    # twice in a small number of cases (17 across 2012+2013), each time with a different PBP tape
+    # that independently passes structural validation. An "approved manifest" must have exactly one
+    # row per canonical match -- the deterministic tie-break (lowest pbpSourceRow kept) mirrors
+    # tennis-stats-engine's own importPbpEvidence.ts dedupeByExternalId(), so both layers agree,
+    # but doing it HERE means the manifest itself is already clean for any downstream consumer,
+    # not only the one this session already built. Every discarded duplicate is reported, never
+    # silently dropped.
+    by_key: dict[str, list[dict]] = defaultdict(list)
+    for r in records:
+        by_key[f"{r['provider']}:{r['externalId']}"].append(r)
+    deduped = []
+    discarded_duplicates = []
+    for group in by_key.values():
+        group_sorted = sorted(group, key=lambda r: r["pbpSourceRow"])
+        deduped.append(group_sorted[0])
+        for extra in group_sorted[1:]:
+            discarded_duplicates.append({
+                "externalId": extra["externalId"],
+                "keptSourceRow": group_sorted[0]["pbpSourceRow"],
+                "discardedSourceRow": extra["pbpSourceRow"],
+                "keptSha256": group_sorted[0]["pbpSha256"],
+                "discardedSha256": extra["pbpSha256"],
+            })
 
     return {
         "tour": tour,
         "year": year,
         "category_counts": dict(category_counts),
-        "exported_count": len(records),
-        "records": records,
+        "exported_count": len(deduped),
+        "duplicate_canonical_matches_found": len(discarded_duplicates),
+        "discarded_duplicates": discarded_duplicates,
+        "records": deduped,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -148,7 +216,8 @@ def main() -> None:
         total_exported += result["exported_count"]
         print(f"=== {args.tour} {year} ===")
         print("category_counts:", result["category_counts"])
-        print("exported_count (STRUCTURALLY_VALIDATED):", result["exported_count"])
+        print("exported_count (STRUCTURALLY_VALIDATED, deduplicated):", result["exported_count"])
+        print("duplicate_canonical_matches_found (discarded):", result["duplicate_canonical_matches_found"])
         print()
 
     print(f"TOTAL exported across all requested years: {total_exported}")

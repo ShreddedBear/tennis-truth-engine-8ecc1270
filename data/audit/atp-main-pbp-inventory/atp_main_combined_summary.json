@@ -1,0 +1,22 @@
+{
+  "tour": "ATP_MAIN",
+  "years": [
+    2012,
+    2013
+  ],
+  "combined_categories": {
+    "LEVEL_1_independently_verified": 0,
+    "LEVEL_2_structurally_validated": 4065,
+    "REVIEW_REQUIRED": 0,
+    "AMBIGUOUS": 0,
+    "CONFLICT": 0,
+    "STRUCTURAL_FAIL": 213,
+    "UNMATCHED": 1015,
+    "NO_PBP": 887
+  },
+  "combined_match_identity_status": {
+    "RESOLVED": 4278,
+    "UNRESOLVED": 1015
+  },
+  "generated_at_utc": "2026-09-16T07:53:15.966856+00:00"
+}

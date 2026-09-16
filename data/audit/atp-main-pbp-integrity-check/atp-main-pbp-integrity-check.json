@@ -1,0 +1,62 @@
+{
+  "population": "ATP_MAIN approved manifest (STRUCTURALLY_VALIDATED)",
+  "source_files": [
+    "atp_main_2012.json",
+    "atp_main_2013.json"
+  ],
+  "total_records_checked": 4048,
+  "overall": "PASS",
+  "checks": {
+    "duplicate_pbp_hashes": {
+      "status": "PASS",
+      "duplicate_count": 0,
+      "examples": []
+    },
+    "duplicate_canonical_matches": {
+      "status": "PASS",
+      "duplicate_count": 0,
+      "examples": []
+    },
+    "winner_is_always_player1": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "score_agrees_with_reconstruction": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "no_tournament_identity_missing": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "no_date_missing": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "date_is_valid_iso": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "cross_tour_contamination": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "malformed_pbp_excluded": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    },
+    "no_canonical_id_fabrication": {
+      "status": "PASS",
+      "violation_count": 0,
+      "examples": []
+    }
+  },
+  "generated_at_utc": "2026-09-16T07:56:17.329094+00:00"
+}

@@ -1,0 +1,275 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2012,
+  "total_hist_matches": 2697,
+  "total_pbp_candidates": 2645,
+  "categories": {
+    "LEVEL_1_independently_verified": 0,
+    "LEVEL_2_structurally_validated": 1919,
+    "REVIEW_REQUIRED": 0,
+    "AMBIGUOUS": 0,
+    "CONFLICT": 0,
+    "STRUCTURAL_FAIL": 89,
+    "UNMATCHED": 637,
+    "UNMATCHED_breakdown": {
+      "no_historical_player_pair": 608,
+      "candidate_pair_exists_but_score_or_winner_disagrees": 29
+    },
+    "NO_PBP": 590
+  },
+  "match_identity_status": {
+    "RESOLVED": 2008,
+    "UNRESOLVED": 637
+  },
+  "identity_resolution_tier_breakdown_LEVEL_2_only": {
+    "FUZZY_FALLBACK": 1318,
+    "ALIAS_TABLE": 601
+  },
+  "tournament_breakdown_LEVEL_2_only": {
+    "US Open": 92,
+    "Wimbledon": 89,
+    "Roland Garros": 84,
+    "Miami Masters": 68,
+    "Indian Wells Masters": 66,
+    "Shanghai Masters": 49,
+    "Rome Masters": 48,
+    "Monte Carlo Masters": 47,
+    "Madrid Masters": 46,
+    "Cincinnati Masters": 45,
+    "Winston-Salem": 42,
+    "Paris Masters": 42,
+    "Canada Masters": 40,
+    "Barcelona": 39,
+    "Dubai": 29,
+    "Queen's Club": 29,
+    "Newport": 29,
+    "Hamburg": 29,
+    "Basel": 29,
+    "Valencia": 28,
+    "Nice": 27,
+    "Stuttgart": 27,
+    "Doha": 26,
+    "San Jose": 26,
+    "Dusseldorf": 26,
+    "Beijing": 26,
+    "Montpellier": 25,
+    "Zagreb": 25,
+    "Rotterdam": 25,
+    "Delray Beach": 25,
+    "Halle": 25,
+    "s Hertogenbosch": 25,
+    "Bastad": 25,
+    "Metz": 25,
+    "Bangkok": 25,
+    "Vienna": 25,
+    "Gstaad": 24,
+    "St. Petersburg": 24,
+    "Tokyo": 24,
+    "Moscow": 24,
+    "Munich": 23,
+    "Eastbourne": 23,
+    "Kitzbuhel": 23,
+    "Marseille": 22,
+    "Houston": 22,
+    "Atlanta": 22,
+    "Chennai": 21,
+    "Brisbane": 21,
+    "Casablanca": 21,
+    "Los Angeles": 21,
+    "Stockholm": 21,
+    "Sao Paulo": 20,
+    "Bucharest": 20,
+    "Kuala Lumpur": 20,
+    "Santiago": 19,
+    "Belgrade": 19,
+    "Buenos Aires": 18,
+    "Sydney": 16,
+    "Tour Finals": 16,
+    "Auckland": 15,
+    "Memphis": 15,
+    "Estoril": 14,
+    "Acapulco": 13
+  },
+  "no_pbp_examples_sample": [
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Gilles Muller",
+      "player_2": "Ricardo Mello",
+      "match_id": "2012-339-2"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Kei Nishikori",
+      "player_2": "Cedrik Marcel Stebe",
+      "match_id": "2012-339-4"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Denis Istomin",
+      "player_2": "Florian Mayer",
+      "match_id": "2012-339-5"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Tatsuma Ito",
+      "player_2": "Benjamin Mitchell",
+      "match_id": "2012-339-7"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Jarkko Nieminen",
+      "player_2": "Jesse Levine",
+      "match_id": "2012-339-10"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Santiago Giraldo",
+      "player_2": "John Millman",
+      "match_id": "2012-339-14"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Denis Istomin",
+      "player_2": "Tommy Haas",
+      "match_id": "2012-339-19"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-01-01",
+      "player_1": "Santiago Giraldo",
+      "player_2": "Philipp Petzschner",
+      "match_id": "2012-339-23"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-01-02",
+      "player_1": "Yen Hsun Lu",
+      "player_2": "Thiemo De Bakker",
+      "match_id": "2012-891-11"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-01-02",
+      "player_1": "Steve Darcis",
+      "player_2": "Blaz Kavcic",
+      "match_id": "2012-891-12"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-01-02",
+      "player_1": "Stan Wawrinka",
+      "player_2": "Edouard Roger-Vasselin",
+      "match_id": "2012-891-15"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-01-02",
+      "player_1": "Go Soeda",
+      "player_2": "Stan Wawrinka",
+      "match_id": "2012-891-22"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-01-02",
+      "player_1": "Denis Gremelmayr",
+      "player_2": "Potito Starace",
+      "match_id": "2012-451-2"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-01-02",
+      "player_1": "Matthias Bachinger",
+      "player_2": "Roberto Bautista Agut",
+      "match_id": "2012-451-7"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-01-02",
+      "player_1": "Alex Bogomolov Jr",
+      "player_2": "Filippo Volandri",
+      "match_id": "2012-451-9"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-01-02",
+      "player_1": "Grega Zemlja",
+      "player_2": "Sergei Bubka",
+      "match_id": "2012-451-15"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-01-02",
+      "player_1": "Albert Ramos",
+      "player_2": "Alex Bogomolov Jr",
+      "match_id": "2012-451-21"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-01-02",
+      "player_1": "Jo-Wilfried Tsonga",
+      "player_2": "Roger Federer",
+      "match_id": "2012-451-30"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "Potito Starace",
+      "player_2": "Albert Montanes",
+      "match_id": "2012-301-2"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "Carlos Berlocq",
+      "player_2": "Filippo Volandri",
+      "match_id": "2012-301-4"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "Guillermo Garcia Lopez",
+      "player_2": "Igor Kunitsyn",
+      "match_id": "2012-301-5"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "Olivier Rochus",
+      "player_2": "Tobias Kamke",
+      "match_id": "2012-301-8"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "David Ferrer",
+      "player_2": "Lukas Rosol",
+      "match_id": "2012-301-13"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "Alejandro Falla",
+      "player_2": "Potito Starace",
+      "match_id": "2012-301-14"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2012-01-09",
+      "player_1": "Guillermo Garcia Lopez",
+      "player_2": "Adrian Mannarino",
+      "match_id": "2012-301-16"
+    }
+  ],
+  "sources": {
+    "pbp_source": "ppaulojr/tennis_pointbypoint",
+    "identity_hist_source": "Aneeshers/tennis-sackmann-archive"
+  },
+  "generated_at_utc": "2026-09-16T07:53:14.992992+00:00"
+}

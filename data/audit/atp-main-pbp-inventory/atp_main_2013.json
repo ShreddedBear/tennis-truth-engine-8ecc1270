@@ -1,0 +1,275 @@
+{
+  "tour": "ATP_MAIN",
+  "year": 2013,
+  "total_hist_matches": 2631,
+  "total_pbp_candidates": 2648,
+  "categories": {
+    "LEVEL_1_independently_verified": 0,
+    "LEVEL_2_structurally_validated": 2146,
+    "REVIEW_REQUIRED": 0,
+    "AMBIGUOUS": 0,
+    "CONFLICT": 0,
+    "STRUCTURAL_FAIL": 124,
+    "UNMATCHED": 378,
+    "UNMATCHED_breakdown": {
+      "no_historical_player_pair": 350,
+      "candidate_pair_exists_but_score_or_winner_disagrees": 28
+    },
+    "NO_PBP": 297
+  },
+  "match_identity_status": {
+    "RESOLVED": 2270,
+    "UNRESOLVED": 378
+  },
+  "identity_resolution_tier_breakdown_LEVEL_2_only": {
+    "FUZZY_FALLBACK": 1525,
+    "ALIAS_TABLE": 621
+  },
+  "tournament_breakdown_LEVEL_2_only": {
+    "Wimbledon": 94,
+    "Roland Garros": 90,
+    "Australian Open": 89,
+    "Indian Wells Masters": 87,
+    "Miami Masters": 85,
+    "US Open": 77,
+    "Queen's Club": 52,
+    "Canada Masters": 50,
+    "Cincinnati Masters": 50,
+    "Shanghai Masters": 49,
+    "Rome Masters": 48,
+    "Madrid Masters": 47,
+    "Barcelona": 45,
+    "Hamburg": 44,
+    "Washington": 41,
+    "Winston-Salem": 39,
+    "Dubai": 31,
+    "Newport": 29,
+    "Basel": 29,
+    "Acapulco": 28,
+    "Delray Beach": 28,
+    "Beijing": 28,
+    "Valencia": 28,
+    "Rotterdam": 27,
+    "San Jose": 27,
+    "Memphis": 27,
+    "Munich": 27,
+    "Halle": 27,
+    "Eastbourne": 27,
+    "St. Petersburg": 27,
+    "Paris Masters": 27,
+    "Marseille": 26,
+    "Bucharest": 26,
+    "Stuttgart": 26,
+    "Kitzbuhel": 26,
+    "Tokyo": 26,
+    "Bangkok": 26,
+    "Zagreb": 25,
+    "s Hertogenbosch": 25,
+    "Atlanta": 25,
+    "Bogota": 25,
+    "Metz": 25,
+    "Stockholm": 25,
+    "Auckland": 24,
+    "Doha": 24,
+    "Nice": 24,
+    "Bastad": 24,
+    "Gstaad": 24,
+    "Umag": 24,
+    "Vienna": 24,
+    "Montpellier": 23,
+    "Estoril": 23,
+    "Sao Paulo": 22,
+    "Dusseldorf": 22,
+    "Kuala Lumpur": 22,
+    "Chennai": 21,
+    "Sydney": 21,
+    "Brisbane": 21,
+    "Santiago": 21,
+    "Buenos Aires": 21,
+    "Monte Carlo Masters": 20,
+    "Moscow": 20,
+    "Tour Finals": 11
+  },
+  "no_pbp_examples_sample": [
+    {
+      "tournament": "Brisbane",
+      "date": "2012-12-30",
+      "player_1": "Jarkko Nieminen",
+      "player_2": "Julien Benneteau",
+      "match_id": "2013-339-4"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-12-30",
+      "player_1": "Kei Nishikori",
+      "player_2": "Marinko Matosevic",
+      "match_id": "2013-339-6"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-12-30",
+      "player_1": "Florian Mayer",
+      "player_2": "Santiago Giraldo",
+      "match_id": "2013-339-7"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-12-30",
+      "player_1": "Marcos Baghdatis",
+      "player_2": "Benjamin Mitchell",
+      "match_id": "2013-339-8"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-12-30",
+      "player_1": "Alexandr Dolgopolov",
+      "player_2": "Jarkko Nieminen",
+      "match_id": "2013-339-15"
+    },
+    {
+      "tournament": "Brisbane",
+      "date": "2012-12-30",
+      "player_1": "Andy Murray",
+      "player_2": "Kei Nishikori",
+      "match_id": "2013-339-25"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-12-31",
+      "player_1": "Robin Haase",
+      "player_2": "Yuki Bhambri",
+      "match_id": "2013-891-7"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-12-31",
+      "player_1": "Aljaz Bedene",
+      "player_2": "Joao Sousa",
+      "match_id": "2013-891-8"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-12-31",
+      "player_1": "Go Soeda",
+      "player_2": "Evgeny Donskoy",
+      "match_id": "2013-891-10"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-12-31",
+      "player_1": "Edouard Roger-Vasselin",
+      "player_2": "Andrey Kuznetsov",
+      "match_id": "2013-891-12"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-12-31",
+      "player_1": "Stan Wawrinka",
+      "player_2": "Cedrik Marcel Stebe",
+      "match_id": "2013-891-18"
+    },
+    {
+      "tournament": "Chennai",
+      "date": "2012-12-31",
+      "player_1": "Aljaz Bedene",
+      "player_2": "Stan Wawrinka",
+      "match_id": "2013-891-23"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-12-31",
+      "player_1": "Paolo Lorenzi",
+      "player_2": "Albert Ramos",
+      "match_id": "2013-451-3"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-12-31",
+      "player_1": "Simone Bolelli",
+      "player_2": "Daniel Gimeno Traver",
+      "match_id": "2013-451-7"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-12-31",
+      "player_1": "Gael Monfils",
+      "player_2": "Mousa Shanan Zayed",
+      "match_id": "2013-451-11"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-12-31",
+      "player_1": "Philipp Kohlschreiber",
+      "player_2": "Ivan Dodig",
+      "match_id": "2013-451-12"
+    },
+    {
+      "tournament": "Doha",
+      "date": "2012-12-31",
+      "player_1": "Viktor Troicki",
+      "player_2": "Bjorn Phau",
+      "match_id": "2013-451-13"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2013-01-07",
+      "player_1": "Alejandro Falla",
+      "player_2": "Grega Zemlja",
+      "match_id": "2013-301-12"
+    },
+    {
+      "tournament": "Auckland",
+      "date": "2013-01-07",
+      "player_1": "Gael Monfils",
+      "player_2": "Greg Jones",
+      "match_id": "2013-301-16"
+    },
+    {
+      "tournament": "Sydney",
+      "date": "2013-01-07",
+      "player_1": "Ryan Harrison",
+      "player_2": "Roberto Bautista Agut",
+      "match_id": "2013-338-1"
+    },
+    {
+      "tournament": "Sydney",
+      "date": "2013-01-07",
+      "player_1": "Andreas Seppi",
+      "player_2": "John Millman",
+      "match_id": "2013-338-18"
+    },
+    {
+      "tournament": "Sydney",
+      "date": "2013-01-07",
+      "player_1": "Jarkko Nieminen",
+      "player_2": "Ivo Klec",
+      "match_id": "2013-338-20"
+    },
+    {
+      "tournament": "Australian Open",
+      "date": "2013-01-14",
+      "player_1": "Brian Baker",
+      "player_2": "Alex Bogomolov Jr",
+      "match_id": "2013-580-6"
+    },
+    {
+      "tournament": "Australian Open",
+      "date": "2013-01-14",
+      "player_1": "Stan Wawrinka",
+      "player_2": "Cedrik Marcel Stebe",
+      "match_id": "2013-580-8"
+    },
+    {
+      "tournament": "Australian Open",
+      "date": "2013-01-14",
+      "player_1": "Jeremy Chardy",
+      "player_2": "Adrian Menendez Maceiras",
+      "match_id": "2013-580-35"
+    }
+  ],
+  "sources": {
+    "pbp_source": "ppaulojr/tennis_pointbypoint",
+    "identity_hist_source": "Aneeshers/tennis-sackmann-archive"
+  },
+  "generated_at_utc": "2026-09-16T07:53:15.964307+00:00"
+}
