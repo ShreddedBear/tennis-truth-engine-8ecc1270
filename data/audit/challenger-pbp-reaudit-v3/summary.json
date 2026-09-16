@@ -1,0 +1,36 @@
+{
+  "generated_at_utc": "2026-09-16T13:26:43.002564+00:00",
+  "scope": "ATP Challenger 2012-2015 provisional mappings from v1/v2 pipeline, re-audited with independently recomputed chronology + full local-corpus (2005-2026) uniqueness checks",
+  "total_mappings_checked": 9218,
+  "totals": {
+    "CERTIFIED": 9194,
+    "AMBIGUOUS": 12,
+    "REVIEW": 12
+  },
+  "by_year": {
+    "2012": {
+      "CERTIFIED": 2270,
+      "AMBIGUOUS": 4
+    },
+    "2013": {
+      "CERTIFIED": 2893,
+      "AMBIGUOUS": 4
+    },
+    "2014": {
+      "CERTIFIED": 3313,
+      "AMBIGUOUS": 4,
+      "REVIEW": 12
+    },
+    "2015": {
+      "CERTIFIED": 718
+    }
+  },
+  "corpus_rows_used_for_uniqueness_check": 101687,
+  "no_new_data_sourced": true,
+  "notes": [
+    "CHRONOLOGY re-verifies v1's own promotion criterion (oriented reconstructed set score vs. historical score, winner-index vs. historical winner name) independently from the stored validation object -- it does not just trust v1's 'valid: true' flag.",
+    "FULL-CORPUS uniqueness checks every 2012-2015 mapping's (winner, loser, tourney_date) triple against ALL locally available ATP Challenger historical rows 2005-2026, not just the same-year file v1 used.",
+    "The v2 pipeline's 0-certified result was caused by 3 of its 13 checks reading object paths that don't exist in the v1 schema (independent_result_verification.exact_match_date/round/surface) so they failed unconditionally on every record, plus one real but overly-narrow same-year-only uniqueness check. This script fixes the schema-path bugs and performs the uniqueness check for real across the full corpus.",
+    "This audit does not have a second, genuinely independent (non-TennisMyLife) historical-results source available locally to cross-verify date/round/surface -- CERTIFIED here means 'passed independent chronology recomputation + full-corpus uniqueness + field completeness against the single available primary source', not 'confirmed against two independent sources'."
+  ]
+}
