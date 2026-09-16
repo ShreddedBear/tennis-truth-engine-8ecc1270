@@ -208,6 +208,14 @@ export interface ProviderStatusInfo {
   lastError: string | null;
 }
 
+export interface FixtureFetchDiagnostics {
+  provider: string;
+  rawRows: number;
+  acceptedRows: number;
+  rejectedRows: number;
+  duplicateRows?: number;
+}
+
 /** Thrown when the upstream provider cannot serve a request (network error, missing key, non-2xx, etc). */
 export class ProviderUnavailableError extends Error {
   constructor(message: string) {
@@ -230,6 +238,7 @@ export interface TennisDataProvider {
    * `YYYY-MM-DD`.
    */
   getUpcomingFixturesRange(dateStart: string, dateStop: string, opts?: { bypassCache?: boolean }): Promise<Fixture[]>;
+  getFixtureFetchDiagnostics?(): FixtureFetchDiagnostics | null;
   getHeadToHead(player1Id: string, player2Id: string): Promise<HeadToHeadRecord>;
   /**
    * Bulk, player-agnostic pull of every definitively-terminated match in a date range (finished,

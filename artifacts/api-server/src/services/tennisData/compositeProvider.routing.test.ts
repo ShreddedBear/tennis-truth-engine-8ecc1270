@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { CompositeTennisProvider } from "./compositeProvider.js";
-import { ProviderUnavailableError, type MatchRecord, type TennisDataProvider } from "./types.js";
+import { ProviderUnavailableError, type Fixture, type MatchRecord, type TennisDataProvider } from "./types.js";
 
 function record(id: string): MatchRecord {
   return {
@@ -23,6 +23,26 @@ function record(id: string): MatchRecord {
     stats: null,
     opponentStats: null,
     setGameMargins: [],
+  };
+}
+
+function fixture(id: string): Fixture {
+  return {
+    id,
+    date: "2026-09-16",
+    scheduledStart: "2026-09-16T16:00:00.000Z",
+    timeConfirmed: true,
+    isLive: false,
+    tournamentName: "Test Open",
+    tournamentLevel: "Other",
+    round: "Round 1",
+    surface: "Hard",
+    indoor: false,
+    matchFormat: "BestOf3",
+    player1Id: `${id}-p1`,
+    player1Name: "Player One",
+    player2Id: `${id}-p2`,
+    player2Name: "Player Two",
   };
 }
 
@@ -151,5 +171,57 @@ describe("CompositeTennisProvider history routing", () => {
     const rows = await composite.getPlayerMatches("plain-player-7");
     assert.deepEqual(rows.map((row) => row.id), ["db-only"]);
     assert.equal(composite.getHistoryRoutingDiagnostics("plain-player-7")?.dbUsed, true);
+  });
+});
+
+describe("CompositeTennisProvider fixture routing", () => {
+  it("continues from an empty API-Tennis response to MatchStat", async () => {
+    const calls: string[] = [];
+    const api = provider("API-Tennis", async () => []);
+    api.getUpcomingFixturesRange = async () => {
+      calls.push("api");
+      return [];
+    };
+    const rapid = provider("MatchStat/RapidAPI", async () => []);
+    rapid.getUpcomingFixturesRange = async () => {
+      calls.push("rapid");
+      return [fixture("rapid-fixture")];
+    };
+    const composite = new CompositeTennisProvider(rapid, api);
+
+    assert.deepEqual(
+      (await composite.getUpcomingFixturesRange("2026-09-16", "2026-09-16")).map((row) => row.id),
+      ["rapid-fixture"],
+    );
+    assert.deepEqual(calls, ["api", "rapid"]);
+    assert.equal(composite.getFixtureFetchDiagnostics()?.provider, "MatchStat/RapidAPI");
+  });
+
+  it("uses API-Tennis when Live Tennis is unavailable", async () => {
+    const calls: string[] = [];
+    const api = provider("API-Tennis", async () => []);
+    api.getUpcomingFixturesRange = async () => {
+      calls.push("api");
+      return [fixture("api-fixture")];
+    };
+    const rapid = provider("MatchStat/RapidAPI", async () => []);
+    rapid.getUpcomingFixturesRange = async () => {
+      calls.push("rapid");
+      return [fixture("rapid-fixture")];
+    };
+    const live = {
+      name: "Live Tennis API",
+      async getUpcomingFixturesRange() {
+        calls.push("live");
+        throw new ProviderUnavailableError("Live unavailable");
+      },
+    } as unknown as ConstructorParameters<typeof CompositeTennisProvider>[2];
+    const composite = new CompositeTennisProvider(rapid, api, live);
+
+    assert.deepEqual(
+      (await composite.getUpcomingFixturesRange("2026-09-16", "2026-09-16")).map((row) => row.id),
+      ["api-fixture"],
+    );
+    assert.deepEqual(calls, ["live", "api"]);
   });
 });

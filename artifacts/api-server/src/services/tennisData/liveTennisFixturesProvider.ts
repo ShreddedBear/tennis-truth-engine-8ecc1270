@@ -5,6 +5,7 @@ import type {
   MatchFormat,
   PlayerSummary,
   ProviderStatusInfo,
+  FixtureFetchDiagnostics,
   Surface,
   TournamentLevel,
 } from "./types";
@@ -13,6 +14,8 @@ import { ProviderUnavailableError } from "./types";
 const BASE_URL = "https://api.livetennisapi.com/api/public/v1";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 12_000;
+const FIXTURE_PAGE_LIMIT = 200;
+const MAX_FIXTURE_PAGES = 10;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -72,16 +75,21 @@ function mapFixture(value: unknown): Fixture | null {
   const players = asRecord(match.players);
   const player1 = asRecord(players?.p1);
   const player2 = asRecord(players?.p2);
-  const player1Name = asString(player1?.name);
-  const player2Name = asString(player2?.name);
-  const player1Id = asId(player1?.id);
-  const player2Id = asId(player2?.id);
+  const player1Name = asString(match.player1_name) ?? asString(player1?.name);
+  const player2Name = asString(match.player2_name) ?? asString(player2?.name);
+  const player1Id = asId(match.player1_id) ?? asId(player1?.id);
+  const player2Id = asId(match.player2_id) ?? asId(player2?.id);
   const matchId = asId(match.id);
+  const status = asString(match.status)?.toLowerCase();
+  if (status !== "scheduled" && status !== "live") return null;
+  if (player1Name?.includes("/") || player1Name?.includes("&") || player2Name?.includes("/") || player2Name?.includes("&")) {
+    return null;
+  }
   // Names are not identities. Reject rows without source-issued player IDs rather than
   // manufacturing an ID from the display name and later treating it as provider-backed.
   if (!matchId || !player1Name || !player2Name || !player1Id || !player2Id) return null;
 
-  const rawStart = asString(match.scheduled_time);
+  const rawStart = asString(match.start_time) ?? asString(match.scheduled_time);
   const parsedStart = rawStart ? new Date(rawStart) : null;
   const scheduledStart =
     parsedStart && !Number.isNaN(parsedStart.getTime())
@@ -90,14 +98,12 @@ function mapFixture(value: unknown): Fixture | null {
   if (!scheduledStart) return null;
 
   const tournamentName = asString(match.tournament);
-  const status = asString(match.status)?.toLowerCase();
-
   return {
     id: `live-tennis-${matchId}`,
     date: scheduledStart.slice(0, 10),
     scheduledStart,
     timeConfirmed: true,
-    isLive: status === "live",
+    isLive: status === "live" && parsedStart !== null && parsedStart.getTime() <= Date.now(),
     tournamentName,
     tournamentLevel: mapLevel(match.tour, tournamentName),
     round: asString(match.round) ?? asString(match.round_code),
@@ -198,6 +204,7 @@ export class LiveTennisFixturesProvider {
   private unavailableUntil = 0;
   private lastSuccessfulCallAt: string | null = null;
   private lastError: string | null = null;
+  private fixtureDiagnostics: FixtureFetchDiagnostics | null = null;
 
   constructor(private readonly apiKey: string) {}
 
@@ -210,6 +217,10 @@ export class LiveTennisFixturesProvider {
     };
   }
 
+  getFixtureFetchDiagnostics(): FixtureFetchDiagnostics | null {
+    return this.fixtureDiagnostics;
+  }
+
   private async fetchFixtures(bypassCache: boolean): Promise<Fixture[]> {
     if (!bypassCache && this.cachedFixtures && Date.now() < this.cacheExpiresAt) {
       return this.cachedFixtures;
@@ -220,46 +231,89 @@ export class LiveTennisFixturesProvider {
       );
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(`${BASE_URL}/fixtures?limit=200&offset=0`, {
-        headers: {
-          Accept: "application/json",
-          "X-API-Key": this.apiKey,
-        },
-        signal: controller.signal,
-      });
+      const fixtures: Fixture[] = [];
+      const seenIds = new Set<string>();
+      let rawRows = 0;
+      let rejectedRows = 0;
+      let duplicateRows = 0;
 
-      if (!response.ok) {
-        const retryAfter = response.headers.get("retry-after");
-        const errorPayload = asRecord(await response.json().catch(() => null));
-        const resetsAt = asString(errorPayload?.resets_at);
-        const parsedReset = resetsAt ? new Date(resetsAt).getTime() : Number.NaN;
-        const retryAfterSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
-        if (Number.isFinite(parsedReset) && parsedReset > Date.now()) {
-          this.unavailableUntil = parsedReset;
-        } else if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-          this.unavailableUntil = Date.now() + retryAfterSeconds * 1000;
-        } else {
-          this.unavailableUntil = Date.now() + 60_000;
+      for (let page = 0; page < MAX_FIXTURE_PAGES; page++) {
+        const offset = page * FIXTURE_PAGE_LIMIT;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        let response: Response;
+        try {
+          response = await fetch(
+            `${BASE_URL}/fixtures?limit=${FIXTURE_PAGE_LIMIT}&offset=${offset}`,
+            {
+              headers: {
+                Accept: "application/json",
+                "X-API-Key": this.apiKey,
+              },
+              signal: controller.signal,
+            },
+          );
+        } finally {
+          clearTimeout(timeout);
         }
-        this.lastError =
-          response.status === 429
-            ? `daily or per-minute quota exhausted${retryAfter ? `; retry after ${retryAfter}` : ""}`
-            : `HTTP ${response.status}`;
-        throw new ProviderUnavailableError(
-          `${this.name} fixture request failed: ${this.lastError}`,
-        );
+
+        if (!response.ok) {
+          const retryAfter = response.headers.get("retry-after");
+          const errorPayload = asRecord(await response.json().catch(() => null));
+          const resetsAt = asString(errorPayload?.resets_at);
+          const parsedReset = resetsAt ? new Date(resetsAt).getTime() : Number.NaN;
+          const retryAfterSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
+          if (Number.isFinite(parsedReset) && parsedReset > Date.now()) {
+            this.unavailableUntil = parsedReset;
+          } else if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+            this.unavailableUntil = Date.now() + retryAfterSeconds * 1000;
+          } else {
+            this.unavailableUntil = Date.now() + 60_000;
+          }
+          this.lastError =
+            response.status === 429
+              ? `daily or per-minute quota exhausted${retryAfter ? `; retry after ${retryAfter}` : ""}`
+              : `HTTP ${response.status}`;
+          throw new ProviderUnavailableError(
+            `${this.name} fixture request failed: ${this.lastError}`,
+          );
+        }
+
+        const payload = asRecord(await response.json());
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        rawRows += rows.length;
+        for (const row of rows) {
+          const fixture = mapFixture(row);
+          if (!fixture) {
+            rejectedRows++;
+            continue;
+          }
+          if (seenIds.has(fixture.id)) {
+            duplicateRows++;
+            continue;
+          }
+          seenIds.add(fixture.id);
+          fixtures.push(fixture);
+        }
+
+        const meta = asRecord(payload?.meta);
+        const hasMore = meta?.has_more === true;
+        if (!hasMore || rows.length === 0) break;
       }
 
-      const payload = asRecord(await response.json());
-      const rows = Array.isArray(payload?.data) ? payload.data : [];
-      const fixtures = rows.map(mapFixture).filter((item): item is Fixture => item !== null);
+      this.fixtureDiagnostics = {
+        provider: this.name,
+        rawRows,
+        acceptedRows: fixtures.length,
+        rejectedRows,
+        duplicateRows,
+      };
       this.cachedFixtures = fixtures;
       this.cacheExpiresAt = Date.now() + CACHE_TTL_MS;
       this.lastSuccessfulCallAt = new Date().toISOString();
       this.lastError = null;
+      logger.info(this.fixtureDiagnostics, "Live Tennis fixture fetch completed");
       return fixtures;
     } catch (error) {
       if (error instanceof ProviderUnavailableError) throw error;
@@ -272,8 +326,6 @@ export class LiveTennisFixturesProvider {
       throw new ProviderUnavailableError(
         `${this.name} fixture request failed: ${this.lastError}`,
       );
-    } finally {
-      clearTimeout(timeout);
     }
   }
 

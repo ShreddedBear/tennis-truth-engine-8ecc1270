@@ -11,6 +11,7 @@
 import { logger } from "../../lib/logger";
 import type {
   Fixture,
+  FixtureFetchDiagnostics,
   HeadToHeadRecord,
   HistoricalFixture,
   LiveScore,
@@ -206,6 +207,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
   private readonly playerNameCache = new Map<string, string>();
   private sofascoreLastSuccessfulCallAt: string | null = null;
   private readonly historyDiagnostics = new Map<string, HistoryRoutingDiagnostics>();
+  private fixtureDiagnostics: FixtureFetchDiagnostics | null = null;
 
   constructor(
     private readonly primary: TennisDataProvider,
@@ -322,6 +324,10 @@ export class CompositeTennisProvider implements TennisDataProvider {
    */
   getHistoryRoutingDiagnostics(playerId: string): HistoryRoutingDiagnostics | null {
     return this.historyDiagnostics.get(playerId) ?? null;
+  }
+
+  getFixtureFetchDiagnostics(): FixtureFetchDiagnostics | null {
+    return this.fixtureDiagnostics;
   }
 
   async getPlayer(playerId: string): Promise<PlayerProfile | null> {
@@ -515,7 +521,10 @@ export class CompositeTennisProvider implements TennisDataProvider {
           dateStop,
           opts,
         );
-        if (liveTennisFixtures.length > 0) return liveTennisFixtures;
+        if (liveTennisFixtures.length > 0) {
+          this.fixtureDiagnostics = this.fixturePrimary.getFixtureFetchDiagnostics();
+          return liveTennisFixtures;
+        }
         logger.info(
           { dateStart, dateStop },
           "Live Tennis API returned no fixtures in the requested window — continuing to fallback providers",
@@ -536,30 +545,50 @@ export class CompositeTennisProvider implements TennisDataProvider {
     //         (e.g. API-Tennis billing lapsed and RapidAPI quota exhausted for the day).
     //         No auth required; covers ATP, WTA, Challenger, ITF.
     let fixtures: Fixture[] = [];
-    let usedTier = "";
-
     try {
       fixtures = await this.fallback.getUpcomingFixturesRange(dateStart, dateStop, opts);
-      usedTier = "api-tennis";
-    } catch (primaryErr) {
-      if (!(primaryErr instanceof ProviderUnavailableError)) throw primaryErr;
-      logger.warn({ method: "getUpcomingFixturesRange", primaryError: (primaryErr as Error).message },
+      if (fixtures.length > 0) {
+        this.fixtureDiagnostics = {
+          provider: this.fallback.name,
+          rawRows: fixtures.length,
+          acceptedRows: fixtures.length,
+          rejectedRows: 0,
+        };
+      }
+    } catch (apiTennisErr) {
+      if (!(apiTennisErr instanceof ProviderUnavailableError)) throw apiTennisErr;
+      logger.warn({ method: "getUpcomingFixturesRange", primaryError: apiTennisErr.message },
         `${this.fallback.name} unavailable for fixtures — trying ${this.primary.name}`);
+    }
+
+    if (fixtures.length === 0) {
       try {
         fixtures = await this.primary.getUpcomingFixturesRange(dateStart, dateStop, opts);
-        usedTier = "rapidapi";
-      } catch (fallbackErr) {
-        if (!(fallbackErr instanceof ProviderUnavailableError)) throw fallbackErr;
-        logger.warn({ method: "getUpcomingFixturesRange", fallbackError: (fallbackErr as Error).message },
+        if (fixtures.length > 0) {
+          this.fixtureDiagnostics = {
+            provider: this.primary.name,
+            rawRows: fixtures.length,
+            acceptedRows: fixtures.length,
+            rejectedRows: 0,
+          };
+        }
+      } catch (rapidApiErr) {
+        if (!(rapidApiErr instanceof ProviderUnavailableError)) throw rapidApiErr;
+        logger.warn({ method: "getUpcomingFixturesRange", fallbackError: rapidApiErr.message },
           `${this.primary.name} also unavailable — using Sofascore tertiary for fixtures`);
       }
     }
 
-    // If both primary and fallback failed (or returned 0 results while both are known to be down),
-    // try Sofascore as a silent tertiary. Never throws.
-    if (fixtures.length === 0 && usedTier === "") {
+    // Empty responses are coverage gaps, not terminal successes. Continue to Sofascore.
+    if (fixtures.length === 0) {
       fixtures = await fetchSofascoreFixturesRange(dateStart, dateStop);
       this.sofascoreLastSuccessfulCallAt = new Date().toISOString();
+      this.fixtureDiagnostics = {
+        provider: "Sofascore fallback",
+        rawRows: fixtures.length,
+        acceptedRows: fixtures.length,
+        rejectedRows: 0,
+      };
       if (fixtures.length > 0) {
         logger.info({ dateStart, dateStop, count: fixtures.length },
           "compositeProvider: Sofascore tertiary provided fixture list (both primary providers unavailable)");

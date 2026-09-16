@@ -6,3 +6,4 @@
 - [Parlay Builder provider priority](parlay-builder-provider-priority.md) — LiveTennisAPI is Tier 1 for OCR identities and completed-match evidence.
 - [Approved tennis data sources](approved-tennis-data-sources.md) — use existing DB, Sackmann archive, approved PBP, then Live Tennis API; add no other providers.
 - [Model and market boundary](model-market-boundary.md) — keep odds integrated for value, audit, ablation, and parlays without changing official tennis-model probability.
+- [OpenAPI generator version drift](openapi-generator-version-drift.md) — Orval 8.30 emits incompatible Zod 4 syntax in this Zod 3 workspace; do not trust the caret range.
