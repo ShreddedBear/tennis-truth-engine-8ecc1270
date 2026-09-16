@@ -1,0 +1,259 @@
+{
+  "generated_at_utc": "2026-09-16T13:55:17.104712+00:00",
+  "scope": "ATP Challenger 2018-2024 availability/reconciliation audit -- does NOT touch the existing 10,934 certified population, does NOT touch production/runtime code",
+  "years": [
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "year_reports": {
+    "2018": {
+      "year": 2018,
+      "total_historical_matches": 4684,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": null,
+      "retrieval_incomplete_not_exhaustive": 4684,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 4684,
+      "category_5_aggregate_stats_only": 4641,
+      "category_6_otherwise_unresolved": 43,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "SPOT_PROBED_ONLY_NOT_EXHAUSTIVE",
+          "evidence": "data/audit/bsd-pbp-boundary{,-v2}/results.json: 0/3 sampled ATP_CHALLENGER matches for 2018 had any listing -- this session has no BSD_TENNIS_API_KEY to run the exhaustive scan itself"
+        }
+      }
+    },
+    "2019": {
+      "year": 2019,
+      "total_historical_matches": 3244,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": null,
+      "retrieval_incomplete_not_exhaustive": 3244,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 3244,
+      "category_5_aggregate_stats_only": 3190,
+      "category_6_otherwise_unresolved": 54,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "SPOT_PROBED_ONLY_NOT_EXHAUSTIVE",
+          "evidence": "data/audit/bsd-pbp-boundary{,-v2}/results.json: 0/3 sampled ATP_CHALLENGER matches for 2019 had any listing -- this session has no BSD_TENNIS_API_KEY to run the exhaustive scan itself"
+        }
+      }
+    },
+    "2020": {
+      "year": 2020,
+      "total_historical_matches": 2184,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": null,
+      "retrieval_incomplete_not_exhaustive": 2184,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 2184,
+      "category_5_aggregate_stats_only": 2162,
+      "category_6_otherwise_unresolved": 22,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "SPOT_PROBED_ONLY_NOT_EXHAUSTIVE",
+          "evidence": "data/audit/bsd-pbp-boundary{,-v2}/results.json: 0/3 sampled ATP_CHALLENGER matches for 2020 had any listing -- this session has no BSD_TENNIS_API_KEY to run the exhaustive scan itself"
+        }
+      }
+    },
+    "2021": {
+      "year": 2021,
+      "total_historical_matches": 4344,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": null,
+      "retrieval_incomplete_not_exhaustive": 4344,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 4344,
+      "category_5_aggregate_stats_only": 4108,
+      "category_6_otherwise_unresolved": 236,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "SPOT_PROBED_ONLY_NOT_EXHAUSTIVE",
+          "evidence": "data/audit/bsd-pbp-boundary{,-v2}/results.json: 0/3 sampled ATP_CHALLENGER matches for 2021 had any listing -- this session has no BSD_TENNIS_API_KEY to run the exhaustive scan itself"
+        }
+      }
+    },
+    "2022": {
+      "year": 2022,
+      "total_historical_matches": 5391,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": null,
+      "retrieval_incomplete_not_exhaustive": 5391,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 5391,
+      "category_5_aggregate_stats_only": 5285,
+      "category_6_otherwise_unresolved": 106,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "SPOT_PROBED_ONLY_NOT_EXHAUSTIVE",
+          "evidence": "data/audit/bsd-pbp-boundary{,-v2}/results.json: 0/3 sampled ATP_CHALLENGER matches for 2022 had any listing -- this session has no BSD_TENNIS_API_KEY to run the exhaustive scan itself"
+        }
+      }
+    },
+    "2023": {
+      "year": 2023,
+      "total_historical_matches": 5693,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": null,
+      "retrieval_incomplete_not_exhaustive": 5693,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 5693,
+      "category_5_aggregate_stats_only": 5591,
+      "category_6_otherwise_unresolved": 102,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "SPOT_PROBED_ONLY_NOT_EXHAUSTIVE",
+          "evidence": "data/audit/bsd-pbp-boundary{,-v2}/results.json: 0/3 sampled ATP_CHALLENGER matches for 2023 had any listing -- this session has no BSD_TENNIS_API_KEY to run the exhaustive scan itself"
+        }
+      }
+    },
+    "2024": {
+      "year": 2024,
+      "total_historical_matches": 6063,
+      "pbp_candidates_found": 0,
+      "structurally_validated": 0,
+      "certified": 0,
+      "review": 0,
+      "ambiguous": 0,
+      "conflict": 0,
+      "rejected": 0,
+      "no_pbp_found_confirmed": 6063,
+      "retrieval_incomplete_not_exhaustive": 0,
+      "not_yet_tested": 0,
+      "category_1_pbp_locally_validated": 0,
+      "category_2_configured_source_retrieval_failed": 0,
+      "category_3_present_but_never_routed": 0,
+      "category_4_genuinely_unavailable_ppaulojr": 6063,
+      "category_5_aggregate_stats_only": 5861,
+      "category_6_otherwise_unresolved": 202,
+      "sources_checked": {
+        "ppaulojr_github_pbp_source": {
+          "status": "EXHAUSTIVELY_FETCHED_AND_COUNTED",
+          "rows_found_for_this_year": 0,
+          "note": "Same PBP_BASE/PBP_FILES URLs verify-challenger-pbp.py already uses for 2012-2017; its own year<=2017 routing cutoff never asks this source for 2018+. Fetched directly in this session and every row's date column was parsed -- the source's actual max year is 2015 (archive stops 2014, current=2015 only, 990 rows), so its 2018-2024 contribution is a confirmed, exhaustively-checked zero, not a routing gap."
+        },
+        "bsd_bzzoiro_api": {
+          "status": "EXHAUSTIVELY_SCANNED_ZERO_MATCHES_LISTED",
+          "evidence": "data/audit/bsd-atp-challenger-pbp-history/2024/summary.json: atp_challenger_matches=0 (full-year scan, not a sample)"
+        }
+      }
+    }
+  },
+  "totals_2018_2024": {
+    "total_historical_matches": 31603,
+    "pbp_candidates_found": 0,
+    "structurally_validated": 0,
+    "certified": 0,
+    "review": 0,
+    "ambiguous": 0,
+    "conflict": 0,
+    "rejected": 0,
+    "category_5_aggregate_stats_only": 30838,
+    "category_6_otherwise_unresolved": 765
+  },
+  "totals_2018_2022": {
+    "total_historical_matches": 19847,
+    "pbp_candidates_found": 0
+  },
+  "totals_2023_2024": {
+    "total_historical_matches": 11756,
+    "pbp_candidates_found": 0
+  },
+  "headline_answer": {
+    "additional_true_chronological_pbp_recoverable_from_already_configured_sources": 0,
+    "reason": "Both PBP sources hardcoded in this codebase (ppaulojr GitHub archive/current, and the BSD/Bzzoiro API) were checked for 2018-2024. The ppaulojr source was exhaustively fetched and its date column counted row-by-row in this session: its real coverage is 2010-2015, confirmed zero rows for 2018-2024. The BSD source could not be called live in this session (no BSD_TENNIS_API_KEY here), but the repo's own already-committed evidence -- an exhaustive full-year scan for 2024 (0 ATP Challenger matches listed) and 3-sample boundary probes for 2010-2023 (0/3 listed every year) -- both point the same way: this provider's match catalog does not reach back into 2018-2024 for ATP Challenger, independent of PBP availability specifically.",
+    "caveat": "2018-2023 BSD absence is corroborated by a spot probe (3 samples/year), not an exhaustive scan, because this session lacks the API credential to run one. If that credential becomes available, running scripts/bsd-atp-challenger-pbp-history.py --year 2023 (and 2022, 2021...) exhaustively is the one remaining already-configured, not-yet-fully-executed action before concluding a genuinely new provider is required. 2024 is exhaustively confirmed zero, no caveat.",
+    "aggregate_tier_recoverable": 30838,
+    "aggregate_tier_note": "This is NOT chronological PBP. It is box-score-level stats (aces, double faults, serve/break points) already present in the local historical archive for the large majority of these 32,602 matches, usable only for an aggregate-tier metric, not point-sequence metrics."
+  }
+}
