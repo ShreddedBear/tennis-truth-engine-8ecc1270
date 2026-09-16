@@ -27,8 +27,8 @@ const SKIP_PATTERNS = [
   /\d{2,}%/, // percentage "65%"
   /^(ATP|WTA|ITF|USD|EUR|GBP|\$|€|£)/, // currency / tour prefix
   /^(live|upcoming|scheduled|finished|court\s?\d|round\s?\d)/i, // status text
-  /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, // day names
-  /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i, // month prefixes
+  /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i, // day names
+  /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i, // month prefixes
   /^\[|\]$/, // bracket lines
   /^[-—–_=*#•>|]+$/, // decoration-only lines
   // Sportsbook UI labels and betting market type names
@@ -60,7 +60,108 @@ function cleanName(raw: string): string | null {
   return cleaned.length >= 2 ? cleaned : null;
 }
 
+function parseNumberedFixtureTables(text: string): RawMatchupEntry[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const matchups: RawMatchupEntry[] = [];
+  let eventName: string | null = null;
+  let level: RawMatchupEntry["level"] = null;
+  let surface: RawMatchupEntry["surface"] = null;
+  let round: string | null = null;
+  let matchFormat: RawMatchupEntry["matchFormat"] = null;
+  let insideTable = false;
+
+  const isEventHeading = (line: string) =>
+    /^(?:ATP|WTA|ITF)\b/i.test(line) &&
+    !/^(?:ATP|WTA|ITF)\s+(?:PLAYER|EVENT DATA)\b/i.test(line);
+  const isTableBoundary = (line: string) =>
+    /^EVENT DATA$/i.test(line) || isEventHeading(line);
+  const normalizeSurface = (value: string): RawMatchupEntry["surface"] => {
+    const normalized = value.replace(/[\s_-]/g, "").toUpperCase();
+    if (normalized === "HARD") return "Hard";
+    if (normalized === "CLAY" || normalized === "REDCLAY") return "Clay";
+    if (normalized === "GRASS") return "Grass";
+    if (normalized === "INDOORHARD" || normalized === "CARPET") return "IndoorHard";
+    return null;
+  };
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]!;
+
+    if (isEventHeading(line)) {
+      eventName = line;
+      level = /challenger/i.test(line)
+        ? "Challenger"
+        : /^ITF\b/i.test(line)
+          ? "ITF"
+          : /^ATP\b/i.test(line) && /\b500\b/.test(line)
+            ? "ATP500"
+            : /^ATP\b/i.test(line) && /\b250\b/.test(line)
+              ? "ATP250"
+              : /^WTA\b/i.test(line) && /\b1000\b/.test(line)
+                ? "WTA1000"
+                : /^WTA\b/i.test(line) && /\b500\b/.test(line)
+                  ? "WTA500"
+                  : /^WTA\b/i.test(line) && /\b250\b/.test(line)
+                    ? "WTA250"
+                    : "Other";
+      surface = null;
+      round = null;
+      matchFormat = null;
+      insideTable = false;
+      continue;
+    }
+
+    const metadata = /^(Indoor\s+Hard|Hard|Clay|Red\s+Clay|Grass|Carpet)\s*[•·|]\s*(Round[^•·|]+)\s*[•·|]\s*Best\s+of\s+([35])$/i.exec(line);
+    if (metadata) {
+      surface = normalizeSurface(metadata[1]!);
+      round = metadata[2]!.trim();
+      matchFormat = metadata[3] === "5" ? "BestOf5" : "BestOf3";
+      continue;
+    }
+
+    if (line === "#" && eventName) {
+      insideTable = true;
+      continue;
+    }
+    if (/^EVENT DATA$/i.test(line)) {
+      insideTable = false;
+      continue;
+    }
+    if (!insideTable || !eventName || !/^\d+$/.test(line)) continue;
+
+    const names: string[] = [];
+    for (let cursor = index + 1; cursor < lines.length; cursor++) {
+      const candidate = lines[cursor]!;
+      if (/^\d+$/.test(candidate) || isTableBoundary(candidate)) break;
+      if (/^PLAYER [12]$/i.test(candidate)) continue;
+      if (isNameLike(candidate)) names.push(candidate);
+    }
+    if (names.length !== 2) continue;
+    const player1Name = cleanName(names[0]!);
+    const player2Name = cleanName(names[1]!);
+    if (!player1Name || !player2Name || player1Name === player2Name) continue;
+    matchups.push({
+      player1Name,
+      player2Name,
+      eventName,
+      level,
+      round,
+      scheduledDate: null,
+      surface,
+      matchFormat,
+    });
+  }
+
+  return matchups;
+}
+
 export function parseOcrText(text: string): RawMatchupEntry[] {
+  const fixtureMatchups = parseNumberedFixtureTables(text);
+  if (fixtureMatchups.length > 0) return fixtureMatchups;
+
   const matchups: RawMatchupEntry[] = [];
   const vsRe = /^(.+?)\s+(?:vs?\.?|def\.?|–|-)\s+(.+)$/i;
   const rawLines = text.split(/\r?\n/);

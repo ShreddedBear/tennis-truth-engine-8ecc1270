@@ -130,3 +130,58 @@ test("normalizes structured model aliases and numeric best_of", () => {
     matchFormat: "BestOf3",
   });
 });
+
+test("parses numbered multi-event fixture tables from plain OCR text", () => {
+  const parsed = parseOcrText(`ATP Challenger Biella
+Clay • Round of 16 • Best of 3
+#
+PLAYER 1
+1
+Alejandro Moro Canas
+PLAYER 2
+Pavel Lagutin
+2
+Felix Gill
+Gerard Campana Lee
+3
+Jay Clarke
+Petr Bruncik
+EVENT DATA
+Clay
+Round of 16
+Best of 3
+ATP Challenger Guangzhou
+Hard • Round of 32 • Best of 3
+#
+PLAYER 1
+1
+Lloyd Harris
+PLAYER 2
+Marat Sharipov
+2
+Elias Ymer
+Luca Castelnuovo
+EVENT DATA`);
+
+  assert.equal(parsed.length, 5);
+  assert.deepEqual(parsed[0], {
+    player1Name: "Alejandro Moro Canas",
+    player2Name: "Pavel Lagutin",
+    eventName: "ATP Challenger Biella",
+    level: "Challenger",
+    round: "Round of 16",
+    scheduledDate: null,
+    surface: "Clay",
+    matchFormat: "BestOf3",
+  });
+  assert.deepEqual(parsed[3], {
+    player1Name: "Lloyd Harris",
+    player2Name: "Marat Sharipov",
+    eventName: "ATP Challenger Guangzhou",
+    level: "Challenger",
+    round: "Round of 32",
+    scheduledDate: null,
+    surface: "Hard",
+    matchFormat: "BestOf3",
+  });
+});
