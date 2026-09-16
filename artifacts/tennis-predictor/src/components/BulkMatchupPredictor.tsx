@@ -111,7 +111,11 @@ function sanitizeResumedItems(items: BatchItem[]): BatchItem[] {
   })
 }
 
-const RESOLVE_CONCURRENCY = 12
+// Vision OCR is intentionally conservative: large parallel bursts trigger
+// provider RPM limits and can make one transient failure poison the rest of a
+// batch. Two client requests allow player resolution to overlap while the API
+// serializes the provider calls themselves.
+const RESOLVE_CONCURRENCY = 2
 
 async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T, index: number) => Promise<void>): Promise<void> {
   let nextIndex = 0

@@ -35,6 +35,24 @@ import {
 import { imageHash, cacheGet, cacheSet, cacheStats, cacheClear } from "./imageHashCache.js";
 import { callOcrSpace } from "./ocrSpaceProvider.js";
 
+// One process-wide provider lane prevents simultaneous uploads from racing the
+// same quota bucket. Player resolution and the rest of each request still run
+// independently after OCR completes.
+let visionQueue: Promise<void> = Promise.resolve();
+
+async function withSerializedVision<T>(work: () => Promise<T>): Promise<T> {
+  const previous = visionQueue;
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => { release = resolve; });
+  visionQueue = previous.then(() => current, () => current);
+  await previous.catch(() => undefined);
+  try {
+    return await work();
+  } finally {
+    release();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Public interfaces
 // ---------------------------------------------------------------------------
@@ -147,12 +165,9 @@ class ScreenshotImportService {
     }
     debugLog.push(`[CACHE] MISS — hash=${hash.slice(0, 8)}…`);
 
-    // 2. Attempt vision AI providers (with pre-emptive skip for known-bad ones)
-    const skipLabels = buildSkipSet();
-    if (skipLabels.size > 0) {
-      debugLog.push(`[HEALTH] Pre-skipping known-bad providers: ${[...skipLabels].join(", ")}`);
-    }
-
+    // 2. Attempt vision AI providers. Provider health is checked only after
+    // this request reaches the front of the queue, so it sees the final status
+    // of earlier requests rather than a stale concurrent snapshot.
     let ocrResult: RawScreenshotRecognitionWithDebug | null = null;
     let ocrProvider = "unknown";
     let ocrDurationMs = 0;
@@ -160,7 +175,13 @@ class ScreenshotImportService {
 
     const t1 = Date.now();
     try {
-      ocrResult = await recognizeMatchupScreenshot(imageBase64, { skipLabels });
+      ocrResult = await withSerializedVision(async () => {
+        const skipLabels = buildSkipSet();
+        if (skipLabels.size > 0) {
+          debugLog.push(`[HEALTH] Pre-skipping known-bad providers: ${[...skipLabels].join(", ")}`);
+        }
+        return recognizeMatchupScreenshot(imageBase64, { skipLabels });
+      });
       ocrDurationMs = Date.now() - t1;
 
       // Update health monitor from debug log

@@ -20,7 +20,9 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "")
 const api = (path: string) => `${BASE}${path}`
 
 const MAX_FILES = 150
-const RESOLVE_CONCURRENCY = 4
+// Keep OCR batches below provider burst limits. The API also serializes the
+// actual vision calls globally so concurrent browser sessions remain safe.
+const RESOLVE_CONCURRENCY = 2
 const VALIDATION_BATCH_SIZE = 12
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
