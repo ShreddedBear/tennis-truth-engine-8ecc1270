@@ -1,0 +1,69 @@
+{
+  "generated_at_utc": "2026-09-16T07:57:10.351073+00:00",
+  "verifier_version": 5,
+  "pool_a_ppaulojr_tennismylife_2012_2015": {
+    "historical_matches": 17451,
+    "pbp_candidates": 15149,
+    "verified": 9218,
+    "ambiguous": 34,
+    "conflicts": 0,
+    "no_pbp": 8199,
+    "orphan_pbp": 5931,
+    "structural_recount_of_raw_ppaulojr_ch_main_files": {
+      "scope": "date-filtered to 2012-2015 to match this pool's identity-matching window",
+      "rows_outside_2012_2015_window_excluded": 1354,
+      "total_rows": 15151,
+      "structurally_valid": 14889,
+      "structural_fail": 262,
+      "duplicate_content_hash_rows": 26,
+      "duplicate_content_hash_groups": 13
+    },
+    "integrity_reconciliation": {
+      "duplicate_pbp_hash": 0,
+      "duplicate_canonical_match": 0,
+      "cross_tour_contamination": 0,
+      "winner_mismatch": 0,
+      "score_mismatch": 0,
+      "tournament_mismatch": 0,
+      "date_mismatch": 0,
+      "structural_impossibility": 0
+    },
+    "level2_approved_after_reconciliation": 9218,
+    "demoted_by_reconciliation": 0
+  },
+  "pool_b_mcp": {
+    "total": 407,
+    "overlap_with_pool_a_2012_2015": 12,
+    "overlap_with_pool_c_2025_2026": 2,
+    "in_2012_2015_window": 51
+  },
+  "pool_c_bsd_2025_2026": {
+    "total_structurally_present": 1740,
+    "by_year": {
+      "2025": 1436,
+      "2026": 304
+    }
+  },
+  "FINAL": {
+    "TOTAL_RAW_CANDIDATES_ALL_POOLS": 17298,
+    "TOTAL_RAW_CANDIDATES_DEDUPLICATED": 17284,
+    "TOTAL_STRUCTURALLY_VALID_PPAULOJR_TAPES": 14889,
+    "TOTAL_APPROVED": 9218,
+    "TOTAL_LEVEL_1": 0,
+    "TOTAL_LEVEL_2": 9218,
+    "TOTAL_REVIEW_REQUIRED": 34,
+    "TOTAL_AMBIGUOUS": 34,
+    "TOTAL_CONFLICT": 0,
+    "TOTAL_STRUCTURAL_FAIL": 262,
+    "TOTAL_UNMATCHED": 5671,
+    "TOTAL_NO_PBP": 8199,
+    "TOTAL_UNMATCHED_V1_COARSE_ORPHAN_PBP": 5931,
+    "_note_unmatched_vs_v1_orphan": "This script's TOTAL_UNMATCHED (5671) counts only structurally-valid ppaulojr rows whose content hash never appears in an approved LEVEL_2 mapping -- a precise 'genuinely unmatched' figure. v1's own orphan_pbp field (5931) is a coarser bucket that also folds in structurally-invalid rows; the gap between the two (260) reconciles to this script's own TOTAL_STRUCTURAL_FAIL (262) within 2 rows, the remainder being 2 rows v1's own parser drops for missing player names that this script's date-only filter still counted -- see structural_recount_of_raw_ppaulojr_ch_main_files.total_rows vs pool_a's pbp_candidates."
+  },
+  "manifest_counts": {
+    "ambiguous": 34,
+    "no_pbp": 8199,
+    "structural_fail": 262,
+    "unmatched": 5671
+  }
+}

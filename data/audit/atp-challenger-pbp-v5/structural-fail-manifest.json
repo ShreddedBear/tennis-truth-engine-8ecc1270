@@ -1,0 +1,2098 @@
+[
+  {
+    "date": "2012-01-01",
+    "tournament": "ATPChallengerTourChennai",
+    "server1": "Rohan Bopanna",
+    "server2": "Go Soeda",
+    "source_hash": "cd474e5b8db6cd4cefe212bc89a6a08e9d30c58fef2f13ae6ce006ee04274697",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-01-05",
+    "tournament": "ATPChallengerTourNewCaledonia",
+    "server1": "Axel Michon/Guillaume Rufin",
+    "server2": "Adrian Menendez-Maceiras/Simone Vagnozzi",
+    "source_hash": "d2c40245f705378ac2848efe2cd368138d67d5e544d78d8b51d6b7e6b2fadb0d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-01-25",
+    "tournament": "ATPChallengerTourHeilbronn-Live",
+    "server1": "Charroin O/Menendez-Maceiras A",
+    "server2": "Dlouhy L/Waske A",
+    "source_hash": "e8c6268d1f346a618a1e6a408a67df27d214d3bb521d8a3b8c3522705cefd47b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-01-26",
+    "tournament": "ATPChallengerTourHeilbronn-Live",
+    "server1": "Michael Russell",
+    "server2": "Dominik Meffert",
+    "source_hash": "58946adf9626d65bb52fcbf4f63d0bf2b0084d8c6c29f433f62ce5145582268e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-01-21",
+    "tournament": "ATPChallengerTourHeilbronn2011",
+    "server1": "Marcin Gawron",
+    "server2": "Javier Marti",
+    "source_hash": "3680d3e35d372087f09739c0af0b536d3fc61622955f063ea7720110e046e8e6",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-02-04",
+    "tournament": "ATPChallengerTourQuimper",
+    "server1": "Laurent Rochette",
+    "server2": "Michael Bois",
+    "source_hash": "46a0551c1059577c05068a03cf661439884c7856c95a0f98cc7e615fef201f51",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-02-23",
+    "tournament": "ATPChallengerTourMeknes",
+    "server1": "Inigo Cervantes",
+    "server2": "Adrian Ungur",
+    "source_hash": "9983c93236c3fb80c15c6d09edc6b6da766978cb30b7c155ee41a698cdcd2dfb",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-02-25",
+    "tournament": "ATPChallengerTourMeknes",
+    "server1": "Evgeny Donskoy",
+    "server2": "Adrian Ungur",
+    "source_hash": "0729e00c75246d4ba369893c2f144447d7aa7f7754f55f49d8de7637c420ae1b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-03-14",
+    "tournament": "ATPChallengerTourDallas.",
+    "server1": "Potito Starace",
+    "server2": "Gilles Muller",
+    "source_hash": "68e50697dd346fb89fbc2af3dedc00897467427af8e5de3b23b84eaf980eb562",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-03-17",
+    "tournament": "ATPChallengerTourPingguo",
+    "server1": "Go Soeda",
+    "server2": "Kamil Capkovic",
+    "source_hash": "258e4d2b06ed781139cccc806ba2bdd06e6c75256cb85d0b0af8921820663315",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-03-14",
+    "tournament": "ATPChallengerTourRabat.html",
+    "server1": "Klizan M/Robert S",
+    "server2": "Greul S/Menendez-Maceiras A",
+    "source_hash": "600653f77dd97f59788ef720c0f4be83cc5cb461fe4511ce12ca89092e27feed",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-03-16",
+    "tournament": "ATPChallengerTourRabat.html",
+    "server1": "Filippo Volandri",
+    "server2": "Andrey Kuznetsov",
+    "source_hash": "0af171e58fa74536d36b92f8b507a518697965dfaadab11ea6367dce7095d1bc",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-03-12",
+    "tournament": "ATPChallengerTourSarajevo.",
+    "server1": "Evgeny Korolev",
+    "server2": "Mirza Basic",
+    "source_hash": "cda5e21a1ba3f0bed68e9100517ef00b56933347e81681265a2347f97b6a4452",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-04-07",
+    "tournament": "ATPChallengerTourBarletta",
+    "server1": "Filippo Volandri",
+    "server2": "Potito Starace",
+    "source_hash": "908473d0d3973749ab0457c5e08c9e86347b325aedb4f1e1fe126c7d7efaf41f",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-04-27",
+    "tournament": "ATPChallengerTourSaoPaulo",
+    "server1": "James Duckworth",
+    "server2": "Julio Silva",
+    "source_hash": "98bac1aa1f2e199f05572542bdba014d5fc3c1f5b1f3b5fd588836524e0bdacb",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-05-11",
+    "tournament": "ITFChallengerFlorence",
+    "server1": "Magda Linette",
+    "server2": "Gioia Barbieri",
+    "source_hash": "7fba742467c25cfc6cf12ca941d36de4656e6adc214d695f883c1c944f5158ae",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-05-19",
+    "tournament": "ATPChallengerTourNice",
+    "server1": "Victor Hanescu",
+    "server2": "Pavol Cervenak",
+    "source_hash": "cfda3d41c668ce1fe0222305c735171cea0fda08ed121d75c377ed8cf8a8e4ca",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-06-08",
+    "tournament": "ATPChallengerTourFurth",
+    "server1": "Maxime Teixeria",
+    "server2": "Dusan Lojda",
+    "source_hash": "15e5c634a8d8c393c114c81ad87dc631ad2421ddcbdf222959eda1540ff911e6",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-06-13",
+    "tournament": "ATPChallengerTourMonza",
+    "server1": "Potito Starace",
+    "server2": "Andrey Golubev",
+    "source_hash": "3741f89535a6b12041d1bb0943001097b6be0bd9b1aa681ab3c088a437c307e8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-06-24",
+    "tournament": "ATPChallengerTour-Marburg",
+    "server1": "Michal Przysiezny",
+    "server2": "James Lemke",
+    "source_hash": "436eae5ad5a9f8b2efcd837dc3159da3d9317654b1c46544365029c68309db3b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-06-26",
+    "tournament": "ATPChallengerTour-Marburg",
+    "server1": "Andreas Haider-Maurer",
+    "server2": "Simone Vagnozzi",
+    "source_hash": "4444e89d9b2ee79e229fe1e5b0d897f3613f0c8719276ab75a96832dbd86790d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-06-30",
+    "tournament": "ATPChallengerTour-Braunschweig",
+    "server1": "Tom Schonenberg",
+    "server2": "Victor Baluda",
+    "source_hash": "83558634c8839bd79a344d001c0ef9f3b6655eec40fad5e872e5dd31fb19458a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-01",
+    "tournament": "ATPChallengerTour-Braunschweig",
+    "server1": "Artem Smirnov",
+    "server2": "Harri Heliovaara",
+    "source_hash": "92a297cdd53f16611af8c23934b86391bb2f15f12ff1cd2b2ef85bb2643874bb",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-09",
+    "tournament": "ATPChallengerTour-Scheveningen",
+    "server1": "Timo Nieminen",
+    "server2": "Teimuraz Gabashvili",
+    "source_hash": "5b98c89000104f86ed08d20a005a45e1941a7d30a717781a820bfc566f5127a2",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-10",
+    "tournament": "ATPChallengerTour-Timisoara",
+    "server1": "Axel Michon",
+    "server2": "Victor Crivoi",
+    "source_hash": "52cc1e8a326e6c46a82f2b933fc0e370ce5b53c61d79013b4e30a31bf09ee174",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-01",
+    "tournament": "ATPChallengerTourWinnetka",
+    "server1": "Adrien Bossel",
+    "server2": "Ryan Rowe",
+    "source_hash": "789cc710477b14aef871c49a18512dad9e9705d80119ea6affd84a60bc2ca33b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-24",
+    "tournament": "ATPChallengerTour-Astana",
+    "server1": "Michal Konecny",
+    "server2": "Konstantin Kravchuk",
+    "source_hash": "653bc6bef4caf3961f163b8e9eae8673c79fa4b55394088246d6b13aac4384a8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-25",
+    "tournament": "ATPChallengerTour-Astana",
+    "server1": "Yaraslau Shyla",
+    "server2": "Marsel Ilhan",
+    "source_hash": "107643ae269b9d8ff218fe184f810c820e20f32e2a4f99cdd6df9ac7bfefc233",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-24",
+    "tournament": "ATPChallengerTour-Oberstaufen",
+    "server1": "Matthias Bachinger",
+    "server2": "Daniel Baumann",
+    "source_hash": "94263a8883b225b735527139c2f98bc7fb7595d92c58681784b42400dfaed6ec",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-25",
+    "tournament": "ATPChallengerTour-Oberstaufen",
+    "server1": "Pablo Galdon",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "a296c26021bea7e1c14aa11b5ce2d03e524d8fc8cee7408bd50542293993e36b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-27",
+    "tournament": "ATPChallengerTour-Tampere",
+    "server1": "Elias G / Sousa J",
+    "server2": "Desein N / Ghem A",
+    "source_hash": "c1e9127feb7284bb72729ed99aaabc5a12f2b49ca55c9d9a8c7d4350d6e127c6",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-18",
+    "tournament": "ATPChallengerTourAn-Ning",
+    "server1": "Aljaz Bedene",
+    "server2": "Mohamed Safwat",
+    "source_hash": "7477e3ce7b34bc0a31e4dc387016afccb147eab43bfd89328a058608bf0218bf",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-18",
+    "tournament": "ATPChallengerTourAn-Ning",
+    "server1": "Liang-Chi Huang",
+    "server2": "Arata Onozawa",
+    "source_hash": "a66eb524b2609ded11d0c12e716385291ad81b334cc41d915b5f8074cd19d19e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-19",
+    "tournament": "ATPChallengerTourAn-Ning",
+    "server1": "Tsung-Hua Yang",
+    "server2": "Samuel Groth",
+    "source_hash": "52f09bfa1ce5b7ebcdadb719f0e34571dec8f360f5831415cdc6058b6354b6cc",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-14",
+    "tournament": "ATPChallengerTourBercuit",
+    "server1": "Arnaud Graisse",
+    "server2": "Romano Frantzen",
+    "source_hash": "378f8bd77993c2e9c166815a7650dd996fcc1a14eed996f0d3222cf455d25514",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-18",
+    "tournament": "ATPChallengerTourBinghamton",
+    "server1": "Greg Jones",
+    "server2": "Michael McClune",
+    "source_hash": "56f88f13d0acb5f462329238028f6b74c5d02946fc246e9bcdc8f6c748be7722",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-19",
+    "tournament": "ATPChallengerTourBinghamton",
+    "server1": "Gregory Ouellette",
+    "server2": "Andrew Carter",
+    "source_hash": "7b92910a8d89659ef79812f10928cffcb2936d5f15bca066be5b74f22742110e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-16",
+    "tournament": "ATPChallengerTourPenza",
+    "server1": "Ervand Gasparyan",
+    "server2": "Denys Molchanov",
+    "source_hash": "4ca5832988b612180ca156fcf2f7e2da3523b94f71ebd05c4ac39ad3b1b9c968",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-17",
+    "tournament": "ATPChallengerTourPenza",
+    "server1": "Laurent Recouderc",
+    "server2": "Alexey Tumakov",
+    "source_hash": "5f542ab14e2d17a5f6ebc3ca5eb67fcad35b83ce998804aec142b8bbaf907ada",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-21",
+    "tournament": "ATPChallengerTourTampere2011",
+    "server1": "Grzegorz Panfil",
+    "server2": "Ville Toni",
+    "source_hash": "388eccf40a16f74c6146e5b67507b3215ffacf3684cfc8922def8c5571b92109",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-07",
+    "tournament": "ATPChallengerTourAptos",
+    "server1": "Bradley Klahn",
+    "server2": "Igor Andreev",
+    "source_hash": "2953da8c59f79e584211d5a82f542c11de7bf11241452398f6054bd1b9270f23",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-08",
+    "tournament": "ATPChallengerTourAptos",
+    "server1": "Jeff Dadamo",
+    "server2": "Rik de Voest",
+    "source_hash": "c9e795970e2b571be6870e5cb3c89e7213ca61530c226de369883b05a8d703fc",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-28",
+    "tournament": "ATPChallengerTourBeijing",
+    "server1": "Liang-Chi Huang",
+    "server2": "Junn Mitsuhashi",
+    "source_hash": "82d2c4bf7c6f62a3613a40d032c64c7ac2a0f406c8b7ac67ec4349147d19b7c9",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-07",
+    "tournament": "ATPChallengerTourPozoblanco",
+    "server1": "Daniel Munoz-De La Nava",
+    "server2": "Adrian Mannarino",
+    "source_hash": "168dd2e98e7f059fcdd439120afbaeab7d45e15df6b4d61585b9ceef6128674b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-09",
+    "tournament": "ATPChallengerTourPozoblanco.html",
+    "server1": "Uladzimir Ignatik",
+    "server2": "Maxime Teixeira",
+    "source_hash": "3b4b3e1a35281755ebaa3d0203d5fed31eb66fba49db268dddd50b379fd4e5d3",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-08",
+    "tournament": "ATPChallengerTourSamarkand",
+    "server1": "Andrey Golubev",
+    "server2": "Ruan Roelofse",
+    "source_hash": "f477c36fe26f4624beb08ae3a73606276b82218e19cd5359d76c8172c99a0b78",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-09",
+    "tournament": "ATPChallengerTourSibiu",
+    "server1": "Cristobal Saavedra-Corvalan",
+    "server2": "Adrian Ungur",
+    "source_hash": "b381985fab9555e144cd0b9984c3f388151f4a4c1b6707f0f4e27be4585ce110",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-07-28",
+    "tournament": "ATPChallengerTourVancouver",
+    "server1": "Chris Guccione",
+    "server2": "Milan Pokrajac",
+    "source_hash": "e5951894128f5a6dd8e7d6c8ba05d197033b5ff89ba865b95ccc4861bd66ad33",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-11",
+    "tournament": "ATPChallengerTourSamarkand",
+    "server1": "Dusan Lajovic",
+    "server2": "Farrukh Dustov",
+    "source_hash": "7b98c4fb4c0ed2c5e7abc22525fef74717f9fc5b870a3d97a68acafa5bb47060",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-18",
+    "tournament": "ATPChallengerTourSegovia",
+    "server1": "Aaron Cortes Alcaraz",
+    "server2": "Arkaitz Manzarbeitia-Ugate",
+    "source_hash": "1a36551d9d919001b009e33bb90666edf5eaf2eb2bce95383208f2a42b9e9e29",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-21",
+    "tournament": "ATPChallengerTourSegovia",
+    "server1": "J Cluskey/F Martin",
+    "server2": "R Junaid/P Marx",
+    "source_hash": "fdd8e7455671a171337e7539cabdbc28c3c43ca77ca79457f2002e94763ffe69",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-21",
+    "tournament": "ATPChallengerTourSegovia.html",
+    "server1": "Daniel Gimeno-Traver",
+    "server2": "Carlos Benito Hergueta",
+    "source_hash": "a442465dc112e35848db20757a67841f6539f38c8395e94cd0840ef03cc86e3c",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-08-25",
+    "tournament": "ATPChallengerTourComo",
+    "server1": "Andrea Basso",
+    "server2": "Denis Gremelmayr",
+    "source_hash": "a30ca4c025bc1d677ed559071f796b7a918ea11e1f19975a9c701b79b70347d0",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-03",
+    "tournament": "ATPChallengerTourShanghai",
+    "server1": "Yu Chang",
+    "server2": "Ti Chen",
+    "source_hash": "6aa573168c8c6e23716932f1d6707e867b214fc5864bbcf3e8a5c12e001498be",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-02",
+    "tournament": "ATPChallengerTourSt.Remy",
+    "server1": "Maxime Chazal",
+    "server2": "Alessandre Buchner",
+    "source_hash": "6db78f55e4d7daf6402794bbf568aa72a7c6339e6a8319f22601356b78e8c381",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-03",
+    "tournament": "ATPChallengerTourSt.Remy",
+    "server1": "Florian Reynet",
+    "server2": "Antoine Benneteau",
+    "source_hash": "712bea3628b5c65a9b276648bb23c70136dfe0a6a7e034a82d67e5593f4413fe",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-03",
+    "tournament": "ATPChallengerTourSt.Remy",
+    "server1": "Maxime Chazal",
+    "server2": "Guillermo Olaso",
+    "source_hash": "17e0c5adaf5b090cc2f3389bfe170645683574463a6bf9f1f52422a250572d19",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-04",
+    "tournament": "ATPChallengerTourSt.Remy",
+    "server1": "Bachinger M / Moser  F",
+    "server2": "Menendez-Maceiras A / Teixeira M",
+    "source_hash": "54d09032aa48851f85ecf0439f89bf68449cf5270ae253374b0a2350e496f2c4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-10",
+    "tournament": "ATPChallengerTourIstanbul",
+    "server1": "Haluk Akkoyun",
+    "server2": "Denis Zivkovic",
+    "source_hash": "b3c970f731aa3aba5ad01cc23a44c83f13d7b3b6903a8b5348740c9f0daffe46",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-10",
+    "tournament": "ATPChallengerTourIstanbul",
+    "server1": "Matthias Bachinger",
+    "server2": "Maxime Teixeira",
+    "source_hash": "84dd2ed8f131c0dde7e7b1227a836eb9e050742a9538de9cb298ea3008b690a5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-13",
+    "tournament": "ATPChallengerTourIstanbul.html",
+    "server1": "Andrew Courtney/Purav Raja",
+    "server2": "Adrian Menendez-Maceiras/John Peers",
+    "source_hash": "7ba42f268053e9332a49bd9f298d7f0c7d434c0c6f36f82e634d7ae4985d8789",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-15",
+    "tournament": "ATPChallengerTourSzczecin",
+    "server1": "Rafal Teurer",
+    "server2": "Taro Daniel",
+    "source_hash": "3d396d71b885750fe3f346806101911b3729215ba741d4b76885d0755a002b02",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-18",
+    "tournament": "ATPChallengerTourSzczecin",
+    "server1": "F Delbonis/P Starace",
+    "server2": "M Draganja/L Zovko",
+    "source_hash": "dc0f703025c1f25acd58daf8ee8b9e9dd10a2ff85e8d5d5b0a50c2c2a49f73ba",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-03",
+    "tournament": "ATPChallengerTourBelem",
+    "server1": "Thiago Moura Monteiro",
+    "server2": "Thiemo de Bakker",
+    "source_hash": "43e143135eec66d6b524bb441bb26ab6ac7c19122b1459f42896154d45d07403",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-24",
+    "tournament": "ATPChallengerTourLermontov",
+    "server1": "Roman Borvanov",
+    "server2": "Dami Dzumhur",
+    "source_hash": "ef519c2c939383b76a68871302d6ba66f7fc9d68605351c042923c63e87c8f82",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-05",
+    "tournament": "ATPChallengerTourMons.html",
+    "server1": "Tobias Kamke",
+    "server2": "Jerzy Janowicz",
+    "source_hash": "2205c4e56e9fcb003127dd2ae6b52d1fa16df679098b63d895fcd9bdc5465742",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-26",
+    "tournament": "ATPChallengerTourOrleans",
+    "server1": "Steve Johnson",
+    "server2": "David Goffin",
+    "source_hash": "edb17ec5e9a6bc8ca37784d825b358d94964c600004bb283f3de076d3b593b26",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-01",
+    "tournament": "ATPChallengerTourQuito",
+    "server1": "Maximiliano Estevez",
+    "server2": "Martin Alund",
+    "source_hash": "62c766e4cd08a835af0890b44154ec295e93f58400c0b23b77e7120b576a3a47",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-02",
+    "tournament": "ATPChallengerTourQuito",
+    "server1": "Daniel Garza",
+    "server2": "Victor Estrella",
+    "source_hash": "202def76bd2fbd5cdce1743de1f1b99f6ff33cf7dafc4ea6a7a8efb81f318fa5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-05",
+    "tournament": "ATPChallengerTourQuito.html",
+    "server1": "Cabal J S/Salamanca C",
+    "server2": "Alund M/Beretta D",
+    "source_hash": "277acf70d65309b8697fc4ef4dca9ebb99d075a6a8c66896c430037e3ef07057",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-09-29",
+    "tournament": "ATPChallengerTourSacramento",
+    "server1": "Chris Guccione",
+    "server2": "Nicolas Meister",
+    "source_hash": "ae99453a6d7a6a3391b85cee0e381104b347cba4e0d20d15e429e5145e745a91",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-06",
+    "tournament": "ATPChallengerTourRennes",
+    "server1": "Martin Fischer",
+    "server2": "Dorian Descloix",
+    "source_hash": "f6d6ff49865cef7308b1b5b90f503367f00f2901717033c613e2f4a3d25ba86d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-11",
+    "tournament": "ATPChallengerTourRennes.html",
+    "server1": "Matthias Bachinger",
+    "server2": "Marc Gicquel",
+    "source_hash": "3c2fdaffc766417e30b90821fe69e20ce78071678406f04d0602f9a925f8c5a2",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-12",
+    "tournament": "ATPChallengerTourRennes.html",
+    "server1": "Charles-Antoine Brezac",
+    "server2": "Illya Marchenko",
+    "source_hash": "7d54fe001cfc20f683dd87fca8defdc30a9f40ad7fe67fbbaaa1147bd30be99e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-11",
+    "tournament": "ATPChallengerTourTashkent.html",
+    "server1": "Ivan Dodig",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "a505ace66baeeecd7d6a61a8759815664752142a60c35c907c42e0333971910b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-16",
+    "tournament": "ATPChallengerTourVillaAllende",
+    "server1": "Marcel Felder",
+    "server2": "Paul Capdeville",
+    "source_hash": "b1ac2bcd208d193cbf895ff7247a79fa527c6e64b0161180d7af58f3d7ef83aa",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-20",
+    "tournament": "ATPChallengerTourBuenosAires",
+    "server1": "Goran Tosic",
+    "server2": "Matias Franco Descotte",
+    "source_hash": "70c97e9441684d4906bead581da74c4441491d7f29f85515f51b01114f35f1f8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-10-21",
+    "tournament": "ATPChallengerTourSeoul",
+    "server1": "Brydan Klein",
+    "server2": "Peerakiat Siriluethaiwattana",
+    "source_hash": "f554cae0473b16e56fd0233d877d31627f6997a3a5ddc5d2c72891a78f4b2b18",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-03",
+    "tournament": "ATPChallengerTour-Medellin",
+    "server1": "Paolo Lorenzi",
+    "server2": "Fabiano De Paula",
+    "source_hash": "fd08eaea452fcceda11f54fd3a8c35eb8802d973a1702657b8e22873f3e9f38b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-03",
+    "tournament": "ATPChallengerTourBratislava",
+    "server1": "Denys Molchanov",
+    "server2": "Mikhail Elgin",
+    "source_hash": "aee3451053eebbc75c652c4a56e9b1edd728112d83562cc639f52f48c20134d4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-03",
+    "tournament": "ATPChallengerTourBratislava",
+    "server1": "Tihomir Grozdanov",
+    "server2": "Miloslav Mecir",
+    "source_hash": "046e8086647179459fb99964189b0b26f42eec862717f3388cb6e309fb66ecc8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-13",
+    "tournament": "ATPChallengerTourChampaign",
+    "server1": "Teimuraz Gabashvili",
+    "server2": "Jack Sock",
+    "source_hash": "ce48e7372fe5c96286464db18fc68aad8ee2b4a310ab68071190f4f1556b6c60",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-03",
+    "tournament": "ATPChallengerTourGuayaquil",
+    "server1": "Daniel Garza",
+    "server2": "Jose Cobo",
+    "source_hash": "606ecb88dd477c0d096e05a8dc1fd8636f12d158dbdf631c5249e0c2d3dffc81",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-10",
+    "tournament": "ATPChallengerTourHelsinki",
+    "server1": "Richard Waite",
+    "server2": "Tuomo Ojala",
+    "source_hash": "4d0479f593dea13b31c364ff191f995341fd3499049ac72cec7d3763b7cd9195",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-16",
+    "tournament": "ATPChallengerTourHelsinki.html",
+    "server1": "Ricardas Berankis",
+    "server2": "Jan-Lennard Struff",
+    "source_hash": "a2218fdbb4561ef23c213440560bf4306150cfba0ef73a533d699f66bdbc78dd",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-16",
+    "tournament": "ATPChallengerTourHelsinki.html",
+    "server1": "Jarkko Nieminen",
+    "server2": "Dudi Sela",
+    "source_hash": "ad29911d3c6a3b6a2f5162e1d29d497f9b638cdfa27d886fbdad9dd258f142f8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-04",
+    "tournament": "ATPChallengerTourKnoxville",
+    "server1": "Jeff Dadamo",
+    "server2": "Nicolas Meister",
+    "source_hash": "b7a904b0a461a1d704323ab97412b145506ea36aa98f0b75caa5a915173c9251",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-06",
+    "tournament": "ATPChallengerTourKnoxville",
+    "server1": "Adam Hubble",
+    "server2": "Daniel King-Turner",
+    "source_hash": "da86dd19a04f9e51a96f50830474a46f1a9eea120bbd36510ea4c7c65cecbf69",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-04",
+    "tournament": "ATPChallengerTourOrtisei",
+    "server1": "Michal Przysiezny",
+    "server2": "Alessandro Petrone",
+    "source_hash": "754b2e1ab871f94e2e13730eaf19d4229bcd41f8d9b94bff56ed0e2e0d63ddf5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-06",
+    "tournament": "ATPChallengerTourSanLeopoldo",
+    "server1": "Horacio Zeballos",
+    "server2": "Diego Matos",
+    "source_hash": "3017a865c83b918d98b3caf0933682ad640c03bb48f924925a365f22a332b594",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-12",
+    "tournament": "ATPChallengerTourYokohama",
+    "server1": "Shuichi Sekiguchi",
+    "server2": "Kittipong Wachiramanowong",
+    "source_hash": "bf4c0e59361ef7ac0b01592241a04fa282d9fda3cbe68de83836b94f8460eabc",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-12",
+    "tournament": "ATPChallengerTourYokohama",
+    "server1": "Michael Venus",
+    "server2": "Ryota Kishi",
+    "source_hash": "866ddc45f0d2e361d009be94749afcb7b47066a38dafb217bfd938f6c632d83b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-13",
+    "tournament": "ATPChallengerTourYokohama",
+    "server1": "Yuichi Sugita",
+    "server2": "Yuuya Kibi",
+    "source_hash": "cd3d318b3f2b2c838f22b15ed8e1f69054fd7d26b971bbfd129166956d74b674",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-20",
+    "tournament": "ATPChallengerTourToyota",
+    "server1": "Matteo Viola",
+    "server2": "Hiroyasu Ehara",
+    "source_hash": "a467b871ec8d9f46d489547160dcf6b4a241af28430ba701b5ed92b18fbe0a71",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-20",
+    "tournament": "ATPChallengerTourToyota",
+    "server1": "Christopher Rungkat",
+    "server2": "Yasutaka Uchiyama",
+    "source_hash": "4d605370f1767a67cf1a6b819bc541e5125af29ec4aa07cba377532fe8a78a98",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-22",
+    "tournament": "ATPChallengerTourToyota",
+    "server1": "Toshihide Matsui",
+    "server2": "Mirza Basic",
+    "source_hash": "97b07644245255d1a86d3ba473eee46303b1450ed6e05d4fdb079a2c3e9e8d0b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-23",
+    "tournament": "ATPChallengerTourToyota",
+    "server1": "P Oswald/M Pavic",
+    "server2": "P Amritraj/J Cerretani",
+    "source_hash": "d9cb004c6242f4bb730289ac646d6039b5fad347de659072b9718c7b30b23fb5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-25",
+    "tournament": "ATPChallengerTourToyota",
+    "server1": "Michal Przysiezny",
+    "server2": "Hiroki Moriya",
+    "source_hash": "7e843a5d448eb22a9fa422aca24826846224821fa03d257cc2735f822c5925bb",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-17",
+    "tournament": "ATPChallengerTourToyotaJapan",
+    "server1": "Takeshi Endo",
+    "server2": "Masatoshi Miyazaki",
+    "source_hash": "103058d03cd5c619319ddf55f13512627e3f1ad65e52dc00e15a4e0dc9c89ba4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2012-11-18",
+    "tournament": "ATPChallengerTourToyotaJapan",
+    "server1": "Takuto Niki",
+    "server2": "Yusuke Watanuki",
+    "source_hash": "c90cb2a83ec785bc0336f13468d421b167471511fa444681f36b9629d243fb41",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-01-02",
+    "tournament": "ATPChallengerTourNoumea",
+    "server1": "Maxime Teixeira",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "fb1d5e4474c2de23b684f4d9458b878c61c78b90cec012373a197cbc5e3a4f56",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-01-23",
+    "tournament": "ATPChallengerTourHeilbronn.html",
+    "server1": "Paul-Henri Mathieu",
+    "server2": "Dusan Lajovic",
+    "source_hash": "c8512e2ba72a90542844127cf91dabe9591a2976e1b9712a0bb5cba277bac59a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-02",
+    "tournament": "ATPChallengerTourSantiago",
+    "server1": "Nicolas Gustavo Kauer",
+    "server2": "Maximo Gonzalez",
+    "source_hash": "8fb2e3cdd91500b9adb5f8599ecf0afeb17f51272e13efeba5c08d0f50d2fa4c",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-03",
+    "tournament": "ATPChallengerTourSantiago",
+    "server1": "Bastian Malla",
+    "server2": "Maximo Gonzalez",
+    "source_hash": "7a8638539e3c3c17bc18645e1d55d304419f5b3ca7b39b1e6b2026e293403e42",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-02-26",
+    "tournament": "ATPChallengerTourSydney.html",
+    "server1": "James Duckworth",
+    "server2": "Sanam Singh",
+    "source_hash": "6338f98cbe1211e117644bb2f680dae3a0414171bb60d1a0649e0a5632d16830",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-11",
+    "tournament": "ATPChallengerTourDallas",
+    "server1": "Devin Britton",
+    "server2": "Uladzimir Ignatik",
+    "source_hash": "e9ac16453d901a0fc7210c1d52b250955ec61415cc8c17305ad0de42489b375a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-11",
+    "tournament": "ATPChallengerTourDallas",
+    "server1": "Donald Young",
+    "server2": "Jean Andersen",
+    "source_hash": "4c7db283659e394b8847b8d44b7efbc5e9a8562b65378ea755432b7644a94a93",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-11",
+    "tournament": "ATPChallengerTourDallas",
+    "server1": "Oliver Marach",
+    "server2": "Mikhail Kukushkin",
+    "source_hash": "b1eb403ac0933d76880e922a59595d471ff9a8a7bdf953ad9e7472082c8eafc5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-11",
+    "tournament": "ATPChallengerTourDallas",
+    "server1": "Mikhail Kukushkin",
+    "server2": "Andre Begemann",
+    "source_hash": "73995de48c3af0b928c8c6c8a43ded22e8194e8749cee90cdd67da7f5e61eae0",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-14",
+    "tournament": "ATPChallengerTourDallas.html",
+    "server1": "Denis Istomin",
+    "server2": "Lukas Lacko",
+    "source_hash": "0170efcca5b3b2ab534cf3092db91cd5c2b0174d53abbe8728a7cd4b72345f4a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-09",
+    "tournament": "ATPChallengerTourKyoto",
+    "server1": "Marco Chiudinelli",
+    "server2": "Matthew Barton",
+    "source_hash": "86dd659243922b7fe780a94c77e8f5581a4abd5eaa68258e005a1a31cfdc6d2a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-09",
+    "tournament": "ATPChallengerTourKyoto",
+    "server1": "John Millman",
+    "server2": "Hiroki Moriya",
+    "source_hash": "67a44040e166f52d3bc2506a4ce5132f7257e8f8ea688adb6303d1c5a4d2bdb3",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-12",
+    "tournament": "ATPChallengerTourSarajevo",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Karol Beck",
+    "source_hash": "86266fd73dc8acfb8a47d007b32a47433a68b59b0168eaf4bc124a21104c85b2",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-01",
+    "tournament": "ATPChallengerTourLeon",
+    "server1": "Michael Lammer",
+    "server2": "Antoine Benneteau",
+    "source_hash": "5cd1ef92ebb587774d5f2a28deafe5848890cfaa45cd76707b33cbb7d099ee03",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-02",
+    "tournament": "ATPChallengerTourLeon",
+    "server1": "Austin Krajicek/Bobby Reynolds",
+    "server2": "Alfredo Moreno/Alejandro M Figueroa",
+    "source_hash": "81e5f6c1b7035ed3d2cfed706cca6dea236f0c7bccbc87e39e2b3d2242f29cfc",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-03",
+    "tournament": "ATPChallengerTourLeon.html",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Yen-Hsun Lu",
+    "source_hash": "19886cb854500f6ff0a2bad441929e2e953b5c91254d674fa8e17118eff26ae5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-31",
+    "tournament": "ATPChallengerTourSaint-Brieuc",
+    "server1": "Adrian Sikora",
+    "server2": "Hugo Nys",
+    "source_hash": "ea0583f8d493d485420342524eb938a860937dad7bea3ea1d8a2da64f5338815",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-03-26",
+    "tournament": "ATPChallengerTourSanLuisPotosi",
+    "server1": "Thomas Fabbiano",
+    "server2": "Simone Vagnozzi",
+    "source_hash": "99d1d2cb71070849fb677e9bcf4095f2f65be86826b068fae3ad58732cbecc3b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-10",
+    "tournament": "ATPChallengerTourBarranquilla.html",
+    "server1": "N Basilashvili/C Salamanca",
+    "server2": "F D Paula/S Ianni",
+    "source_hash": "2f8a3fb27cc02b92648401427b56c2f26763db4b2da87ec6e93d60bbafffb598",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-10",
+    "tournament": "ATPChallengerTourGuadalajara",
+    "server1": "C Guccione/J Kerr",
+    "server2": "V Pospisil/B Reynolds",
+    "source_hash": "4d1b6526b3125f463df9586e1848a03939999653bc965f6c2f58aed676a6234b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-12",
+    "tournament": "ATPChallengerTourGuadalajara.html",
+    "server1": "Adrian Mannarino",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "42db21974bc45a3231dc1644c696d7fccd6da5a88041a8486d5b1577c8431dbf",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-28",
+    "tournament": "ATPChallengerTourOstrava",
+    "server1": "Jiri Placek",
+    "server2": "Miloslav Mecir",
+    "source_hash": "2cc6910baa7813a61937117c6906b211dd444ba687fd73fdc8043ec96a4cf004",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-05-02",
+    "tournament": "ATPChallengerTourOstrava",
+    "server1": "Jaroslav Pospisil",
+    "server2": "Jiri Vesely",
+    "source_hash": "ab86a2f733dee979901ef9e12fdc46b2e35c45666fd77bed8130fd6aa829dda4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-04-20",
+    "tournament": "ATPChallengerTourSantos",
+    "server1": "Guido Andreozzi",
+    "server2": "Gasto Elias",
+    "source_hash": "d85737be3531207e3cd0b2a98a8087cfdd7bcdd45ae6548bf67d6fdd88fef1af",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-05-13",
+    "tournament": "ATPChallengerTourBusan",
+    "server1": "Hiroki Kondo",
+    "server2": "Laurynas Grigelis",
+    "source_hash": "684d1618d6359e875fc4efe630e6f4b116869c0332842654a57dfeafd54d3615",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-05-04",
+    "tournament": "ATPChallengerTourRome",
+    "server1": "Andreas Beck",
+    "server2": "Alessandro Fuzio",
+    "source_hash": "7938fd084d9e1615bc1d0271018e1d4632d4c4f1902353a2b369f1d4ccd62cae",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-05-05",
+    "tournament": "ATPChallengerTourRome",
+    "server1": "Andrey Golubev",
+    "server2": "Dustin Brown",
+    "source_hash": "45bf58d4caab41543c54b8013efb2e25f7a719c51c608e03b58a71c5cb996f2b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-06-06",
+    "tournament": "ATPChallengerTour-Nottingham.html",
+    "server1": "Ruben Bemelmans",
+    "server2": "Rajeev Ram",
+    "source_hash": "bc7b736f7e0b38dce5e65a83691066fce5e9645cdd9371980cb905357731366e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-06-02",
+    "tournament": "ATPChallengerTour-Prostejov",
+    "server1": "Sherzod Kadirov",
+    "server2": "David Pavlik",
+    "source_hash": "6dacbd5f3c7fbd20ae307ddea5c18b2e1a0a92db7098a7aae54cb72a23f44590",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-06-26",
+    "tournament": "ATPChallengerTour-Marburg",
+    "server1": "Paul Capdeville",
+    "server2": "Andreas Beck",
+    "source_hash": "5046c00a638110bc0c68a0dd08397ddeb512336a60aa527c849ed44862e577af",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-06-18",
+    "tournament": "ATPChallengerTour-Tanger",
+    "server1": "Germain Gigounon",
+    "server2": "Yannik Reuter",
+    "source_hash": "67d455f00c9dd3d3651b6783a9d8d07f6fea55f9261e408dcf6cac7c766d7b8d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-07",
+    "tournament": "ATPChallengerTour-Portoroz.html",
+    "server1": "Martin Fischer",
+    "server2": "Grega Zemlja",
+    "source_hash": "c0f14b8a9ad31ee90bc4019d3ecd6365e14bd4498131bedfd5c41e67968ee5d1",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-03",
+    "tournament": "ATPChallengerTour-Winnetka",
+    "server1": "Fritz Wolmarans",
+    "server2": "Jack Sock",
+    "source_hash": "13aa8408ded70f902da8423b34315774742b242e51fd408537772b9bdc232a00",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-14",
+    "tournament": "ATPChallengerTour-Beijing",
+    "server1": "Go Soeda",
+    "server2": "Yen-Hsun Lu",
+    "source_hash": "a41ca45009fda6a803166aa439ee6f35aedb6cc49e7912d21af748ca19d6353d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-17",
+    "tournament": "ATPChallengerTour-Eskisehir",
+    "server1": "Edward Corrie",
+    "server2": "Uladzimir Ignatik",
+    "source_hash": "e020c5b4e0e371513acd04213993b554bc7c3c2c1bbb4732b3c90e6106bf708d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-23",
+    "tournament": "ATPChallengerTour-Guimaraes",
+    "server1": "Gregoire Burquier",
+    "server2": "Andres Artunedo Martinavarr",
+    "source_hash": "9dd9a97ea98b5c86d97bc722550cf60ad656e327d578fa355f03135e00b2aa14",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-23",
+    "tournament": "ATPChallengerTour-Medellin",
+    "server1": "Emilio Gomez",
+    "server2": "Alejandro Gonzalez",
+    "source_hash": "17e7425e181bb103aa7261e8ccb2f9fd7212c24160c36d9b710e6e472a900f67",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-22",
+    "tournament": "ATPChallengerTour-Tampere",
+    "server1": "Henrik Sillanpaa",
+    "server2": "Herkko Pollanen",
+    "source_hash": "37e97cea4c8fb03fd5aa528b587aeef137a83cb5bda50c17fc7a6a817fb259ec",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-08",
+    "tournament": "ATPChallengerTour-Aptos",
+    "server1": "Donald Young",
+    "server2": "Bradley Klahn",
+    "source_hash": "1ae245f39b8ccc7a32ccae024a34ec92c54b8dbdf8c8cff0ccbc35f62f782740",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-07-30",
+    "tournament": "ATPChallengerTourLiberec",
+    "server1": "Bjorn Phau",
+    "server2": "Grzegorz Panfil",
+    "source_hash": "1ffbe5e74ea1d3d2e73539c398684c720bcb4ff181f6eb507f6f35f3a715a282",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-01",
+    "tournament": "ATPChallengerTourSaoPaulo",
+    "server1": "Joao Souza",
+    "server2": "Christian Garin",
+    "source_hash": "50d20b8df15741271bbe1b0e1f460cd0ba5f25c404aa8d129f77f743ce348c35",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-03",
+    "tournament": "ATPChallengerTourSaoPaulo",
+    "server1": "Eduardo Schwank",
+    "server2": "Jose Hernandez",
+    "source_hash": "3ba37e657edb749e287685da836ec6c1d3cbf1fcc67383159460395f92bac4e4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-18",
+    "tournament": "ATPChallengerTourCordenons",
+    "server1": "Gregoire Burquier",
+    "server2": "Pablo Carreno-Busta",
+    "source_hash": "8ffabc19c86591d68a3389101a09ca9090dd4c0e40ef1efa9841a29f2b70199b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-31",
+    "tournament": "ATPChallengerTour-Como",
+    "server1": "Lorenzo Giustino",
+    "server2": "Dominic Thiem",
+    "source_hash": "7e204ebae84ffdc759152ee86385bc139e2d71403fcb0346926cdb7ed24eacc4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-04",
+    "tournament": "ATPChallengerTour-Genova",
+    "server1": "Albert Montanes",
+    "server2": "Gianluca Naso",
+    "source_hash": "5a1913d9c4f58c2d2dc826492ab398f7774ce6ac1e1383d139d8122151dd4fda",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-31",
+    "tournament": "ATPChallengerTourBangkok",
+    "server1": "Matthew Ebden",
+    "server2": "Suk-Young Jeong",
+    "source_hash": "e7af690fc072f938daa87946f136d6bd421f7ab20288c9449f79d36928102b2e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-08-31",
+    "tournament": "ATPChallengerTourBangkok",
+    "server1": "Jimmy Wang",
+    "server2": "Blaz Kavcic",
+    "source_hash": "d950c5069246f2ce417ddeb3be2dc414ae5f70e5540133c2da6977870ec2a76b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-19",
+    "tournament": "ATPChallengerTour-Kaohsiung",
+    "server1": "Nicolas Barrientos",
+    "server2": "Jack Sock",
+    "source_hash": "c58d69aeb7988450de8d10945ae9479b700816f042602cc25a64a75f7177e513",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-08",
+    "tournament": "ATPChallengerTour-Petange",
+    "server1": "Constant Lestienne",
+    "server2": "Vincent Berna",
+    "source_hash": "7769e16e8c0e94930d80218b4aaaa110e6bd771cc4c01d7977a10136f9dd55d5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-07",
+    "tournament": "ATPChallengerTour-Seville",
+    "server1": "Denis Merkulov",
+    "server2": "Juan Pablo De Paiz Ferrer",
+    "source_hash": "d3e6defbf8ece477f2e48523228b7f3293f8e9352730e84754b27a452af00f74",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-23",
+    "tournament": "ATPChallengerTour-Orleans",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Michael Berrer",
+    "source_hash": "992c40352ea9eeda1419676f4e0ad6559c6c2caa3a51cc2a3cc7f2046b3eb713",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-23",
+    "tournament": "ATPChallengerTour-PortoAlegre",
+    "server1": "Jose Hernandez",
+    "server2": "Artem Sitak",
+    "source_hash": "19fbc8ce85b4be00884bd44e9f1bd77682a27d0751906a35cebff23345509396",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-09-21",
+    "tournament": "ATPChallengerTour-Szczecin",
+    "server1": "Pere Riba",
+    "server2": "Potito Starace",
+    "source_hash": "bf27b26add50fe8c995e54becf6896a2bb8fc423750adc3cb05da63f755e2fd9",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-07",
+    "tournament": "ATPChallengerTour-Rennes",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Andrej Martin",
+    "source_hash": "5d935bf784c2eebceec59b3e7181c260d0168272691332c8bd540463720bcbce",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-09",
+    "tournament": "ATPChallengerTour-Rennes",
+    "server1": "Marius Copil",
+    "server2": "Josselin Ouanna",
+    "source_hash": "c7df53f8876f0e68fa61426cd26f532429545a5aa8cca0f72ba893a9f5cba73d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-26",
+    "tournament": "ATPChallengerTour-BuenosAires",
+    "server1": "Facundo Arguello",
+    "server2": "Pablo Cuevas",
+    "source_hash": "2c254950c0a7442a26549afbafcc7e0f4c19556d61b8f3e039622aaf9d4ef6b1",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-28",
+    "tournament": "ATPChallengerTour-Casablanca",
+    "server1": "Blaz Rola",
+    "server2": "Yassine Idmbarek",
+    "source_hash": "5e6381860861333932bf9e9f22d0d6405579a448dfe2090d04c8de1193011ca8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-29",
+    "tournament": "ATPChallengerTour-Geneva",
+    "server1": "Gregoire Burquier",
+    "server2": "Martin Klizan",
+    "source_hash": "db50f1972c8c86984b666ea18cd60616edac79671e7573b4c76ee68d4421dce2",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-25",
+    "tournament": "ATPChallengerTour-Melbourne",
+    "server1": "Matthew Ebden",
+    "server2": "Blake Mott",
+    "source_hash": "b1c82d8b08fd1a32d531e2c39c73c6093f6e507fb4c56bff76c466b5cc96fa40",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-18",
+    "tournament": "ATPChallengerTour-Mouilleron-Le-Captif",
+    "server1": "Nicolas Mahut",
+    "server2": "Maxime Teixeira",
+    "source_hash": "f87be51b58bed146b21677188466e4db1724a9efeb22d8755e04f178eb60c5b0",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-10-19",
+    "tournament": "ATPChallengerTour-Mouilleron-Le-Captif",
+    "server1": "Michael Llodra",
+    "server2": "Michael Berrer",
+    "source_hash": "7462099fbfe66d8740d44c1bdf207247f5b0a63757d678881b147e1379156086",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-03",
+    "tournament": "ATPChallengerTour-Bogota",
+    "server1": "Juan-Carlos Spir",
+    "server2": "Ariel Behar",
+    "source_hash": "40f7d0ce904b509e8b19ee922043953b06e799efb5c886b086ef8c85b6a7bb0d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-03",
+    "tournament": "ATPChallengerTour-Bogota",
+    "server1": "Gianluigi Quinzi",
+    "server2": "Wesley Koolhof",
+    "source_hash": "c64b6c3f50803012da5228f148f683fdcf53814a1228a200f0f51de75e7679c0",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-01",
+    "tournament": "ATPChallengerTour-Casablanca",
+    "server1": "Dominic Thiem",
+    "server2": "Filip Krajinovic",
+    "source_hash": "b533ca6c0ac9eae5522771b419f1e7f13e502f9d9c92960a5b59f4d1eac1dfb6",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-13",
+    "tournament": "ATPChallengerTour-Champaign",
+    "server1": "Samuel Groth",
+    "server2": "Jules Marie",
+    "source_hash": "6ab793e04d895df32d50a5607b1de4103cfb39b7f6e20184021fa9d45b3f6d20",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-01",
+    "tournament": "ATPChallengerTour-Geneva",
+    "server1": "Marius Copil",
+    "server2": "Martin Klizan",
+    "source_hash": "0857ea10fd27afe9e01f381d3a6ad5a3457b19ab38f846f701daac22fa3c46a9",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-14",
+    "tournament": "ATPChallengerTour-Guayaquil",
+    "server1": "Juan Ignacio Londero",
+    "server2": "Giovanni Lapentti",
+    "source_hash": "9f49b2ccbc311b3043aa5184a60625d5e155c63cb7c895c2a46a0487cfccdff4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-04",
+    "tournament": "ATPChallengerTour-Knoxville",
+    "server1": "Fares Ghasya",
+    "server2": "Greg Ouellette",
+    "source_hash": "9032fb12c3ef4208482744e6637844fcbd50cb784add646ea3429c69b7399634",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-11",
+    "tournament": "ATPChallengerTour-Lima",
+    "server1": "Juan Pablo Varillas Patino-Samudio",
+    "server2": "Andrea Collarini",
+    "source_hash": "2f744141bd8f35f7e0d9451903d97489dca1330b17f652b7b478a2cdfa52112e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-02",
+    "tournament": "ATPChallengerTour-Montevideo",
+    "server1": "Pablo Cuevas",
+    "server2": "Renzo Olivo",
+    "source_hash": "c76b444e96ae0583cd0b8be5053ce69a37c4f6ad2706cddfafd8d98590414a0f",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-06",
+    "tournament": "ATPChallengerTour-Yeongwol",
+    "server1": "Bradley Klahn",
+    "server2": "Brydan Klein",
+    "source_hash": "08cee4cba0092ffe0b74c0653df548b54905cb6ede5e709515d1de4b5f518ac9",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-07",
+    "tournament": "ATPChallengerTour-Yeongwol",
+    "server1": "Julian Reister",
+    "server2": "Yong-Kyu Lim",
+    "source_hash": "1a4f9ed83a79a30853efbde1dff1fb5622c7fbf1b3a4d65b38fccb404f63b2e8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-12",
+    "tournament": "ATPChallengerTour-Yokohama",
+    "server1": "Blaz Rola",
+    "server2": "Benjamin Mitchell",
+    "source_hash": "2ba3a03a0cdee657d07a5569f7a4485bc5b6df2362403fe7f414a41c679c145d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-12",
+    "tournament": "ATPChallengerTour-Yokohama",
+    "server1": "Marco Chiudinelli",
+    "server2": "Yasutaka Uchiyama",
+    "source_hash": "25f9acb4d8d0a5a73886ce1bd3c7748b80f63f13eaf1283911c0bb4cccb1fc2b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-18",
+    "tournament": "ATPChallengerTour-Andria",
+    "server1": "Elias Ymer",
+    "server2": "Marton Fucsovics",
+    "source_hash": "2e39368ba3a786011b22db83a8cd70e9afc91094e5840c746877b8319eab8d92",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-18",
+    "tournament": "ATPChallengerTour-Toyota",
+    "server1": "Blaz Rola",
+    "server2": "Ti Chen",
+    "source_hash": "d930a8b960155f6922bf1164ed58ec4dc6cfa7be8ba5a2cecb643c3aa62873e5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2013-11-18",
+    "tournament": "ATPChallengerTour-Tyumen",
+    "server1": "Dmitri Perevoshchikov",
+    "server2": "Andrey Kuznetsov",
+    "source_hash": "1c78dce01548e91ebf552d3c4b8ed1ab1839c0481c2821077cb78dee2c73a255",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-02-04",
+    "tournament": "ATPChallengerTour-Chennai",
+    "server1": "Ti Chen",
+    "server2": "Lucas Pouille",
+    "source_hash": "bcef831344d003b4bfd8f1d812686b5b9b626ca22bc57fc27087120ba3366f47",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-01-28",
+    "tournament": "ATPChallengerTour-Chitre",
+    "server1": "Juan Lizariturry",
+    "server2": "Malek Jaziri",
+    "source_hash": "cde71bf25a764ab256e68ab45fcb4f3f59e7969cd9ca9ca68dc7c11a9ac208a2",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-02-06",
+    "tournament": "ATPChallengerTour-Dallas",
+    "server1": "Jean Anderson",
+    "server2": "Rhyne Williams",
+    "source_hash": "f3ec9cf9da6492c2706b5c45bf52ff4236da97e1e0f6d4215ad66ae9124fdb43",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-02-04",
+    "tournament": "ATPChallengerTour-WestLakes",
+    "server1": "Alex Bolt",
+    "server2": "Hiroki Moriya",
+    "source_hash": "7b1d19e8401f1d6685ae2e6e5ce49c6cfdfe7800ef60235660321a8e5659703d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-02-18",
+    "tournament": "ATPChallengerTour-NewDelhi",
+    "server1": "Axel Michon",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "02197b453ce19d186da445e2bc65464afdc5bd4dd1b36fbb10a7624e3ee82d2a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-03-01",
+    "tournament": "ATPChallengerTour-Cherbourg",
+    "server1": "Norbert Gombos",
+    "server2": "Ricardas Berankis",
+    "source_hash": "7eb42823fa1d4c9197d490a5588875d6113b2e93b6c50213e2247838e06149e7",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-03-20",
+    "tournament": "ATPChallengerTour-PanamaCity",
+    "server1": "Blaz Rola",
+    "server2": "Potito Starace",
+    "source_hash": "f358fd39fccb7e2f508f72a6022eec2d52290545ad4fda1ea1a3e017ef973f1e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-03-31",
+    "tournament": "ATPChallengerTour-St.Brieuc",
+    "server1": "Miloslav Mecir",
+    "server2": "Tim Puetz",
+    "source_hash": "d68ab71769ecd484922fdcaf11573b99dda953df2f57a1018909e84826a23e1b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-03-31",
+    "tournament": "ATPChallengerTour-St.Brieuc",
+    "server1": "Hugo Nys",
+    "server2": "Alexander Kudryavtsev",
+    "source_hash": "31fa37ecaec66880340523c516a61f9bee1710a17d218e78346c6bafd9df7e73",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-03-31",
+    "tournament": "ATPChallengerTour-LeGosier",
+    "server1": "Constant Lestienne",
+    "server2": "Elie Rousset",
+    "source_hash": "871e1baf79f91bc7cd4e5eea9163d3d6880b5b0174d1141f78d3759fab6586a6",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-03-21",
+    "tournament": "ATPChallengerTour-PanamaCity",
+    "server1": "Pablo Cuevas",
+    "server2": "Gerald Melzer",
+    "source_hash": "9a399a4ead4a46b64e71baaa82710ad125f15d0c8daff2ab15615ba9006d3465",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-09",
+    "tournament": "ATPChallengerTour-Itajai",
+    "server1": "Mohamed Safwat",
+    "server2": "Eduardo Russi",
+    "source_hash": "97b99bd24d57208449ae5d60d39db170a6470c1039ed042be38d4255f6e82063",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-09",
+    "tournament": "ATPChallengerTour-Mersin",
+    "server1": "Jaroslav Pospisil",
+    "server2": "Simone Bolelli",
+    "source_hash": "d2fcb9cb0fea3380c2d75bdd0ae6f258c5b97e391e107ab91966732bdcf90fa3",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-09",
+    "tournament": "ATPChallengerTour-Mersin",
+    "server1": "Radu Albot",
+    "server2": "Marsel Ilhan",
+    "source_hash": "b45f186327e1cc2e928db18635782c48c2cf5cf71a15bfc9ad3ff8d539cbad79",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-11",
+    "tournament": "ATPChallengerTour-Mersin",
+    "server1": "Simone Bolelli",
+    "server2": "Aljaz Bedene",
+    "source_hash": "d90f7dd7572e9cf1d17fcd8247966912e2f54bf979940b9558a54daab264f2a4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-14",
+    "tournament": "ATPChallengerTour-Sarasota",
+    "server1": "Frank Dancevic",
+    "server2": "Tim Smyczek",
+    "source_hash": "896259a1918ea125bf10700d75e27e92703c1852e7d67d3b7ffd02dcf5c5082b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-15",
+    "tournament": "ATPChallengerTour-Sarasota",
+    "server1": "Ilija Bozoljac",
+    "server2": "Peter Polansky",
+    "source_hash": "3d231950ba735af69df12323769e6657aeb5255e860154f53a31375d0990d396",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-28",
+    "tournament": "ATPChallengerTour-Taipei",
+    "server1": "Jui-Chen Hung",
+    "server2": "Go Soeda",
+    "source_hash": "9cf8ed182ae8294a08c7c48485358792d235a1d3083f159317521cdc45c2322a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-23",
+    "tournament": "ATPChallengerTour-Vercelli",
+    "server1": "Matteo Donati",
+    "server2": "Potito Starace",
+    "source_hash": "152e2491b00b7233685275e3bee13bd7a9d60c8cb3a8f06ffaecc2033856c189",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-24",
+    "tournament": "ATPChallengerTour-Vercelli",
+    "server1": "Nicolas Reissig",
+    "server2": "Potito Starace",
+    "source_hash": "96d6c196ab251927f74e97974ef81fce5966265a3b6dd58fa1e0b473573e94d5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-04-27",
+    "tournament": "ATPChallengerTour-Vercelli",
+    "server1": "Mate Delic",
+    "server2": "Simone Bolelli",
+    "source_hash": "1e70f7b0ee40e67755e0b8ba519cafb32f41bfcfd46413c3a83a5bf2c8271e31",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-05-05",
+    "tournament": "ATPChallengerTour-AixenProvence",
+    "server1": "Horacio Zeballos",
+    "server2": "Jan Mertl",
+    "source_hash": "bc32259f2313e7a76fb70f1621b3b4da8bb72316b0125e16cb862bb4f9341738",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-05-15",
+    "tournament": "ATPChallengerTour-Busan",
+    "server1": "Yasutaka Uchiyama",
+    "server2": "Hyeon Chung",
+    "source_hash": "013ccb75531529d6be9b1750a48bf649d4d835d31eee427af94e2f51f168c2d9",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-05-06",
+    "tournament": "ATPChallengerTour-Gimcheon",
+    "server1": "Tatsuma Ito",
+    "server2": "Matt Reid",
+    "source_hash": "6799934340ede1de483df7bc2fd0919f007a7b8a2cde31dd86542251c502608c",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-05-06",
+    "tournament": "ATPChallengerTour-Gimcheon",
+    "server1": "Rik de Voest",
+    "server2": "Yuichi Sugita",
+    "source_hash": "a82dcfd6d7ce0df21b95d8d68dd91d9db58cce1bd374d3166837d5ea24889b56",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-05-06",
+    "tournament": "ATPChallengerTour-Gimcheon",
+    "server1": "Ti Chen",
+    "server2": "Konstantin Kravchuk",
+    "source_hash": "4bd17b8f32fbb8f59e8d3b9eea11c9805a4bfcfa84ebafc95029f7121a44e57a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-05-02",
+    "tournament": "ATPChallengerTour-Ostrava",
+    "server1": "Miloslav Mecir",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "005e8e8710832f7071a049ca69d985831e764fc3f9791e6d41b812dee92ee510",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-11",
+    "tournament": "ATPChallengerTour-Kosice",
+    "server1": "Gerald Melzer",
+    "server2": "Lucas Pouille",
+    "source_hash": "87bd9ba63e5935ca584d76e420dbb86c1164f6f75096f5dfb2d149ace3ca100f",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-16",
+    "tournament": "ATPChallengerTour-Milan",
+    "server1": "Artem Smirnov",
+    "server2": "Mirza Basic",
+    "source_hash": "8127762bb6d4c8b95fe8830cb346e6611f22de4f3f2d048081d2ca8f126ffddd",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-18",
+    "tournament": "ATPChallengerTour-Mohammedia",
+    "server1": "Fabiano De Paula",
+    "server2": "Mohamed Safwat",
+    "source_hash": "27523ce401719fbd0914be6a56c65229be22a716854d8ba1f5456037d8b10c31",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-13",
+    "tournament": "ATPChallengerTour-Nottingham",
+    "server1": "Samuel Groth",
+    "server2": "Rajeev Ram",
+    "source_hash": "a1b32e7447fb6836c643e8e4387cb3c051fd6e5feb65945be5d41def5599ad16",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-15",
+    "tournament": "ATPChallengerTour-Prague",
+    "server1": "Lukas Rosol",
+    "server2": "Jiri Vesely",
+    "source_hash": "7b4ba90ca3a2c3f33c37c786618b3638e67da953d44c29e30f98ddd2301c942c",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-17",
+    "tournament": "BoodlesChallenge",
+    "server1": "Ernests Gulbis",
+    "server2": "Milos Raonic",
+    "source_hash": "fdead65eed618a5ab1d0964e526a4dac84e43989b65fd55aa56bb67c6b66989d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-17",
+    "tournament": "BoodlesChallenge",
+    "server1": "Dominic Thiem",
+    "server2": "Kevin Anderson",
+    "source_hash": "a99f11bca6af54492c16f03dbea77428329f1b483884a2bb7ca8568649cb51f4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-19",
+    "tournament": "BoodlesChallenge",
+    "server1": "Ernests Gulbis",
+    "server2": "Fabio Fognini",
+    "source_hash": "dc4b5a5b626118f83406b673a300584c8d714904e8cf750226bc02e3d8ff6f7d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-19",
+    "tournament": "BoodlesChallenge",
+    "server1": "Robin Haase",
+    "server2": "John Isner",
+    "source_hash": "f15c2bb204364b31fd88cd5f6ed876b31f777d73e6d631ea05ced2375ff5f117",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-20",
+    "tournament": "BoodlesChallenge",
+    "server1": "Marin Cilic",
+    "server2": "Fabio Fognini",
+    "source_hash": "7e2db507fb8c7ec5299922361db056f624b2330a96a286a9b5055e65e7ead3af",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-06-20",
+    "tournament": "BoodlesChallenge",
+    "server1": "John Isner",
+    "server2": "Philipp Kohlschreiber",
+    "source_hash": "74b86869aeca063d6bc4c6fd2ddc213007ccf8c3bc5f33b41f7ebac1a40d737a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-08",
+    "tournament": "ATPChallengerTour-Portoroz",
+    "server1": "Erik Crepaldi",
+    "server2": "Luca Vanni",
+    "source_hash": "167ad7908874219819a22008f53f3af59d8521d0c0f3d82674cac47b454fb1a1",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-16",
+    "tournament": "ATPChallengerTour-Binghamton",
+    "server1": "Jared Donaldson",
+    "server2": "Daniel Cox",
+    "source_hash": "913d5846a3ce93ce40e2649d292a2f2bfa450fa6df77700d02ce524f29eb6a30",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-15",
+    "tournament": "ATPChallengerTour-Granby",
+    "server1": "Luis David Martinez",
+    "server2": "Benjamin Balleret",
+    "source_hash": "c798190fb6c0abf8a597641f7e7c1005a35b22b1210e91f97063451fdb235059",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-22",
+    "tournament": "ATPChallengerTour-Lexington",
+    "server1": "Daniel Evans",
+    "server2": "Vincent Millot",
+    "source_hash": "e9f86ca7f551d05f3f64cb5a1e5139ba9562cf82436c98cf6c884245ff9fba7e",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-15",
+    "tournament": "ATPChallengerTour-Recanati",
+    "server1": "Salvatore Caruso",
+    "server2": "Yannick Mertens",
+    "source_hash": "e1e39d82e86b28981b39cc53811ad2d7325c18c40b44810f6cefd895264daf73",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-18",
+    "tournament": "ATPChallengerTour-Recanati",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Marton Fucsovics",
+    "source_hash": "de29756329aa974ec80db3aa174621da98e11fcf180880b29df47ac4b8cdb6f4",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-25",
+    "tournament": "ATPChallengerTour-Astana",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Ricardas Berankis",
+    "source_hash": "6fe842f248b0e520b761a4c6c7b74a8964266f4823338bc64503468f7985f1d8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-30",
+    "tournament": "ATPChallengerTour-Cortina",
+    "server1": "Roberto Marcora",
+    "server2": "Stefano Napolitano",
+    "source_hash": "b69cf3bf57461b3cd3b636199f10f5f5328df4f470e33456521b6c9d39fefbed",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-07-30",
+    "tournament": "ATPChallengerTour-Cortina",
+    "server1": "Inigo Cervantes",
+    "server2": "Nikoloz Basilashvili",
+    "source_hash": "3290a08fb63742d6822e9dfaaaf93544503a7075c113ab11376a4b1471ee69ba",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-08-01",
+    "tournament": "ATPChallengerTour-Segovia",
+    "server1": "Kyle Edmund",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "547081a6ed17a1267437d6e20b3fbcbc398faf84b4cb5ff2cf365119bebad093",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-08-08",
+    "tournament": "ATPChallengerTour-SanMarino",
+    "server1": "Albert Montanes",
+    "server2": "Adrian Ungur",
+    "source_hash": "1aff3a7782045efd200f88e00a0239c153b6704d2518c637367580b39be927b7",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-03",
+    "tournament": "ATPChallengerTour-Brasov",
+    "server1": "Jonathan Eysseric",
+    "server2": "Aslan Karatsev",
+    "source_hash": "56e231692333ae958a7f693c37b5fba41170221b6787958116865812048f5d9c",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-03",
+    "tournament": "ATPChallengerTour-Genoa",
+    "server1": "Christian Lindell",
+    "server2": "Potito Starace",
+    "source_hash": "86984beff378786803127c84e2610d1260b1e0caf9bc8f10bae129d18618c072",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-08-31",
+    "tournament": "ATPChallengerTour-Shanghai",
+    "server1": "Zhe Li",
+    "server2": "James Cluskey",
+    "source_hash": "3fbdb0913812b0a1e085edbe68a1e98455779334f93a2555df99d9da9076e2b2",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-03",
+    "tournament": "ATPChallengerTour-StRemy",
+    "server1": "Erik Crepaldi",
+    "server2": "Sergiy Stakhovsky",
+    "source_hash": "987cc0b9d6cd99ae6f0bccbdf45d1b8dc12882d6c16ac610e801dede0a15b81c",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-16",
+    "tournament": "ATPChallengerTour-Izmir",
+    "server1": "Marsel Ilhan",
+    "server2": "Roberto Ortega-Olmedo",
+    "source_hash": "dd06077e64a554030695a14ba98fe4eed29b0af27a81a264169ff1b8d07be96a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-17",
+    "tournament": "ATPChallengerTour-Meknes",
+    "server1": "Damir Dzumhur",
+    "server2": "Mohamed Safwat",
+    "source_hash": "fff1e04228a289365756fda79004731e60eec23192e3834d84a16d65e9c5b5d5",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-17",
+    "tournament": "ATPChallengerTour-Meknes",
+    "server1": "Roberto Carballes Baena",
+    "server2": "Aslan Karatsev",
+    "source_hash": "8cb7c78217da6033290ddc8ac1a84e50f24e23a650c3a6dc2afe34d5c3490632",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-09",
+    "tournament": "ATPChallengerTour-Szczecin",
+    "server1": "Rafal Teurer",
+    "server2": "Mathias Bourgue",
+    "source_hash": "c9a926393d421bb244efef1bfe37ab950ba6edd214ca46242db129e747bcc96a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-11",
+    "tournament": "ATPChallengerTour-Szczecin",
+    "server1": "Jan Mertl",
+    "server2": "Potito Starace",
+    "source_hash": "59f4287282a9e63c62e0a334ffb9cb57a99329ef858610c5c414469345273d16",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-12",
+    "tournament": "ATPChallengerTour-Szczecin",
+    "server1": "Facundo Arguello",
+    "server2": "Aleksandr Nedovesov",
+    "source_hash": "691a2e94370b6c3f4abf92485c315eb175b1d53f1b11b4d72b4b4263fe929bdb",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-22",
+    "tournament": "ATPChallengerTour-Napa",
+    "server1": "Denis Kudla",
+    "server2": "Alex Kuznetsov",
+    "source_hash": "8faac165a88be910c1a9359b38a058fe42256d82a25d4d68d92c091f0004388b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-09-24",
+    "tournament": "ATPChallengerTour-Pereira",
+    "server1": "Christian Lindell",
+    "server2": "Giovanni Lapentti",
+    "source_hash": "0d42784a7f79abbaafcf2a269d86bc0dfcec2f06f0ee6b8f6ee57daba376d4bc",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-16",
+    "tournament": "ATPChallengerTour-Indore",
+    "server1": "Stefano Travaglia",
+    "server2": "Adam Pavlasek",
+    "source_hash": "9a5d83220e8ade48b60fe614879573f4eff28ee60430b8558f177ddbb9a1fb3b",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-14",
+    "tournament": "ATPChallengerTour-SanJuan",
+    "server1": "Facundo Arguello",
+    "server2": "Andrea Collarini",
+    "source_hash": "64938a6c97dacbf5e1d453d0e9c04a643dfed9ea915307f48723b10e8361bdde",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-16",
+    "tournament": "ATPChallengerTour-SanJuan",
+    "server1": "Jose Hernandez",
+    "server2": "Diego Sebastian Schwartzman",
+    "source_hash": "5e250c27d9202191fcfdc6e625f5789c2bb95501fa49386cf08e777ab7cc93f6",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-11",
+    "tournament": "ATPChallengerTour-Tiburon",
+    "server1": "John Millman",
+    "server2": "Nils Langer",
+    "source_hash": "91e7328b26749abe815cb50245f2053c71a3ce6ed793056a67ea6eab8944c0da",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-11",
+    "tournament": "ATPChallengerTour-Tiburon",
+    "server1": "Sam Querrey",
+    "server2": "Matt Reid",
+    "source_hash": "15e7832c0a57a0f2d90b557f46f078fe096f2cf2bb82f4900c81bd1e4654a929",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-27",
+    "tournament": "ATPChallengerTour-Charlottesville",
+    "server1": "Darian King",
+    "server2": "Edward Corrie",
+    "source_hash": "3e15ee7c92a158bba2238acb9523732d90ad5e4558d3d1e08e1e40f43568c325",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-29",
+    "tournament": "ATPChallengerTour-Charlottesville",
+    "server1": "Frank Dancevic",
+    "server2": "Alex Kuznetsov",
+    "source_hash": "0b8462d9c5c77cd55e5b8c65f7aa89210c1c90c17455bb1eada87a7c46c15d1f",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-20",
+    "tournament": "ATPChallengerTour-Pune",
+    "server1": "Yasutaka Uchiyama",
+    "server2": "Richard Becker",
+    "source_hash": "15eb759e901ab477d254900353dbc9bf2cade9045c996299edaf65147c2f8277",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-24",
+    "tournament": "ATPChallengerTour-Pune",
+    "server1": "Saketh-Sai Myneni",
+    "server2": "Yuichi Sugita",
+    "source_hash": "31e175a9a8ddb91c2bf33e82b832fbf7637ba2621f93feaab7a1bb2abe9ce657",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-24",
+    "tournament": "ATPChallengerTour-Pune",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Kimmer Coppejans",
+    "source_hash": "8b95a7ced85c9690d5a9cf12297de9576776db44f66534f56e67fe156254d5ae",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-10-28",
+    "tournament": "ATPChallengerTour-Traralgon",
+    "server1": "Luke Saville",
+    "server2": "Takuto Niki",
+    "source_hash": "0a69572d12830f2314ad17b5753518e8423325ed807467dcfe8b3f78fdfb1ebe",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-11-11",
+    "tournament": "ATPChallengerTour-Helsinki",
+    "server1": "Enrique Lopez-Perez",
+    "server2": "Niels Desein",
+    "source_hash": "97fc4c2b0d2a000a7bdcfb6543b5904d5f782a1b63758be00df99994b95a60d7",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-11-07",
+    "tournament": "ATPChallengerTour-Ortisei",
+    "server1": "Aslan Karatsev",
+    "server2": "Jan Hernych",
+    "source_hash": "daf47f6e90562e6d22907fefabeacce4bcc89cf8acdd8dc9c21c6a0f5338ea6d",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2014-11-21",
+    "tournament": "ATPChallengerTour-Lima",
+    "server1": "Daniel Munoz-De La Nava",
+    "server2": "Jose Hernandez",
+    "source_hash": "e80faa0c04751bd4d0b9b2cfed280e1e960d52926be6e7efb1cfa1fcbf1f1cba",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-01-13",
+    "tournament": "ATPChallengerTour-Casablanca",
+    "server1": "Younes Rachidi",
+    "server2": "Albert Montanes",
+    "source_hash": "fd54bb31b16aa312a9200821c8feeff2e8faa3f65ce8e2b496050075b787b024",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-01-10",
+    "tournament": "ATPChallengerTour-Noumea",
+    "server1": "Steve Darcis",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "ebbb933d1e41b17ea5de1dcb6360a08be5dca51b58a1575a3e77ef193f7ec9b8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-01-27",
+    "tournament": "ATPChallengerTour-HongKong",
+    "server1": "Ti Chen",
+    "server2": "Yoshihito Nishioka",
+    "source_hash": "13e1ce3c8e6cdff1f3ad807207f0064d90c341a3e242547dcc34ffd490693d15",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-02-18",
+    "tournament": "ATPChallengerTour-Morelos",
+    "server1": "Dimitar Kutrovsky",
+    "server2": "Gerald Melzer",
+    "source_hash": "57cdf0aa86c6920918b828ddf8c82e744aa9d7b6f6b4078bf57dc15f3000806a",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-02-20",
+    "tournament": "ATPChallengerTour-Morelos",
+    "server1": "Adrian Menendez-Maceiras",
+    "server2": "Damir Dzumhur",
+    "source_hash": "e386ccbce0aad8f381c694e597dc23b89e69eaf2d271fd97bd6bd263782c92df",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-03-16",
+    "tournament": "ATPChallengerTour-Drummondville",
+    "server1": "John-Patrick Smith",
+    "server2": "Daniel Nguyen",
+    "source_hash": "840d57e05921c00cb3b290654753727296ebc6d86846fe6b5797a343d42fe2c8",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-04-07",
+    "tournament": "ATPChallengerTour-Leon",
+    "server1": "Adam El Miihdawy",
+    "server2": "Alan Aguilera Nunez",
+    "source_hash": "7f92571ce9220d5ec83782b85ff3ba8bbf1c524d4073363900c212948d21e4db",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-04-03",
+    "tournament": "ATPChallengerTour-SanLuisPotosi",
+    "server1": "James Duckworth",
+    "server2": "Adrian Menendez-Maceiras",
+    "source_hash": "27379b92f270528d81577b34679227e8a256fde629c7ba0f1719151b27e95890",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-04-13",
+    "tournament": "ATPChallengerTour-Sarasota",
+    "server1": "Dennis Novikov",
+    "server2": "Gastao Elias",
+    "source_hash": "efd2ca3d3ec27d8b24bcff978688e55d5ea300ee1bb6372043b9a3a6ea7cc3fe",
+    "reason": "ILLEGAL_GAME"
+  },
+  {
+    "date": "2015-04-15",
+    "tournament": "ATPChallengerTour-Sarasota",
+    "server1": "Horacio Zeballos",
+    "server2": "Jason Kubler",
+    "source_hash": "77b28f6378b01e5eb6a6e27bf5a4dc3cf6a0c3fabfe571cd6a5583e8876ae6a8",
+    "reason": "ILLEGAL_GAME"
+  }
+]

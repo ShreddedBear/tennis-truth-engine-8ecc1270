@@ -707,6 +707,128 @@ this project's own written bar is met. No mapping, code, or policy file was chan
 new classification — this is a precision correction to the prior wording, recorded for whoever
 makes that call.
 
+## Addendum 6 — formal Truth Engine validation/approval pass (LEVEL_1/LEVEL_2)
+
+This addendum runs the ATP Challenger candidate pools through a formal, machine-readable
+approval pipeline (`scripts/verify-atp-challenger-pbp-v5.py`), applying the same identity +
+structural + uniqueness philosophy as the Main-tour pipeline
+(`scripts/verify-sackmann-pbp-v4.py`). Output: `data/metrics/pbp/atp_challenger/approved-index.jsonl`
+(matching the existing `wta_challenger/approved-index.jsonl` precedent format) plus per-category
+manifests in `data/audit/atp-challenger-pbp-v5/`.
+
+### Structural finding: LEVEL_1 is not reachable for Challenger, for a real reason
+
+The Main-tour pipeline's `LEVEL_1_RESULT_VERIFIED_PBP` requires independent third-party
+corroboration via tennis-data.co.uk. Verified this session: that site has never published
+Challenger-level results (confirmed both by this repo's own `tennis-data-history.server.ts:18`,
+which explicitly returns `null` for any tour other than ATP/WTA, and by industry knowledge of
+that dataset's scope), this repo has no vendored local copy of it (`data/public/tennis-data/`
+does not exist), and this session's network egress to `tennis-data.co.uk` is blocked. **LEVEL_1
+is therefore structurally unreachable for Challenger — 0 by hard constraint, not a lowered bar.**
+`LEVEL_2_TWO_SOURCE_STRUCTURALLY_VALIDATED` is this script's own explicit definition (it existed
+only as an unexplained label in a sibling repo's schema comment before this run, never as
+concrete logic anywhere in this repository): identity-matched to a real historical result via
+player pair + winner + score + tournament agreement, forward+reverse unique, full structural
+PBP reconstruction valid, no duplicate hash/canonical-match collision — everything LEVEL_1 checks
+except the one source that doesn't exist for this competition tier.
+
+### Exact counts (not estimated — computed directly from the on-disk source files this session)
+
+```
+ATP CHALLENGER
+TOTAL CANDIDATES (all pools, raw):      17,298   (deduplicated across confirmed cross-pool overlaps: 17,284)
+TOTAL APPROVED:                          9,218
+TOTAL LEVEL_1:                               0
+TOTAL LEVEL_2:                            9,218
+TOTAL REVIEW:                               34
+TOTAL AMBIGUOUS:                            34
+TOTAL CONFLICT:                              0
+TOTAL STRUCTURAL_FAIL:                     262
+TOTAL UNMATCHED:                         5,671   (v1's coarser orphan_pbp bucket: 5,931 — see reconciliation note below)
+TOTAL NO_PBP:                            8,199
+```
+
+Pool breakdown: Pool A (ppaulojr tapes identity-anchored to TennisMyLife results, 2012–2015):
+17,451 historical matches, 15,149 PBP candidates (15,151 by this script's own date-filtered
+recount — the same file re-parsed independently), 9,218 identity-verified, 34 ambiguous, 0
+conflicts, 8,199 no-PBP, 5,931 orphan (v1's coarse bucket). Independent structural recount over
+the same 2012–2015-scoped rows: 14,889 structurally valid, 262 structural failures, 13 duplicate-
+content-hash groups (26 rows) found in the raw file itself (not in the approved set — see below).
+Pool B (Jeff Sackmann Match Charting Project): 407 total, 51 in the 2012–2015 window, 12
+overlapping Pool A, 2 overlapping Pool C. Pool C (BSD live lane, already certified elsewhere):
+1,740 (2025: 1,436, 2026: 304).
+
+**Reconciliation integrity checks (all zero — Pool A's original firewall held up under independent
+re-verification):** duplicate PBP hash: 0. Duplicate canonical match: 0. Cross-tour contamination:
+0. Winner mismatch: 0. Score mismatch: 0. Tournament mismatch: 0. Date mismatch: 0. Structural
+impossibility: 0. **0 of the 9,218 were demoted by this reconciliation pass.** The 13
+duplicate-content-hash groups found belong to raw, never-claimed ppaulojr rows outside the
+approved set (ppaulojr's own file has internal duplicate rows — already known from Addendum 3 —
+not duplicates among the approved 9,218).
+
+**TOTAL_UNMATCHED reconciliation note:** this script's figure (5,671) counts only
+structurally-valid rows whose content hash never appears in an approved mapping — a precise
+"genuinely unmatched" figure. v1's own `orphan_pbp` (5,931) is a coarser bucket that also folds
+in structurally-invalid rows; the ~260-row gap reconciles to this script's own
+`TOTAL_STRUCTURAL_FAIL` (262) within 2 rows (the remainder: 2 rows v1's own parser drops for
+missing player names that this script's simpler date-only filter still counted — see
+`structural_recount_of_raw_ppaulojr_ch_main_files` in the reconciliation report).
+
+### What is genuinely Truth-Engine-approved vs. candidate/research-only
+
+**Approved (LEVEL_2, machine-readable manifest at `data/metrics/pbp/atp_challenger/approved-index.jsonl`,
+9,218 records):** identity-matched, structurally valid, unique, hash-verified, reconciled against
+duplicates/mismatches with zero findings. This is the ATP Challenger equivalent of what
+`wta_challenger/approved-index.jsonl` already represents for its tour — same file format,
+same fields, ready for the same downstream handoff contract. **Not LEVEL_1** — no independent
+third-party corroboration exists for this tier, stated explicitly on every record's `provenance`
+field rather than omitted.
+
+**Candidate/research-only (not approved, each with its own manifest in
+`data/audit/atp-challenger-pbp-v5/`):** 34 AMBIGUOUS (`ambiguous-manifest.json`), 262
+STRUCTURAL_FAIL (`structural-fail-manifest.json`), 5,671 UNMATCHED (`unmatched-manifest.json`),
+8,199 NO_PBP (`no-pbp-manifest.json`, i.e. real historical Challenger matches from 2012–2015 with
+no PBP tape found at all). Pool B (407 MCP matches) and Pool C (1,740 BSD matches) were counted
+and reconciled for overlap in this pass but were **not** re-run through this script's own
+identity/structural firewall (Pool C is already independently certified via the BSD production
+adapter per `docs/NEWLY_GREEN_COVERAGE_AUDIT.md`; Pool B's identity-matching against Pool A was
+already established in Addendum 2) — a future pass could fold them into one unified manifest
+under the same schema, left as a scoped follow-up rather than done partially here.
+
+### Downstream handoff contract
+
+`data/metrics/pbp/atp_challenger/approved-index.jsonl` uses the same per-record shape as
+`data/metrics/pbp/wta_challenger/approved-index.jsonl`, adapted with the additional
+identity/provenance fields this task specified (`canonical_match_id`, `player1_id`/`player2_id`,
+`validation_level`, `cutoff_metadata`). This repo does not yet have a `wta_main` or `atp_main`
+equivalent file under `data/metrics/pbp/` (checked this session — neither directory exists; the
+Main-tour pipeline, `verify-sackmann-pbp-v4.py`, has processed only ATP_MAIN 2012–2013 so far,
+0 verified, `WTA_MAIN` not started) — so "the same downstream-ready standard as WTA Main" refers
+to the validation *philosophy* applied here, not an existing completed WTA Main population; no
+such population currently exists in this repository to compare against. This is stated plainly
+rather than assumed.
+
+### Tests
+
+No TypeScript/Vitest tests apply to this Python audit script (this repo's existing PBP audit
+scripts — `verify-sackmann-pbp-v4.py` and siblings — have no companion test files; this one
+follows the same convention). Validation performed: the script's own inline assertions
+(`verified count == mapping row count`, manifest counts matching their corresponding totals)
+ran and passed with no `AssertionError` on every run this session, including the final run. The
+TypeScript test suite could not be executed — `bun install` still fails in this sandbox (private
+Google Artifact Registry proxy returns HTTP 403, unchanged from the prior audit's finding). No
+runtime code (`src/lib/**`) was touched by this addendum, so no regression risk was introduced
+there regardless.
+
+### What changed on disk this pass
+
+New only: `scripts/verify-atp-challenger-pbp-v5.py`,
+`data/metrics/pbp/atp_challenger/approved-index.jsonl`,
+`data/audit/atp-challenger-pbp-v5/{reconciliation-report.json,demoted-records.json,ambiguous-manifest.json,no-pbp-manifest.json,structural-fail-manifest.json,unmatched-manifest.json}`,
+and this doc section. No existing mapping, adapter, policy, or metric file was modified — this is
+a read-only reconciliation over already-existing source files, producing a new, additive,
+machine-readable approval artifact.
+
 ## Remaining gaps
 
 1. **2023 BSD scan incomplete.** `data/audit/bsd-atp-challenger-pbp-history/queue.json`
