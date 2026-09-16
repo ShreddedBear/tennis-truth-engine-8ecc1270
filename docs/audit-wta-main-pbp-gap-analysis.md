@@ -81,11 +81,24 @@ Three fixes applied to `scripts/verify-sackmann-wta-main-pbp.py`, each targeting
 | 2015 | 375 | 465 | 291 | 202 |
 | **Total** | **4,018** | **4,616** | **1,865** | **1,253** |
 
-**Net new upgrades: 598** (2012-2015 non-Slam, would move REVIEW_REQUIRED -> RESULT_VERIFIED_PBP if this fix is applied and the pipeline re-run). The remaining reduction in REVIEW_REQUIRED (612 total, minus 598 verified = 14) moved to `AMBIGUOUS_MATCH` (+8) and `PBP_CONFLICT`/`PBP_UNUSABLE` (+6) instead — i.e. the newly-found candidates that turned out to be genuinely ambiguous or conflicting were correctly routed there, not force-verified. **No record has actually been promoted yet** — this is a measured, reproducible dry-run result, pending explicit approval to execute for real.
+**Net change in verified count: 598.** A full reconciliation audit (see
+`docs/audit-wta-main-pbp-promotion-reconciliation.md`) found this net figure was masking two
+distinct populations: **815 genuine new promotions** (`REVIEW_REQUIRED` → `RESULT_VERIFIED_PBP`)
+offset by **217 previously-verified records demoted** back to `REVIEW_REQUIRED` (213) or
+`AMBIGUOUS_MATCH` (4) by the same fix — 815 − 217 = 598. The 217 demotions were individually
+root-caused: 188 are the resolver correctly refusing to guess on a newly-recognized class of
+ambiguous two-letter given-name initials (working as designed, not a bug), 4 are new ambiguity
+correctly surfaced (also working as designed), and 25 are a genuine but safe-direction-only
+false-negative regression (a "given-given-surname" naming-order case the compound-surname fix
+gets wrong) — full detail in the reconciliation doc §2. **The correct promotion-candidate count
+is 815, not 598** — no record has actually been promoted yet; the reconciliation doc's full
+audit (disposition table, 815-record detail, 60-record stratified sample, alias/name/date
+robustness tests, before/after regression test, and a prepared-but-unapplied promotion manifest)
+concludes it is **safe to promote pending explicit approval to execute**.
 
 ## 4. Largest verification gaps, ranked (updated per §3b)
 
-1. **Matching-code defects against the existing, already-qualified LEVEL_1 source (2012-2015 non-Slam)** — **598 matches confirmed fixable** by a dry run of the real pipeline (§3b); zero new source needed. This is a matching-precision fix, not a sourcing gap.
+1. **Matching-code defects against the existing, already-qualified LEVEL_1 source (2012-2015 non-Slam)** — **815 matches confirmed fixable** by a dry run of the real pipeline, fully audited and sampled with zero false positives (§3b; full audit in `docs/audit-wta-main-pbp-promotion-reconciliation.md`); zero new source needed. This is a matching-precision fix, not a sourcing gap.
 2. **No independent corroboration attempted at all for the Slam lane (2016-2024)** — 2,991 matches structurally validated but single-source; unaffected by the §3b fix (different pipeline, no Tennis-Data cross-check attempted there at all).
 3. **Remaining REVIEW_REQUIRED after the §3b fix** — 1,253 matches (was 1,865); genuinely needs either further matching-precision work or an additional independent source, not yet root-caused further.
 4. **Ambiguous/conflict** — 75 combined after the fix (was 67; +8 ambiguous, +6 conflict — see §3b), small.
@@ -113,15 +126,25 @@ This is not "a new source" — it's re-verifying the one already in use. No new 
 
 | Source | Gap addressed | Estimated matches that could move | Confidence |
 |---|---|---|---|
-| Matching-code fixes (§3b), applied for real | REVIEW_REQUIRED → LEVEL_1 | **598, measured exactly via dry run** | High — this is not an estimate, it's a reproducible dry-run count from the real pipeline code; only remaining step is executing it for real |
+| Matching-code fixes (§3b), applied for real | REVIEW_REQUIRED → LEVEL_1 | **815, measured exactly via dry run and fully audited** (see reconciliation doc) | High — not an estimate: a reproducible dry-run count from the real pipeline code, individually audited, 60-record-sampled with zero false positives; only remaining step is executing it for real |
 | WTA official API | LEVEL_2 → LEVEL_1 (Slam, 2016-2024) | up to 2,991 (all of it, if the API's historical depth and reliability hold up) | Low-medium — reachability, real historical depth, and license terms are all unconfirmed |
 | Wikipedia / official Slam sites | LEVEL_2 → LEVEL_1 (Slam, 2016-2024) | up to 2,991 | Low — no existing integration, format/extraction risk is real |
 | Further matching-precision work on the remaining 1,253 REVIEW_REQUIRED | REVIEW_REQUIRED → LEVEL_1 | unknown, not yet root-caused past §3b's fix | Medium — same class of investigation as §3b, not yet done for the residual population |
 
-**No record was upgraded, and no new source was integrated, in this analysis or the follow-up matching-defect investigation. The 598-match fix is measured and ready, pending your approval to execute.**
+**No record was upgraded, and no new source was integrated, in this analysis, the follow-up matching-defect investigation, or the subsequent reconciliation audit. The 815-record fix is measured, individually audited, sampled, and ready, pending your approval to execute.**
 
-## 7. Recommended next concrete step — updated per §3b
+## 7. Recommended next concrete step — updated per §3b and the reconciliation audit
 
-The matching-defect investigation is complete and the fix is measured (598 matches, §3b), pending approval to execute it for real (re-run `scripts/verify-sackmann-wta-main-pbp.py` for 2012-2015 and `scripts/build-wta-main-pbp-approved-index.py`, writing to `data/audit/verified-pbp-v4/wta_main/` and `data/metrics/pbp/wta_main/approved-index.jsonl` for the first time this session).
+The matching-defect investigation is complete, and a full reconciliation audit
+(`docs/audit-wta-main-pbp-promotion-reconciliation.md`) has verified the fix is safe to promote:
+**815 records** (not the earlier net figure of 598 — see that doc's §0 for the correction),
+pending approval to execute it for real (re-run `scripts/verify-sackmann-wta-main-pbp.py` for
+2012-2015 and `scripts/build-wta-main-pbp-approved-index.py`, writing to
+`data/audit/verified-pbp-v4/wta_main/` and `data/metrics/pbp/wta_main/approved-index.jsonl` for
+the first time this session, ideally applying the prepared promotion manifest at
+`data/audit/wta-main-pbp-promotion-audit-2012-2015/promotion-manifest-NOT-APPLIED.json`). The
+reconciliation audit also recommends, as a low-cost follow-up (not blocking this promotion):
+tightening `DATE_TOLERANCE_DAYS` from 3 to 1 (empirically free on all data audited so far), and a
+future fix for the 25-record given-given-surname false-negative regression it discovered.
 
 After that: the residual 1,253 REVIEW_REQUIRED rows and the Slam lane's 2,991 LEVEL_2 rows (no independent corroboration attempted at all) remain open. For the Slam lane specifically, the WTA official API (already called elsewhere in this codebase) remains the strongest candidate, still blocked by this sandbox's network restrictions and undocumented license terms — unchanged from the original recommendation.

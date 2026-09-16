@@ -1,0 +1,2689 @@
+[
+ {
+  "record_id": "2015|1921",
+  "year": 2015,
+  "hist_index": 1921,
+  "canonical_match_id": "2015-W-PM-USA-02A-2015#69",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "MiamiOpen-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Simona Halep",
+  "loser": "Camila Giorgi",
+  "historical_score": "6-4 7-5",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    7,
+    5
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 7-5",
+  "pbp_source_date": "2015-03-29",
+  "td_source_date": "2015-03-29",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 660,
+  "pbp_sha256": "0e8243e1d8c20da8559b1d905f2e9c95e54f08f261004bf0fc4328039b2fe29c",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Camila Giorgi",
+  "pbp_server2": "Simona Halep",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1487",
+  "year": 2013,
+  "hist_index": 1487,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#31",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Laura Robson",
+  "loser": "Camila Giorgi",
+  "historical_score": "6-2 4-6 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    4,
+    6
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 4-6 6-3",
+  "pbp_source_date": "2013-03-20",
+  "td_source_date": "2013-03-20",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4711,
+  "pbp_sha256": "b088897bb0066e16650447d98ea215f1f29c82f22822db3b36e5df3fc75f1bb6",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Laura Robson",
+  "pbp_server2": "Camila Giorgi",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|2088",
+  "year": 2013,
+  "hist_index": 2088,
+  "canonical_match_id": "2013-W-PR-USA-03A-2013#9",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Elena Vesnina",
+  "loser": "Kirsten Flipkens",
+  "historical_score": "3-6 6-1 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    3,
+    6
+   ],
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "3-6 6-1 6-3",
+  "pbp_source_date": "2013-08-13",
+  "td_source_date": "2013-08-13",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 5882,
+  "pbp_sha256": "48c9667195cbb5e57cc0c216c0e63650db3395d869db0284192a2f2e92280fdc",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Kirsten Flipkens",
+  "pbp_server2": "Elena Vesnina",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1486",
+  "year": 2013,
+  "hist_index": 1486,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#30",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Jamie Hampton",
+  "loser": "Monica Niculescu",
+  "historical_score": "6-4 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 6-3",
+  "pbp_source_date": "2013-03-20",
+  "td_source_date": "2013-03-20",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4702,
+  "pbp_sha256": "1abdaa310b727719937f7de592c4baae656d6d471077ef33a7a08467c1c2830a",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Monica Niculescu",
+  "pbp_server2": "Jamie Hampton",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|1544",
+  "year": 2014,
+  "hist_index": 1544,
+  "canonical_match_id": "2014-W-PM-USA-02A-2014#43",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Kirsten Flipkens",
+  "loser": "Virginie Razzano",
+  "historical_score": "6-1 3-6 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    1
+   ],
+   [
+    3,
+    6
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-1 3-6 6-3",
+  "pbp_source_date": "2014-03-20",
+  "td_source_date": "2014-03-20",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7121,
+  "pbp_sha256": "521c55800cc656ad873c3188df854bc1321f2367084e79dc36bc63a966f0e011",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Kirsten Flipkens",
+  "pbp_server2": "Virginie Razzano",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|2258",
+  "year": 2012,
+  "hist_index": 2258,
+  "canonical_match_id": "2012-W-PR-USA-04A-2012#16",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati.html",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Roberta Vinci",
+  "loser": "Madison Keys",
+  "historical_score": "6-3 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-3",
+  "pbp_source_date": "2012-08-14",
+  "td_source_date": "2012-08-14",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3146,
+  "pbp_sha256": "c728bde5bc19dee46c4b9e60fd55d7c8c82f58570bda9d266ab939b6944f7a34",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Madison Keys",
+  "pbp_server2": "Roberta Vinci",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|1592",
+  "year": 2014,
+  "hist_index": 1592,
+  "canonical_match_id": "2014-W-PM-USA-02A-2014#91",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "QF",
+  "surface": "Hard",
+  "winner": "Dominika Cibulkova",
+  "loser": "Agnieszka Radwanska",
+  "historical_score": "3-6 7-6(5) 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    3,
+    6
+   ],
+   [
+    7,
+    6
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "3-6 7-6 6-3",
+  "pbp_source_date": "2014-03-26",
+  "td_source_date": "2014-03-26",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7275,
+  "pbp_sha256": "5e8e52ddb2fb7d45e19a5bde47e0858f8919499ef5aebb26a000a9e5340ea9d7",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Dominika Cibulkova",
+  "pbp_server2": "Agnieszka Radwanska",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|1512",
+  "year": 2014,
+  "hist_index": 1512,
+  "canonical_match_id": "2014-W-PM-USA-02A-2014#11",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Virginie Razzano",
+  "loser": "Heather Watson",
+  "historical_score": "6-4 6-0",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    0
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 6-0",
+  "pbp_source_date": "2014-03-19",
+  "td_source_date": "2014-03-19",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7096,
+  "pbp_sha256": "8923b25c319c49338224fb8bd69bea9a3a8f3056e59a2143db8d8911da71b3f0",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Heather Watson",
+  "pbp_server2": "Virginie Razzano",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1505",
+  "year": 2013,
+  "hist_index": 1505,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#49",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Sara Errani",
+  "loser": "Daniela Hantuchova",
+  "historical_score": "6-3 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-1",
+  "pbp_source_date": "2013-03-23",
+  "td_source_date": "2013-03-23",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4845,
+  "pbp_sha256": "11beda14705a01a79d044bd08587b7cffd529908d5257a10598c815ede78cbc4",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Daniela Hantuchova",
+  "pbp_server2": "Sara Errani",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2015|1906",
+  "year": 2015,
+  "hist_index": 1906,
+  "canonical_match_id": "2015-W-PM-USA-02A-2015#54",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "MiamiOpen-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Samantha Stosur",
+  "loser": "Pauline Parmentier",
+  "historical_score": "6-1 3-6 6-0",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    1
+   ],
+   [
+    3,
+    6
+   ],
+   [
+    6,
+    0
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-1 3-6 6-0",
+  "pbp_source_date": "2015-03-26",
+  "td_source_date": "2015-03-26",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 725,
+  "pbp_sha256": "714e4f78848f8921ab7bb1487c9894e0795de640dfaf4f4e680a05a25e3c9c49",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Samantha Stosur",
+  "pbp_server2": "Pauline Parmentier",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|2206",
+  "year": 2014,
+  "hist_index": 2206,
+  "canonical_match_id": "2014-W-PR-USA-03A-2014#29",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Agnieszka Radwanska",
+  "loser": "Kurumi Nara",
+  "historical_score": "6-2 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-2",
+  "pbp_source_date": "2014-08-13",
+  "td_source_date": "2014-08-13",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8363,
+  "pbp_sha256": "764627f34d927c32b876314848c053c62691675bdd1057ed33015ecf8450cba5",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Agnieszka Radwanska",
+  "pbp_server2": "Kurumi Nara",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1528",
+  "year": 2013,
+  "hist_index": 1528,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#72",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Kirsten Flipkens",
+  "loser": "Petra Kvitova",
+  "historical_score": "6-0 4-6 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    0
+   ],
+   [
+    4,
+    6
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-0 4-6 6-1",
+  "pbp_source_date": "2013-03-23",
+  "td_source_date": "2013-03-23",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4850,
+  "pbp_sha256": "01b7ffc138882a98b4a240c8f591b3ca3612ab1ea258a4065ae910c16c9b545f",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Kirsten Flipkens",
+  "pbp_server2": "Petra Kvitova",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|2278",
+  "year": 2012,
+  "hist_index": 2278,
+  "canonical_match_id": "2012-W-PR-USA-04A-2012#36",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati.html",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Angelique Kerber",
+  "loser": "Timea Babos",
+  "historical_score": "3-6 6-1 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    3,
+    6
+   ],
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "3-6 6-1 6-2",
+  "pbp_source_date": "2012-08-14",
+  "td_source_date": "2012-08-14",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3145,
+  "pbp_sha256": "b97ea1e113c25ba630973b962c2caa83c5573fe4697917414062c1d2cebe84d0",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias"
+  ],
+  "pbp_server1": "Timea Babos",
+  "pbp_server2": "Angelique Kerber",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1125",
+  "year": 2012,
+  "hist_index": 1125,
+  "canonical_match_id": "2012-W-INT-POR-01A-2012#27",
+  "tournament_hist": "Estoril",
+  "tournament_pbp_source": "EstorilOpen-WTAEstoril.html",
+  "tournament_td_source": "Estoril Open",
+  "round": "QF",
+  "surface": "Clay",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Silvia Soler Espinosa",
+  "historical_score": "6-3 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-3",
+  "pbp_source_date": "2012-05-03",
+  "td_source_date": "2012-05-03",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 2142,
+  "pbp_sha256": "bbaecbaabe48879c63f9e3a12c00f59fdac827f5f6171e200006aa845a8500de",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Silvia Soler-Espinosa",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2012|1753",
+  "year": 2012,
+  "hist_index": 1753,
+  "canonical_match_id": "2012-W-PR-BEL-01A-2012#2",
+  "tournament_hist": "Brussels",
+  "tournament_pbp_source": "BrusselsOpen-WTABrussels",
+  "tournament_td_source": "Brussels Open",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Alison Van Uytvanck",
+  "loser": "Ksenia Pervak",
+  "historical_score": "6-3 5-7 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    5,
+    7
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 5-7 6-4",
+  "pbp_source_date": "2012-05-21",
+  "td_source_date": "2012-05-21",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 2328,
+  "pbp_sha256": "968c1b35ae2e79140af40f827c4ef5be776d453b5e8d1902091e53d32c773d61",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Alison Van Uytvanck",
+  "pbp_server2": "Ksenia Pervak",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2012|2657",
+  "year": 2012,
+  "hist_index": 2657,
+  "canonical_match_id": "2012-W-SL-GBR-01A-2012#78",
+  "tournament_hist": "Wimbledon",
+  "tournament_pbp_source": "Ladies'WimbledonSingles2013.html",
+  "tournament_td_source": "Wimbledon",
+  "round": "R64",
+  "surface": "Grass",
+  "winner": "Maria Kirilenko",
+  "loser": "Lourdes Dominguez Lino",
+  "historical_score": "6-1 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-1 6-2",
+  "pbp_source_date": "2012-06-27",
+  "td_source_date": "2012-06-27",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 2676,
+  "pbp_sha256": "de8f7ecbf95d065bdd1e3709897b4e003f8ca390ae80a9a7ab6127f23cd21eea",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Maria Kirilenko",
+  "pbp_server2": "Lourdes Dominguez-Lino",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|547",
+  "year": 2013,
+  "hist_index": 547,
+  "canonical_match_id": "2013-W-INT-COL-01A-2013#13",
+  "tournament_hist": "Bogota",
+  "tournament_pbp_source": "CopaClaroColsanitas-WTABogota",
+  "tournament_td_source": "Copa Claro Colsanitas",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Timea Babos",
+  "loser": "Beatriz Garcia Vidagany",
+  "historical_score": "6-4 1-6 7-6(4)",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    1,
+    6
+   ],
+   [
+    7,
+    6
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 1-6 7-6",
+  "pbp_source_date": "2013-02-19",
+  "td_source_date": "2013-02-19",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4369,
+  "pbp_sha256": "6923c405626fb6b815aa34e4f9313de0675599ac14bf563064528a4e6809b6c1",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Timea Babos",
+  "pbp_server2": "Beatriz Garcia-Vidagany",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1080",
+  "year": 2013,
+  "hist_index": 1080,
+  "canonical_match_id": "2013-W-INT-POR-01A-2013#27",
+  "tournament_hist": "Oeiras",
+  "tournament_pbp_source": "PortugalOpen-WTAOeiras",
+  "tournament_td_source": "Portugal Open",
+  "round": "QF",
+  "surface": "Clay",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Monica Puig",
+  "historical_score": "6-2 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-4",
+  "pbp_source_date": "2013-05-02",
+  "td_source_date": "2013-05-02",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4964,
+  "pbp_sha256": "9be031075e59960f8812db93921d4a351f1cdfc0f359e6160ee9722b47cb1525",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Monica Puig",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2015|1841",
+  "year": 2015,
+  "hist_index": 1841,
+  "canonical_match_id": "2015-W-PM-USA-01A-2015#84",
+  "tournament_hist": "Indian Wells",
+  "tournament_pbp_source": "BNPParibasOpen-WTAIndianWells",
+  "tournament_td_source": "BNP Paribas Open",
+  "round": "R16",
+  "surface": "Hard",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Heather Watson",
+  "historical_score": "7-6(5) 3-6 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    7,
+    6
+   ],
+   [
+    3,
+    6
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "7-6 3-6 6-1",
+  "pbp_source_date": "2015-03-17",
+  "td_source_date": "2015-03-17",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 576,
+  "pbp_sha256": "6e7a61dd1fa160d0c86573443da181b44395f0438eaf63b123c870e4288f0963",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Heather Watson",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2012|518",
+  "year": 2012,
+  "hist_index": 518,
+  "canonical_match_id": "2012-W-INT-CAN-01A-2012#2",
+  "tournament_hist": "Quebec City",
+  "tournament_pbp_source": "BellChallenge-WTAQuebecCity.html",
+  "tournament_td_source": "Bell Challenge",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Mirjana Lucic",
+  "loser": "Heidi El Tabakh",
+  "historical_score": "6-4 3-6 7-6(5)",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    3,
+    6
+   ],
+   [
+    7,
+    6
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 3-6 7-6",
+  "pbp_source_date": "2012-09-11",
+  "td_source_date": "2012-09-11",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3339,
+  "pbp_sha256": "d3a92a59b9b4aa91f958036bed0181c7ad0b706356ae813c0f0eba76cb298a5b",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Mirjana Lucic",
+  "pbp_server2": "Heidi El Tabakh",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2013|1301",
+  "year": 2013,
+  "hist_index": 1301,
+  "canonical_match_id": "2013-W-PM-ESP-01A-2013#3",
+  "tournament_hist": "Madrid",
+  "tournament_pbp_source": "MutuaMadridOpen-WTAMadrid",
+  "tournament_td_source": "Mutua Madrid Open",
+  "round": "R64",
+  "surface": "Clay",
+  "winner": "Kristina Mladenovic",
+  "loser": "Silvia Soler Espinosa",
+  "historical_score": "6-1 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-1 6-1",
+  "pbp_source_date": "2013-05-06",
+  "td_source_date": "2013-05-06",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 5041,
+  "pbp_sha256": "2007c3aa60d2ebf91324b8688168bdab142c6d0d3b0e5de3cc2dbef247359b5f",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Kristina Mladenovic",
+  "pbp_server2": "Silvia Soler-Espinosa",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|1135",
+  "year": 2014,
+  "hist_index": 1135,
+  "canonical_match_id": "2014-W-INT-SWE-01A-2014#6",
+  "tournament_hist": "Bastad",
+  "tournament_pbp_source": "CollectorSwedishOpen-WTABastad",
+  "tournament_td_source": "Collector Swedish Open",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Chanelle Scheepers",
+  "loser": "Mariana Duque Marino",
+  "historical_score": "6-3 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-4",
+  "pbp_source_date": "2014-07-14",
+  "td_source_date": "2014-07-14",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8118,
+  "pbp_sha256": "89017c682b45e110cf347b436f189d8e1b2c5981625a3006db1abf1e9cb7d87f",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Chanelle Scheepers",
+  "pbp_server2": "Mariana Duque-Marino",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|678",
+  "year": 2014,
+  "hist_index": 678,
+  "canonical_match_id": "2014-W-INT-FRA-01A-2014#14",
+  "tournament_hist": "Strasbourg",
+  "tournament_pbp_source": "InternationauxdeStrasbourg-WTAStrasbourg",
+  "tournament_td_source": "Internationaux de Strasbourg",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Silvia Soler Espinosa",
+  "loser": "Stefanie Voegele",
+  "historical_score": "6-0 7-6(5)",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    0
+   ],
+   [
+    7,
+    6
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-0 7-6",
+  "pbp_source_date": "2014-05-20",
+  "td_source_date": "2014-05-20",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7627,
+  "pbp_sha256": "a7aabc443136f17e1394f99f065661787ed57fd2f6f622aeca8ec9e845328498",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Stefanie Voegele",
+  "pbp_server2": "Silvia Soler-Espinosa",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2015|1847",
+  "year": 2015,
+  "hist_index": 1847,
+  "canonical_match_id": "2015-W-PM-USA-01A-2015#90",
+  "tournament_hist": "Indian Wells",
+  "tournament_pbp_source": "BNPParibasOpen-WTAIndianWells",
+  "tournament_td_source": "BNP Paribas Open",
+  "round": "QF",
+  "surface": "Hard",
+  "winner": "Simona Halep",
+  "loser": "Carla Suarez Navarro",
+  "historical_score": "5-7 6-1 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    5,
+    7
+   ],
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "5-7 6-1 6-1",
+  "pbp_source_date": "2015-03-18",
+  "td_source_date": "2015-03-18",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 583,
+  "pbp_sha256": "ed2c537e16931af74f11dde1abd70ad4de8076a26194c9358d021ce7ff114746",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Simona Halep",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2012|2802",
+  "year": 2012,
+  "hist_index": 2802,
+  "canonical_match_id": "2012-W-SL-USA-01A-2012#96",
+  "tournament_hist": "US Open",
+  "tournament_pbp_source": "WomensUSOpen.html",
+  "tournament_td_source": "US Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Agnieszka Radwanska",
+  "loser": "Carla Suarez Navarro",
+  "historical_score": "4-6 6-3 6-0",
+  "pbp_derived_score_gamewise": [
+   [
+    4,
+    6
+   ],
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    0
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "4-6 6-3 6-0",
+  "pbp_source_date": "2012-08-30",
+  "td_source_date": "2012-08-30",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3263,
+  "pbp_sha256": "2bc49d1d06f7dbf5aa1d2e5be648c9caec30752a375bf476785da023d8dc9fd4",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Agnieszka Radwanska",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2014|1113",
+  "year": 2014,
+  "hist_index": 1113,
+  "canonical_match_id": "2014-W-INT-ROU-01A-2014#15",
+  "tournament_hist": "Bucharest",
+  "tournament_pbp_source": "BucharestOpen-WTABucharest",
+  "tournament_td_source": "Bucharest Open",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Silvia Soler Espinosa",
+  "loser": "Sesil Karatantcheva",
+  "historical_score": "6-2 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-1",
+  "pbp_source_date": "2014-07-08",
+  "td_source_date": "2014-07-08",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8022,
+  "pbp_sha256": "2f6b9c4cbe7e78c777ff50812a769317c976764bbc8fb15c023af426fa99ef88",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Silvia Soler-Espinosa",
+  "pbp_server2": "Sesil Karatantcheva",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1784",
+  "year": 2012,
+  "hist_index": 1784,
+  "canonical_match_id": "2012-W-PR-CAN-01A-2012#4",
+  "tournament_hist": "Montreal",
+  "tournament_pbp_source": "RogersCup-WTAMontreal.html",
+  "tournament_td_source": "Rogers Cup",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Ksenia Pervak",
+  "loser": "Anna Tatishvili",
+  "historical_score": "7-6(6) 7-6(4)",
+  "pbp_derived_score_gamewise": [
+   [
+    7,
+    6
+   ],
+   [
+    7,
+    6
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "7-6 7-6",
+  "pbp_source_date": "2012-08-07",
+  "td_source_date": "2012-08-08",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3019,
+  "pbp_sha256": "df84337cab31e320950624084242d313a71f85f8cc3e69e4422e709c4a47733a",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Ksenia Pervak",
+  "pbp_server2": "Anna Tatishvili",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1656",
+  "year": 2013,
+  "hist_index": 1656,
+  "canonical_match_id": "2013-W-PR-CAN-01A-2013#18",
+  "tournament_hist": "Toronto",
+  "tournament_pbp_source": "RogersCup-WTAToronto",
+  "tournament_td_source": "Rogers Cup",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Anastasia Pavlyuchenkova",
+  "loser": "Carol Zhao",
+  "historical_score": "6-1 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-1 6-3",
+  "pbp_source_date": "2013-08-05",
+  "td_source_date": "2013-08-06",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 5761,
+  "pbp_sha256": "8c9a0b22671ac3e8e6395f726d1fd4a3fd2218142b0058cc03a695980eca4357",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Carol Zhao",
+  "pbp_server2": "Anastasia Pavlyuchenkova",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|910",
+  "year": 2013,
+  "hist_index": 910,
+  "canonical_match_id": "2013-W-INT-MEX-01A-2013#12",
+  "tournament_hist": "Acapulco",
+  "tournament_pbp_source": "AbiertoMexicanoTelcel-WTAAcapulco",
+  "tournament_td_source": "Abierto Mexicano",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Irina Camelia Begu",
+  "loser": "Ajla Tomljanovic",
+  "historical_score": "6-2 3-6 7-5",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    3,
+    6
+   ],
+   [
+    7,
+    5
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 3-6 7-5",
+  "pbp_source_date": "2013-02-25",
+  "td_source_date": "2013-02-26",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4500,
+  "pbp_sha256": "3a5bd3937f0aecf8e3db67cc5129aa49df428e11ad0af324a38ea6584d89b906",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Ajla Tomljanovic",
+  "pbp_server2": "Irina-Camelia Begu",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|2734",
+  "year": 2012,
+  "hist_index": 2734,
+  "canonical_match_id": "2012-W-SL-USA-01A-2012#28",
+  "tournament_hist": "US Open",
+  "tournament_pbp_source": "WomensUSOpen",
+  "tournament_td_source": "US Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Anastasia Pavlyuchenkova",
+  "loser": "Daniela Hantuchova",
+  "historical_score": "6-4 7-6(1)",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    7,
+    6
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 7-6",
+  "pbp_source_date": "2012-08-27",
+  "td_source_date": "2012-08-28",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3203,
+  "pbp_sha256": "5f9d416ca032a93d9526f58976e95c0dfba4fe4a08ed091bf9809b35510969fc",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Daniela Hantuchova",
+  "pbp_server2": "Anastasia Pavlyuchenkova",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|954",
+  "year": 2013,
+  "hist_index": 954,
+  "canonical_match_id": "2013-W-INT-MEX-02A-2013#25",
+  "tournament_hist": "Monterrey",
+  "tournament_pbp_source": "MonterreyOpen-WTAMonterrey",
+  "tournament_td_source": "Monterrey Open",
+  "round": "QF",
+  "surface": "Hard",
+  "winner": "Angelique Kerber",
+  "loser": "Ayumi Morita",
+  "historical_score": "6-2 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-1",
+  "pbp_source_date": "2013-04-05",
+  "td_source_date": "2013-04-06",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4844,
+  "pbp_sha256": "c446f3fc62f1f83ed4a7a1c755522ee4ca45a45e6308df0bdf3d0649362c0324",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Angelique Kerber",
+  "pbp_server2": "Ayumi Morita",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|974",
+  "year": 2014,
+  "hist_index": 974,
+  "canonical_match_id": "2014-W-INT-MEX-02A-2014#31",
+  "tournament_hist": "Monterrey",
+  "tournament_pbp_source": "MonterreyOpen-WTAMonterrey",
+  "tournament_td_source": "Monterrey Open",
+  "round": "F",
+  "surface": "Hard",
+  "winner": "Ana Ivanovic",
+  "loser": "Jovana Jaksic",
+  "historical_score": "6-2 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-1",
+  "pbp_source_date": "2014-04-07",
+  "td_source_date": "2014-04-06",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7396,
+  "pbp_sha256": "9467f0c5151ec6eba0562be7609a77241b8740aabdfc6fea3d4ced6cc5e7773a",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Ana Ivanovic",
+  "pbp_server2": "Jovana Jaksic",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|450",
+  "year": 2013,
+  "hist_index": 450,
+  "canonical_match_id": "2013-W-INT-CAN-01A-2013#9",
+  "tournament_hist": "Quebec City",
+  "tournament_pbp_source": "BellChallenge-WTAQuebecCity",
+  "tournament_td_source": "Bell Challenge",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Lauren Davis",
+  "loser": "Camila Giorgi",
+  "historical_score": "6-7(5) 6-3 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    7
+   ],
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-7 6-3 6-2",
+  "pbp_source_date": "2013-09-10",
+  "td_source_date": "2013-09-11",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 6051,
+  "pbp_sha256": "d33cd3aa61126b28d3fab238fab1a0132a0ab1d1ad6134852aa9b3db5144789f",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Camila Giorgi",
+  "pbp_server2": "Lauren Davis",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1810",
+  "year": 2012,
+  "hist_index": 1810,
+  "canonical_match_id": "2012-W-PR-CAN-01A-2012#30",
+  "tournament_hist": "Montreal",
+  "tournament_pbp_source": "RogersCup-WTAMontreal.html",
+  "tournament_td_source": "Rogers Cup",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Na Li",
+  "loser": "Eugenie Bouchard",
+  "historical_score": "6-4 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 6-4",
+  "pbp_source_date": "2012-08-09",
+  "td_source_date": "2012-08-10",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3033,
+  "pbp_sha256": "7e7a8157fb9b1f688f41c124889039e9decec2abcd704952ebebfa62f4e36829",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Eugenie Bouchard",
+  "pbp_server2": "Na Li",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1762",
+  "year": 2012,
+  "hist_index": 1762,
+  "canonical_match_id": "2012-W-PR-BEL-01A-2012#11",
+  "tournament_hist": "Brussels",
+  "tournament_pbp_source": "BrusselsOpen-WTABrussels",
+  "tournament_td_source": "Brussels Open",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Dominika Cibulkova",
+  "loser": "Christina Mchale",
+  "historical_score": "7-6(1) 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    7,
+    6
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "7-6 6-1",
+  "pbp_source_date": "2012-05-22",
+  "td_source_date": "2012-05-21",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 2329,
+  "pbp_sha256": "5ef33c47de06225b0ee9a093f5c5c052acdfff084753806272dafeca1683587d",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Dominika Cibulkova",
+  "pbp_server2": "Christina Mchale",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|934",
+  "year": 2013,
+  "hist_index": 934,
+  "canonical_match_id": "2013-W-INT-MEX-02A-2013#5",
+  "tournament_hist": "Monterrey",
+  "tournament_pbp_source": "MonterreyOpen-WTAMonterrey",
+  "tournament_td_source": "Monterrey Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Maria Kirilenko",
+  "loser": "Ximena Hermoso",
+  "historical_score": "7-5 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    7,
+    5
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "7-5 6-1",
+  "pbp_source_date": "2013-04-02",
+  "td_source_date": "2013-04-03",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4832,
+  "pbp_sha256": "5ccc6fb19d3052b794749142f2aea4771f6fd13b700e787254ccc17cbe83cafb",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Maria Kirilenko",
+  "pbp_server2": "Ximena Hermoso",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|2044",
+  "year": 2013,
+  "hist_index": 2044,
+  "canonical_match_id": "2013-W-PR-USA-01A-2013#47",
+  "tournament_hist": "Charleston",
+  "tournament_pbp_source": "FamilyCircleCup-WTACharleston.html",
+  "tournament_td_source": "Family Circle Cup",
+  "round": "R16",
+  "surface": "Clay",
+  "winner": "Stefanie Voegele",
+  "loser": "Julia Goerges",
+  "historical_score": "3-6 6-1 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    3,
+    6
+   ],
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "3-6 6-1 6-3",
+  "pbp_source_date": "2013-04-04",
+  "td_source_date": "2013-04-05",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4811,
+  "pbp_sha256": "877eac256272adfa7451b73db582263d0bfc4d1d7bb7675fdff96a60e59cfa39",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Julia Goerges",
+  "pbp_server2": "Stefanie Voegele",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1821",
+  "year": 2012,
+  "hist_index": 1821,
+  "canonical_match_id": "2012-W-PR-CAN-01A-2012#41",
+  "tournament_hist": "Montreal",
+  "tournament_pbp_source": "RogersCup-WTAMontreal",
+  "tournament_td_source": "Rogers Cup",
+  "round": "QF",
+  "surface": "Hard",
+  "winner": "Petra Kvitova",
+  "loser": "Tamira Paszek",
+  "historical_score": "6-3 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-2",
+  "pbp_source_date": "2012-08-11",
+  "td_source_date": "2012-08-12",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3068,
+  "pbp_sha256": "96dfbfeda8e04e7ead83b32d8c34ad212e4a2d32cbbf0db47f513ed373e2f576",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Petra Kvitova",
+  "pbp_server2": "Tamira Paszek",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1812",
+  "year": 2012,
+  "hist_index": 1812,
+  "canonical_match_id": "2012-W-PR-CAN-01A-2012#32",
+  "tournament_hist": "Montreal",
+  "tournament_pbp_source": "RogersCup-WTAMontreal.html",
+  "tournament_td_source": "Rogers Cup",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Agnieszka Radwanska",
+  "loser": "Mona Barthel",
+  "historical_score": "4-6 6-3 7-6(5)",
+  "pbp_derived_score_gamewise": [
+   [
+    4,
+    6
+   ],
+   [
+    6,
+    3
+   ],
+   [
+    7,
+    6
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "4-6 6-3 7-6",
+  "pbp_source_date": "2012-08-09",
+  "td_source_date": "2012-08-10",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 3032,
+  "pbp_sha256": "bbb2e44ec7550860e773d04e74a6790d82bbd70a759167517b3476ceafa50973",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "date_tolerance"
+  ],
+  "pbp_server1": "Agnieszka Radwanska",
+  "pbp_server2": "Mona Barthel",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1484",
+  "year": 2013,
+  "hist_index": 1484,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#28",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Jie Zheng",
+  "loser": "Yaroslava Shvedova",
+  "historical_score": "7-5 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    7,
+    5
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "7-5 6-4",
+  "pbp_source_date": "2013-03-20",
+  "td_source_date": "2013-03-21",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4714,
+  "pbp_sha256": "e8e4a2eb07ddc98621bf0b70793f0ea7ef298d3adf6103cc18de722d4b15319a",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "date_tolerance"
+  ],
+  "pbp_server1": "Jie Zheng",
+  "pbp_server2": "Yaroslava Shvedova",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2012|1021",
+  "year": 2012,
+  "hist_index": 1021,
+  "canonical_match_id": "2012-W-INT-MEX-02A-2012#16",
+  "tournament_hist": "Acapulco",
+  "tournament_pbp_source": "AbiertoMexicanoTELCEL-WTAAcapulcoOLD",
+  "tournament_td_source": "Abierto Mexicano",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Flavia Pennetta",
+  "loser": "Arantxa Parra Santonja",
+  "historical_score": "6-4 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 6-2",
+  "pbp_source_date": "2012-02-28",
+  "td_source_date": "2012-02-29",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 1790,
+  "pbp_sha256": "671468c6ded6adc62b82c2772f9aedcf9af06110771aa3d2cc4c0fc6a94ad895",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname",
+   "date_tolerance"
+  ],
+  "pbp_server1": "Arantxa Parra-Santonja",
+  "pbp_server2": "Flavia Pennetta",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2015|1943",
+  "year": 2015,
+  "hist_index": 1943,
+  "canonical_match_id": "2015-W-PM-USA-02A-2015#91",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "MiamiOpen-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "QF",
+  "surface": "Hard",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Venus Williams",
+  "historical_score": "0-6 6-1 7-5",
+  "pbp_derived_score_gamewise": [
+   [
+    0,
+    6
+   ],
+   [
+    6,
+    1
+   ],
+   [
+    7,
+    5
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "0-6 6-1 7-5",
+  "pbp_source_date": "2015-04-01",
+  "td_source_date": "2015-04-01",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 677,
+  "pbp_sha256": "a5f4cdcf78afa215db806d67b9647f05b66811f29c64f686d064e0532eb3ddd1",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "compound_surname"
+  ],
+  "pbp_server1": "Venus Williams",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2013|2080",
+  "year": 2013,
+  "hist_index": 2080,
+  "canonical_match_id": "2013-W-PR-USA-03A-2013#1",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Eugenie Bouchard",
+  "loser": "Monica Puig",
+  "historical_score": "6-3 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-4",
+  "pbp_source_date": "2013-08-12",
+  "td_source_date": "2013-08-13",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 5871,
+  "pbp_sha256": "b764f6b189d43ecedb4a57c75b15e2c1b50232b621436e2b90d07909af090bfe",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "date_tolerance"
+  ],
+  "pbp_server1": "Eugenie Bouchard",
+  "pbp_server2": "Monica Puig",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1477",
+  "year": 2013,
+  "hist_index": 1477,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#21",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Bethanie Mattek Sands",
+  "loser": "Monica Puig",
+  "historical_score": "6-4 7-5",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    7,
+    5
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 7-5",
+  "pbp_source_date": "2013-03-20",
+  "td_source_date": "2013-03-21",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4718,
+  "pbp_sha256": "c46dfec4a0a2edd9003e1e011d083bad375ea3df2aeaca262137a3f02cca81f7",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "date_tolerance"
+  ],
+  "pbp_server1": "Bethanie Mattek-Sands",
+  "pbp_server2": "Monica Puig",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2013|1482",
+  "year": 2013,
+  "hist_index": 1482,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#26",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Silvia Soler Espinosa",
+  "loser": "Pauline Parmentier",
+  "historical_score": "6-0 6-7(2) 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    0
+   ],
+   [
+    6,
+    7
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-0 6-7 6-2",
+  "pbp_source_date": "2013-03-20",
+  "td_source_date": "2013-03-20",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4717,
+  "pbp_sha256": "24fb4893bfbba39459dd9b3f9e5a3d9b952fedb0a96acae66b85ad52f79825f3",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "compound_surname"
+  ],
+  "pbp_server1": "Silvia Soler-Espinosa",
+  "pbp_server2": "Pauline Parmentier",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2015|1937",
+  "year": 2015,
+  "hist_index": 1937,
+  "canonical_match_id": "2015-W-PM-USA-02A-2015#85",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "MiamiOpen-WTAMiami",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R16",
+  "surface": "Hard",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Agnieszka Radwanska",
+  "historical_score": "5-7 6-0 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    5,
+    7
+   ],
+   [
+    6,
+    0
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "5-7 6-0 6-4",
+  "pbp_source_date": "2015-03-30",
+  "td_source_date": "2015-03-30",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 669,
+  "pbp_sha256": "b26844da09e206c830627a822039bb8a8981dbac059c24416537cb1522274346",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "compound_surname"
+  ],
+  "pbp_server1": "Agnieszka Radwanska",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2013|1508",
+  "year": 2013,
+  "hist_index": 1508,
+  "canonical_match_id": "2013-W-PM-USA-02A-2013#52",
+  "tournament_hist": "Miami",
+  "tournament_pbp_source": "SonyOpenTennis-WTAMiami.html",
+  "tournament_td_source": "Sony Ericsson Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Ana Ivanovic",
+  "loser": "Urszula Radwanska",
+  "historical_score": "6-2 6-1",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    1
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-1",
+  "pbp_source_date": "2013-03-22",
+  "td_source_date": "2013-03-23",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4749,
+  "pbp_sha256": "3b9cedea5f22e3e8f40f3913343363d69bf2b9eb771dff0704ebb631ab4f0979",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "date_tolerance"
+  ],
+  "pbp_server1": "Ana Ivanovic",
+  "pbp_server2": "Urszula Radwanska",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|2180",
+  "year": 2014,
+  "hist_index": 2180,
+  "canonical_match_id": "2014-W-PR-USA-03A-2014#3",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Flavia Pennetta",
+  "loser": "Chanelle Scheepers",
+  "historical_score": "6-3 6-7(3) 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    6,
+    7
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 6-7 6-2",
+  "pbp_source_date": "2014-08-11",
+  "td_source_date": "2014-08-12",
+  "date_diff_days": 1,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8391,
+  "pbp_sha256": "0c21fdaab4f3d9121a392adecf7c4e0f93638a3404d5b4fcb2acdd28bd3dd228",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": false,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "date_tolerance"
+  ],
+  "pbp_server1": "Chanelle Scheepers",
+  "pbp_server2": "Flavia Pennetta",
+  "real_matching_field_multitoken_risk": false
+ },
+ {
+  "record_id": "2014|2212",
+  "year": 2014,
+  "hist_index": 2212,
+  "canonical_match_id": "2014-W-PR-USA-03A-2014#35",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Pauline Parmentier",
+  "historical_score": "6-3 7-5",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    7,
+    5
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 7-5",
+  "pbp_source_date": "2014-08-13",
+  "td_source_date": "2014-08-13",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8356,
+  "pbp_sha256": "06575ae960727d936e8ea4f2b9d42b9738c5ea2908b1411bdd010c4b73cbb43a",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Pauline Parmentier",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2014|2223",
+  "year": 2014,
+  "hist_index": 2223,
+  "canonical_match_id": "2014-W-PR-USA-03A-2014#46",
+  "tournament_hist": "Cincinnati",
+  "tournament_pbp_source": "Western&amp;SouthernOpen-WTACincinnati",
+  "tournament_td_source": "Western & Southern Financial Group Women's Open",
+  "round": "R16",
+  "surface": "Hard",
+  "winner": "Elina Svitolina",
+  "loser": "Carla Suarez Navarro",
+  "historical_score": "4-6 6-4 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    4,
+    6
+   ],
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "4-6 6-4 6-4",
+  "pbp_source_date": "2014-08-14",
+  "td_source_date": "2014-08-14",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8369,
+  "pbp_sha256": "0077c5fba53eb20e2148df0ec33c7c33a924f14ce5a22062abcc09ce64ecb161",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "tournament_alias",
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Elina Svitolina",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2012|1128",
+  "year": 2012,
+  "hist_index": 1128,
+  "canonical_match_id": "2012-W-INT-POR-01A-2012#30",
+  "tournament_hist": "Estoril",
+  "tournament_pbp_source": "EstorilOpen-WTAEstoril.html",
+  "tournament_td_source": "Estoril Open",
+  "round": "SF",
+  "surface": "Clay",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Karin Knapp",
+  "historical_score": "6-4 6-0",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    0
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 6-0",
+  "pbp_source_date": "2012-05-04",
+  "td_source_date": "2012-05-04",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 2144,
+  "pbp_sha256": "7aafc248cc2d0d3ca36b7da08891432b7d6a4d5e4b54506bc2c6c41756223da4",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Karin Knapp",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2015|2009",
+  "year": 2015,
+  "hist_index": 2009,
+  "canonical_match_id": "2015-W-PR-BEL-01A-2015#4",
+  "tournament_hist": "Antwerp",
+  "tournament_pbp_source": "BNPParibasFortisDiamondGames-WTAAntwerp",
+  "tournament_td_source": "BNP Paribas Fortis Diamond Games",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Alison Van Uytvanck",
+  "loser": "Magdalena Rybarikova",
+  "historical_score": "6-2 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-3",
+  "pbp_source_date": "2015-02-10",
+  "td_source_date": "2015-02-10",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_current.csv",
+  "pbp_source_row": 283,
+  "pbp_sha256": "a4f6fc47f620842f429cd27ae9d40ddc024d3e7d22fdf64b2007656ac32f48ce",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Alison Van Uytvanck",
+  "pbp_server2": "Magdalena Rybarikova",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2014|1429",
+  "year": 2014,
+  "hist_index": 1429,
+  "canonical_match_id": "2014-W-PM-USA-01A-2014#23",
+  "tournament_hist": "Indian Wells",
+  "tournament_pbp_source": "BNPParibasOpen-WTAIndianWells",
+  "tournament_td_source": "BNP Paribas Open",
+  "round": "R128",
+  "surface": "Hard",
+  "winner": "Varvara Lepchenko",
+  "loser": "Alison Van Uytvanck",
+  "historical_score": "6-2 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-2",
+  "pbp_source_date": "2014-03-06",
+  "td_source_date": "2014-03-06",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7063,
+  "pbp_sha256": "bb3ffb8d1c519c958a203deb4080b1922c9e1058d1fe667d446f58f238d21b81",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Alison Van Uytvanck",
+  "pbp_server2": "Varvara Lepchenko",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2014|2160",
+  "year": 2014,
+  "hist_index": 2160,
+  "canonical_match_id": "2014-W-PR-USA-02A-2014#10",
+  "tournament_hist": "Stanford",
+  "tournament_pbp_source": "BankOfTheWestClassic-WTAStanford",
+  "tournament_td_source": "Bank of the West Classic",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Monica Puig",
+  "loser": "Carla Suarez Navarro",
+  "historical_score": "6-3 7-5",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    3
+   ],
+   [
+    7,
+    5
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-3 7-5",
+  "pbp_source_date": "2014-07-29",
+  "td_source_date": "2014-07-29",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8214,
+  "pbp_sha256": "022b3fee7df9b851c03e463cc05eb406d8aa6b1ac9d261d0a00b25fb75f97249",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Monica Puig",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2014|1892",
+  "year": 2014,
+  "hist_index": 1892,
+  "canonical_match_id": "2014-W-PR-GER-01A-2014#15",
+  "tournament_hist": "Stuttgart",
+  "tournament_pbp_source": "PorscheTennisGrandPrix-WTAStuttgart",
+  "tournament_td_source": "Porsche Tennis Grand Prix",
+  "round": "R16",
+  "surface": "Clay",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Angelique Kerber",
+  "historical_score": "7-5 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    7,
+    5
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "7-5 6-4",
+  "pbp_source_date": "2014-04-24",
+  "td_source_date": "2014-04-24",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 7464,
+  "pbp_sha256": "28478d2bbc724db25be4e6d61f6ce9bdfdfaba8abd564e5887f6ab1b86e9543c",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Angelique Kerber",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2013|1281",
+  "year": 2013,
+  "hist_index": 1281,
+  "canonical_match_id": "2013-W-PM-CHN-01A-2013#42",
+  "tournament_hist": "Beijing",
+  "tournament_pbp_source": "ChinaOpen-WTABeijing",
+  "tournament_td_source": "China Open",
+  "round": "R32",
+  "surface": "Hard",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Lauren Davis",
+  "historical_score": "6-4 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-4 6-2",
+  "pbp_source_date": "2013-10-01",
+  "td_source_date": "2013-10-01",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 6195,
+  "pbp_sha256": "07c9a6d70d60ade2d02606819b6f0327f16995274de773f7d9e6195e81c01997",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Lauren Davis",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2013|375",
+  "year": 2013,
+  "hist_index": 375,
+  "canonical_match_id": "2013-W-INT-AUT-02A-2013#27",
+  "tournament_hist": "Linz",
+  "tournament_pbp_source": "GeneraliLadiesLinz-WTALinz",
+  "tournament_td_source": "Generali Ladies Linz",
+  "round": "QF",
+  "surface": "Hard",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Kirsten Flipkens",
+  "historical_score": "6-1 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    1
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-1 6-3",
+  "pbp_source_date": "2013-10-11",
+  "td_source_date": "2013-10-11",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 6365,
+  "pbp_sha256": "fc605f80ec27184b4109f8f943b2b080ca39fa8c9ba1774d7d211f9318628052",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Kirsten Flipkens",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2012|2421",
+  "year": 2012,
+  "hist_index": 2421,
+  "canonical_match_id": "2012-W-SL-AUS-01A-2012#96",
+  "tournament_hist": "Australian Open",
+  "tournament_pbp_source": "WomensAustralianOpen.html",
+  "tournament_td_source": "Australian Open",
+  "round": "R64",
+  "surface": "Hard",
+  "winner": "Petra Kvitova",
+  "loser": "Carla Suarez Navarro",
+  "historical_score": "6-2 2-6 6-4",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    2,
+    6
+   ],
+   [
+    6,
+    4
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 2-6 6-4",
+  "pbp_source_date": "2012-01-19",
+  "td_source_date": "2012-01-19",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 1552,
+  "pbp_sha256": "22a586c63d0552ac192c8e317419de16174ee7b1dc9352a148783a37bfb9f50a",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Carla Suarez Navarro",
+  "pbp_server2": "Petra Kvitova",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2014|1101",
+  "year": 2014,
+  "hist_index": 1101,
+  "canonical_match_id": "2014-W-INT-ROU-01A-2014#3",
+  "tournament_hist": "Bucharest",
+  "tournament_pbp_source": "BucharestOpen-WTABucharest",
+  "tournament_td_source": "Bucharest Open",
+  "round": "R32",
+  "surface": "Clay",
+  "winner": "Cagla Buyukakcay",
+  "loser": "Veronica Cepede Royg",
+  "historical_score": "6-2 6-3",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    2
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-2 6-3",
+  "pbp_source_date": "2014-07-07",
+  "td_source_date": "2014-07-07",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 8011,
+  "pbp_sha256": "37af20c7ede868b20f1d2b3d284b04ab54fbf2226fc6845bfafc90e22c221e69",
+  "winner_name_tokens": 2,
+  "loser_name_tokens": 3,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Cagla Buyukakcay",
+  "pbp_server2": "Veronica Cepede Royg",
+  "real_matching_field_multitoken_risk": true
+ },
+ {
+  "record_id": "2013|926",
+  "year": 2013,
+  "hist_index": 926,
+  "canonical_match_id": "2013-W-INT-MEX-01A-2013#28",
+  "tournament_hist": "Acapulco",
+  "tournament_pbp_source": "AbiertoMexicanoTelcel-WTAAcapulco",
+  "tournament_td_source": "Abierto Mexicano",
+  "round": "QF",
+  "surface": "Clay",
+  "winner": "Carla Suarez Navarro",
+  "loser": "Francesca Schiavone",
+  "historical_score": "6-7(5) 6-4 6-2",
+  "pbp_derived_score_gamewise": [
+   [
+    6,
+    7
+   ],
+   [
+    6,
+    4
+   ],
+   [
+    6,
+    2
+   ]
+  ],
+  "independent_recheck_score_match": true,
+  "td_source_score": "6-7 6-4 6-2",
+  "pbp_source_date": "2013-02-28",
+  "td_source_date": "2013-02-28",
+  "date_diff_days": 0,
+  "pbp_source_file": "pbp_matches_wta_main_archive.csv",
+  "pbp_source_row": 4520,
+  "pbp_sha256": "d9e254dd7bff23dd19ba08a35b01018c1ede80656102b66affde5175bc638ca6",
+  "winner_name_tokens": 3,
+  "loser_name_tokens": 2,
+  "multitoken_name_risk": true,
+  "old_status": "REVIEW_REQUIRED",
+  "new_status": "RESULT_VERIFIED_PBP",
+  "fix_type": [
+   "compound_surname"
+  ],
+  "pbp_server1": "Francesca Schiavone",
+  "pbp_server2": "Carla Suarez Navarro",
+  "real_matching_field_multitoken_risk": true
+ }
+]
