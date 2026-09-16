@@ -1,5 +1,14 @@
 # Full Root-Cause Investigation — Prediction Engines Collapsing to ~50%
 
+> **Status (2026-09-16, P1 Package 4):** the prediction ensemble itself (module weighting,
+> ensemble math, calibration, Monte Carlo) lives in the `tennis-stats-engine` repo, not here. A
+> read-only investigation covering the mandate below plus a separate ensemble-influence/
+> double-counting audit has been completed there:
+> `docs/ensemble-influence-and-50-percent-root-cause-report.md` on branch
+> `claude/ensemble-influence-50-percent-69x585` in `ShreddedBear/Tennis-Stats-Engine`. No weights
+> or code were changed by that report. This file's spec below is retained as the original task
+> definition; see the linked report for findings.
+
 ## Primary objective
 Find the first point where meaningful player-vs-player information is lost and explain why final prediction probabilities are clustering around 50%. This is forensic debugging, not a request to force probabilities higher.
 
