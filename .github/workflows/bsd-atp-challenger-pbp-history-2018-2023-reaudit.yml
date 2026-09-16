@@ -1,129 +1,31 @@
-name: BSD ATP Challenger PBP 2018-2023 Exhaustive Re-audit
+name: BSD ATP Challenger PBP 2018-2023 Exhaustive Re-audit (STOPPED)
 
-# Manual-only. Runs the EXISTING, already-used BSD ATP Challenger historical
-# scan script (scripts/bsd-atp-challenger-pbp-history.py -- the same script
-# that produced the already-certified 2025/2026 BSD PBP data) for 2018-2023,
-# using the real BSD_TENNIS_API_KEY repository secret, to replace the
-# spot-probe-only evidence for those years with an exhaustive one.
+# STOPPED by explicit decision: the BSD/Bzzoiro subscription is no longer
+# being purchased, so no BSD credential will be supplied to this workflow
+# and no further BSD scans will run. This file is retained only as an audit
+# record of what was attempted (two runs, both confirming
+# BSD_TENNIS_API_KEY was not configured -- see
+# data/audit/challenger-2018-2024-availability/summary.json on the
+# claude/pbp-coverage-audit-four-lanes-r4mgl3 branch for the full result).
 #
-# Scope is enforced in-workflow, not just by convention: the safety-gate step
-# fails the run if anything outside data/audit/bsd-atp-challenger-pbp-history/
-# changed -- in particular it fails if the existing certified population
-# (data/audit/verified-pbp/atp_challenger, data/audit/challenger-pbp-reaudit-v3)
-# or anything under src/ changed. No certification decision is made here:
-# this workflow only collects and commits raw BSD availability data. Whether
-# any of it gets certified true PBP is decided afterward, offline, by the
-# same strict chronology/structural validator already used for the 9,194
-# certified records -- not by this workflow.
+# Per that decision: 2018-2023 ATP Challenger PBP availability remains
+# UNRESOLVED against BSD specifically (spot-probed only, never confirmed
+# absent), not "no PBP" -- do not reinterpret this stop as a negative
+# finding. It can be re-enabled manually if a BSD credential is ever
+# supplied again, but no automatic trigger exists and none should be added.
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: bsd-atp-challenger-pbp-2018-2023-reaudit
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  reaudit-2018-2023:
+  stopped:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    env:
-      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: claude/pbp-coverage-audit-four-lanes-r4mgl3
-          fetch-depth: 0
-
-      - name: Verify BSD API secret
-        shell: bash
+      - name: Stopped -- BSD subscription discontinued
         run: |
-          if [ -z "$BSD_TENNIS_API_KEY" ]; then
-            echo "BSD_TENNIS_API_KEY secret is not configured on this repository." >&2
-            echo "secret_missing=true" >> "$GITHUB_ENV"
-          else
-            echo "BSD_TENNIS_API_KEY available; value hidden."
-            echo "secret_missing=false" >> "$GITHUB_ENV"
-          fi
-
-      - name: Snapshot pre-run state (for the safety gate)
-        run: git rev-parse HEAD > /tmp/pre_run_head.txt
-
-      - name: Run existing BSD ATP Challenger scan for 2018-2023
-        if: env.secret_missing == 'false'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/bsd-logs
-          for YEAR in 2018 2019 2020 2021 2022 2023; do
-            echo "=== YEAR $YEAR ===" | tee -a /tmp/bsd-logs/2018-2023-run.log
-            python3 scripts/bsd-atp-challenger-pbp-history.py --year "$YEAR" 2>&1 | tee -a /tmp/bsd-logs/2018-2023-run.log
-          done
-
-      - name: Refresh aggregate progress across all scanned years
-        if: env.secret_missing == 'false'
-        run: python3 scripts/advance-bsd-atp-challenger-pbp-history.py | tee -a /tmp/bsd-logs/2018-2023-run.log
-
-      - name: Safety gate - only BSD ATP Challenger history data changed
-        if: env.secret_missing == 'false'
-        shell: bash
-        run: |
-          set -euo pipefail
-          PRE=$(cat /tmp/pre_run_head.txt)
-          CHANGED=$(git diff --name-only "$PRE" -- . || true)
-          echo "Changed files:"
-          echo "$CHANGED"
-          BAD=$(echo "$CHANGED" | grep -v '^data/audit/bsd-atp-challenger-pbp-history/' || true)
-          if [ -n "$BAD" ]; then
-            echo "SAFETY GATE FAILED: files changed outside data/audit/bsd-atp-challenger-pbp-history/:" >&2
-            echo "$BAD" >&2
-            exit 1
-          fi
-          if echo "$CHANGED" | grep -qE '^(data/audit/verified-pbp/atp_challenger|data/audit/challenger-pbp-reaudit-v3|src/)'; then
-            echo "SAFETY GATE FAILED: certified population or production source touched." >&2
-            exit 1
-          fi
-          echo "Safety gate passed: only data/audit/bsd-atp-challenger-pbp-history/ changed."
-
-      - name: Commit results to the audit branch
-        if: env.secret_missing == 'false'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/audit/bsd-atp-challenger-pbp-history
-          if git diff --cached --quiet; then
-            echo "No new BSD ATP Challenger 2018-2023 data to commit."
-            exit 0
-          fi
-          git commit -m 'BSD ATP Challenger exhaustive scan: 2018-2023'
-          git push origin HEAD:claude/pbp-coverage-audit-four-lanes-r4mgl3
-
-      - name: Upload run evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bsd-atp-challenger-2018-2023-reaudit-${{ github.run_id }}
-          path: |
-            /tmp/bsd-logs/
-            data/audit/bsd-atp-challenger-pbp-history/
-          if-no-files-found: warn
-
-      - name: Job summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo '## BSD ATP Challenger 2018-2023 exhaustive re-audit'
-            echo
-            if [ "${secret_missing:-true}" = "true" ]; then
-              echo '**FAILED: BSD_TENNIS_API_KEY secret is not configured on this repository. No query was made.**'
-            elif [ -f data/audit/bsd-atp-challenger-pbp-history/progress.md ]; then
-              cat data/audit/bsd-atp-challenger-pbp-history/progress.md
-            else
-              echo 'No progress.md produced.'
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo 'This workflow is stopped: the BSD/Bzzoiro subscription is no longer being purchased.'
+          echo 'No BSD_TENNIS_API_KEY will be supplied. No scan will run.'
+          echo '2018-2023 ATP Challenger PBP availability against BSD remains UNRESOLVED, not confirmed absent.'
+          echo 'See data/audit/challenger-2018-2024-availability/ on claude/pbp-coverage-audit-four-lanes-r4mgl3 for the full audit record.'
