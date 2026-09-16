@@ -185,3 +185,55 @@ EVENT DATA`);
     matchFormat: "BestOf3",
   });
 });
+
+test("parses direct-text labeled PDF records without requiring vision AI", () => {
+  const parsed = parseOcrText(`TENNIS MATCH — OCR / ENGINE READY
+TOURNAMENT          ATP Challenger Guangzhou
+
+EVENT LEVEL         Challenger
+
+ROUND               Round of 32
+
+SCHEDULED DATE September 15, 2026
+
+PLAYER 1            Hayato Matsuoka
+
+PLAYER 2            Lloyd Harris
+
+OCR INGESTION: DIRECT TEXT • ONE MATCHUP PER PAGE`);
+
+  assert.deepEqual(parsed, [{
+    player1Name: "Hayato Matsuoka",
+    player2Name: "Lloyd Harris",
+    eventName: "ATP Challenger Guangzhou",
+    level: "Challenger",
+    round: "Round of 32",
+    scheduledDate: "2026-09-15",
+    surface: null,
+    matchFormat: null,
+  }]);
+});
+
+test("preserves explicit surfaces in labeled OCR records", () => {
+  const parsed = parseOcrText(`TOURNAMENT: WTA 125K Ljubljana
+EVENT LEVEL: Other
+ROUND: Round of 16
+SURFACE: Clay
+BEST OF: 3
+PLAYER 1: Lucie Havlickova
+PLAYER 2: Ekaterine Gorgodze
+
+TOURNAMENT: ATP Challenger Rennes
+EVENT LEVEL: Challenger
+ROUND: Round 1
+SURFACE: Indoor Hard
+BEST OF: 3
+PLAYER 1: Daniel Rincon
+PLAYER 2: Hamish Stewart`);
+
+  assert.equal(parsed.length, 2);
+  assert.equal(parsed[0]?.surface, "Clay");
+  assert.equal(parsed[0]?.matchFormat, "BestOf3");
+  assert.equal(parsed[1]?.surface, "IndoorHard");
+  assert.equal(parsed[1]?.matchFormat, "BestOf3");
+});

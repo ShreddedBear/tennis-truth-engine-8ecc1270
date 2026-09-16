@@ -60,6 +60,110 @@ function cleanName(raw: string): string | null {
   return cleaned.length >= 2 ? cleaned : null;
 }
 
+function parseLabeledMatchupRecords(text: string): RawMatchupEntry[] {
+  const lines = text
+    .split(/\r?\n|\f/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const records: RawMatchupEntry[] = [];
+  let current: Partial<Record<
+    "player1Name" | "player2Name" | "eventName" | "level" | "round" |
+    "scheduledDate" | "surface" | "matchFormat",
+    string
+  >> = {};
+
+  const flush = () => {
+    const player1Name = cleanName(current.player1Name ?? "");
+    const player2Name = cleanName(current.player2Name ?? "");
+    if (!player1Name || !player2Name || player1Name === player2Name) {
+      current = {};
+      return;
+    }
+    const surfaceToken = current.surface?.replace(/[\s_-]/g, "").toUpperCase();
+    const surface: RawMatchupEntry["surface"] =
+      surfaceToken === "HARD" ? "Hard" :
+      surfaceToken === "CLAY" || surfaceToken === "REDCLAY" ? "Clay" :
+      surfaceToken === "GRASS" ? "Grass" :
+      surfaceToken === "INDOORHARD" || surfaceToken === "CARPET" ? "IndoorHard" :
+      null;
+    const levelToken = current.level?.replace(/[\s_-]/g, "").toUpperCase();
+    const level: RawMatchupEntry["level"] =
+      levelToken === "GRANDSLAM" ? "GrandSlam" :
+      levelToken === "MASTERS1000" ? "Masters1000" :
+      levelToken === "ATP500" ? "ATP500" :
+      levelToken === "ATP250" ? "ATP250" :
+      levelToken === "WTA1000" ? "WTA1000" :
+      levelToken === "WTA500" ? "WTA500" :
+      levelToken === "WTA250" ? "WTA250" :
+      levelToken === "CHALLENGER" || levelToken === "ATPCHALLENGER" ? "Challenger" :
+      levelToken === "ITF" ? "ITF" :
+      current.level ? "Other" :
+      null;
+    const formatToken = current.matchFormat?.replace(/[\s_-]/g, "").toUpperCase();
+    const matchFormat: RawMatchupEntry["matchFormat"] =
+      formatToken === "3" || formatToken === "BO3" || formatToken === "BESTOF3" ? "BestOf3" :
+      formatToken === "5" || formatToken === "BO5" || formatToken === "BESTOF5" ? "BestOf5" :
+      null;
+    let scheduledDate: string | null = null;
+    if (current.scheduledDate) {
+      const direct = current.scheduledDate.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+      if (direct) {
+        scheduledDate = `${direct[1]}-${direct[2]}-${direct[3]}`;
+      } else {
+        const parsed = new Date(current.scheduledDate);
+        if (!Number.isNaN(parsed.getTime())) scheduledDate = parsed.toISOString().slice(0, 10);
+      }
+    }
+    records.push({
+      player1Name,
+      player2Name,
+      eventName: current.eventName?.trim() || null,
+      level,
+      round: current.round?.trim() || null,
+      scheduledDate,
+      surface,
+      matchFormat,
+    });
+    current = {};
+  };
+
+  const labels: Array<{
+    key: keyof typeof current;
+    pattern: RegExp;
+  }> = [
+    { key: "eventName", pattern: /^TOURNAMENT\b\s*:?\s*(.*)$/i },
+    { key: "level", pattern: /^EVENT\s+LEVEL\b\s*:?\s*(.*)$/i },
+    { key: "round", pattern: /^ROUND\b\s*:?\s*(.*)$/i },
+    { key: "scheduledDate", pattern: /^SCHEDULED\s+DATE\b\s*:?\s*(.*)$/i },
+    { key: "surface", pattern: /^SURFACE\b\s*:?\s*(.*)$/i },
+    { key: "matchFormat", pattern: /^(?:BEST\s+OF|MATCH\s+FORMAT)\b\s*:?\s*(.*)$/i },
+    { key: "player1Name", pattern: /^PLAYER\s*1\b\s*:?\s*(.*)$/i },
+    { key: "player2Name", pattern: /^PLAYER\s*2\b\s*:?\s*(.*)$/i },
+  ];
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]!;
+    for (const { key, pattern } of labels) {
+      const match = pattern.exec(line);
+      if (!match) continue;
+      if (key === "eventName" && current.player1Name && current.player2Name) flush();
+      let value = match[1]?.trim() ?? "";
+      if (!value) {
+        const next = lines[index + 1];
+        if (next && !labels.some(({ pattern: nextPattern }) => nextPattern.test(next))) {
+          value = next;
+          index++;
+        }
+      }
+      if (value) current[key] = value;
+      if (key === "player2Name" && current.player1Name && current.player2Name) flush();
+      break;
+    }
+  }
+  flush();
+  return records;
+}
+
 function parseNumberedFixtureTables(text: string): RawMatchupEntry[] {
   const lines = text
     .split(/\r?\n/)
@@ -159,6 +263,9 @@ function parseNumberedFixtureTables(text: string): RawMatchupEntry[] {
 }
 
 export function parseOcrText(text: string): RawMatchupEntry[] {
+  const labeledMatchups = parseLabeledMatchupRecords(text);
+  if (labeledMatchups.length > 0) return labeledMatchups;
+
   const fixtureMatchups = parseNumberedFixtureTables(text);
   if (fixtureMatchups.length > 0) return fixtureMatchups;
 

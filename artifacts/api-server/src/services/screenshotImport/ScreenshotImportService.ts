@@ -16,6 +16,10 @@
  */
 
 import { logger } from "../../lib/logger.js";
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { writeFile, unlink } from "node:fs/promises";
+import { promisify } from "node:util";
 import {
   recognizeMatchupScreenshot,
   ScreenshotRecognitionUnavailableError,
@@ -34,6 +38,38 @@ import {
 } from "./providerHealthMonitor.js";
 import { imageHash, cacheGet, cacheSet, cacheStats, cacheClear } from "./imageHashCache.js";
 import { callOcrSpace } from "./ocrSpaceProvider.js";
+import { parseOcrText } from "./rawTextParser.js";
+
+const execFileAsync = promisify(execFile);
+
+async function extractTextLayerPdf(imageBase64: string): Promise<{
+  matchups: ReturnType<typeof parseOcrText>;
+  rawText: string;
+} | null> {
+  if (!imageBase64.startsWith("data:application/pdf;")) return null;
+  const comma = imageBase64.indexOf(",");
+  if (comma < 0) return null;
+  const pdfBytes = Buffer.from(imageBase64.slice(comma + 1), "base64");
+  if (pdfBytes.length === 0) return null;
+
+  const inputPath = `/tmp/tennis-ocr-${randomUUID()}.pdf`;
+  try {
+    await writeFile(inputPath, pdfBytes);
+    const { stdout } = await execFileAsync("pdftotext", ["-layout", inputPath, "-"], {
+      encoding: "utf8",
+      maxBuffer: 2 * 1024 * 1024,
+      timeout: 10_000,
+    });
+    const rawText = stdout.trim();
+    if (!rawText) return null;
+    const matchups = parseOcrText(rawText);
+    return matchups.length > 0 ? { matchups, rawText } : null;
+  } catch {
+    return null;
+  } finally {
+    await unlink(inputPath).catch(() => undefined);
+  }
+}
 
 // One process-wide provider lane prevents simultaneous uploads from racing the
 // same quota bucket. Player resolution and the rest of each request still run
@@ -174,7 +210,19 @@ class ScreenshotImportService {
     let retryCount = 0;
 
     const t1 = Date.now();
-    try {
+    const localPdf = await extractTextLayerPdf(imageBase64);
+    if (localPdf) {
+      ocrProvider = "PDF.TextLayer";
+      ocrResult = {
+        matchups: localPdf.matchups,
+        rawText: localPdf.rawText,
+        debugLog: [],
+        providerUsed: ocrProvider,
+      };
+      ocrDurationMs = Date.now() - t1;
+      debugLog.push(`[PDF.TEXT] Parsed ${localPdf.matchups.length} explicit matchup(s) locally; skipped vision API`);
+    } else {
+      try {
       ocrResult = await withSerializedVision(async () => {
         const skipLabels = buildSkipSet();
         if (skipLabels.size > 0) {
@@ -196,8 +244,8 @@ class ScreenshotImportService {
       }
 
       retryCount = ocrResult.debugLog.filter((l) => l.startsWith("[RETRY]")).length;
-    } catch (err) {
-      if (err instanceof ScreenshotRecognitionUnavailableError) {
+      } catch (err) {
+        if (err instanceof ScreenshotRecognitionUnavailableError) {
         ocrDurationMs = Date.now() - t1;
         applyHealthFromDebugLog(err.debugLog ?? []);
         debugLog.push(...(err.debugLog ?? []));
@@ -251,8 +299,9 @@ class ScreenshotImportService {
             diagnostics,
           };
         }
-      } else {
-        throw err;
+        } else {
+          throw err;
+        }
       }
     }
 
@@ -330,7 +379,9 @@ class ScreenshotImportService {
     //    provider failure such as a circuit-breaker open). Caching a "resolution failed" result
     //    would cause every subsequent upload of the same image to instantly return null names
     //    even after the provider recovers.
-    if (!resolutionThrew) {
+    // Empty recognition is not durable: OCR providers can recover after quota, transient,
+    // or parser issues. Caching an empty result makes a corrected retry fail instantly.
+    if (!resolutionThrew && (resolved.matchups?.length ?? 0) > 0) {
       cacheSet(hash, result);
     }
     logger.info(
