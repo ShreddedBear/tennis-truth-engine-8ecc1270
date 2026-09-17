@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { normalizedFromObject } from "./tour-results-schedule.server";
+
+const TARGET = { id: "t1", source_id: "wta" as const, target_key: "wta:2026", pullback_start: null, pullback_end: null, config: null };
 
 describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
   it("uses the documented original official tour source identities", () => {
@@ -58,5 +61,56 @@ describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
     expect(adapter).toContain('.select("source_record_key")');
     expect(adapter).toContain('.in("source_record_key",keys)');
     expect(adapter).toContain("persisted +=");
+  });
+});
+
+// Temporal/evaluation-integrity regression: player1/player2 slot assignment for a scraped
+// match_record observation must never be a function of who actually won. Before the fix,
+// deepFirst's alias list for player1/player2 included "winnerName"/"loserName", so a page
+// object shaped like a completed-results feed (which legitimately has those fields and
+// nothing else player-shaped) silently assigned player1 = the known winner.
+describe("tour-results-schedule.server.ts: player1/player2 assignment is outcome-independent", () => {
+  const matchRecordOf = (rows: ReturnType<typeof normalizedFromObject>) => rows.find((r) => r.observation_key === "match_record");
+
+  it("never fabricates a match_record from outcome-only fields (winnerName/loserName alone)", () => {
+    // No legitimate player-identity field (player1/playerA/homePlayer/etc.) is present --
+    // only the known result. This must produce no match_record, never one that quietly
+    // assigns player1 = the winner.
+    const rows = normalizedFromObject("wta", "https://x", TARGET, {
+      level: "WTA 250", tournament: "Example Open", date: "2026-01-01",
+      winnerName: "Iga Swiatek", loserName: "Aryna Sabalenka",
+    });
+    expect(matchRecordOf(rows)).toBeUndefined();
+  });
+
+  it("player1/player2 track the source's own neutral slot (playerA/playerB), not who won", () => {
+    const base = { level: "WTA 250", tournament: "Example Open", date: "2026-01-01" };
+    const aWins = normalizedFromObject("wta", "https://x", TARGET, { ...base, playerA: "Iga Swiatek", playerB: "Aryna Sabalenka", winner: "Iga Swiatek" });
+    const bWins = normalizedFromObject("wta", "https://x", TARGET, { ...base, playerA: "Iga Swiatek", playerB: "Aryna Sabalenka", winner: "Aryna Sabalenka" });
+    expect(matchRecordOf(aWins)?.player_name).toBe("Iga Swiatek");
+    expect(matchRecordOf(aWins)?.opponent_name).toBe("Aryna Sabalenka");
+    // Same source slots (playerA/playerB), only the winner differs -- player1/player2 must
+    // not move.
+    expect(matchRecordOf(bWins)?.player_name).toBe("Iga Swiatek");
+    expect(matchRecordOf(bWins)?.opponent_name).toBe("Aryna Sabalenka");
+  });
+
+  it("swapping which side is home/away swaps player1/player2 identically regardless of winner", () => {
+    const base = { level: "WTA 250", tournament: "Example Open", date: "2026-01-01" };
+    const homeWins = normalizedFromObject("wta", "https://x", TARGET, { ...base, homePlayer: "Iga Swiatek", awayPlayer: "Aryna Sabalenka", winnerName: "Iga Swiatek" });
+    const awayWins = normalizedFromObject("wta", "https://x", TARGET, { ...base, homePlayer: "Iga Swiatek", awayPlayer: "Aryna Sabalenka", winnerName: "Aryna Sabalenka" });
+    // player1 is always the home slot, whether or not the home player is the one who won.
+    expect(matchRecordOf(homeWins)?.player_name).toBe("Iga Swiatek");
+    expect(matchRecordOf(awayWins)?.player_name).toBe("Iga Swiatek");
+  });
+
+  it("the separate winner field is still captured for evidence -- only player1/player2 assignment is outcome-blind", () => {
+    const rows = normalizedFromObject("wta", "https://x", TARGET, {
+      level: "WTA 250", tournament: "Example Open", date: "2026-01-01",
+      playerA: "Iga Swiatek", playerB: "Aryna Sabalenka", winner: "Aryna Sabalenka",
+    });
+    const record = matchRecordOf(rows)!;
+    expect(JSON.parse(record.text_value!).winner).toBe("Aryna Sabalenka");
+    expect(record.player_name).toBe("Iga Swiatek");
   });
 });

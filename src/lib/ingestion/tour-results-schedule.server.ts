@@ -94,10 +94,17 @@ function sourceMatchesTour(source:TourSource,obj:Record<string,unknown>) {
   return !isChallengerLevel(level);
 }
 
-function normalizedFromObject(source:TourSource,url:string,target:Target,obj:Record<string,unknown>):Observation[] {
+export function normalizedFromObject(source:TourSource,url:string,target:Target,obj:Record<string,unknown>):Observation[] {
   if (!sourceMatchesTour(source,obj)) return [];
-  const player1=deepFirst(obj,["player1","Player1","playerOne","homePlayer","competitor1","winnerName","playerA","participant1"]);
-  const player2=deepFirst(obj,["player2","Player2","playerTwo","awayPlayer","competitor2","loserName","playerB","participant2"]);
+  // NEVER include "winnerName"/"loserName" (or any outcome-derived field) as a player1/
+  // player2 identity alias: player1/player2 must be a NEUTRAL, outcome-independent slot
+  // assignment. A field literally named for the known result (who won/lost) makes the
+  // slot assignment a function of the match outcome, which is exactly the winner-first
+  // evaluation-integrity defect this list must not reintroduce. `winner`/`winnerName`
+  // stays a legitimate alias for the separate `winner` field below -- that field is
+  // explicitly the result, never fed into player1/player2.
+  const player1=deepFirst(obj,["player1","Player1","playerOne","homePlayer","competitor1","playerA","participant1"]);
+  const player2=deepFirst(obj,["player2","Player2","playerTwo","awayPlayer","competitor2","playerB","participant2"]);
   const tournament=deepFirst(obj,["tournament","Tournament","tournamentName","TournamentName","event","eventName","competitionName","SponsorTitle","TournamentTitle","title","name","Name"]);
   const dateRaw=deepFirst(obj,["date","Date","matchDate","startDate","StartDate","startTime","scheduledAt","eventDate","EventDate","FormattedDate"]);
   const endDateRaw=deepFirst(obj,["endDate","EndDate"]);
