@@ -1,0 +1,108 @@
+Run a READ-ONLY forensic analysis of the clean evaluation batch.
+
+Database is already connected in this Replit environment.
+
+Target batch:
+clean-neutral-eval-v1-2026-05-20-to-2026-06-02
+
+Window: 2026-05-20 through 2026-06-02
+
+Batch size: 1,644 persisted predictions
+
+Do NOT modify, delete, overwrite, or insert any database rows.
+
+Do NOT modify code.
+
+Do NOT change formulas, weights, calibration, thresholds, Specialist, simulator, or production behavior.
+
+Do NOT run optimizer, ablation, or another replay.
+
+First verify the batch exists and report its exact persisted row count.
+
+Then, using bounded SQL only, calculate:
+
+1. Probability distribution
+
+* exact 50.0%
+* 49–51%
+* 48–52%
+* 47–53%
+* 45–55%
+* 40–60%
+* outside 40–60%
+
+2. Performance by model
+
+* Surface Elo
+* Serve & Return
+* Recent Form
+* General/raw ensemble
+* Final ensemble
+* Specialist if present
+
+For each available model report:
+
+* prediction count
+* accuracy
+* Brier score
+* log loss
+* ECE
+
+3. Exact-50 behavior
+Report the number of exactly 50.0% predictions and how those predictions are graded.
+
+Do NOT assume player 1 is the winner.
+
+4. Player ordering
+Verify whether the clean batch contains both player-slot orientations and whether actual winner is still systematically concentrated in player 1.
+
+5. Core-model agreement
+Report:
+
+* all three agree
+* exactly two agree
+* all three disagree
+
+Then report final-ensemble accuracy/Brier/log loss for each available group.
+
+6. Near-50 concentration
+Compare the clean batch’s probability distribution against the previously observed historical-test distribution:
+
+* historical test: 146 exact 50%
+* 3,064 in 49–51%
+* 6,508 in 48–52%
+* 10,526 in 47–53%
+
+Treat those old figures as a diagnostic comparison only, not as a clean benchmark.
+
+7. Over-shrink investigation
+Determine, from the persisted fields and existing calculation outputs, whether clustering around 50 appears associated with:
+
+* calibration shrinkage
+* reliability/sample-size discounts
+* model disagreement
+* sigmoid/tie behavior
+* insufficient-data handling
+
+Do not infer a cause if the database does not support it.
+
+8. Data-quality accounting
+Report any rows excluded from each metric and exactly why.
+
+9. Neutral-order integrity
+Verify that outcome/winner information was not used to determine the prediction-side player ordering in this clean batch.
+
+10. Final forensic conclusion
+Answer only from the measured data:
+
+A. Did neutral ordering materially change the ~50% distribution?
+
+B. Does the clean batch still show excessive near-50 probabilities?
+
+C. What measured evidence points toward the cause?
+
+D. Is there evidence sufficient to justify proceeding to the 3-month clean evaluation?
+
+If any requested metric cannot be computed from the available persisted fields, report UNAVAILABLE rather than estimating it.
+
+Return the complete results in a compact table followed by the forensic findings.
