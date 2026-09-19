@@ -928,12 +928,12 @@ describe("__TEST_filterRowsByCeiling", () => {
     assert.strictEqual(filtered.length, 0, "rows at or after ceiling must be removed");
   });
 
-  it("keeps rows with null scheduled_start_at (date unknown → cannot confirm future)", () => {
+  it("rejects rows with null scheduled_start_at because pre-cutoff existence cannot be proven", () => {
     const rows = [
       makeMatchRow({ playerId, opponentId, winnerId: playerId, scheduledStartAt: null }),
     ];
     const filtered = __TEST_filterRowsByCeiling(rows, ceiling);
-    assert.strictEqual(filtered.length, 1, "null-date rows must be kept (date unknown)");
+    assert.strictEqual(filtered.length, 0, "null-date rows must be excluded from historical scoring");
   });
 
   it("mixed batch: only rows before ceiling survive", () => {
@@ -941,10 +941,10 @@ describe("__TEST_filterRowsByCeiling", () => {
       makeMatchRow({ playerId, opponentId, winnerId: playerId, scheduledStartAt: new Date("2024-03-01T00:00:00Z") }),  // keep
       makeMatchRow({ playerId, opponentId, winnerId: playerId, scheduledStartAt: new Date("2024-06-01T00:00:00Z") }),  // remove (==)
       makeMatchRow({ playerId, opponentId, winnerId: playerId, scheduledStartAt: new Date("2024-08-01T00:00:00Z") }),  // remove (after)
-      makeMatchRow({ playerId, opponentId, winnerId: playerId, scheduledStartAt: null }),                              // keep (null)
+      makeMatchRow({ playerId, opponentId, winnerId: playerId, scheduledStartAt: null }),                              // remove (unproven)
     ];
     const filtered = __TEST_filterRowsByCeiling(rows, ceiling);
-    assert.strictEqual(filtered.length, 2, "only pre-ceiling + null-date rows must survive");
+    assert.strictEqual(filtered.length, 1, "only affirmatively pre-ceiling rows must survive");
   });
 
   it("empty input → empty output", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMPARISON_SPECS, compareMetricRows, type MetricRowForComparison } from "./truth-engine-metric-comparison";
+import { COMPARISON_SPECS, compareMetricRows, type MetricComparison, type MetricRowForComparison } from "./truth-engine-metric-comparison";
 import { ACTIVE_METRIC_CODES } from "./truth-engine-active-metrics";
 import { decideTruthEngineSelection } from "./truth-engine-decision";
 
@@ -38,7 +38,8 @@ describe("Truth Engine decision: only the 25 active codes can ever vote", () => 
     // directly (not through compareMetricRow, which structurally can never produce this for
     // a spec-less code) to prove decideTruthEngineSelection's OWN filtering is what keeps
     // inactive evidence out, not merely that compareMetricRow declines to make it.
-    const forgedInactiveComparison = {
+    const forgedInactiveComparison: MetricComparison = {
+      ...activeComparison,
       metric_code: "099", label: "Forged Inactive Metric", family: "FORGED_FAMILY",
       status: "COMPARED" as const, favours: "P2" as const,
       p1_number: 10, p2_number: 90, differential: -80, advantage_p1: -80,

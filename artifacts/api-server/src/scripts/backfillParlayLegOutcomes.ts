@@ -154,9 +154,12 @@ async function main(): Promise<void> {
              (session_id, selected_player_id, opponent_id, selected_player_name, opponent_name,
               tournament_name, surface, validation_score, risk_score, reliability_grade,
               parlay_grade, decision, data_coverage, source_agreement, factor_scores,
-              market_odds, actual_winner_id, resolved_at, source, backfill_match_id)
+               market_odds, actual_winner_id, resolved_at, source, backfill_match_id,
+               matchup_closeness, removal_probability, builder_calibrated_probability,
+               builder_model_version, builder_calibration_version, builder_calibration_fingerprint,
+               builder_calibration_model_id, builder_calibration_provenance)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb,
-                   $16, $17, $18, 'backfill', $19)`,
+                    $16, $17, $18, 'backfill', $19, $20, $21, $22, $23, $24, $25, $26, $27)`,
           [
             null,                          // session_id — no session for backfill rows
             match.player1_id,
@@ -177,6 +180,14 @@ async function main(): Promise<void> {
             match.actual_winner_id,        // already known — fills in immediately
             asOfDate,                      // resolved_at = the match date
             match.id,                      // backfill_match_id
+             result.matchupCloseness,
+             result.removalProbability,
+             result.builderCalibratedProbability,
+             result.builderVersion,
+             result.builderCalibration?.modelVersion ?? null,
+             result.builderCalibration?.fingerprint ?? null,
+             result.builderCalibration?.modelId ?? null,
+             result.builderCalibration?.provenance ?? null,
           ]
         );
 

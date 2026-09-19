@@ -15,15 +15,14 @@ import { ACTIVE_METRIC_CODES } from "./truth-engine-active-metrics";
 // this module invents a probability or a weight.
 
 const usable = { p1_treatment: "DIRECT" as const, p2_treatment: "DIRECT" as const };
-const record = (rows: MetricRowForComparison[], p1 = "Ana", p2 = "Bo", actual?: string | null) =>
+const record = (rows: MetricRowForComparison[], p1 = "Ana", p2 = "Bo") =>
   buildDecisionRecord({
     audit: runTruthEngineAudit(compareMetricRows(rows), p1, p2),
     metricRows: rows as never,
     now: new Date("2026-09-04T00:00:00Z"),
-    actualWinner: actual,
   });
 
-/** Three independent families favouring P1, one contradicting -> 75%, a real selection. */
+/** Three independent families favouring P1, one contradicting -> a strong weighted selection. */
 function strongP1(): MetricRowForComparison[] {
   return [
     { metric_code: "001", p1_value: "1900", p2_value: "1500", ...usable },
@@ -37,8 +36,9 @@ describe("the record separates diagnostic coverage from the prediction", () => {
   it("captures the prediction, the support share and the coverage as three distinct fields", () => {
     const r = record(strongP1());
     expect(r.selected_player).toBe("Ana");
-    expect(r.evidence_support_percent).toBe(75);
-    // Coverage is 4 of the active set, nothing like 75 -- the two are not the same number.
+    expect(r.evidence_support_percent).toBe(r.weighted_evidence_percent);
+    expect(r.evidence_support_percent).toBeGreaterThan(75);
+    // Coverage is 4 of the active set, not the weighted support share.
     expect(r.evidence_coverage_expected).toBe(ACTIVE_METRIC_CODES.length);
     expect(r.evidence_coverage_usable).toBe(4);
     expect(r.evidence_coverage_percent).not.toBe(r.evidence_support_percent);
@@ -88,27 +88,19 @@ describe("the calibration target is the actual result, never coverage", () => {
     expect(isResolvedObservation(r)).toBe(false);
   });
 
-  it("grades against the real winner once it is known", () => {
-    const won = record(strongP1(), "Ana", "Bo", "Ana");
-    const lost = record(strongP1(), "Ana", "Bo", "Bo");
-    expect(won.decision_correct).toBe(true);
-    expect(lost.decision_correct).toBe(false);
-    expect(isResolvedObservation(won)).toBe(true);
+  it("recognizes a record only after the settlement layer fills both outcome fields", () => {
+    const open = record(strongP1());
+    const settled = { ...open, actual_winner: "Ana", decision_correct: true };
+    expect(isResolvedObservation(open)).toBe(false);
+    expect(isResolvedObservation(settled)).toBe(true);
   });
 
-  it("matches a surname-only result to the full selected name", () => {
-    expect(record(strongP1(), "Gonzalo Bueno", "Joao Reis", "Bueno").decision_correct).toBe(true);
-    expect(record(strongP1(), "Gonzalo Bueno", "Joao Reis", "Reis").decision_correct).toBe(false);
-  });
-
-  it("D. two records with identical decision shape but different coverage stay independently gradable", () => {
-    // Same selection and same support share; different coverage; opposite real outcomes.
-    // Nothing in the record lets coverage override or imply the outcome.
-    const a = record(strongP1(), "Ana", "Bo", "Ana");
-    const b = record([...strongP1(), { metric_code: "055", p1_value: "elo_change_last10=25", p2_value: "elo_change_last10=-25", ...usable }], "Ana", "Bo", "Bo");
+  it("D. two records with identical decision shape but different coverage both stay open", () => {
+    const a = record(strongP1(), "Ana", "Bo");
+    const b = record([...strongP1(), { metric_code: "055", p1_value: "elo_change_last10=25", p2_value: "elo_change_last10=-25", ...usable }], "Ana", "Bo");
     expect(b.evidence_coverage_usable).toBeGreaterThan(a.evidence_coverage_usable);
-    expect(a.decision_correct).toBe(true);
-    expect(b.decision_correct).toBe(false);
+    expect(a.decision_correct).toBeNull();
+    expect(b.decision_correct).toBeNull();
   });
 
   it("a refusal records no prediction and can never be graded", () => {
@@ -116,7 +108,7 @@ describe("the calibration target is the actual result, never coverage", () => {
       { metric_code: "001", p1_value: "1900", p2_value: "1500", ...usable },
       { metric_code: "005", p1_value: "last10_win_pct=20; last10_matches=10", p2_value: "last10_win_pct=90; last10_matches=10", ...usable },
     ];
-    const r = record(split, "Ana", "Bo", "Ana");
+    const r = record(split, "Ana", "Bo");
     expect(r.outcome).toBe("INSUFFICIENT_EVIDENCE");
     expect(r.selected_player).toBeNull();
     expect(r.decision_correct).toBeNull();
@@ -145,14 +137,14 @@ describe("the record preserves the decision structure calibration will need", ()
     expect(r.duplicated_support_metrics).toHaveLength(6);
   });
 
-  it("I. stress, disagreement, underdog and verification survive as features, unscored", () => {
+  it("I. stress, disagreement, underdog and verification survive as separate audit features", () => {
     const r = record(strongP1());
     expect(typeof r.stress_stability).toBe("string");
     expect(typeof r.disagreement_severity).toBe("string");
     expect(typeof r.underdog_viability).toBe("string");
     expect(typeof r.verification_findings).toBe("number");
-    // They are recorded as states/counts -- no weight, no points, no contribution to a score.
-    expect(Object.keys(r).filter((k) => /score|weight|points/i.test(k))).toEqual([]);
+    expect(r.weighted_evidence_percent).not.toBe(r.evidence_coverage_percent);
+    expect(r.verification_findings).not.toBe(r.weighted_score_p1);
   });
 
   it("F. inversion stays symmetric: the same player is recorded from either orientation", () => {
@@ -186,11 +178,11 @@ describe("the record preserves the decision structure calibration will need", ()
   it("A. widening the active registry changes coverage but not a recorded historical decision", () => {
     // The record is a snapshot. Re-reading it later cannot retroactively move its numbers,
     // which is what stops a registry change from rewriting historical win rates.
-    const r = record(strongP1(), "Ana", "Bo", "Ana");
+    const r = record(strongP1(), "Ana", "Bo");
     const frozen = JSON.parse(JSON.stringify(r));
     expect(r.evidence_coverage_expected).toBe(ACTIVE_METRIC_CODES.length);
     expect(frozen.evidence_support_percent).toBe(r.evidence_support_percent);
-    expect(frozen.decision_correct).toBe(true);
+    expect(frozen.decision_correct).toBeNull();
     expect(frozen.schema_version).toBe(1);
   });
 });

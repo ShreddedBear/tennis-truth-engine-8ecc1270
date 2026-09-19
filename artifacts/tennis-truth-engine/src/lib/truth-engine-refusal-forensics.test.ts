@@ -134,7 +134,7 @@ describe("classification of refusals that the decision core itself makes", () =>
     expect(f.trace.after_stress).toBe("TIE");
   });
 
-  it("classifies a leader short of 60% of the directional evidence as BELOW_THRESHOLD", () => {
+  it("uses weighted family evidence rather than a raw family-count majority", () => {
     const rows = [
       row("001", "1600", "1500"),                              // P1  SURFACE_STRENGTH
       row("005", "last10_win_pct=70", "last10_win_pct=40"),    // P1  RECENT_FORM
@@ -145,10 +145,9 @@ describe("classification of refusals that the decision core itself makes", () =>
       row("080", "favorable_divergent_outcomes=10; unfavorable_divergent_outcomes=16", "favorable_divergent_outcomes=16; unfavorable_divergent_outcomes=10"), // P2 COMMON_OPPONENT
     ];
     const f = forensics(rows);
-    expect(f.trace.family_vote).toBe("P2");
-    expect(f.p2_support.support_ratio_percent).toBeLessThan(60);
-    expect(f.classification).toBe("BELOW_THRESHOLD");
-    expect(f.trace.after_threshold).toBe("INSUFFICIENT");
+    expect(f.trace.family_vote).toBe("TIE");
+    expect(f.classification).toBe("TRUE_TIE");
+    expect(f.trace.after_threshold).toBe("TIE");
   });
 
   it("classifies a match with no two-sided evidence at all as DATA_OR_PIPELINE_BUG", () => {

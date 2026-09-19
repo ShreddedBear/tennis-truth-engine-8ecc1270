@@ -580,12 +580,13 @@ function matchRowToMatchRecord(row: MatchRow, playerId: string): MatchRecord {
 
 /**
  * Filter a MatchRow array to rows strictly before the given ceiling date.
- * Rows with null scheduled_start_at are kept (date unknown → cannot confirm future → include).
+ * Rows with null scheduled_start_at are excluded: historical scoring cannot prove
+ * that an undated observation existed before the target cutoff.
  * Exported for unit tests.
  * @internal — never import in production code.
  */
 export function __TEST_filterRowsByCeiling(rows: MatchRow[], ceiling: Date): MatchRow[] {
-  return rows.filter(r => r.scheduled_start_at == null || r.scheduled_start_at < ceiling);
+  return rows.filter(r => r.scheduled_start_at != null && r.scheduled_start_at < ceiling);
 }
 
 // ---------------------------------------------------------------------------
@@ -1123,13 +1124,14 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   // any factor in any code path.  The filter is applied here once, not re-applied
   // per-consumer, so there is a single source of truth.
   //
-  // Row with null scheduled_start_at → kept (date unknown, cannot confirm future).
-  const selMatches = selResolution.rows.filter(
-    r => r.scheduled_start_at == null || r.scheduled_start_at < effectiveCeiling
-  );
-  const oppMatches = oppResolution.rows.filter(
-    r => r.scheduled_start_at == null || r.scheduled_start_at < effectiveCeiling
-  );
+  // Historical calls require affirmative pre-cutoff proof; live calls may retain
+  // undated rows because no historical ceiling is being reconstructed.
+  const isBeforeCeiling = (row: MatchRow): boolean =>
+    asOfDate == null
+      ? row.scheduled_start_at == null || row.scheduled_start_at < effectiveCeiling
+      : row.scheduled_start_at != null && row.scheduled_start_at < effectiveCeiling;
+  const selMatches = selResolution.rows.filter(isBeforeCeiling);
+  const oppMatches = oppResolution.rows.filter(isBeforeCeiling);
 
   // Matchstat enrichment — scraped aggregate surface/form data from matchstat.com.
   // Only attempted in live mode (not backfill) when a player has sparse match history.

@@ -208,7 +208,7 @@ export interface RefusalForensics {
   };
 }
 
-export interface ForensicMetricRow extends MetricRowForComparison {
+export interface ForensicMetricRow extends Omit<MetricRowForComparison, "reliability"> {
   metric_name?: string | null;
   evidence_family?: string | null;
   p1_status?: string | null;
@@ -219,6 +219,16 @@ export interface ForensicMetricRow extends MetricRowForComparison {
   sample?: string | null;
   source?: string | null;
   matrix_derived?: boolean | null;
+}
+
+function normalizeForensicMetricRows(rows: ForensicMetricRow[]): MetricRowForComparison[] {
+  return rows.map((row) => {
+    const reliability = row.reliability == null ? null : Number(row.reliability);
+    return {
+      ...row,
+      reliability: Number.isFinite(reliability) ? reliability : null,
+    };
+  });
 }
 
 export interface ForensicMatchInput {
@@ -477,7 +487,8 @@ function classify(input: {
 
 /** Everything above, for one match. Pure: no DB, no network, no clock. */
 export function forensicsForMatch(input: ForensicMatchInput): RefusalForensics {
-  const comparisons = compareMetricRows(input.metric_rows);
+  const normalizedRows = normalizeForensicMetricRows(input.metric_rows);
+  const comparisons = compareMetricRows(normalizedRows);
   const byCode = new Map(input.metric_rows.map((r) => [String(r.metric_code ?? "").match(/(\d{1,3})$/)?.[1]?.padStart(3, "0") ?? String(r.metric_code), r]));
 
   const decision = decideTruthEngineSelection({ comparisons, p1Name: input.p1, p2Name: input.p2 });
@@ -676,7 +687,7 @@ export function forensicsForMatch(input: ForensicMatchInput): RefusalForensics {
 
   // SYMMETRY SELF-CHECK. Swap the two players' values and confirm every side-specific
   // output swaps with them. A false here would mean the engine treats "P1" as privileged.
-  const swappedRows = input.metric_rows.map((r) => ({ ...r, p1_value: r.p2_value, p2_value: r.p1_value, p1_treatment: r.p2_treatment, p2_treatment: r.p1_treatment }));
+  const swappedRows = normalizedRows.map((r) => ({ ...r, p1_value: r.p2_value, p2_value: r.p1_value, p1_treatment: r.p2_treatment, p2_treatment: r.p1_treatment }));
   const swapped = decideTruthEngineSelection({ comparisons: compareMetricRows(swappedRows), p1Name: input.p2, p2Name: input.p1 });
   const swappedP1 = supportFor("P1", swapped.families);
   const mirrorSymmetric =

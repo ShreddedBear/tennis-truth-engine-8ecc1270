@@ -139,7 +139,7 @@ export function fitBuilderCalibration(rows: BuilderCalibrationRow[], minSample =
     method: "isotonic",
     sampleSize: rows.length,
     fingerprint: fingerprint(rows),
-    provenance: "parlay_leg_outcomes.resolved actual_winner_id; in-memory fit (durable provenance deferred to Stage 6)",
+    provenance: "parlay_leg_outcomes.resolved actual_winner_id; Builder-owned isotonic fit; registry persisted when available",
     eligible: true,
     mapping: blocks.map((block) => ({ score: block.x, probability: Math.round(block.y * 1000) / 10 })),
     mapProbability,

@@ -35,6 +35,26 @@ test("Builder calibration schema contract is additive and leaves existing outcom
   assert.match(schema, /UNIQUE \(model_version, fingerprint\)/);
 });
 
+test("every Builder outcome writer persists the six provenance fields", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const writers = await Promise.all([
+    readFile(new URL("../../routes/adminParlay.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../scripts/backfillParlayLegOutcomes.ts", import.meta.url), "utf8"),
+  ]);
+  for (const writer of writers) {
+    for (const column of [
+      "builder_calibrated_probability",
+      "builder_model_version",
+      "builder_calibration_version",
+      "builder_calibration_fingerprint",
+      "builder_calibration_model_id",
+      "builder_calibration_provenance",
+    ]) {
+      assert.match(writer, new RegExp(column), `${column} missing from Builder outcome writer`);
+    }
+  }
+});
+
 test("Builder calibration falls back to raw probability below its minimum sample threshold", () => {
   const model = fitBuilderCalibration(rows(BUILDER_CALIBRATION_MIN_SAMPLE - 1));
   assert.equal(model.eligible, false);
