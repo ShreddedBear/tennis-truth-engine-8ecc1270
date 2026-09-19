@@ -1,0 +1,98 @@
+Do NOT begin Phase 2.
+
+Do NOT modify source code, tests, database, configuration, deployment, branches, or Git history.
+
+Do NOT implement any reconciliation.
+
+SINGLE REMAINING PHASE 1 TASK
+
+Resolve the final TSE repository-history provenance blocker.
+
+The current evidence was produced from a shallow, single-branch TSE view. We need to establish whether any relevant functionality exists outside the currently audited TSE main snapshot.
+
+Required evidence
+
+Obtain or inspect a complete TSE repository history containing, where available:
+
+* Full main history
+* All relevant branches
+* Tags
+* Deleted-file history
+* Rename history
+* Historical implementations of the Live Tennis provider
+* Historical implementations of live-score correlation
+* Historical CompositeTennisProvider versions
+* Historical TennisDataProvider versions
+* Historical Prediction Engine / Parlay Builder functionality
+* Previous migration/reconciliation attempts
+
+Do NOT assume the current branch is exhaustive.
+
+Search specifically for
+
+1. Capabilities absent from both current State C and current TSE main.
+2. Alternative implementations on other TSE branches.
+3. Deleted or superseded Live Tennis implementations.
+4. Deleted or superseded live-score correlation implementations.
+5. Historical provider-routing behavior.
+6. Historical identity/canonicalization behavior.
+7. Historical no-lookahead / temporal-bound implementations.
+8. Prior reconciliation or migration commits that may contain functionality not represented in the current trees.
+9. Any commits that could change the zero-loss preservation requirements.
+
+Evidence rules
+
+Use direct Git/repository evidence.
+
+For every discovered capability, record:
+
+* commit SHA
+* branch/tag
+* file/path
+* what capability it contains
+* whether it is already preserved in State C
+* whether it is already preserved in current TSE main
+* whether it requires Phase 2 reconciliation
+
+Do NOT treat absence from a shallow clone as evidence of absence.
+
+REQUIRED FINAL OUTPUT
+
+Produce:
+
+HISTORY COVERAGE
+
+* What TSE history/branches were actually available
+* What remains inaccessible, if anything
+
+HISTORICAL CAPABILITIES FOUND
+
+* Only genuinely new findings
+
+ALREADY PRESERVED
+
+* Historical functionality already represented in State C/current TSE
+
+NEW ZERO-LOSS REQUIREMENTS
+
+* Only requirements not already captured by the 19 audit reports
+
+REMAINING HISTORY BLOCKERS
+
+Then give exactly one of:
+
+PHASE 1 STATUS: COMPLETE
+
+Only if repository-history completeness is sufficient to establish that all relevant functionality has been identified.
+
+OR
+
+PHASE 1 STATUS: UNRESOLVED
+
+If material history remains inaccessible.
+
+If unresolved, state exactly what evidence is still required.
+
+STOP.
+
+No Phase 2 work.
