@@ -1,0 +1,63 @@
+Continue Phase 1. Do NOT implement, modify, commit, or push anything.
+
+SINGLE TASK
+
+Build the complete dependency map for TSE’s live-score identity-correlation behavior.
+
+Starting from the already-confirmed TSE fixtureMetaCache / getLiveScoresByIdentity mechanism, inspect and document:
+
+1. tennisData/compositeProvider.ts
+    * every call into fixtureMetaCache
+    * where fixture metadata is written
+    * where it is read
+    * exact fallback order
+    * interaction with native API-Tennis fixture IDs
+    * interaction with RapidAPI/Sofascore/provider IDs
+2. tennisData/apiTennisProvider.ts
+    * exact getLiveScoresByIdentity implementation
+    * normalization rules
+    * date matching rules
+    * ambiguity handling
+    * empty-result behavior
+    * error behavior
+3. Shared interfaces/types
+    * identify every interface/type that would have to change to support the behavior
+    * especially TennisDataProvider
+    * FixtureFetchDiagnostics
+    * fixture/player identity types
+    * provider ID namespaces
+4. tennisData/matchStatProvider.ts
+    * determine how live scores flow into MatchStat
+    * identify whether it requests native IDs, provider IDs, or identity-based lookup
+    * determine the practical runtime path when correlation succeeds vs. fails
+5. State C Live Tennis integration
+    * identify exactly where the State C live-tennis-player-* namespace enters the system
+    * determine whether those IDs can collide with or bypass the TSE correlation mechanism
+    * identify any canonical-player / alias resolution involved
+6. Tests
+    * locate the existing TSE compositeProvider.liveScoresIdentity.test.ts
+    * document exactly what each of its 3 tests proves
+    * identify the minimum additional tests needed to prove the combined State C + TSE behavior.
+
+REQUIRED OUTPUT
+
+Produce a forensic report containing:
+
+* CURRENT TSE FLOW
+* CURRENT STATE C FLOW
+* EXACT DIFFERENCES
+* DEPENDENCY GRAPH
+* IDENTITY / NAMESPACE INTERACTIONS
+* FAILURE MODES
+* REQUIRED INTERFACE CHANGES
+* REQUIRED TEST COVERAGE
+* MIGRATION RISKS
+* ZERO-LOSS RECONCILIATION REQUIREMENTS
+
+Explicitly answer:
+
+Can TSE’s identity-correlation mechanism be added to State C without weakening or bypassing State C’s Live Tennis provider/routing, and exactly where should the two behaviors meet?
+
+Do not answer with an implementation yet. We are still in Phase 1 forensic analysis.
+
+STOP after the report.
