@@ -336,6 +336,7 @@ async function attemptRapidApi(
   playerName: string,
   diag: LiveFetchDiagnostics,
   providerOverride?: InstanceType<typeof import("../tennisData/matchStatProvider.js").MatchStatProvider> | null,
+  skipWikidata = false,
 ): Promise<PlayerSummary | null> {
   const provider = providerOverride !== undefined ? providerOverride : getBuilderRapidApiProvider();
   if (!provider) return null; // key not configured — skip silently
@@ -357,6 +358,7 @@ async function attemptRapidApi(
       playerName,
       playerName,
       {
+        skipWikidata,
         onSearchError: (err, query) => {
           searchErrorReason = describeProviderError(err);
           logger.warn({ source: "rapidapi", query, err, reason: searchErrorReason }, "builderProviderFetch: rapidapi shared resolver search failed");
@@ -380,7 +382,7 @@ async function attemptRapidApi(
   if (searchErrorReason && !foundPlayer) {
     sourceDiag.failureReason = searchErrorReason;
     diag.sourcesFailed.push("rapidapi");
-    diag.failureReasons.push(`rapidapi resolve: ${searchErrorReason}`);
+    diag.failureReasons.push(`rapidapi search: ${searchErrorReason}`);
     diag.outcome = "SOURCE_UNAVAILABLE";
     diag.sources.push(sourceDiag);
     return null;
@@ -400,7 +402,6 @@ async function attemptRapidApi(
     }
   } else {
     sourceDiag.failureReason = "Player not found in RapidAPI rankings";
-    diag.sourcesFailed.push("rapidapi");
   }
 
   diag.sources.push(sourceDiag);
@@ -423,6 +424,7 @@ async function attemptMatchstat(
   playerName: string,
   diag: LiveFetchDiagnostics,
   providerOverride?: InstanceType<typeof import("../tennisData/apiTennisProvider.js").ApiTennisProvider> | null,
+  skipWikidata = false,
 ): Promise<LiveFetchResult | null> {
   const provider = providerOverride !== undefined ? providerOverride : getBuilderApiTennisProvider();
   if (!provider) return null; // key not configured — skip silently
@@ -445,6 +447,7 @@ async function attemptMatchstat(
       playerName,
       playerName,
       {
+        skipWikidata,
         onSearchError: (err, query) => {
           searchErrorReason = describeProviderError(err);
           logger.warn({ source: "api-tennis", query, err, reason: searchErrorReason }, "builderProviderFetch: api-tennis shared resolver search failed");
@@ -468,7 +471,7 @@ async function attemptMatchstat(
   if (searchErrorReason && !foundPlayer) {
     sourceDiag.failureReason = searchErrorReason;
     diag.sourcesFailed.push("api-tennis");
-    diag.failureReasons.push(`api-tennis resolve: ${searchErrorReason}`);
+    diag.failureReasons.push(`api-tennis search: ${searchErrorReason}`);
     diag.outcome = "SOURCE_UNAVAILABLE";
     diag.sources.push(sourceDiag);
     return null;
@@ -476,7 +479,6 @@ async function attemptMatchstat(
 
   if (!foundPlayer) {
     sourceDiag.failureReason = "Player not found in API-Tennis";
-    diag.sourcesFailed.push("api-tennis");
     diag.sources.push(sourceDiag);
     return null;
   }
@@ -611,7 +613,6 @@ async function attemptSofascore(
       diag.outcome = "NO_MATCH_HISTORY";
     } else {
       sfDiag.failureReason = "Player not found in Sofascore";
-      diag.sourcesFailed.push("sofascore");
       // PLAYER_NOT_FOUND outcome stays as-is when all providers say not found
     }
   } catch (err) {
@@ -674,7 +675,7 @@ export interface BuilderProviders {
   liveTennis?: LiveTennisFixturesProvider | null;
   rapidApi: InstanceType<typeof import("../tennisData/matchStatProvider.js").MatchStatProvider> | null;
   apiTennis: InstanceType<typeof import("../tennisData/apiTennisProvider.js").ApiTennisProvider> | null;
-  sofascore: typeof fetchFromSofascore;
+  sofascore?: typeof fetchFromSofascore | null;
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
@@ -701,25 +702,30 @@ export async function fetchPlayerMatchesFromProviders(
   _context?: { playerId?: string; opponentName?: string; tournamentName?: string },
   _providers?: Partial<BuilderProviders>,
 ): Promise<LiveFetchResult> {
-  // Resolve providers: injected overrides take precedence (tests use this);
-  // production falls back to env-key singletons.
-  // `undefined` in the injected map means "use env key"; `null` means "disabled".
-  const injectedRapidApi = _providers && "rapidApi" in _providers ? _providers.rapidApi : undefined;
-  const injectedApiTennis = _providers && "apiTennis" in _providers ? _providers.apiTennis : undefined;
-  const injectedLiveTennis = _providers && "liveTennis" in _providers ? _providers.liveTennis : undefined;
-  const injectedSofascore = _providers?.sofascore;
-
-  const effectiveLiveTennis = _providers
-    ? (injectedLiveTennis ?? null)
+  // Resolve providers: an injected map is a complete test boundary.  In
+  // particular, an omitted provider must not silently become an env-key
+  // singleton (or the live Sofascore fetch), since that makes tests dependent
+  // on the process environment and network availability.  Production callers
+  // omit the map and retain the normal env-key behavior.
+  const usingInjectedProviders = _providers !== undefined;
+  const effectiveLiveTennis = usingInjectedProviders
+    ? (_providers!.liveTennis ?? null)
     : getBuilderLiveTennisProvider();
-  const effectiveRapidApi = injectedRapidApi !== undefined ? injectedRapidApi : getBuilderRapidApiProvider();
-  const effectiveApiTennis = injectedApiTennis !== undefined ? injectedApiTennis : getBuilderApiTennisProvider();
+  const effectiveRapidApi = usingInjectedProviders
+    ? (_providers!.rapidApi ?? null)
+    : getBuilderRapidApiProvider();
+  const effectiveApiTennis = usingInjectedProviders
+    ? (_providers!.apiTennis ?? null)
+    : getBuilderApiTennisProvider();
+  const effectiveSofascore = usingInjectedProviders
+    ? (_providers!.sofascore ?? null)
+    : fetchFromSofascore;
 
   const sourcesConfigured: string[] = [];
   if (effectiveLiveTennis) sourcesConfigured.push("live-tennis");
   if (effectiveRapidApi) sourcesConfigured.push("rapidapi");
   if (effectiveApiTennis) sourcesConfigured.push("api-tennis");
-  sourcesConfigured.push("sofascore");
+  if (effectiveSofascore) sourcesConfigured.push("sofascore");
 
   const diag: LiveFetchDiagnostics = {
     outcome: "CACHE_MISS",
@@ -750,7 +756,7 @@ export async function fetchPlayerMatchesFromProviders(
   // identity resolution diagnostics) but has no match-history endpoint.
   // Run it first so any identity signal is captured before Tier 2 searches.
   if (effectiveRapidApi) {
-    await attemptRapidApi(playerName, diag, effectiveRapidApi);
+    await attemptRapidApi(playerName, diag, effectiveRapidApi, usingInjectedProviders);
     // Result (PlayerSummary | null) is intentionally discarded here — MatchStat
     // IDs are incompatible with API-Tennis IDs, so the Tier-2 search is always
     // run independently. The value of Tier 1 is diagnostic coverage, not data.
@@ -758,13 +764,15 @@ export async function fetchPlayerMatchesFromProviders(
 
   // ── Tier 3: API-Tennis — full search + match history ─────────────────────
   if (effectiveApiTennis) {
-    const apiTennisResult = await attemptMatchstat(playerName, diag, effectiveApiTennis);
+    const apiTennisResult = await attemptMatchstat(playerName, diag, effectiveApiTennis, usingInjectedProviders);
     if (apiTennisResult) return apiTennisResult;
   }
 
   // ── Tier 4: Sofascore — supplemental / fallback ───────────────────────────
-  const sfResult = await attemptSofascore(playerName, diag, injectedSofascore);
-  if (sfResult) return sfResult;
+  if (effectiveSofascore) {
+    const sfResult = await attemptSofascore(playerName, diag, effectiveSofascore);
+    if (sfResult) return sfResult;
+  }
 
   // ── All providers exhausted ───────────────────────────────────────────────
   if (diag.outcome === "CACHE_MISS") {

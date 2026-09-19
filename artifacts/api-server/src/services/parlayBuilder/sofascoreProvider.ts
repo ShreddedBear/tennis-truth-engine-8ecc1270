@@ -199,6 +199,10 @@ function extractFirstInitial(name: string): string {
 }
 
 export function isConfidentSofascoreMatch(candidateName: string, queriedName: string): boolean {
+  const candidateParts = candidateName.split(",").map((part) => part.trim()).filter(Boolean);
+  const comparableCandidate = candidateParts.length === 2
+    ? `${candidateParts[1]} ${candidateParts[0]}`
+    : candidateName;
   const qSurname = extractSurname(queriedName);
   const qInitial = extractFirstInitial(queriedName).toLowerCase();
 
@@ -210,14 +214,19 @@ export function isConfidentSofascoreMatch(candidateName: string, queriedName: st
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[ŁłÐðØøÆæ]/g, (c) =>
         ({ Ł: "l", ł: "l", Ð: "d", ð: "d", Ø: "o", ø: "o", Æ: "ae", æ: "ae" }[c] ?? c),
-      );
+      )
+      .replace(/[’']/g, "");
 
-  const normCandidate = normalize(candidateName);
+  const normCandidate = normalize(comparableCandidate);
   const normSurname = normalize(qSurname);
 
   if (!normCandidate.includes(normSurname)) return false;
   if (qInitial) {
-    const cInitial = normalize(candidateName).trimStart().charAt(0);
+    const candidateWords = normalize(comparableCandidate).trimStart().split(/\s+/);
+    const cInitial = candidateParts.length === 2
+      ? candidateWords[0]?.charAt(0)
+      : candidateWords.find((word) => word.charAt(0) === qInitial)?.charAt(0) ??
+        candidateWords[0]?.charAt(0);
     const qInitialNorm = normalize(qInitial);
     if (cInitial !== qInitialNorm) return false;
   }

@@ -578,7 +578,11 @@ async function resolvePlayerProfileByNameInternal(
   provider: TennisDataProvider,
   submittedName: string,
   requestedPlayerId: string | null = null,
-  options?: { onSearchError?: (err: unknown, query: string) => void },
+  options?: {
+    onSearchError?: (err: unknown, query: string) => void;
+    /** Avoid external alias resolution for isolated callers and tests. */
+    skipWikidata?: boolean;
+  },
 ): Promise<PlayerProfile | null> {
   const normalizedQuery = normalizePlayerName(submittedName);
   const queryWords = normalizedQuery.split(" ").filter(Boolean);
@@ -638,9 +642,32 @@ async function resolvePlayerProfileByNameInternal(
     }
   }
 
+  // Deterministic local format matching handles the common provider formats without
+  // requiring an alias service (and is also used by isolated builder tests).
+  const formattedMatch = candidates.find((c) => {
+    if (!c.name || /\s\/\s|\//.test(c.name)) return false;
+    const commaParts = c.name.split(",").map((part) => part.trim()).filter(Boolean);
+    const comparableName = commaParts.length === 2 ? `${commaParts[1]} ${commaParts[0]}` : c.name;
+    const cleanToken = (token: string) => token.replace(/[’']/g, "");
+    const submittedTokens = normalizePlayerName(submittedName).split(" ").filter(Boolean).map(cleanToken).sort().join(" ");
+    const candidateTokens = normalizePlayerName(comparableName).split(" ").filter(Boolean).map(cleanToken).sort().join(" ");
+    return submittedTokens === candidateTokens ||
+      playerNamesMatch(submittedName, comparableName) ||
+      playerNamesMatch(comparableName, submittedName);
+  });
+  if (formattedMatch) {
+    return minimalProfileFromSearchCandidate(
+      formattedMatch,
+      submittedName,
+      requestedPlayerId,
+      "formatted-name-match",
+    );
+  }
+
   // 3. Wikidata alias fallback: look up alternative name forms (transliterations without
   //    diacritics, birth names, nicknames) e.g. "Galán" → "Galan", "Feistl" → "Feistel".
   //    Non-fatal: a Wikidata timeout or parse error just skips this step.
+  if (options?.skipWikidata) return null;
   try {
     const wikidataAliases = await resolveWikidataAliases(submittedName);
     for (const alias of wikidataAliases) {
@@ -924,7 +951,10 @@ export async function resolvePlayerProfileByName(
   provider: TennisDataProvider,
   submittedName: string,
   requestedPlayerId: string | null = null,
-  options?: { onSearchError?: (err: unknown, query: string) => void },
+  options?: {
+    onSearchError?: (err: unknown, query: string) => void;
+    skipWikidata?: boolean;
+  },
 ): Promise<PlayerProfile | null> {
   return resolvePlayerProfileByNameInternal(provider, submittedName, requestedPlayerId, options);
 }

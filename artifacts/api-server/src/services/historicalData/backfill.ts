@@ -213,6 +213,15 @@ export async function runHistoricalBackfill(
   };
 
   const identityResolver = await createDatabaseCanonicalIngestionResolver(`historical-backfill:${provider.name}`);
+  // Fixtures sharing a scheduled start must all compute snapshots from the same state. Keep their
+  // result folds pending until the timestamp group is complete (duplicates included).
+  const pendingFolds: StoredMatchForFold[] = [];
+  let pendingFoldTimestamp: number | null = null;
+  const flushPendingFolds = () => {
+    for (const match of pendingFolds) foldMatchIntoStates(playerStates, match);
+    pendingFolds.length = 0;
+    pendingFoldTimestamp = null;
+  };
 
   // Hydrate from everything already stored strictly before this run's window -- this is what
   // makes running the pipeline across multiple separate process invocations safe: a run started
@@ -240,6 +249,12 @@ export async function runHistoricalBackfill(
     });
 
     for (const { fixture, schedule } of sorted) {
+      const scheduledTimestamp = schedule.scheduledStartAt.getTime();
+      if (pendingFoldTimestamp !== null && pendingFoldTimestamp !== scheduledTimestamp) {
+        flushPendingFolds();
+      }
+      if (pendingFoldTimestamp === null) pendingFoldTimestamp = scheduledTimestamp;
+
       // Approved importers resolve source IDs before reaching this generic pipeline. Do not
       // resolve their canonical IDs as if they were provider IDs (which would create false
       // review-queue entries). Legacy providers retain the existing resolver behavior.
@@ -343,10 +358,9 @@ export async function runHistoricalBackfill(
         }
 
         summary.matchesSkippedDuplicate += 1;
-        // Already stored (by this run or an earlier one) -- don't re-insert or re-snapshot, but
-        // DO fold it into this run's in-memory state so later matches in this same run still see
-        // it, matching what hydration would have done had this row existed before the run started.
-        foldMatchIntoStates(playerStates, {
+        // Already stored (by this run or an earlier one) -- don't re-insert or re-snapshot. Defer
+        // its fold with this timestamp group just like a newly inserted match.
+        pendingFolds.push({
           player1Id: storedPlayer1Id,
           player2Id: storedPlayer2Id,
           winnerId: existing.winnerId,
@@ -452,7 +466,7 @@ export async function runHistoricalBackfill(
       // Only now, after both snapshots are captured and written, fold this match's own result
       // into each player's running state so it can inform LATER matches (this run's, or a
       // future run's -- via hydration).
-      foldMatchIntoStates(playerStates, {
+      pendingFolds.push({
         player1Id: storedPlayer1Id,
         player2Id: storedPlayer2Id,
         winnerId: fixture.winnerId,
@@ -463,6 +477,7 @@ export async function runHistoricalBackfill(
       });
     }
   }
+  flushPendingFolds();
 
   summary.durationMs = Date.now() - startedAt;
 

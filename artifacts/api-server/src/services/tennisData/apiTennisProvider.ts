@@ -42,7 +42,10 @@ function normalizeFixtureName(name: string): string {
 }
 
 function fixtureIdentityKey(date: string, player1Name: string, player2Name: string): string {
-  return `${date}|${[normalizeFixtureName(player1Name), normalizeFixtureName(player2Name)].sort().join("|")}`;
+  // Player order is part of the fixture identity.  A caller's player1/player2
+  // orientation is meaningful for score-set alignment, so do not treat a
+  // reversed pairing as the same match.
+  return `${date}|${normalizeFixtureName(player1Name)}|${normalizeFixtureName(player2Name)}`;
 }
 
 /**
@@ -841,13 +844,19 @@ export class ApiTennisProvider implements TennisDataProvider {
     const raw = await this.cache.getOrFetch(`live-scores:${dateStart}:${dateStop}`, LIVE_SCORE_TTL_MS, () =>
       this.call<RawMatch[]>("live", "get_fixtures", { date_start: dateStart, date_stop: dateStop }),
     );
-    const byIdentity = new Map<string, RawMatch>();
+    // A duplicate identity is ambiguous (for example, an upstream duplicate
+    // row with different scores). Never let Map#set make the result
+    // accidentally depend on upstream row order.
+    const byIdentity = new Map<string, RawMatch | null>();
     for (const match of raw ?? []) {
       if (!match.event_date || !match.event_first_player || !match.event_second_player) continue;
-      byIdentity.set(
-        fixtureIdentityKey(String(match.event_date).slice(0, 10), String(match.event_first_player), String(match.event_second_player)),
-        match,
+      const key = fixtureIdentityKey(
+        String(match.event_date).slice(0, 10),
+        String(match.event_first_player),
+        String(match.event_second_player),
       );
+      if (byIdentity.has(key)) byIdentity.set(key, null);
+      else byIdentity.set(key, match);
     }
     for (const request of requests) {
       const match = byIdentity.get(fixtureIdentityKey(request.date, request.player1Name, request.player2Name));
