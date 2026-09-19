@@ -234,33 +234,6 @@ export const TOUR_RELIABILITY_DISCOUNT: Partial<Record<string, number>> = {
   ATP: 0.63,
 };
 
-/**
- * Additional post-calibration shrink toward 50%, applied in `predictionEngine/index.ts` ONLY when
- * no segment specialist actually voted (see `TOUR_RELIABILITY_DISCOUNT` above for why) AND this
- * match's surface sample depth is "Low" (`computeSurfaceSampleDepth`, below
- * `SURFACE_SAMPLE_LOW_THRESHOLD` prior matches for the thinner-sampled player).
- *
- * Task #151: the same 2026-07-13 ablation report found Surface Elo, Fatigue, and Availability
- * each show their single largest per-surface leave-one-out swing on Grass (-1.3, -1.9, -1.9pts
- * respectively, n=162) -- the thinnest-volume surface in the whole corpus. That is the signature
- * of those modules' own reliability estimates being noisiest exactly where real per-surface
- * sample size is thinnest, not a Grass-specific effect as such -- so this discount is keyed to the
- * general, already-computed sample-depth signal (not hardcoded to "Grass"), and also protects e.g.
- * a clay specialist's grass tournament debut. 0.75 is a deliberately modest shrink (smaller than
- * the ATP discount above): unlike the ATP finding, this isn't a validated accuracy gap on its own
- * baseline, just added noise-sensitivity on top of already-thin data that
- * `calibrateProbability`'s Data Quality curve only partly captures.
- *
- * Task #157 re-check (2026-07-15, `docs/audit-task157-confidence-discount-revalidation.md`): a
- * fresh ablation replay shows the ATP gap this file's discounts target still persists at a
- * similar relative size (ratio 0.69 vs. the 0.63 `TOUR_RELIABILITY_DISCOUNT.ATP` was sized from),
- * and the Grass leave-one-out volatility this constant targets looked improved (deltas moved to
- * 0 from -1.3/-1.9/-1.9) -- but both readings came from samples far thinner (n=231, n=119) than
- * the ones the constants were originally sized from (n=1,242, n=162), so neither constant was
- * re-tuned off this evidence alone.
- */
-export const LOW_SURFACE_SAMPLE_DISCOUNT = 0.75;
-
 export type SurfaceSampleLabel = "Low" | "Moderate" | "High";
 
 /** A player's surface sample is "Low" below this many prior matches on the relevant surface -- matches `surfaceElo.ts`'s own low-confidence warning threshold, so the two signals never disagree about what counts as thin. */

@@ -91,6 +91,22 @@ test("historical asOfDate reaches Availability at the engine wiring boundary", a
   assert.equal(output.engine.availability.player1.daysSinceLastMatch, 10);
 });
 
+test("low surface sample depth is not double-counted by a dedicated probability discount", async () => {
+  const output = await runPredictionEngine(
+    baseInput({
+      player1Matches: [match("thin-1", "Thin Opponent 1", true, "Hard", 10, 65)],
+      player2Matches: [match("thin-2", "Thin Opponent 2", false, "Hard", 12, 52)],
+    }),
+  );
+
+  assert.equal(output.engine.surfaceSampleDepth.label, "Low");
+  assert.equal(output.decisionTrace.pipeline.reliabilityDiscount, 1);
+  assert.equal(
+    output.decisionTrace.pipeline.afterReliabilityDiscount,
+    output.decisionTrace.pipeline.afterSpecialist,
+  );
+});
+
 test("a 'Surface Elo favors X' reason always names whichever player actually holds the HIGHER surface Elo rating, never the lower one", async () => {
   const output = await runPredictionEngine(baseInput());
   const surfaceEloReason = output.engine.reasons.find((r) => r.startsWith("Surface Elo favors"));
