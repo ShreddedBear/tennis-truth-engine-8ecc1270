@@ -21,7 +21,7 @@ export interface PlayerState {
 
 const STARTING_ELO = 1500;
 const ELO_K = 32;
-const HISTORY_CAP = 200;
+export const HISTORY_CAP = 200;
 const FORM_WINDOW = 10;
 
 export function createPlayerState(): PlayerState {

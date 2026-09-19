@@ -38,7 +38,15 @@ export function buildMatchHistoryIndex(rows: HistoricalMatchContextRow[]): Match
     }
   }
   // Sort once per player, descending by scheduled start, so callers can just take a prefix.
-  for (const list of byPlayer.values()) list.sort((a, b) => b.scheduledStartAt.getTime() - a.scheduledStartAt.getTime());
+  // Match IDs are the deterministic chronological tie-break used by backfill: for equal
+  // scheduled timestamps, the larger ID is the more recent row in this reverse-chronological
+  // representation. Never rely on database row order for same-time matches.
+  for (const list of byPlayer.values()) {
+    list.sort((a, b) => {
+      const dateDifference = b.scheduledStartAt.getTime() - a.scheduledStartAt.getTime();
+      return dateDifference !== 0 ? dateDifference : b.id - a.id;
+    });
+  }
   return { byPlayer };
 }
 

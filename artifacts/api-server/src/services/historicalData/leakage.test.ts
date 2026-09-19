@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { runHistoricalBackfill } from "./backfill";
 import type { HistoricalFixture, TennisDataProvider } from "../tennisData/types";
+import { HISTORY_CAP } from "./features";
 
 test("no feature snapshot has a source timestamp at or after its match's cutoff", async () => {
   // The backfill pipeline filters to sourceTimestamp < cutoffAt (strictly less) at
@@ -85,21 +86,37 @@ test("no snapshot references a feature timestamped from the match's own schedule
   assert.equal(rows.rows.length, 0, "Found feature snapshot(s) sourced from the match's own start time or later");
 });
 
-test("matchesPlayed feature exactly equals the player's count of strictly-earlier terminal matches (no leak, no gap)", async () => {
-  // This is both a leakage check (the count can't include this match or anything later) and a
-  // completeness check (it can't silently omit an earlier match either) -- the strongest single
-  // proof that the backfill's chronological ordering is correct.
+test("matchesPlayed feature equals the bounded deterministic running-state count (no leak, no gap)", async () => {
+  // Production intentionally retains only the most recent HISTORY_CAP=200 completed matches in
+  // memory. This is therefore not an all-time career count. The SQL expectation mirrors the
+  // running state: chronological order is (scheduled_start_at, id), same-time rows with a lower
+  // ID are already prior, cancelled rows are excluded, and the result is capped at 200.
   const rows = await db.execute(sql`
+    with player_matches as (
+      select id as match_id, player1_id as player_id, scheduled_start_at
+      from ${historicalMatchesTable}
+      where cancelled = false
+      union all
+      select id as match_id, player2_id as player_id, scheduled_start_at
+      from ${historicalMatchesTable}
+      where cancelled = false
+    ),
+    running_counts as (
+      select match_id, player_id,
+        least(
+          row_number() over (
+            partition by player_id
+            order by scheduled_start_at, match_id
+          ) - 1,
+          ${HISTORY_CAP}
+        ) as actual_prior_count
+      from player_matches
+    )
     select fs.id, fs.feature_value, fs.player_id, hm.id as match_id,
-      (
-        select count(*) from ${historicalMatchesTable} earlier
-        where (earlier.player1_id = fs.player_id or earlier.player2_id = fs.player_id)
-          and earlier.id <> hm.id
-          and earlier.cancelled = false
-          and earlier.scheduled_start_at < hm.scheduled_start_at
-      ) as actual_prior_count
+      rc.actual_prior_count
     from ${matchFeatureSnapshotsTable} fs
     join ${historicalMatchesTable} hm on hm.id = fs.match_id
+    join running_counts rc on rc.match_id = hm.id and rc.player_id = fs.player_id
     where fs.feature_name = 'matchesPlayed'
   `);
 
