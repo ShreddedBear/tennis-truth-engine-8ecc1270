@@ -546,11 +546,31 @@ const STATEMENTS: string[] = [
     backfill_match_id    INTEGER
   )
   `,
+  // Builder-owned calibration registry. This is deliberately outside Drizzle ownership:
+  // Prediction Engine calibration rows must never be reused by the independent Builder.
+  `CREATE TABLE IF NOT EXISTS builder_calibration_models (
+     id             SERIAL PRIMARY KEY,
+     model_version  TEXT NOT NULL,
+     method         TEXT NOT NULL,
+     mapping        JSONB NOT NULL,
+     sample_count   INTEGER NOT NULL,
+     fingerprint    TEXT NOT NULL,
+     fitted_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     active         BOOLEAN NOT NULL DEFAULT false,
+     provenance     TEXT NOT NULL,
+     UNIQUE (model_version, fingerprint)
+   )`,
   // Forward-compat: columns added after initial table creation
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'live'`,
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS backfill_match_id INTEGER`,
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS matchup_closeness INTEGER`,
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS removal_probability INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibrated_probability NUMERIC`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_model_version TEXT`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibration_version TEXT`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibration_fingerprint TEXT`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibration_model_id INTEGER`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibration_provenance TEXT`,
   // Backfill dedup: one row per graded match (prevents re-running from doubling data)
   `CREATE UNIQUE INDEX IF NOT EXISTS parlay_leg_outcomes_backfill_match_idx ON parlay_leg_outcomes (backfill_match_id) WHERE backfill_match_id IS NOT NULL`,
   // Resolution job: scan for unresolved rows ordered by age

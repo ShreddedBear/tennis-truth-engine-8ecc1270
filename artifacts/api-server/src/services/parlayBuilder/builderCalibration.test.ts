@@ -15,6 +15,7 @@ test("Builder isotonic calibration is monotonic and carries explicit provenance"
   assert.equal(model.eligible, true);
   assert.equal(model.modelVersion, BUILDER_CALIBRATION_VERSION);
   assert.equal(model.method, "isotonic");
+  assert.ok(model.mapping.length > 0);
   assert.match(model.provenance, /parlay_leg_outcomes\.resolved/);
   let previous = -Infinity;
   for (const score of [0, 10, 25, 50, 75, 100]) {
@@ -22,6 +23,16 @@ test("Builder isotonic calibration is monotonic and carries explicit provenance"
     assert.ok(mapped >= previous, `${mapped} should not decrease after ${previous}`);
     previous = mapped;
   }
+});
+
+test("Builder calibration schema contract is additive and leaves existing outcome provenance nullable", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const schema = await readFile(new URL("../../lib/ensureEvaluationSchema.ts", import.meta.url), "utf8");
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS builder_calibration_models/);
+  assert.match(schema, /ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibrated_probability NUMERIC/);
+  assert.match(schema, /ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibration_model_id INTEGER/);
+  assert.match(schema, /ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS builder_calibration_provenance TEXT/);
+  assert.match(schema, /UNIQUE \(model_version, fingerprint\)/);
 });
 
 test("Builder calibration falls back to raw probability below its minimum sample threshold", () => {

@@ -475,13 +475,17 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         const leg = legs[i];
+        const calibratedResult = "builderCalibratedProbability" in result ? result : null;
         await pool.query(
           `INSERT INTO parlay_leg_outcomes
              (session_id, selected_player_id, opponent_id, selected_player_name, opponent_name,
               tournament_name, surface, validation_score, risk_score, reliability_grade,
               parlay_grade, decision, data_coverage, source_agreement, factor_scores, market_odds,
-                matchup_closeness, removal_probability)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18)`,
+                 matchup_closeness, removal_probability, builder_calibrated_probability,
+                 builder_model_version, builder_calibration_version, builder_calibration_fingerprint,
+                 builder_calibration_model_id, builder_calibration_provenance)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18,
+                 $19, $20, $21, $22, $23, $24)`,
           [
             sessionId,
             leg.selectedPlayerId,
@@ -501,6 +505,12 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
             leg.marketOdds ?? null,
             result.matchupCloseness ?? null,
             result.removalProbability,
+             calibratedResult?.builderCalibratedProbability ?? null,
+             calibratedResult?.builderVersion ?? null,
+             calibratedResult?.builderCalibration?.modelVersion ?? null,
+             calibratedResult?.builderCalibration?.fingerprint ?? null,
+             calibratedResult?.builderCalibration?.modelId ?? null,
+             calibratedResult?.builderCalibration?.provenance ?? null,
           ]
         );
       }
@@ -973,15 +983,23 @@ router.post("/admin/parlay/backfill", requireAdmin, (req, res): void => {
                 tournament_name, surface, validation_score, risk_score, reliability_grade,
                 parlay_grade, decision, data_coverage, source_agreement, factor_scores,
                 market_odds, actual_winner_id, resolved_at, source, backfill_match_id,
-                 matchup_closeness, removal_probability)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16,$17,$18,'backfill',$19,$20,$21)`,
+                 matchup_closeness, removal_probability, builder_calibrated_probability,
+                 builder_model_version, builder_calibration_version, builder_calibration_fingerprint,
+                 builder_calibration_model_id, builder_calibration_provenance)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16,$17,$18,'backfill',$19,$20,$21,
+                 $22,$23,$24,$25,$26,$27)`,
             [null, selectedPlayerId, opponentId, selectedPlayerName, opponentName,
              match.tournament_name ?? null, match.surface ?? null,
              result.validationScore, result.riskScore, result.reliabilityGrade,
              result.parlayGrade, result.decision, result.dataCoverage, result.sourceAgreement,
              JSON.stringify(result.factorScores), marketOdds,
              match.actual_winner_id, asOfDate, match.id,
-             result.matchupCloseness ?? null, result.removalProbability]
+              result.matchupCloseness ?? null, result.removalProbability,
+              result.builderCalibratedProbability, result.builderVersion,
+              result.builderCalibration?.modelVersion ?? null,
+              result.builderCalibration?.fingerprint ?? null,
+              result.builderCalibration?.modelId ?? null,
+              result.builderCalibration?.provenance ?? null]
           );
           inserted++;
 

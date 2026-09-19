@@ -166,6 +166,7 @@ export interface BuilderResult {
   callerAgreesWithEngine: boolean;
   /** Optional in-memory Builder calibration metadata; durable provenance is deferred to Stage 6. */
   builderCalibration?: {
+    modelId?: number;
     modelVersion: string;
     method: string;
     sampleSize: number;
@@ -177,6 +178,7 @@ export interface BuilderResult {
 
 function calibrationMetadata(model: BuilderCalibrationModel): BuilderResult["builderCalibration"] {
   return {
+    modelId: model.modelId,
     modelVersion: model.modelVersion,
     method: model.method,
     sampleSize: model.sampleSize,

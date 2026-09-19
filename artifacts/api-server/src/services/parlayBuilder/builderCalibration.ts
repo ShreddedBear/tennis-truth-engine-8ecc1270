@@ -11,12 +11,14 @@ export interface BuilderCalibrationRow {
 }
 
 export interface BuilderCalibrationModel {
+  modelId?: number;
   modelVersion: string;
   method: "isotonic";
   sampleSize: number;
   fingerprint: string;
   provenance: string;
   eligible: boolean;
+  mapping: Array<{ score: number; probability: number }>;
   mapProbability: (rawScore: number) => number;
 }
 
@@ -46,8 +48,54 @@ function fallbackModel(rows: BuilderCalibrationRow[], reason: string): BuilderCa
     fingerprint: fingerprint(rows),
     provenance: `parlay_leg_outcomes.resolved; ${reason}; in-memory only (durable provenance deferred to Stage 6)`,
     eligible: false,
+    mapping: [],
     mapProbability: (rawScore) => Math.max(0, Math.min(100, rawScore)),
   };
+}
+
+async function persistBuilderCalibrationModel(model: BuilderCalibrationModel): Promise<number | undefined> {
+  if (!model.eligible) return undefined;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const existing = await client.query<{ id: number }>(
+      `SELECT id FROM builder_calibration_models
+        WHERE model_version = $1 AND fingerprint = $2
+        FOR UPDATE`,
+      [model.modelVersion, model.fingerprint],
+    );
+    let id: number;
+    if (existing.rows[0]) {
+      id = existing.rows[0].id;
+      await client.query(
+        `UPDATE builder_calibration_models
+            SET active = true, fitted_at = now(), sample_count = $3, mapping = $4::jsonb,
+                provenance = $5
+          WHERE id = $1 AND fingerprint = $2`,
+        [id, model.fingerprint, model.sampleSize, JSON.stringify(model.mapping), model.provenance],
+      );
+    } else {
+      const inserted = await client.query<{ id: number }>(
+        `INSERT INTO builder_calibration_models
+          (model_version, method, mapping, sample_count, fingerprint, active, provenance)
+         VALUES ($1, $2, $3::jsonb, $4, $5, true, $6)
+         RETURNING id`,
+        [model.modelVersion, model.method, JSON.stringify(model.mapping), model.sampleSize, model.fingerprint, model.provenance],
+      );
+      id = inserted.rows[0]!.id;
+    }
+    await client.query(
+      `UPDATE builder_calibration_models SET active = false WHERE id <> $1 AND model_version = $2`,
+      [id, model.modelVersion],
+    );
+    await client.query("COMMIT");
+    return id;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /** Fit weighted PAVA blocks; equal-score observations are grouped before fitting. */
@@ -93,6 +141,7 @@ export function fitBuilderCalibration(rows: BuilderCalibrationRow[], minSample =
     fingerprint: fingerprint(rows),
     provenance: "parlay_leg_outcomes.resolved actual_winner_id; in-memory fit (durable provenance deferred to Stage 6)",
     eligible: true,
+    mapping: blocks.map((block) => ({ score: block.x, probability: Math.round(block.y * 1000) / 10 })),
     mapProbability,
   };
 }
@@ -113,6 +162,13 @@ export async function getActiveBuilderCalibration(): Promise<BuilderCalibrationM
     selectedPlayerId: row.selected_player_id,
     actualWinnerId: row.actual_winner_id,
   })));
+  if (model.eligible) {
+    try {
+      model.modelId = await persistBuilderCalibrationModel(model);
+    } catch {
+      // Calibration remains usable in-memory if the optional registry is unavailable.
+    }
+  }
   cached = { expiresAt: Date.now() + CACHE_TTL_MS, model };
   return model;
 }
