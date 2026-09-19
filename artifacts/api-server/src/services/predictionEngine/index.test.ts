@@ -69,6 +69,28 @@ test("the final-consistency guard runs automatically on every real engine output
   assert.deepEqual(output.engine.consistencyViolations, [], "a normal, well-formed prediction must never trip any contradiction rule");
 });
 
+test("historical asOfDate reaches Availability at the engine wiring boundary", async () => {
+  const historicalAsOfDate = new Date("2020-01-20T00:00:00.000Z");
+  const recentHistoricalRetirement: MatchRecord = {
+    ...match("historical-opponent", "Historical Opponent", false, "Hard", 1, 52),
+    id: "historical-retirement",
+    date: "2020-01-10",
+    tournamentName: "Historical Open",
+    retired: true,
+  };
+
+  const output = await runPredictionEngine(
+    baseInput({
+      player1Matches: [recentHistoricalRetirement],
+      asOfDate: historicalAsOfDate,
+    }),
+  );
+
+  assert.equal(output.engine.availability.player1.recentRetirementOrWithdrawal, true);
+  assert.equal(output.engine.availability.player1.recentRetirementTournament, "Historical Open");
+  assert.equal(output.engine.availability.player1.daysSinceLastMatch, 10);
+});
+
 test("a 'Surface Elo favors X' reason always names whichever player actually holds the HIGHER surface Elo rating, never the lower one", async () => {
   const output = await runPredictionEngine(baseInput());
   const surfaceEloReason = output.engine.reasons.find((r) => r.startsWith("Surface Elo favors"));
