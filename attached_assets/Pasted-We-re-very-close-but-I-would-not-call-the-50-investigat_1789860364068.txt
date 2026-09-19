@@ -1,0 +1,87 @@
+We’re very close, but I would not call the 50% investigation officially closed yet.
+
+The actual DB-backed evaluation appears to have answered the main question:
+
+* Candidate B did reduce compression.
+* Mean distance from 50% increased 5.2452 → 5.3880 pp.
+* 47–53% predictions fell 562 → 539.
+* 45–55% fell 896 → 857.
+* Accuracy stayed exactly 63.591%.
+* Brier improved 0.232254 → 0.231599.
+* Log loss improved 0.657228 → 0.655887.
+* ECE improved slightly.
+* 0 winner selections changed.
+* The baseline replay reproduced the protected 1,644 rows exactly.
+
+So the technical conclusion is essentially established: the redundant final low-surface-sample discount was contributing to over-compression, and removing it modestly improved probability quality without changing historical winner selections.
+
+What I would do next
+
+One final verification pass — then close this investigation.
+
+Not another model experiment. Not another ablation. Not another replay.
+
+Have Claude/Replit independently verify:
+
+1. 53d5237... actually exists.
+2. a0904a3... actually exists.
+3. final-50pct-compression-2026-09-19.json actually exists.
+4. The artifact really contains all 1,644 match-level records.
+5. The aggregate numbers reconcile with those records.
+6. The evaluation commits did not modify production prediction logic.
+7. Candidate B is still exactly:
+    d5f0f198ff05cf2643cb39269a593762198ea5aa
+8. Baseline is still exactly:
+    1394afb13b921efb96d1a160e9be26478717bc19
+9. No database rows were written by the evaluation.
+10. Current production/main is clean and contains the intended Candidate B + Rule 10/12 fixes.
+
+If those checks pass, I would mark:
+
+50% PREDICTION COMPRESSION INVESTIGATION — COMPLETE
+
+Then we move on
+
+And this is important: don’t keep digging into the 50% problem just because the probabilities are still relatively compressed.
+
+The experiment showed that Candidate B fixes one specific source of compression, but it did not transform the overall distribution. That’s useful information.
+
+The next phase should therefore be a separate model-quality investigation, focused on:
+
+Why is the engine’s underlying signal not separating matches more strongly?
+
+That is different from:
+
+“Why are probabilities being compressed toward 50%?”
+
+We’ve largely answered the second question.
+
+The next investigation should focus on signal quality, correlated evidence, calibration, and ranking/feature discrimination, particularly the finding that the core trio—Surface Elo, Serve & Return, and Recent Form—can agree heavily while still producing weak separation in some populations.
+
+My recommended sequence
+
+NOW
+→ Final read-only verification of the 50% artifact/commits.
+
+IF VERIFIED
+→ Freeze the 50% findings and don’t touch Candidate B further.
+
+NEXT PROJECT
+→ Prediction Signal Quality / Separation Audit
+
+That audit should answer:
+
+* Are the underlying raw probabilities actually informative?
+* Which individual metrics genuinely separate winners from losers?
+* Where does the engine lose discrimination?
+* Are Serve & Return and Recent Form double-counting the same information?
+* Is Surface Elo providing independent information or mostly repeating the same historical form?
+* Are the ensemble weights suppressing useful disagreement?
+* Which match populations produce the worst calibration/separation?
+* Does the model perform differently by ATP/WTA, surface, tournament level, player experience, and data-quality bucket?
+* What happens when the model’s strongest signals disagree?
+* Where are the false-confidence and false-toss-up matches?
+
+That is where I think the real next opportunity is.
+
+So: don’t start another 50% experiment yet. Verify the final artifact once, close that workstream, and then move to the Signal Quality/Separation Audit.
