@@ -60,6 +60,22 @@ test("checkParlayBoundary: catches a deliberate predictionEngine import (Task #1
   );
 });
 
+for (const [name, source, expected] of [
+  ["surfaceElo call", "computeSurfaceEloModule(rows, rows, 'Hard');", "computeSurfaceEloModule"],
+  ["serveReturn call", "computeServeReturnModule(rows, rows, 'Hard');", "computeServeReturnModule"],
+  ["calibration cache call", "getActiveCalibration();", "getActiveCalibration"],
+  ["calibration function call", "applyCalibrationOriented([], 0.5);", "applyCalibrationOriented"],
+] as const) {
+  test(`checkParlayBoundary: catches a deliberate ${name}`, (t) => {
+    const violatingFile = join(PARLAY_DIR, `_boundary_test_violation_${name.replace(/\W+/g, "_")}.ts`);
+    writeFileSync(violatingFile, `// Deliberate violation\n${source}\n`);
+    t.after(() => { if (existsSync(violatingFile)) unlinkSync(violatingFile); });
+    const { ok, stdout, stderr } = runCheck();
+    assert.equal(ok, false, `Expected boundary check to fail for ${name}`);
+    assert.ok((stdout + stderr).includes(expected));
+  });
+}
+
 test("checkParlayBoundary: catches a deliberate evaluationPredictionsTable reference (Task #111 regression guard)", (t) => {
   const violatingFile = join(PARLAY_DIR, "_boundary_test_violation_table.ts");
   writeFileSync(

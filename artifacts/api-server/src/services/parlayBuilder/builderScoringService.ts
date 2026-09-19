@@ -28,11 +28,8 @@ import {
 import { researchPlayerMatchup } from "./webResearchService.js";
 import { scrapeMatchstatPlayer, type MatchstatPlayerData } from "./matchstatScraper.js";
 import type { MatchRecord, Surface } from "../tennisData/types.js";
-import type { CalibrationKnot } from "../evaluation/types.js";
-import { computeSurfaceEloModule } from "../predictionEngine/surfaceElo.js";
-import { computeServeReturnModule } from "../predictionEngine/serveReturn.js";
-import { applyCalibrationOriented } from "../evaluation/calibration.js";
-import { getActiveCalibration } from "../evaluation/calibrationCache.js";
+import { computeBuilderSurfaceElo } from "./builderSurfaceElo.js";
+import { computeBuilderServeReturn } from "./builderServeReturn.js";
 
 export const BUILDER_VERSION = "1.0.0";
 
@@ -1344,7 +1341,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   // Factor: Surface Elo (primary Elo-based win probability)
   // Uses the same computeSurfaceEloModule the Prediction Engine uses, fed with date-bounded rows.
   if (canRunModules) {
-    const eloResult = computeSurfaceEloModule(selModuleRecords, oppModuleRecords, builderSurface!);
+    const eloResult = computeBuilderSurfaceElo(selModuleRecords, oppModuleRecords, builderSurface!);
     // eloWinProbabilityPlayer1 is already in 0–100 percentage space (Percentage branded type)
     const eloScore = clamp(Math.round(eloResult.eloWinProbabilityPlayer1 as unknown as number), 5, 95);
     const eloLabel = eloScore > 55 ? "favors" : eloScore < 45 ? "favors opponent over" : "is neutral for";
@@ -1458,7 +1455,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   //
   // Hold/Break still unavailable — no point-level data available from historical_matches.
   if (canRunModules) {
-    const srResult = computeServeReturnModule(selModuleRecords, oppModuleRecords, builderSurface!);
+    const srResult = computeBuilderServeReturn(selModuleRecords, oppModuleRecords, builderSurface!);
     if (srResult.defaulted) {
       // No set-score margin data available for at least one player → genuinely unavailable,
       // not a neutral guess. Weight redistributes to other available factors.
@@ -1990,23 +1987,10 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
 
   const reasons = generateReasons(factors, sel, opp, surface);
 
-  // ── 9. Calibration + independent winner selection ─────────────────────────
-  //
-  // Apply the same calibration function the Prediction Engine uses to convert the
-  // raw validation score (a weighted average) into a calibrated probability.
-  // If no active calibration model exists, fall back to the raw score.
+  // ── 9. Independent winner selection ────────────────────────────────────────
+  // Builder calibration is intentionally not borrowed from Prediction Engine.
   const rawValidationScore = validationScore;
   let builderCalibratedProbability = validationScore; // fallback: raw score
-  try {
-    const { mapping } = await getActiveCalibration();
-    if (mapping && mapping.length > 0) {
-      const knots = mapping as CalibrationKnot[];
-      const calibrated01 = applyCalibrationOriented(knots, validationScore / 100);
-      builderCalibratedProbability = Math.round(calibrated01 * 100);
-    }
-  } catch {
-    // Calibration cache unavailable — raw score is the fallback
-  }
 
   // Independent winner selection: the engine picks the player it favors on its own,
   // independently of the caller's selection. Used to measure engine accuracy over time.
