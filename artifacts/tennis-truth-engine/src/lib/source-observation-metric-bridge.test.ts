@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendMetricObservationContext } from "./source-observation-metric-bridge.server";
+import { appendMetricObservationContext, isObservationBeforeCutoff } from "./source-observation-metric-bridge.server";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
 describe("source observation metric bridge", () => {
@@ -29,5 +29,14 @@ describe("source observation metric bridge", () => {
     expect(context).toContain("WAREHOUSE_OBSERVATION_CONTEXT");
     expect(context).toContain("never borrow an observation family from another metric");
     expect(context).toContain("support-only families");
+  });
+
+  it("refuses same-day and future observations at the historical cutoff", () => {
+    expect(isObservationBeforeCutoff("2024-01-09", "2024-01-10")).toBe(true);
+    expect(isObservationBeforeCutoff("2024-01-10", "2024-01-10")).toBe(false);
+    expect(isObservationBeforeCutoff("2024-01-11", "2024-01-10")).toBe(false);
+    expect(isObservationBeforeCutoff(null, "2024-01-10")).toBe(false);
+    expect(isObservationBeforeCutoff("2024-01-09", "2024-01-10", "2024-01-09T23:59:59.000Z")).toBe(true);
+    expect(isObservationBeforeCutoff("2024-01-09", "2024-01-10", "2024-01-10T00:00:00.000Z")).toBe(false);
   });
 });

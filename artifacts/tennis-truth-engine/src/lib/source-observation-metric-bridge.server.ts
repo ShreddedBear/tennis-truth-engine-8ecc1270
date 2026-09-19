@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lt, notInArray, or, type SQL } from "drizzle-orm";
 
 import { db } from "@/db/client.server";
 import { matchesTable, sourceObservationsTable } from "@/db/schema";
@@ -32,6 +32,7 @@ type ObservationRow = {
   sample_label: string | null;
   window_start: string | null;
   window_end: string | null;
+  source_published_at: string | null;
 };
 
 function codeOf(value: unknown) {
@@ -39,8 +40,16 @@ function codeOf(value: unknown) {
   return match ? match[1].padStart(3, "0") : String(value ?? "").padStart(3, "0");
 }
 function unique<T>(values: T[]) { return [...new Set(values)]; }
+/** Historical evidence is strictly point-in-time: same-day and future observations are excluded. */
+export function isObservationBeforeCutoff(eventDate: string | null | undefined, asOfDate: string, sourcePublishedAt?: string | null): boolean {
+  if (typeof eventDate !== "string" || eventDate.length === 0 || eventDate >= asOfDate) return false;
+  if (!sourcePublishedAt) return true;
+  const cutoff = Date.parse(`${asOfDate}T00:00:00.000Z`);
+  const published = Date.parse(sourcePublishedAt);
+  return Number.isFinite(cutoff) && Number.isFinite(published) && published < cutoff;
+}
 function compactObservation(row: ObservationRow) {
-  return { family: observationFamily(row), source: row.source_name ?? row.source_id, url: row.source_url, player: row.player_name, opponent: row.opponent_name, tournament: row.tournament, event_date: row.event_date, surface: row.surface, key: row.observation_key, value: row.text_value ?? row.numeric_value, sample: row.sample_label, window_start: row.window_start, window_end: row.window_end };
+  return { family: observationFamily(row), source: row.source_name ?? row.source_id, url: row.source_url, player: row.player_name, opponent: row.opponent_name, tournament: row.tournament, event_date: row.event_date, source_published_at: row.source_published_at, surface: row.surface, key: row.observation_key, value: row.text_value ?? row.numeric_value, sample: row.sample_label, window_start: row.window_start, window_end: row.window_end };
 }
 
 async function loadCandidateRows(player: string, opponent: string, asOfDate: string) {
@@ -53,10 +62,14 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   });
   const datedWindow = and(
     gte(sourceObservationsTable.event_date, start.toISOString().slice(0, 10)),
-    lte(sourceObservationsTable.event_date, asOfDate),
+    lt(sourceObservationsTable.event_date, asOfDate),
+  );
+  const publishedBeforeCutoff = or(
+    isNull(sourceObservationsTable.source_published_at),
+    lt(sourceObservationsTable.source_published_at, `${asOfDate}T00:00:00.000Z`),
   );
   const marketWindow = and(
-    eq(sourceObservationsTable.event_date, asOfDate),
+    lt(sourceObservationsTable.event_date, asOfDate),
     eq(sourceObservationsTable.observation_type, "MARKET"),
   );
   const notExcluded = notInArray(sourceObservationsTable.observation_type, EXCLUDED_OBSERVATION_TYPES);
@@ -69,10 +82,10 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   // NULL-date rows are accepted only when attached to one of the matchup aliases;
   // a shared row with neither player identity nor date cannot be safely joined.
   const [otherResult, marketResult, sharedResult, nullDatePlayerResult] = await Promise.all([
-    observations(and(datedWindow, playerIsAlias, notExcluded), true),
-    observations(and(marketWindow, playerIsAlias), true),
-    observations(and(datedWindow, isNull(sourceObservationsTable.player_name), notExcluded), true),
-    observations(and(isNull(sourceObservationsTable.event_date), playerIsAlias, notExcluded), false),
+    observations(and(datedWindow, publishedBeforeCutoff, playerIsAlias, notExcluded), true),
+    observations(and(marketWindow, publishedBeforeCutoff, playerIsAlias), true),
+    observations(and(datedWindow, publishedBeforeCutoff, isNull(sourceObservationsTable.player_name), notExcluded), true),
+    observations(and(isNull(sourceObservationsTable.event_date), publishedBeforeCutoff, playerIsAlias, notExcluded), false),
   ]);
   const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult];
   if (results.some((result) => result.error)) return [] as ObservationRow[];
