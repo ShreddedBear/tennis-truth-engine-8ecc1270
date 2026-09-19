@@ -1,0 +1,193 @@
+We need to finish the FINAL empirical validation of the 50% / prediction-compression investigation.
+
+IMPORTANT:
+The current Claude environment does NOT have access to the Tennis Stats Engine historical database. Do NOT assume that it does.
+
+The evaluation must therefore be performed from the ACTUAL Tennis Stats Engine Replit workspace/runtime where the real application database is connected.
+
+DO NOT use:
+- Tennis Truth Engine
+- Supabase Truth Engine
+- an empty/local Postgres
+- fabricated/seeded substitute historical data
+- market odds
+- a different historical corpus
+
+AUTHORITATIVE COMMITS
+
+BASELINE:
+1394afb13b921efb96d1a160e9be26478717bc19
+
+CANDIDATE B:
+d5f0f198ff05cf2643cb39269a593762198ea5aa
+
+CURRENT MAIN:
+7d851f878d27e0b68f5d4d46c816134b4a10f0c7
+
+FIRST — DATABASE VERIFICATION
+
+From the actual Tennis Stats Engine Replit workspace:
+
+1. Verify that the application's real DATABASE_URL/database connection exists.
+2. Do NOT print credentials.
+3. Verify that it points to the actual Tennis Stats Engine historical database.
+4. Verify the database contains the historical Tennis Stats Engine corpus.
+5. Report safe metadata only:
+   - provider
+   - redacted host/database identity
+   - relevant table names
+   - historical match count
+   - date coverage
+   - provider distribution
+
+STOP if the real Tennis Stats Engine database cannot be verified.
+
+Do NOT claim database access merely because DATABASE_URL is documented in the repository.
+
+SECOND — REPRODUCE THE EVALUATION
+
+If and ONLY if the real DB is verified, use the existing shadow-replay/evaluation infrastructure.
+
+The original evaluation target was:
+
+clean-neutral-eval-v1-2026-05-20-to-2026-06-02
+
+Before running anything, determine whether this population can actually be reproduced from the real database.
+
+If it can:
+- reproduce it exactly.
+
+If it cannot:
+- do NOT pretend it can.
+- report what definition is missing.
+- create a clearly labeled NEW deterministic paired evaluation only if the same methodology can be established from the real database.
+
+The evaluation must use:
+
+- identical match population for baseline and Candidate B
+- neutral player-slot ordering
+- point-in-time historical reconstruction
+- no look-ahead
+- no market information
+- no post-hoc calibration refit
+- identical evaluation settings
+
+THIRD — RUN BOTH VERSIONS
+
+Run:
+
+BASELINE
+1394afb13b921efb96d1a160e9be26478717bc19
+
+and:
+
+CANDIDATE B
+d5f0f198ff05cf2643cb39269a593762198ea5aa
+
+Use the same historical population and settings.
+
+Do NOT modify prediction methodology.
+
+FOURTH — REQUIRED RESULTS
+
+For both versions report:
+
+- match count
+- gradeable count
+- accuracy
+- Brier score
+- log loss
+- ECE
+- exact 50%
+- 49–51%
+- 48–52%
+- 47–53%
+- 45–55%
+- 40–60%
+- mean player-one probability
+- mean absolute distance from 50%
+- moved toward 50%
+- moved away from 50%
+- unchanged
+
+Then report paired differences:
+
+- accuracy
+- Brier
+- log loss
+- ECE
+- compression bands
+- mean distance from 50%
+- number of changed winner selections
+- accuracy of changed selections
+
+FIFTH — MAKE THE RESULTS VERIFIABLE
+
+This is critical.
+
+Do NOT merely paste a formatted report into chat.
+
+Create a persistent evaluation artifact in the Tennis Stats Engine Replit workspace containing:
+
+- database verification metadata
+- exact population definition
+- baseline SHA
+- Candidate B SHA
+- evaluation configuration
+- raw aggregate results
+- paired comparison
+- timestamps
+- match/population identifiers sufficient to reproduce/audit the result
+
+Do not store credentials.
+
+If the existing evaluation infrastructure already has an appropriate artifact/report mechanism, use that rather than inventing another system.
+
+SIXTH — GIT SAFETY
+
+Do not modify production prediction methodology.
+
+If no infrastructure changes are required:
+- do not create a commit.
+
+If a minimal evaluation-only infrastructure fix is genuinely required:
+- make only that fix
+- test it
+- commit it separately
+- clearly report the SHA
+- do not push unless explicitly authorized.
+
+SEVENTH — FINAL RESPONSE
+
+Return:
+
+REAL DB VERIFIED:
+YES / NO
+
+DATABASE:
+[safe identity + corpus count/date coverage]
+
+POPULATION:
+[exact definition]
+
+BASELINE:
+[results]
+
+CANDIDATE B:
+[results]
+
+PAIRED DIFFERENCE:
+[results]
+
+VERIFIABLE ARTIFACT:
+[path/name + commit SHA if applicable]
+
+FINAL STATUS:
+[measurement completed / blocked]
+
+IMPORTANT:
+Do not manufacture or infer any results.
+
+If the DB is not available from this actual Replit workspace, STOP and tell me exactly what must be connected.
+
+The goal is to obtain the REAL empirical baseline-vs-Candidate-B measurement from the actual Tennis Stats Engine environment, not another simulated or claimed result.
