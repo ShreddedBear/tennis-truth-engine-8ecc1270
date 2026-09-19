@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { CompositeTennisProvider } from "./compositeProvider.js";
-import { ProviderUnavailableError, type Fixture, type MatchRecord, type TennisDataProvider } from "./types.js";
+import { ProviderUnavailableError, type Fixture, type LiveScore, type MatchRecord, type TennisDataProvider } from "./types.js";
 
 function record(id: string): MatchRecord {
   return {
@@ -175,6 +175,28 @@ describe("CompositeTennisProvider history routing", () => {
 });
 
 describe("CompositeTennisProvider fixture routing", () => {
+  it("routes native and cached non-native fixture identities while preserving caller IDs", async () => {
+    const api = provider("API-Tennis", async () => []);
+    const nativeScore: LiveScore = { sets: [{ player1Games: 3, player2Games: 2 }], statusText: "Live" };
+    const identityScore: LiveScore = { sets: [{ player1Games: 1, player2Games: 0 }], statusText: "Live" };
+    api.getUpcomingFixturesRange = async () => [
+      { ...fixture("native-event"), sourceProvider: "API-Tennis", nativeEventKey: "native-event" },
+      { ...fixture("live-tennis-42"), sourceProvider: "Live Tennis API" },
+    ];
+    api.getLiveScores = async (ids: string[]) => new Map(ids.includes("native-event") ? [["native-event", nativeScore]] : []);
+    api.getLiveScoresByIdentity = async (requests) =>
+      new Map(requests.map((request) => [request.requestedId, identityScore]));
+
+    const composite = new RoutingTestProvider(provider("MatchStat", async () => []), api, []);
+    await composite.getUpcomingFixturesRange("2026-09-16", "2026-09-16");
+    const scores = await composite.getLiveScores(["native-event", "live-tennis-42", "unknown-id"]);
+
+    assert.equal(scores.get("native-event"), nativeScore);
+    assert.equal(scores.get("live-tennis-42"), identityScore);
+    assert.equal(scores.has("unknown-id"), false);
+    assert.equal(composite.getFixtureFetchDiagnostics()?.scoreRouting?.unresolvedIds, 1);
+  });
+
   it("continues from an empty API-Tennis response to MatchStat", async () => {
     const calls: string[] = [];
     const api = provider("API-Tennis", async () => []);

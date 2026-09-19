@@ -11,6 +11,7 @@
 import { logger } from "../../lib/logger";
 import type {
   Fixture,
+  LiveScoreIdentityRequest,
   FixtureFetchDiagnostics,
   HeadToHeadRecord,
   HistoricalFixture,
@@ -29,6 +30,34 @@ import { fetchFromBsdTennis } from "./bsdTennisProvider.js";
 import { getPlayerMatchesFromDb } from "./dbHistoryFallback.js";
 import { getCachedPlayerIdentityIndex, getAliasIds } from "./playerIdentity.js";
 import type { LiveTennisFixturesProvider } from "./liveTennisFixturesProvider.js";
+
+/** State-C provider-operation matrix: preserve Live Tennis fixture priority and API-Tennis score/history routes. */
+export const PROVIDER_OPERATION_MATRIX = {
+  fixtures: ["Live Tennis API", "API-Tennis", "MatchStat/RapidAPI", "Sofascore fallback"],
+  liveScores: ["API-Tennis native event key", "API-Tennis identity fallback"],
+  historicalMatches: ["API-Tennis"],
+  playerLookup: ["Live Tennis API", "API-Tennis", "MatchStat/RapidAPI"],
+  statsAndPbp: ["API-Tennis"],
+  fallback: ["historical_matches"],
+} as const;
+
+interface FixtureMetadata {
+  sourceProvider: string;
+  originalFixtureId: string;
+  nativeEventKey: string | null;
+  date: string;
+  identityKey: string;
+  player1Name: string;
+  player2Name: string;
+}
+
+function normalizeFixtureName(name: string): string {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+}
+
+function fixtureIdentityKey(date: string, player1Name: string, player2Name: string): string {
+  return `${date}|${[normalizeFixtureName(player1Name), normalizeFixtureName(player2Name)].sort().join("|")}`;
+}
 
 // ─── Sofascore tertiary fixture fallback ──────────────────────────────────────
 // Used when both RapidAPI (primary) and API-Tennis (fallback) are unavailable.
@@ -208,6 +237,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
   private sofascoreLastSuccessfulCallAt: string | null = null;
   private readonly historyDiagnostics = new Map<string, HistoryRoutingDiagnostics>();
   private fixtureDiagnostics: FixtureFetchDiagnostics | null = null;
+  private readonly fixtureMetaCache = new Map<string, FixtureMetadata>();
 
   constructor(
     private readonly primary: TennisDataProvider,
@@ -328,6 +358,22 @@ export class CompositeTennisProvider implements TennisDataProvider {
 
   getFixtureFetchDiagnostics(): FixtureFetchDiagnostics | null {
     return this.fixtureDiagnostics;
+  }
+
+  private rememberFixtures(fixtures: Fixture[], sourceProvider: string): void {
+    for (const fixture of fixtures) {
+      const effectiveSourceProvider = fixture.sourceProvider ?? sourceProvider;
+      const metadata: FixtureMetadata = {
+        sourceProvider: effectiveSourceProvider,
+        originalFixtureId: fixture.id,
+        nativeEventKey: fixture.nativeEventKey ?? (effectiveSourceProvider === "API-Tennis" ? fixture.id : null),
+        date: fixture.date,
+        identityKey: fixtureIdentityKey(fixture.date, fixture.player1Name, fixture.player2Name),
+        player1Name: fixture.player1Name,
+        player2Name: fixture.player2Name,
+      };
+      this.fixtureMetaCache.set(fixture.id, metadata);
+    }
   }
 
   async getPlayer(playerId: string): Promise<PlayerProfile | null> {
@@ -522,6 +568,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
           opts,
         );
         if (liveTennisFixtures.length > 0) {
+          this.rememberFixtures(liveTennisFixtures, this.fixturePrimary.name);
           this.fixtureDiagnostics = this.fixturePrimary.getFixtureFetchDiagnostics();
           return liveTennisFixtures;
         }
@@ -548,6 +595,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
     try {
       fixtures = await this.fallback.getUpcomingFixturesRange(dateStart, dateStop, opts);
       if (fixtures.length > 0) {
+          this.rememberFixtures(fixtures, this.fallback.name);
         this.fixtureDiagnostics = {
           provider: this.fallback.name,
           rawRows: fixtures.length,
@@ -565,6 +613,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
       try {
         fixtures = await this.primary.getUpcomingFixturesRange(dateStart, dateStop, opts);
         if (fixtures.length > 0) {
+          this.rememberFixtures(fixtures, this.primary.name);
           this.fixtureDiagnostics = {
             provider: this.primary.name,
             rawRows: fixtures.length,
@@ -589,6 +638,7 @@ export class CompositeTennisProvider implements TennisDataProvider {
         acceptedRows: fixtures.length,
         rejectedRows: 0,
       };
+      this.rememberFixtures(fixtures, "Sofascore fallback");
       if (fixtures.length > 0) {
         logger.info({ dateStart, dateStop, count: fixtures.length },
           "compositeProvider: Sofascore tertiary provided fixture list (both primary providers unavailable)");
@@ -634,7 +684,47 @@ export class CompositeTennisProvider implements TennisDataProvider {
     // MatchStat (primary) does not provide live scores — hard-route to API-Tennis so real
     // in-progress score data is never silently replaced with an empty map. Same pattern
     // as getCompletedMatchesByDateRange, which MatchStat also doesn't support.
-    return this.fallback.getLiveScores(fixtureIds);
+    const result = new Map<string, LiveScore>();
+    const nativeIds: string[] = [];
+    const identityRequests: LiveScoreIdentityRequest[] = [];
+    for (const id of fixtureIds) {
+      const metadata = this.fixtureMetaCache.get(id);
+      if (!metadata || metadata.nativeEventKey) {
+        nativeIds.push(metadata?.nativeEventKey ?? id);
+      } else {
+        identityRequests.push({
+          requestedId: id,
+          date: metadata.date,
+          player1Name: metadata.player1Name,
+          player2Name: metadata.player2Name,
+        });
+      }
+    }
+    if (nativeIds.length > 0) {
+      const nativeScores = await this.fallback.getLiveScores(nativeIds);
+      for (const requestedId of fixtureIds) {
+        const metadata = this.fixtureMetaCache.get(requestedId);
+        const nativeKey = metadata?.nativeEventKey ?? requestedId;
+        const score = nativeScores.get(nativeKey);
+        if (score) result.set(requestedId, score);
+      }
+    }
+    if (identityRequests.length > 0 && this.fallback.getLiveScoresByIdentity) {
+      const identityScores = await this.fallback.getLiveScoresByIdentity(identityRequests);
+      for (const [id, score] of identityScores) result.set(id, score);
+    }
+    this.fixtureDiagnostics = this.fixtureDiagnostics
+      ? {
+          ...this.fixtureDiagnostics,
+          scoreRouting: {
+            provider: this.fallback.name,
+            attemptedIds: fixtureIds.length,
+            resolvedIds: result.size,
+            unresolvedIds: fixtureIds.length - result.size,
+          },
+        }
+      : this.fixtureDiagnostics;
+    return result;
   }
 
   async findTournamentSurfaceByName(name: string): Promise<{ surface: import("./types").Surface | null; level: import("./types").TournamentLevel | null } | null> {

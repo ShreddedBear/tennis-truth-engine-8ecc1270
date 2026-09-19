@@ -31,6 +31,20 @@ function normalizeTournamentNameForSearch(name: string): string {
     .trim();
 }
 
+function normalizeFixtureName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function fixtureIdentityKey(date: string, player1Name: string, player2Name: string): string {
+  return `${date}|${[normalizeFixtureName(player1Name), normalizeFixtureName(player2Name)].sort().join("|")}`;
+}
+
 /**
  * Derives a tier-filter RegExp from an OCR event name so that surface lookup can narrow
  * to only rows matching that tier. Returns null when no recognisable tier marker is present
@@ -814,6 +828,30 @@ export class ApiTennisProvider implements TennisDataProvider {
       const id = str(m.event_key);
       if (!wantedIds.has(id)) continue;
       result.set(id, { sets: mapLiveScoreSets(m), statusText: m.event_status || null });
+    }
+    return result;
+  }
+
+  async getLiveScoresByIdentity(requests: import("./types").LiveScoreIdentityRequest[]): Promise<Map<string, LiveScore>> {
+    const result = new Map<string, LiveScore>();
+    if (requests.length === 0) return result;
+    const now = new Date();
+    const dateStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const dateStop = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const raw = await this.cache.getOrFetch(`live-scores:${dateStart}:${dateStop}`, LIVE_SCORE_TTL_MS, () =>
+      this.call<RawMatch[]>("live", "get_fixtures", { date_start: dateStart, date_stop: dateStop }),
+    );
+    const byIdentity = new Map<string, RawMatch>();
+    for (const match of raw ?? []) {
+      if (!match.event_date || !match.event_first_player || !match.event_second_player) continue;
+      byIdentity.set(
+        fixtureIdentityKey(String(match.event_date).slice(0, 10), String(match.event_first_player), String(match.event_second_player)),
+        match,
+      );
+    }
+    for (const request of requests) {
+      const match = byIdentity.get(fixtureIdentityKey(request.date, request.player1Name, request.player2Name));
+      if (match) result.set(request.requestedId, { sets: mapLiveScoreSets(match), statusText: match.event_status || null });
     }
     return result;
   }

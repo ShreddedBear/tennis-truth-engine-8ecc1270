@@ -111,6 +111,10 @@ export interface Fixture {
   player1Name: string;
   player2Id: string;
   player2Name: string;
+  /** Optional source provenance retained by composite routing. */
+  sourceProvider?: string;
+  /** Native upstream event key when this fixture came from API-Tennis. */
+  nativeEventKey?: string;
 }
 
 export interface LiveScoreSet {
@@ -214,6 +218,20 @@ export interface FixtureFetchDiagnostics {
   acceptedRows: number;
   rejectedRows: number;
   duplicateRows?: number;
+  /** Score routing is separate from fixture acquisition; populated by composite providers. */
+  scoreRouting?: {
+    provider: string | null;
+    attemptedIds: number;
+    resolvedIds: number;
+    unresolvedIds: number;
+  };
+}
+
+export interface LiveScoreIdentityRequest {
+  requestedId: string;
+  date: string;
+  player1Name: string;
+  player2Name: string;
 }
 
 /** Thrown when the upstream provider cannot serve a request (network error, missing key, non-2xx, etc). */
@@ -254,6 +272,8 @@ export interface TennisDataProvider {
    * omitted from the returned map, never fabricated.
    */
   getLiveScores(fixtureIds: string[]): Promise<Map<string, LiveScore>>;
+  /** Optional identity fallback for non-native fixture IDs. */
+  getLiveScoresByIdentity?(requests: LiveScoreIdentityRequest[]): Promise<Map<string, LiveScore>>;
   getStatus(): ProviderStatusInfo;
   /**
    * Name-only fallback surface/level lookup for callers with no `tournament_key` (currently just
