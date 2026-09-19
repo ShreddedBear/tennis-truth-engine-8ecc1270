@@ -18,6 +18,7 @@ import {
   computeBuilderAccuracyByDecision,
   gradeBuilderDecisions,
   writeBuilderDecisionLog,
+  BUILDER_VERSION,
   type BuilderSnapshot,
 } from "../services/parlayBuilder/builderScoringService.js";
 import { fetchMarketOdds } from "../services/oddsData";
@@ -439,7 +440,7 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
           sourcesAgreeing: 0,
           sourcesTotal: 0,
           factorScores: [] as Array<{ name: string; score: number; weight: number; available: boolean; contribution: number }>,
-          builderVersion: "1.0.0",
+          builderVersion: BUILDER_VERSION,
         };
       }
     }));

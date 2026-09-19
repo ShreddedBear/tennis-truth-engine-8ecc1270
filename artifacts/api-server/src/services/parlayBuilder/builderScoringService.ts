@@ -30,6 +30,7 @@ import { scrapeMatchstatPlayer, type MatchstatPlayerData } from "./matchstatScra
 import type { MatchRecord, Surface } from "../tennisData/types.js";
 import { computeBuilderSurfaceElo } from "./builderSurfaceElo.js";
 import { computeBuilderServeReturn } from "./builderServeReturn.js";
+import { getActiveBuilderCalibration, type BuilderCalibrationModel } from "./builderCalibration.js";
 
 export const BUILDER_VERSION = "1.0.0";
 
@@ -163,6 +164,26 @@ export interface BuilderResult {
   rawValidationScore: number;
   /** True when the engine's independent pick agrees with the caller's selectedPlayerId. */
   callerAgreesWithEngine: boolean;
+  /** Optional in-memory Builder calibration metadata; durable provenance is deferred to Stage 6. */
+  builderCalibration?: {
+    modelVersion: string;
+    method: string;
+    sampleSize: number;
+    fingerprint: string;
+    provenance: string;
+    eligible: boolean;
+  };
+}
+
+function calibrationMetadata(model: BuilderCalibrationModel): BuilderResult["builderCalibration"] {
+  return {
+    modelVersion: model.modelVersion,
+    method: model.method,
+    sampleSize: model.sampleSize,
+    fingerprint: model.fingerprint,
+    provenance: model.provenance,
+    eligible: model.eligible,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1278,6 +1299,14 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       builderCalibratedProbability: 0,
       rawValidationScore: 0,
       callerAgreesWithEngine: true,
+      builderCalibration: {
+        modelVersion: "builder-isotonic-v1",
+        method: "isotonic",
+        sampleSize: 0,
+        fingerprint: "none",
+        provenance: "no resolved parlay_leg_outcomes; in-memory fit deferred",
+        eligible: false,
+      },
     };
   }
 
@@ -1991,6 +2020,16 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   // Builder calibration is intentionally not borrowed from Prediction Engine.
   const rawValidationScore = validationScore;
   let builderCalibratedProbability = validationScore; // fallback: raw score
+  let builderCalibration: BuilderResult["builderCalibration"];
+  try {
+    const calibration = await getActiveBuilderCalibration();
+    builderCalibration = calibrationMetadata(calibration);
+    if (calibration.eligible) {
+      builderCalibratedProbability = calibration.mapProbability(rawValidationScore);
+    }
+  } catch (err) {
+    logger.warn({ err }, "Builder calibration unavailable; using raw validation score");
+  }
 
   // Independent winner selection: the engine picks the player it favors on its own,
   // independently of the caller's selection. Used to measure engine accuracy over time.
@@ -2019,6 +2058,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     builderCalibratedProbability,
     rawValidationScore,
     callerAgreesWithEngine,
+    builderCalibration,
   };
 }
 
