@@ -38,7 +38,7 @@ function baseMatch(overrides: Partial<MatchRecord> = {}): MatchRecord {
   };
 }
 
-test("resolveOpponentStrengthFromIndex resolves an opponent only identifiable via normalized-name cross-reference, not an exact id match", () => {
+test("resolveOpponentStrengthFromIndex does not merge an unknown provider ID by normalized name alone", () => {
   // The opponent's real Elo history is indexed under their CANONICAL id ("canonical_1") -- a
   // different string than this match's own `opponentId` ("raw_opponent_id"), simulating a
   // provider that issued this opponent a second player_key. Nothing in the index is keyed by
@@ -49,9 +49,8 @@ test("resolveOpponentStrengthFromIndex resolves an opponent only identifiable vi
   const withoutIdentity = resolveOpponentStrengthFromIndex([match], index);
   assert.equal(withoutIdentity.coverage, 0, "sanity check: an exact-id-only lookup can't see this opponent's history");
 
-  // The identity index only knows "raw_opponent_id" through its NORMALIZED name (accent-folded,
-  // lowercased) -- a real cross-reference signal, not an exact id match -- resolving it to the
-  // same canonical id the Elo history above is keyed by.
+  // A normalized name is useful for search/display, but is not an approved provider alias.
+  // Even a unique name candidate must not merge an unknown provider ID into a canonical player.
   const identity: PlayerIdentityIndex = {
     canonicalIdByName: new Map([["jose garcia", "canonical_1"]]),
     canonicalIdById: new Map(),
@@ -59,8 +58,8 @@ test("resolveOpponentStrengthFromIndex resolves an opponent only identifiable vi
   };
 
   const withIdentity = resolveOpponentStrengthFromIndex([match], index, identity);
-  assert.equal(withIdentity.coverage, 1, "opponent should resolve via normalized-name cross-reference");
-  assert.equal(withIdentity.lookup.get(match.id), 1600);
+  assert.equal(withIdentity.coverage, 0, "name-only identity must remain unresolved");
+  assert.equal(withIdentity.lookup.has(match.id), false);
 });
 
 test("resolveOpponentStrengthFromIndex resolves an opponent aliased by id (historical-match cross-reference), even with a different reported name", () => {
