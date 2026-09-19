@@ -1,0 +1,54 @@
+{
+  "generated_at_utc": "2026-09-19T19:08:10.515Z",
+  "source_repo_url": "https://github.com/ShreddedBear/tennis-stats-engine",
+  "files": {
+    "2012.csv": {
+      "size_bytes": 619870,
+      "sha256": "7f299dc1c46e96bc81292c0dd8eed46ef1c37ff1a0dcef4e8b35866ffa310683"
+    },
+    "2013.csv": {
+      "size_bytes": 608175,
+      "sha256": "3011ef277a4d94f5e722193dda4d71d5a77bf2d557a33233ea2329240ffa19bb"
+    },
+    "2014.csv": {
+      "size_bytes": 600128,
+      "sha256": "1e172cd272815584ab1b6e7e1fa9bd0f6e87618047da65ee8fcd36676dd2f492"
+    },
+    "2015.csv": {
+      "size_bytes": 609461,
+      "sha256": "0d156d21a70dd620e1a014aa589e034ff24a7478d24a5cdea5bdc984189c26e7"
+    },
+    "2016.csv": {
+      "size_bytes": 630385,
+      "sha256": "e425cc4a03d3f114a21e32f9bc3c1f2049e5e04e674eadc92e5e40c883ec0a78"
+    },
+    "2017.csv": {
+      "size_bytes": 622377,
+      "sha256": "73256c9b283d76faf5d97b68ed572b6c342397b5140566d6320c7a52de2a614f"
+    },
+    "2018.csv": {
+      "size_bytes": 620949,
+      "sha256": "7764b5190089656bdeece8c2f9d31d5d915a326d4a1c4fc84d49228fcdcdd5db"
+    },
+    "2019.csv": {
+      "size_bytes": 590603,
+      "sha256": "ed8c6862c50caceeae9ab2299bf1d565d88a2e39bbfd3e5e5250453bd1ee1dac"
+    },
+    "2020.csv": {
+      "size_bytes": 310280,
+      "sha256": "959508f99f80b3f7f0c0f0029160ffa58f27813e19a63b1d0636a4f04a8ef125"
+    },
+    "2021.csv": {
+      "size_bytes": 579480,
+      "sha256": "56f135106006a75ab8210ec654c3db598e177058599cb90477aac44acf1152e4"
+    },
+    "2022.csv": {
+      "size_bytes": 615653,
+      "sha256": "46760f5171260e12b1c1b7b11e01bcf2ade1fb06075a2a8f3dbc5c82a1e84f52"
+    },
+    "2023.csv": {
+      "size_bytes": 633588,
+      "sha256": "df615751795c00b042f3b61159f6dd9e12971065090a330c586fb524e207d574"
+    }
+  }
+}
