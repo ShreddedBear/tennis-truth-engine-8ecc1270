@@ -1,0 +1,106 @@
+The verified Phase 1 audit package from the previous workspace is now attached/provided:
+
+migration-audit-transfer-20260919.tar.gz
+
+It contains exactly 19 existing audit artifacts from:
+
+docs/migration-audit/
+
+The package was independently verified in the source workspace:
+
+* 19/19 files present
+* recursive byte-for-byte comparison matched the originals
+* SHA-256 hashes matched
+* filenames/sizes/timestamps preserved
+* source Git HEAD unchanged
+* source files unchanged
+* database unchanged
+* deployment unchanged
+
+TASK — IMPORT ONLY
+
+Extract the archive into the current repository so that the result is:
+
+docs/migration-audit/
+
+containing the exact 19 audit artifacts.
+
+IMPORTANT:
+
+The extracted files are authoritative forensic evidence.
+
+DO NOT:
+
+* rewrite them
+* summarize them into replacements
+* regenerate them
+* alter their contents
+* rename them
+* delete them
+* commit them
+* push them
+
+Before extraction, verify whether docs/migration-audit/ is absent as previously established.
+
+After extraction:
+
+1. verify all 19 expected files exist
+2. calculate SHA-256 hashes
+3. preserve the archive’s contents exactly
+4. confirm the extracted files match the supplied package
+5. confirm no source files were changed
+6. confirm no database changes occurred
+7. confirm no deployment/configuration changes occurred
+
+The audit files may remain untracked.
+
+Do NOT commit or push them.
+
+AFTER IMPORT
+
+Do NOT immediately begin a new audit.
+
+First read/index the imported audit artifacts and compare them against the Phase 1 checklist already established.
+
+Then report:
+
+COMPLETED
+
+Findings already established.
+
+REQUIRED PRESERVATION
+
+Functionality that must survive.
+
+UNRESOLVED
+
+Questions still open.
+
+PHASE 1 BLOCKERS
+
+Issues preventing controlled consolidation.
+
+NEXT SINGLE TASK
+
+The smallest remaining forensic task.
+
+CREDIT CONSERVATION
+
+DO NOT redo completed hashes, diffs, repository inventories, or investigations.
+
+The imported reports are the authoritative record.
+
+Only investigate genuinely unresolved items.
+
+STOP
+
+After confirming the import and producing the compact checklist, STOP.
+
+Do not code.
+Do not merge.
+Do not cherry-pick.
+Do not rebase.
+Do not commit.
+Do not push.
+Do not migrate the database.
+Do not enter Phase 2 yet.
