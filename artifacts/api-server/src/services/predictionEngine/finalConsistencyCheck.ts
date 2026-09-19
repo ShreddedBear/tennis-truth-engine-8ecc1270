@@ -2,6 +2,7 @@ import type { ModelAgreement } from "./disagreement";
 import type { UpsetRisk } from "./upsetRisk";
 import type { DataQualityLabel } from "./dataQuality";
 import { computeRecommendation } from "./recommendation";
+import { HIGH_CONFIDENCE_GATE } from "./classificationPolicy";
 
 /**
  * Defense-in-depth guard applied as the LAST step inside `runPredictionEngine`, before
@@ -58,6 +59,8 @@ export interface FinalConsistencyInput {
   dataQuality: number;
   /** The same Data Quality label `computeRecommendation` was actually given when `recommendation` was produced. */
   dataQualityLabel: DataQualityLabel;
+  /** Raw surface-Elo rating-point gap used by the recommendation confidence gate. */
+  eloGapPoints: number;
   /**
    * Whether the raw ensemble sat within TIE_BAND of 50 when this prediction was made.
    * Must be forwarded to `computeRecommendation` in Rule 10 so the freshness check produces the
@@ -217,6 +220,8 @@ export function checkFinalConsistency(input: FinalConsistencyInput): FinalConsis
     input.modelAgreement,
     input.tieBreakerApplied ?? false,
     input.coreSignalsAlign ?? false,
+    false,
+    input.eloGapPoints,
   );
   // IMPORTANT: rows stored before the v2 rename keep their original recommendation value
   // (STRONG_RECOMMENDATION, MODERATE_LEAN, etc.). Rule 10 exists to catch staleness in LIVE
@@ -282,10 +287,11 @@ export function checkFinalConsistency(input: FinalConsistencyInput): FinalConsis
     catchAllGapMargin >= 9 &&
     catchAllGapMargin < 12 &&
     input.modelAgreement === "Strong" &&
+    Math.abs(input.eloGapPoints) >= HIGH_CONFIDENCE_GATE.ELO_GAP_MIN_POINTS &&
     input.recommendation === "LOW_CONFIDENCE"
   ) {
     violations.push(
-      `Rule 12 (recommendation catch-all gap): recommendation is LOW_CONFIDENCE for a margin-${catchAllGapMargin.toFixed(1)} pick (calibratedProbability=${input.calibratedProbability}) with modelAgreement=${input.modelAgreement} -- a real lean with Strong model agreement and margin ≥ 9 must be at least HIGH_CONFIDENCE, not LOW_CONFIDENCE.`,
+      `Rule 12 (recommendation catch-all gap): recommendation is LOW_CONFIDENCE for a margin-${catchAllGapMargin.toFixed(1)} pick (calibratedProbability=${input.calibratedProbability}) with modelAgreement=${input.modelAgreement} and Elo gap ${Math.abs(input.eloGapPoints).toFixed(1)} -- a real lean with Strong model agreement, margin ≥ 9, and Elo gap ≥ ${HIGH_CONFIDENCE_GATE.ELO_GAP_MIN_POINTS} must be at least HIGH_CONFIDENCE, not LOW_CONFIDENCE.`,
     );
   }
 

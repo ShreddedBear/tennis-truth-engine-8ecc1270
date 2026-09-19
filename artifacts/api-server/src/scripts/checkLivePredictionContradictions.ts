@@ -59,6 +59,10 @@ async function main(): Promise<void> {
       predictedSetScore: row.predictedSetScore,
       dataQuality: row.dataQuality,
       dataQualityLabel: row.dataQualityLabel as never,
+      // Historical engine payloads normally retain the raw Surface-Elo breakdown. Rows that
+      // predate it keep the prior consistency-check behavior rather than being retroactively
+      // classified under an Elo gate that cannot be reconstructed.
+      eloGapPoints: Math.abs(engine.surfaceElo?.eloDifference ?? Infinity),
       // Rule 11 (Monte Carlo headline binding): only checkable on rows that actually have a
       // stored simulation (post-Phase-7) -- absent on legacy rows, which is expected schema
       // evolution, not a violation (see `isLegacyRow` above for the same pattern).

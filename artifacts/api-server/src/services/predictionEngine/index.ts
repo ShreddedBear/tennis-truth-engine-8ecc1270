@@ -1061,6 +1061,7 @@ export async function runPredictionEngine(input: PredictionEngineInput): Promise
     predictedSetScore,
     dataQuality,
     dataQualityLabel,
+    eloGapPoints,
     simulationPlayer1WinProbability: simulation.player1WinProbability,
     tieBreakerApplied: tieBreakerGated.applied,
     coreSignalsAlign,

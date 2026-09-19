@@ -25,6 +25,7 @@ function baseInput(overrides: Partial<FinalConsistencyInput> = {}): FinalConsist
     predictedSetScore: "2-0",
     dataQuality: 70,
     dataQualityLabel: "Strong",
+    eloGapPoints: 50,
     ...overrides,
   };
 }
@@ -107,6 +108,32 @@ test("rule 12: a margin 9-12 pick correctly labeled HIGH_CONFIDENCE is not flagg
     baseInput({ calibratedProbability: 59, predictedWinnerProbability: 59, upsetRisk: "LOW", upsetRiskBreakdownTier: "LOW", modelAgreement: "Strong", recommendation: "HIGH_CONFIDENCE" }),
   );
   assert.ok(!violations.some((v) => v.includes("Rule 12")));
+});
+
+test("rule 12: an Elo gap below the confidence threshold does not require HIGH_CONFIDENCE", () => {
+  const { violations } = checkFinalConsistency(
+    baseInput({
+      calibratedProbability: 59,
+      predictedWinnerProbability: 59,
+      eloGapPoints: 49.999,
+      modelAgreement: "Strong",
+      recommendation: "LOW_CONFIDENCE",
+    }),
+  );
+  assert.ok(!violations.some((v) => v.includes("Rule 12")));
+});
+
+test("rule 12: the exact Elo-gap threshold activates the HIGH_CONFIDENCE consistency gate", () => {
+  const { violations } = checkFinalConsistency(
+    baseInput({
+      calibratedProbability: 59,
+      predictedWinnerProbability: 59,
+      eloGapPoints: 50,
+      modelAgreement: "Strong",
+      recommendation: "LOW_CONFIDENCE",
+    }),
+  );
+  assert.ok(violations.some((v) => v.includes("Rule 12")));
 });
 
 test("rule 12: a margin 9-12 pick with HighDisagreement agreement is not caught by rule 12 (LOW_CONFIDENCE is valid there)", () => {
