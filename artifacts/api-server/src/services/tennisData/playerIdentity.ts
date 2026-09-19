@@ -384,11 +384,8 @@ export async function buildPlayerIdentityIndex(options: HistoricalCorpusOptions 
 export function canonicalizePlayerId(index: PlayerIdentityIndex, id: string, name?: string | null): string {
   const direct = index.canonicalIdById.get(id);
   if (direct) return direct;
-  if (name) {
-    const normalized = normalizePlayerName(name);
-    const byName = index.canonicalIdByName.get(normalized);
-    if (byName) return byName;
-  }
+  // A provider-scoped/raw ID that has never been sighted must remain itself. A name match is
+  // useful for display/search, but is not an approved identity alias and cannot merge namespaces.
   return id;
 }
 
@@ -795,18 +792,6 @@ export async function resolvePlayerProfileForPrediction(
   }
   const exactNameCandidates = byNameCandidates.filter((c) => normalizePlayerName(c.name) === normalizedName);
 
-  if (exactNameCandidates.length === 1) {
-    const remappedId = exactNameCandidates[0]!.id;
-    const remappedProfile = await resolvePlayerProfile(provider, remappedId);
-    if (remappedProfile) {
-      logger.info(
-        { requestedPlayerId, remappedId, sightingName: sighting.name },
-        "Resolved historical-only player ID to live provider ID via exact name match",
-      );
-      return { profile: remappedProfile, resolvedPlayerId: remappedProfile.id, detail: null };
-    }
-  }
-
   // Reverse-abbreviation fallback: when the historical name is a FULL name (e.g. "Moyuka Uchijima")
   // but the provider's search returns only abbreviated forms (e.g. "M. Uchijima"), the exact-match
   // step above finds nothing. Check whether any candidate is a valid abbreviated form of the
@@ -824,17 +809,6 @@ export async function resolvePlayerProfileForPrediction(
         if (cWords[0] !== fullWords[0]![0]) return false;
         return cWords.slice(1).every((w, i) => w === fullWords.slice(1)[i]);
       });
-      if (abbreviatedCandidates.length === 1) {
-        const remappedId = abbreviatedCandidates[0]!.id;
-        const remappedProfile = await resolvePlayerProfile(provider, remappedId);
-        if (remappedProfile) {
-          logger.info(
-            { requestedPlayerId, remappedId, sightingName: sighting.name },
-            "Resolved full historical player name to live provider ID via reverse-abbreviation match",
-          );
-          return { profile: remappedProfile, resolvedPlayerId: remappedProfile.id, detail: null };
-        }
-      }
       if (abbreviatedCandidates.length > 1) {
         const names = abbreviatedCandidates.map((c) => c.name).join(", ");
         return {
@@ -864,18 +838,6 @@ export async function resolvePlayerProfileForPrediction(
       const candidateWordSet = new Set(candidateWords);
       return surnameWords.every((w) => candidateWordSet.has(w)) && candidateWords[0]![0] === initial;
     });
-
-    if (narrowed.length === 1) {
-      const remappedId = narrowed[0]!.id;
-      const remappedProfile = await resolvePlayerProfile(provider, remappedId);
-      if (remappedProfile) {
-        logger.info(
-          { requestedPlayerId, remappedId, sightingName: sighting.name },
-          "Resolved abbreviated historical player name to unique live provider ID via initial+surname narrowing",
-        );
-        return { profile: remappedProfile, resolvedPlayerId: remappedProfile.id, detail: null };
-      }
-    }
 
     if (narrowed.length > 1) {
       const names = narrowed.map((c) => c.name).join(", ");

@@ -170,7 +170,7 @@ test("Uchijima identity: resolvePlayerProfileForPrediction is ambiguous when pro
   );
 });
 
-test("Uchijima identity: resolvePlayerProfileForPrediction succeeds via reverse-abbreviation when exactly one match", async (t) => {
+test("Uchijima identity: unique reverse-abbreviation remains historical-only without an explicit provider alias", async (t) => {
   // Provider that returns exactly ONE abbreviated "M. Uchijima" (only Moyuka in standings)
   const uniqueProvider: TennisDataProvider = {
     name: "fake-unique-uchijima",
@@ -207,8 +207,9 @@ test("Uchijima identity: resolvePlayerProfileForPrediction succeeds via reverse-
   });
 
   const resolution = await resolvePlayerProfileForPrediction(uniqueProvider, MOYUKA_HIST_ID);
-  assert.ok(resolution.profile, "Should resolve when exactly one abbreviated match exists");
-  assert.equal(resolution.resolvedPlayerId, "provider-moyuka-only");
+  assert.ok(resolution.profile, "Should retain the historical identity rather than remapping by name");
+  assert.equal(resolution.resolvedPlayerId, MOYUKA_HIST_ID);
+  assert.notEqual(resolution.resolvedPlayerId, "provider-moyuka-only");
 });
 
 test("Uchijima identity: historical-only record with no provider match at all falls back to historical profile", async (t) => {

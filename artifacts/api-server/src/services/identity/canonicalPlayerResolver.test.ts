@@ -53,15 +53,45 @@ const cases: Array<[string, string, string]> = [
 for (const [name, expectedId, expectedMethod] of cases) {
   test(`real player case: ${name}`, () => {
     const result = resolve(name);
-    assert.equal(result.canonicalPlayerId, expectedId);
-    assert.equal(result.resolutionMethod, expectedMethod);
-    assert.equal(result.manualReviewRequired, false);
+    assert.equal(result.canonicalPlayerId, null);
+    assert.equal(result.manualReviewRequired, true);
+    assert.ok(result.candidateCanonicalIds.includes(expectedId));
   });
 }
 
 test("different provider IDs resolve to the same canonical player", () => {
   assert.equal(resolveCanonicalPlayer({ provider: "api-tennis", externalPlayerId: "42", externalPlayerName: "unrelated spelling", source: "test" }, index).canonicalPlayerId, "djokovic");
   assert.equal(resolveCanonicalPlayer({ provider: "sackmann", externalPlayerId: "104925", externalPlayerName: "Rafael Nadal", source: "test" }, index).canonicalPlayerId, "nadal");
+});
+
+test("an unknown provider ID with a matching name remains unresolved rather than merging by name", () => {
+  const result = resolveCanonicalPlayer({
+    provider: "new-provider",
+    externalPlayerId: "same-name-1",
+    externalPlayerName: "Caroline Garcia",
+    source: "test",
+  }, index);
+  assert.equal(result.canonicalPlayerId, null);
+  assert.equal(result.manualReviewRequired, true);
+  assert.deepEqual(result.candidateCanonicalIds, ["garcia-1"]);
+});
+
+test("same-name provider records remain collision-separated without explicit aliases", () => {
+  const collisionIndex = buildResolverIndex({
+    candidates: [
+      { canonicalPlayerId: "p1", displayName: "Alex Lee", names: [] },
+      { canonicalPlayerId: "p2", displayName: "Alex Lee", names: [] },
+    ],
+  });
+  const result = resolveCanonicalPlayer({
+    provider: "provider-a",
+    externalPlayerId: "42",
+    externalPlayerName: "Alex Lee",
+    source: "test",
+  }, collisionIndex);
+  assert.equal(result.canonicalPlayerId, null);
+  assert.equal(result.manualReviewRequired, true);
+  assert.deepEqual(result.candidateCanonicalIds, ["p1", "p2"]);
 });
 
 test("known aliases resolve without merging unrelated names", () => {
@@ -71,7 +101,8 @@ test("known aliases resolve without merging unrelated names", () => {
 
 test("initial resolves only when unambiguous", () => {
   assert.equal(resolve("A. Smith").resolutionMethod, "ambiguous");
-  assert.equal(resolve("A. Zverev").canonicalPlayerId, "zverev");
+  assert.equal(resolve("A. Zverev").canonicalPlayerId, null);
+  assert.equal(resolve("A. Zverev").manualReviewRequired, true);
 });
 
 test("common surnames do not merge incorrectly", () => {
@@ -102,8 +133,8 @@ test("audit report counts mappings and reports collisions without writing", () =
     { provider: "p3", externalPlayerId: "3", externalPlayerName: "No Such Player" },
   ], players);
   assert.equal(report.total, 3);
-  assert.equal(report.exact, 1);
-  assert.equal(report.ambiguous, 1);
+  assert.equal(report.exact, 0);
+  assert.equal(report.ambiguous, 2);
   assert.equal(report.unresolved, 1);
   assert.ok(report.collisions.some((collision) => collision.normalizedName === "garcia"));
 });

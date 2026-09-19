@@ -151,11 +151,27 @@ export function resolveCanonicalPlayer(input: {
   }
 
   const direct = byName.get(variants(input.externalPlayerName)[0] ?? "") ?? [];
-  if (direct.length === 1) return result({ canonicalPlayerId: direct[0].canonicalPlayerId, resolutionMethod: "exact-normalized-name", confidence: 0.98, source: input.source, normalizedName, supportingMetadata: direct[0].metadata ?? null });
+  if (direct.length === 1) return result({
+    resolutionMethod: "ambiguous",
+    confidence: 0,
+    source: input.source,
+    normalizedName,
+    candidateCanonicalIds: [direct[0].canonicalPlayerId],
+    manualReviewRequired: true,
+    reason: "a normalized name alone is not sufficient to merge a provider record; explicit provider alias required",
+  });
   if (direct.length > 1) return result({ resolutionMethod: "ambiguous", confidence: 0, source: input.source, normalizedName, candidateCanonicalIds: direct.map((candidate) => candidate.canonicalPlayerId), manualReviewRequired: true, reason: "multiple canonical players share the normalized full name" });
 
   const reversed = byName.get(variants(input.externalPlayerName)[1] ?? "") ?? [];
-  if (reversed.length === 1) return result({ canonicalPlayerId: reversed[0].canonicalPlayerId, resolutionMethod: "reversed-normalized-name", confidence: 0.96, source: input.source, normalizedName, supportingMetadata: reversed[0].metadata ?? null });
+  if (reversed.length === 1) return result({
+    resolutionMethod: "ambiguous",
+    confidence: 0,
+    source: input.source,
+    normalizedName,
+    candidateCanonicalIds: [reversed[0].canonicalPlayerId],
+    manualReviewRequired: true,
+    reason: "a reversed normalized name alone is not sufficient to merge a provider record; explicit provider alias required",
+  });
   if (reversed.length > 1) return result({ resolutionMethod: "ambiguous", confidence: 0, source: input.source, normalizedName, candidateCanonicalIds: reversed.map((candidate) => candidate.canonicalPlayerId), manualReviewRequired: true, reason: "reversed name maps to multiple canonical players" });
 
   const knownId = index.knownAliases?.get(normalizedName);
@@ -166,7 +182,15 @@ export function resolveCanonicalPlayer(input: {
     const parsed = surnameAndInitial(candidate.displayName);
     return parsed.surname === surname && parsed.initial === initial;
   });
-  if (initialMatches.length === 1) return result({ canonicalPlayerId: initialMatches[0].canonicalPlayerId, resolutionMethod: "surname-initial", confidence: 0.88, source: input.source, normalizedName, supportingMetadata: initialMatches[0].metadata ?? null });
+  if (initialMatches.length === 1) return result({
+    resolutionMethod: "ambiguous",
+    confidence: 0,
+    source: input.source,
+    normalizedName,
+    candidateCanonicalIds: [initialMatches[0].canonicalPlayerId],
+    manualReviewRequired: true,
+    reason: "surname and first initial are not sufficient to merge a provider record; explicit provider alias required",
+  });
   if (initialMatches.length > 1) return result({ resolutionMethod: "ambiguous", confidence: 0, source: input.source, normalizedName, candidateCanonicalIds: initialMatches.map((candidate) => candidate.canonicalPlayerId), manualReviewRequired: true, reason: "surname and first initial are shared by multiple players" });
 
   const fuzzy = index.candidates.map((candidate) => {
@@ -174,14 +198,25 @@ export function resolveCanonicalPlayer(input: {
     return { candidate, distance, metadata: metadataScore(input.metadata, candidate.metadata) };
   }).filter((entry) => entry.distance <= Math.max(2, Math.floor(normalizedName.length * 0.2)))
     .sort((left, right) => right.metadata - left.metadata || left.distance - right.distance);
-  if (fuzzy.length > 0 && (fuzzy.length === 1 || fuzzy[0].metadata > fuzzy[1].metadata)) {
+  // Approximate-name matching is only acceptable when supplied metadata independently
+  // distinguishes the candidate. A unique string distance (including distance 0) is still
+  // name-only identity and must remain reviewable.
+  if (fuzzy.length > 0 && fuzzy[0].metadata > 0 && (fuzzy.length === 1 || fuzzy[0].metadata > fuzzy[1].metadata)) {
     const best = fuzzy[0];
     return result({ canonicalPlayerId: best.candidate.canonicalPlayerId, resolutionMethod: "fuzzy-with-metadata", confidence: Math.min(0.92, 0.7 + best.metadata * 0.04), source: input.source, normalizedName, supportingMetadata: best.candidate.metadata ?? null });
   }
   if (fuzzy.length > 1) return result({ resolutionMethod: "ambiguous", confidence: 0, source: input.source, normalizedName, candidateCanonicalIds: fuzzy.map((entry) => entry.candidate.canonicalPlayerId), manualReviewRequired: true, reason: "fuzzy candidates are not uniquely distinguished by metadata" });
 
   const surnameMatches = index.candidates.filter((candidate) => surnameAndInitial(candidate.displayName).surname === surname);
-  if (surnameMatches.length === 1) return result({ canonicalPlayerId: surnameMatches[0].canonicalPlayerId, resolutionMethod: "unique-surname", confidence: 0.72, source: input.source, normalizedName, supportingMetadata: surnameMatches[0].metadata ?? null });
+  if (surnameMatches.length === 1) return result({
+    resolutionMethod: "ambiguous",
+    confidence: 0,
+    source: input.source,
+    normalizedName,
+    candidateCanonicalIds: [surnameMatches[0].canonicalPlayerId],
+    manualReviewRequired: true,
+    reason: "surname alone is not sufficient to merge a provider record; explicit provider alias required",
+  });
   if (surnameMatches.length > 1) return result({ resolutionMethod: "ambiguous", confidence: 0, source: input.source, normalizedName, candidateCanonicalIds: surnameMatches.map((candidate) => candidate.canonicalPlayerId), manualReviewRequired: true, reason: "surname fallback is not unique" });
   return result({ resolutionMethod: "unresolved", confidence: 0, source: input.source, normalizedName, manualReviewRequired: true, reason: "no safe identity candidate found" });
 }
