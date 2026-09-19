@@ -13,7 +13,7 @@
  *  - DELETE on a run never touches backtest_predictions rows (soft-delete only)
  */
 import { db, historicalMatchesTable, calibrationModelsTable, backtestRunsTable, backtestPredictionsTable, candidateConfigsTable } from "@workspace/db";
-import { asc, and, gte, lte, eq, isNull } from "drizzle-orm";
+import { asc, and, gte, lte, eq, isNull, lt } from "drizzle-orm";
 import { scoreHistoricalMatch, type HistoricalScoringContext } from "./historicalScoring";
 import { computeSegmentMetrics, computeCalibrationBuckets } from "./metrics";
 import { applyCalibrationOriented } from "./calibration";
@@ -138,6 +138,12 @@ function buildDateConditions(dateRange: BacktestDateRange) {
   return conditions;
 }
 
+function exclusiveDateRangeEnd(dateRange: BacktestDateRange): Date {
+  const cutoff = new Date(`${dateRange.end}T00:00:00.000Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() + 1);
+  return cutoff;
+}
+
 function getExclusionReason(
   match: { cancelled: boolean; walkover: boolean; retired: boolean; surface: string | null; matchFormat: string | null; tournamentLevel: string | null },
   filters: BacktestFilters,
@@ -228,7 +234,11 @@ export async function runEvaluationBacktest(
     // If test hooks provide matches, use them directly to avoid needing DB data.
     const allMatchesForContext: BacktestMatchLike[] = _hooks?.matchesForTest
       ? _hooks.matchesForTest
-      : await db.select().from(historicalMatchesTable).orderBy(asc(historicalMatchesTable.scheduledStartAt));
+      : await db
+          .select()
+          .from(historicalMatchesTable)
+          .where(lt(historicalMatchesTable.scheduledStartAt, exclusiveDateRangeEnd(dateRange)))
+          .orderBy(asc(historicalMatchesTable.scheduledStartAt));
 
     let sliceMatches: BacktestMatchLike[];
     if (_hooks?.matchesForTest) {
@@ -279,13 +289,14 @@ export async function runEvaluationBacktest(
     await updateStatus("preparing", "Building scoring context", 0, eligibleMatches.length);
 
     // Build scoring context (FROZEN — never writes calibration/specialist rows)
-    const identityIndex = await buildPlayerIdentityIndex();
+    const corpusOptions = { scheduledBefore: exclusiveDateRangeEnd(dateRange) };
+    const identityIndex = await buildPlayerIdentityIndex(corpusOptions);
     const previousSpecialistRows = await getActiveSpecialistSegments();
     const specialistRowsBySegmentKey = new Map(previousSpecialistRows.map((row) => [row.segmentKey, row]));
     const scoringContext: HistoricalScoringContext = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       matchHistory: buildMatchHistoryIndex(allMatchesForContext as any),
-      eloHistory: await buildEloHistoryIndex(identityIndex),
+      eloHistory: await buildEloHistoryIndex(identityIndex, corpusOptions),
       identityIndex,
       specialistRowsBySegmentKey,
     };

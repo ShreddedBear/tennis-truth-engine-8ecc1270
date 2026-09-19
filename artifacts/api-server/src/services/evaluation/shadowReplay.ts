@@ -187,7 +187,10 @@ export async function runShadowPaperTradingReplay(options: ShadowReplayOptions):
   // was measured at ~14% of the full corpus on a busy day -- comparable to walk-forward's own
   // per-fold cost, not a full-corpus spike -- and peak memory never grows with the requested
   // range's length, only with how busy any ONE day in it is.
-  const identityIndex = await buildPlayerIdentityIndex();
+  const corpusCutoff = new Date(rangeEnd);
+  corpusCutoff.setTime(corpusCutoff.getTime() + 1);
+  const corpusOptions = { scheduledBefore: corpusCutoff };
+  const identityIndex = await buildPlayerIdentityIndex(corpusOptions);
   const previousSpecialistRows = await getActiveSpecialistSegments();
   const specialistRowsBySegmentKey = new Map(previousSpecialistRows.map((row) => [row.segmentKey, row]));
   // Task #160: the full fitted-calibration timeline, loaded ONCE for this whole run -- each
@@ -248,7 +251,7 @@ export async function runShadowPaperTradingReplay(options: ShadowReplayOptions):
 
     const scoringContext: HistoricalScoringContext = {
       matchHistory: buildMatchHistoryIndex(directMatches),
-      eloHistory: await buildEloHistoryIndex(identityIndex),
+      eloHistory: await buildEloHistoryIndex(identityIndex, corpusOptions),
       identityIndex,
       specialistRowsBySegmentKey,
       // Shadow replay is point-in-time historical evaluation: suppress the segment specialist

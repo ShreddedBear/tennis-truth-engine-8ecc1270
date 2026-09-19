@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, sql, type SQLWrapper } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, sql, type SQLWrapper } from "drizzle-orm";
 import { db, historicalMatchesTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import type { PlayerProfile, PlayerSummary, TennisDataProvider } from "./types";
@@ -242,8 +242,13 @@ export interface PlayerIdentityIndex {
   aliasIdsByCanonicalId: Map<string, string[]>;
 }
 
+export interface HistoricalCorpusOptions {
+  /** Exclusive UTC cutoff for historical corpus rows. Omit for the live/full-corpus default. */
+  scheduledBefore?: Date;
+}
+
 /** Builds a fresh `PlayerIdentityIndex` from every singles sighting in `historical_matches`. */
-export async function buildPlayerIdentityIndex(): Promise<PlayerIdentityIndex> {
+export async function buildPlayerIdentityIndex(options: HistoricalCorpusOptions = {}): Promise<PlayerIdentityIndex> {
   // normalizedName -> (playerId -> { minSeenAt, maxSeenAt } under that name)
   const byName = new Map<string, Map<string, { minSeenAt: number; maxSeenAt: number }>>();
   const consume = (id: string, name: string, scheduledStartAt: Date) => {
@@ -277,7 +282,10 @@ export async function buildPlayerIdentityIndex(): Promise<PlayerIdentityIndex> {
         scheduledStartAt: historicalMatchesTable.scheduledStartAt,
       })
       .from(historicalMatchesTable)
-      .where(gt(historicalMatchesTable.id, cursor))
+      .where(and(
+        gt(historicalMatchesTable.id, cursor),
+        options.scheduledBefore ? lt(historicalMatchesTable.scheduledStartAt, options.scheduledBefore) : undefined,
+      ))
       .orderBy(asc(historicalMatchesTable.id))
       .limit(pageSize);
     if (rows.length === 0) break;

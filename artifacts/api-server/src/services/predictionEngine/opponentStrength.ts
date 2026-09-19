@@ -1,7 +1,7 @@
 import { db, historicalMatchesTable, matchFeatureSnapshotsTable } from "@workspace/db";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import type { MatchRecord } from "../tennisData/types";
-import { buildPlayerIdentityIndex, canonicalizePlayerId, getAliasIds, getCachedPlayerIdentityIndex, type PlayerIdentityIndex } from "../tennisData/playerIdentity";
+import { buildPlayerIdentityIndex, canonicalizePlayerId, getAliasIds, getCachedPlayerIdentityIndex, type HistoricalCorpusOptions, type PlayerIdentityIndex } from "../tennisData/playerIdentity";
 import { logger } from "../../lib/logger";
 import { eloFallbackTracker } from "./fallbackTracking";
 
@@ -88,8 +88,8 @@ export function resolveOpponentStrengthFromIndex(matches: MatchRecord[], index: 
  * The index always loads the complete historical corpus. Callers may provide a run-scoped identity
  * index; when omitted, one is built from the complete historical match store before indexing.
  */
-export async function buildEloHistoryIndex(identity?: PlayerIdentityIndex): Promise<EloHistoryIndex> {
-  const identityIndex = identity ?? await buildPlayerIdentityIndex();
+export async function buildEloHistoryIndex(identity?: PlayerIdentityIndex, options: HistoricalCorpusOptions = {}): Promise<EloHistoryIndex> {
+  const identityIndex = identity ?? await buildPlayerIdentityIndex(options);
   const matches = await db
     .select({
       id: historicalMatchesTable.id,
@@ -101,6 +101,7 @@ export async function buildEloHistoryIndex(identity?: PlayerIdentityIndex): Prom
       scheduledStartAt: historicalMatchesTable.scheduledStartAt,
     })
     .from(historicalMatchesTable)
+    .where(options.scheduledBefore ? lt(historicalMatchesTable.scheduledStartAt, options.scheduledBefore) : undefined)
     .orderBy(asc(historicalMatchesTable.scheduledStartAt), asc(historicalMatchesTable.id));
 
   const rawToCanonical = new Map<string, string>();
@@ -129,7 +130,10 @@ export async function buildEloHistoryIndex(identity?: PlayerIdentityIndex): Prom
       sourceTimestamp: matchFeatureSnapshotsTable.sourceTimestamp,
     })
     .from(matchFeatureSnapshotsTable)
-    .where(eq(matchFeatureSnapshotsTable.featureName, "eloOverall"));
+    .where(and(
+      eq(matchFeatureSnapshotsTable.featureName, "eloOverall"),
+      options.scheduledBefore ? lt(matchFeatureSnapshotsTable.sourceTimestamp, options.scheduledBefore) : undefined,
+    ));
 
   // ── Step 1: collect raw snapshot data by the STORED player id (no early canonicalization).
   // Early canonicalization via canonicalizePlayerId was the source of reference-inequality bugs:

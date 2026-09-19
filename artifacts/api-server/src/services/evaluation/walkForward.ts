@@ -383,7 +383,10 @@ export async function runWalkForwardEvaluation(options: WalkForwardOptions = {})
   // `HistoricalScoringContext`. The identity index is built once here too (Task #77) and reused
   // both for `eloHistory`'s own canonicalized grouping and for every match's opponent-resolution
   // lookup below, so a fragmented player's Elo trajectory is merged and resolved consistently.
-  const identityIndex = await buildPlayerIdentityIndex();
+  const corpusOptions = options.endDate
+    ? { scheduledBefore: (() => { const cutoff = new Date(`${options.endDate}T00:00:00.000Z`); cutoff.setUTCDate(cutoff.getUTCDate() + 1); return cutoff; })() }
+    : {};
+  const identityIndex = await buildPlayerIdentityIndex(corpusOptions);
   // Task #65: snapshot the PREVIOUS cycle's specialist fit before this run's own fold scoring --
   // `computeAndStoreSpecialistSegments` below (which fits fresh specialists FROM this run's own
   // validation output) only overwrites `specialist_models` at the very end of this function, so
@@ -393,7 +396,7 @@ export async function runWalkForwardEvaluation(options: WalkForwardOptions = {})
   const specialistRowsBySegmentKey = new Map(previousSpecialistRows.map((row) => [row.segmentKey, row]));
   const scoringContext: HistoricalScoringContext = {
     matchHistory: buildMatchHistoryIndex(allMatches),
-    eloHistory: await buildEloHistoryIndex(identityIndex),
+    eloHistory: await buildEloHistoryIndex(identityIndex, corpusOptions),
     identityIndex,
     specialistRowsBySegmentKey,
   };

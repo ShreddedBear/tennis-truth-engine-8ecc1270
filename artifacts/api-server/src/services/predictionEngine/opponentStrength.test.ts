@@ -134,6 +134,26 @@ test("buildEloHistoryIndex uses the full chronological corpus and shared canonic
   }
 });
 
+test("buildEloHistoryIndex strictly excludes snapshots at the scheduledBefore cutoff", async (t) => {
+  const scheduledBefore = new Date("2015-01-01T00:00:00.000Z");
+  let identity: PlayerIdentityIndex;
+  try {
+    identity = await buildPlayerIdentityIndex({ scheduledBefore });
+  } catch (err) {
+    const code = (err as { cause?: { code?: string } })?.cause?.code;
+    if (code === "ENOTFOUND" || code === "ECONNREFUSED") {
+      t.skip(`DB unavailable for bounded Elo index test (${code})`);
+      return;
+    }
+    throw err;
+  }
+
+  const index = await buildEloHistoryIndex(identity, { scheduledBefore });
+  for (const timeline of new Set(index.values())) {
+    assert.ok(timeline.every((entry) => entry.t < scheduledBefore.getTime()));
+  }
+});
+
 // Integration test against the real DB: proves `resolveOpponentStrength` (the LIVE, per-fixture
 // caller -- not the whole-corpus-preloaded `buildEloHistoryIndex` path) actually merges Elo
 // history recorded under an opponent's OLD alias id, not just their current canonical id. A
