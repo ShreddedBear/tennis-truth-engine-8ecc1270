@@ -1,0 +1,553 @@
+Yes. The objective is clear: a clean three-week historical replay of the current application, not a reconstruction of old prediction history.
+
+The critical distinction is that Replit must re-run the current engines against historical matches as if each match had not happened yet. It cannot simply import completed results and then call those predictions.
+
+I would give Replit the following task specification.
+
+Three-Week Clean Walk-Forward Backtest
+
+Prediction Engine + Parlay Builder + Truth Engine
+
+Objective
+
+Perform a complete clean historical replay of the current Tennis Matrix system over the most recent three completed weeks, covering:
+
+August 30, 2026 through September 20, 2026, using the application’s current production logic.
+
+The purpose is to determine how the current system actually performs when evaluated historically under strict point-in-time conditions.
+
+This is a walk-forward backtest, not a restoration of previous prediction history.
+
+The system must behave as though each historical match were being processed before the match began.
+
+⸻
+
+1. HARD SAFETY RULE — DO NOT DELETE FIRST
+
+Before deleting or resetting ANY production/application history:
+
+Required preflight gates
+
+The system must first prove all of the following:
+
+1. A historical tennis data source can supply the required August 30–September 20, 2026 completed-match population.
+2. The source provides enough information to identify:
+    * match
+    * players
+    * date/time
+    * tournament
+    * round
+    * surface
+    * final winner
+    * final loser
+3. Historical pre-match information required by the current prediction engine is available without using information generated after match start.
+4. The complete backup/export of every affected table has been created.
+5. Backup row counts reconcile against the database.
+6. Large tables are exported with pagination and are NOT assumed complete after the first 1,000 rows.
+7. The backup can be restored or otherwise verified.
+8. The replacement population can actually be constructed.
+
+If any preflight gate fails:
+
+STOP.
+
+Do not delete prediction history.
+
+Do not delete parlay history.
+
+Do not reset Truth Engine history.
+
+Do not partially reset anything.
+
+Report the exact failed gate.
+
+⸻
+
+2. REQUIRED RESET
+
+After all preflight gates pass, create a clean historical replay environment.
+
+Reset the relevant historical/application state for:
+
+Prediction Engine
+
+Clear the existing prediction-history/evaluation state that is intended to represent prediction runs.
+
+The backtest must repopulate it exclusively through fresh execution of the current prediction engine.
+
+Parlay Builder
+
+Reset the existing parlay-builder history/state used for historical evaluation.
+
+Do not carry old parlays, old legs, old grades, or old prediction decisions into the new three-week experiment.
+
+Truth Engine
+
+Reset the active Truth Engine evaluation/audit slate.
+
+Do NOT fabricate historical audit records.
+
+The Truth Engine must receive the historical matches and independently run its actual audit pipeline on them.
+
+⸻
+
+3. HISTORICAL MATCH POPULATION
+
+Construct the complete set of tennis matches that actually occurred during:
+
+2026-08-30 through 2026-09-20
+
+Use the appropriate historical provider(s).
+
+The population must include every match the application is designed to evaluate within its supported competition scope.
+
+Do not silently omit matches because they are inconvenient to process.
+
+Track:
+
+* total discovered
+* total accepted
+* total rejected
+* reason for every rejection
+* source/provenance
+* match ID
+* player IDs
+* tournament
+* round
+* surface
+* scheduled/start time
+* completion status
+* winner
+* loser
+
+If multiple providers are required, establish canonical match identity and deduplicate them.
+
+⸻
+
+4. POINT-IN-TIME / NO-LOOK-AHEAD REQUIREMENT
+
+This is the most important requirement.
+
+For every historical match, define:
+
+T0 = the information cutoff immediately before that match began.
+
+Every prediction feature must satisfy:
+
+feature_timestamp <= T0
+
+or otherwise be demonstrably derived exclusively from information available before T0.
+
+Forbidden
+
+Do NOT use:
+
+* final match result
+* post-match statistics
+* post-match rankings
+* post-match Elo
+* future matches
+* future player statistics
+* future injury information
+* future tournament results
+* future form
+* future serve/return statistics
+* future surface results
+* future ratings
+* future availability information
+* future weather observations
+* future market information, if that information is excluded by the configured model policy
+
+Do not calculate a historical feature using the player’s complete career/current database if that database contains matches occurring after T0.
+
+⸻
+
+5. WALK-FORWARD MODEL STATE
+
+The model must progress chronologically.
+
+For each match:
+
+1. Freeze the information available immediately before the match.
+2. Generate the prediction using that information.
+3. Save the prediction and its feature snapshot.
+4. Only after the prediction is frozen may the match result become available.
+5. Grade the prediction against the verified final winner.
+6. Update historical model state so subsequent matches can use this match only where appropriate.
+
+The next match must therefore see a database state corresponding to what would actually have been known at that time.
+
+⸻
+
+6. FROZEN PREDICTION RECORD
+
+Every historical prediction must retain an immutable snapshot containing at minimum:
+
+* match ID
+* player 1
+* player 2
+* prediction timestamp/cutoff
+* predicted winner
+* predicted loser
+* confidence/probability
+* model version
+* feature values
+* feature timestamps/provenance
+* data-quality status
+* modules used
+* unavailable metrics
+* prediction status
+* final actual winner
+* final actual loser
+* correct/incorrect grade
+
+Do not overwrite historical feature values after the match completes.
+
+⸻
+
+7. PREDICTION GRADING
+
+Every completed historical match must receive an explicit grade.
+
+Required fields:
+
+Predicted Winner
+Actual Winner
+Predicted Loser
+Actual Loser
+Correct = TRUE/FALSE
+Prediction Confidence
+Model Version
+Prediction Timestamp
+Outcome Timestamp
+
+If the system produces an exact 50/50 or genuine toss-up prediction under its current rules, preserve that result exactly.
+
+Do not manufacture a winner prediction to make the backtest gradeable.
+
+⸻
+
+8. PARLAY BUILDER REPLAY
+
+The Parlay Builder must be evaluated separately from the Prediction Engine.
+
+Do not allow the Parlay Builder to modify the underlying prediction engine’s historical grades.
+
+For each historical parlay decision:
+
+* use only predictions available at that historical point
+* enforce the current Parlay Builder rules
+* record selected legs
+* record rejected legs where applicable
+* record actual outcomes
+* grade each leg
+* grade the completed parlay
+* preserve the historical cutoff
+
+No future match result may influence whether an earlier leg was selected.
+
+⸻
+
+9. TRUTH ENGINE — COMPLETE AUDIT REQUIRED
+
+The Truth Engine must process the historical matches independently.
+
+For every match in the three-week population:
+
+1. Ingest the canonical historical match.
+2. Establish player identity.
+3. Establish tournament/round/surface.
+4. Establish scheduled/start time.
+5. Establish final result from an authoritative source.
+6. Run the complete Truth Engine audit pipeline.
+7. Run every applicable verification/audit stage.
+8. Record every metric’s evidence status.
+9. Record unavailable/protected data honestly.
+10. Record the final verification state.
+11. Mark the match completed only when completion is actually verified.
+
+Absolutely prohibited
+
+Do NOT:
+
+* fabricate audit results
+* mark unavailable evidence as verified
+* infer missing metrics and label them verified
+* manufacture PBP
+* manufacture injuries
+* manufacture weather
+* manufacture travel/fatigue
+* manufacture rankings
+* manufacture player statistics
+* convert an unverified source into a verified source
+* mark a match “completed” merely because a prediction exists
+* mark a match “verified” merely because a final score exists
+
+If evidence genuinely does not exist:
+
+GENUINELY_UNAVAILABLE
+
+If access exists but the source cannot legally/technically be used:
+
+PROTECTED_UNAVAILABLE
+
+Use the Truth Engine’s existing provenance and verification classifications.
+
+⸻
+
+10. TRUTH ENGINE COMPLETION REQUIREMENT
+
+A match is not considered fully completed by the Truth Engine merely because:
+
+winner exists
+
+The completed audit must show the actual audit state and evidence coverage.
+
+For every match, report:
+
+* audit started
+* audit completed
+* verification stages completed
+* metrics evaluated
+* metrics verified
+* metrics unavailable
+* metrics protected/unavailable
+* discrepancies
+* trap/disagreement findings where applicable
+* final winner
+* final verification status
+* provenance
+
+The audit must be the actual Truth Engine audit.
+
+No synthetic audit records.
+
+⸻
+
+11. MATCH-LEVEL RECONCILIATION
+
+At the end of the run, reconcile:
+
+Historical matches discovered
+        ↓
+Matches accepted
+        ↓
+Matches sent to Prediction Engine
+        ↓
+Predictions generated
+        ↓
+Matches completed
+        ↓
+Outcomes verified
+        ↓
+Matches sent to Truth Engine
+        ↓
+Truth audits completed
+        ↓
+Matches with verified winners
+        ↓
+Prediction grades completed
+        ↓
+Parlay grades completed
+
+Every discrepancy must be explicitly explained.
+
+There must not be unexplained count differences.
+
+⸻
+
+12. DATA-LEAKAGE AUDIT
+
+Run a dedicated leakage audit after the backtest.
+
+For every prediction, verify:
+
+Temporal checks
+
+* prediction timestamp < match start
+* every feature timestamp <= prediction cutoff
+* no future match was included
+* no post-match statistic was included
+
+Outcome checks
+
+* final winner was not available to the prediction
+* final score was not available to the prediction
+* post-match statistics were not available to the prediction
+
+Database checks
+
+Identify any query that reads data without a historical cutoff.
+
+Identify any feature calculation that uses the current/latest record instead of the historical state.
+
+Identify any cache that could contain future information.
+
+Identify any aggregate statistic whose denominator includes matches after T0.
+
+⸻
+
+13. NO SILENT FALLBACKS
+
+If a required historical feature cannot be reconstructed legitimately:
+
+Do not substitute today’s value.
+
+Do not substitute a future value.
+
+Do not substitute the final tournament value.
+
+Do not substitute the completed match result.
+
+Do not invent the value.
+
+Record the feature as unavailable and allow the application’s existing data-quality/model policy to determine how the prediction behaves.
+
+⸻
+
+14. FINAL REPORT
+
+Produce a complete report containing:
+
+A. Population
+
+* date range
+* total matches
+* tournaments
+* tours/levels
+* matches excluded
+* exclusion reasons
+
+B. Prediction Engine
+
+* predictions generated
+* predictions completed
+* correct
+* incorrect
+* unresolved
+* accuracy
+* confidence calibration
+* data-quality distribution
+* model/module usage
+* missing-feature rates
+
+C. Parlay Builder
+
+* parlays generated
+* legs generated
+* legs won
+* legs lost
+* legs unresolved
+* complete parlay grades
+* selection/rejection counts
+* historical cutoff compliance
+
+D. Truth Engine
+
+* audits started
+* audits completed
+* fully verified matches
+* partially verified matches
+* genuinely unavailable evidence
+* protected unavailable evidence
+* failed audits
+* discrepancies
+* winner verification status
+
+E. Leakage Audit
+
+Report:
+
+* number of predictions audited
+* number of feature records audited
+* number of temporal violations
+* number of future-data violations
+* number of post-result violations
+* number of current-state contamination violations
+
+If any leakage is found, identify the exact match, feature, query/module, and source of contamination.
+
+F. Reconciliation
+
+Provide the complete count reconciliation across all three systems.
+
+G. Final Determination
+
+The experiment may only be declared successful if:
+
+1. The complete historical population was constructed.
+2. Predictions were generated chronologically.
+3. No look-ahead was detected.
+4. No data leakage was detected.
+5. Outcomes were independently verified.
+6. Prediction grades were completed.
+7. Parlay grades were completed.
+8. Truth Engine audits actually ran.
+9. Truth Engine audit results were not fabricated.
+10. All count discrepancies were reconciled.
+11. Historical feature snapshots are preserved.
+12. The resulting dataset can be independently reproduced.
+
+If any of these conditions fails, report:
+
+BACKTEST FAILED — DO NOT TREAT RESULTS AS VALID
+
+and identify the exact failed condition.
+
+⸻
+
+15. IMPORTANT: DO NOT OPTIMIZE DURING THIS TEST
+
+This run is an evaluation of the current system.
+
+Do not:
+
+* tune weights
+* change thresholds
+* recalibrate probabilities
+* change model architecture
+* change feature definitions
+* remove difficult matches
+* select only matches that grade well
+* alter rules after seeing outcomes
+
+Any model changes must be a separate experiment.
+
+The three-week run must remain a frozen evaluation of the current system.
+
+⸻
+
+16. REQUIRED ARTIFACTS
+
+Save:
+
+1. Historical match manifest
+2. Prediction manifest
+3. Frozen feature snapshots
+4. Outcome verification manifest
+5. Truth Engine audit manifest
+6. Parlay manifest
+7. Leakage audit
+8. Count reconciliation
+9. Failed/unsupported data manifest
+10. Final three-week backtest report
+
+All artifacts must include timestamps, model/version identifiers, source provenance, and reproducibility information.
+
+⸻
+
+FINAL RULE
+
+Do not fake completeness.
+
+A smaller dataset with honestly documented unavailable evidence is valid.
+
+A larger dataset containing fabricated, post-match, future, or unverifiable evidence is invalid.
+
+The purpose of this run is to discover what the current system actually does under a legitimate historical replay — including where the system cannot obtain evidence — not to make the results look complete.
+
+The most important change from the failed attempt is the ordering. The system should prove the historical population exists and prove the backups are complete before touching the existing data.
+
+And for the Truth Engine, I would make the success condition especially strict: “winner verified” and “audit completed” are two separate things. A match can have a verified winner while still having missing PBP, injury, weather, or other evidence. That missing evidence must remain explicitly missing rather than being silently filled.
+
+This will give you a genuinely useful three-week diagnostic: what the current Prediction Engine predicted, what actually happened, where it was right/wrong, what the Parlay Builder did with those predictions, and whether the Truth Engine can independently substantiate the historical records.

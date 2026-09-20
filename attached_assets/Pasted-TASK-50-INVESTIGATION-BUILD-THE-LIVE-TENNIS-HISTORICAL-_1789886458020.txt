@@ -1,0 +1,368 @@
+TASK: 50% INVESTIGATION — BUILD THE LIVE TENNIS HISTORICAL DATA PATH
+
+Task 66 has completed and correctly stopped before creating an invalid temporal holdout.
+
+Do NOT rerun Task 66.
+
+Do NOT use the 427 paper-trade rows.
+
+Do NOT run Candidate B or Candidate D yet.
+
+OBJECTIVE
+
+Build the missing data path required to construct a legitimate post-2026-06-02 temporal holdout using the existing paid Live Tennis API service.
+
+The objective is:
+
+Live Tennis API
+→ normalized historical match adapter
+→ deterministic player identity resolution
+→ deterministic tournament/category resolution
+→ point-in-time feature reconstruction
+→ frozen holdout population
+
+Do not modify Candidate B or Candidate D.
+
+==================================================
+1. CURRENT DATABASE BOUNDARY
+==================================================
+
+The Prediction API/evaluation system uses the current Replit PostgreSQL database:
+
+heliumdb
+
+Verify this directly from the current runtime.
+
+The complete evaluation corpus is:
+
+evaluation_predictions = 518,636
+
+Do NOT reconstruct this corpus from Supabase.
+
+Do NOT use the old Supabase export.
+
+The Truth Engine has a separate database boundary; do not mix the Truth Engine database into this task.
+
+==================================================
+2. LIVE TENNIS HISTORICAL ADAPTER
+==================================================
+
+Implement the normalized historical adapter needed to retrieve completed singles matches after:
+
+2026-06-02
+
+The adapter must provide, at minimum:
+
+- provider match ID
+- match date
+- player 1
+- player 2
+- winner
+- loser
+- tournament
+- tournament ID
+- tour
+- competition level
+- surface
+- round
+- best-of format
+- final set scores
+- source provenance
+
+Reuse the existing normalized TennisDataProvider contracts wherever possible.
+
+Do not create a second incompatible provider abstraction.
+
+Do not reactivate API-Tennis.
+
+Do not reactivate MatchStat.
+
+==================================================
+3. READ-ONLY FIRST
+==================================================
+
+Before any persistent ingestion:
+
+Prove that the Live Tennis API can supply the required completed historical fields.
+
+Use read-only requests where possible.
+
+Do not modify the production database merely to test the adapter.
+
+Produce a representative validation report showing:
+
+- requests made
+- responses received
+- fields available
+- fields unavailable
+- coverage
+- singles filtering
+- completed-match filtering
+
+==================================================
+4. PLAYER IDENTITY
+==================================================
+
+The previous audit found:
+
+11,714 Live Tennis player IDs
+3,723 deterministic mappings
+1 ambiguous
+7,990 unmapped
+
+Do NOT use fuzzy matching to force the unmapped population.
+
+Build deterministic resolution using the existing identity infrastructure.
+
+Priority:
+
+1. Existing canonical provider mapping
+2. Exact normalized identity
+3. Existing local historical identity
+4. Provider metadata required to disambiguate
+5. Explicit unresolved state
+
+An unresolved player must remain unresolved.
+
+Do not guess.
+
+For every resolved player record, preserve:
+
+- canonical player ID
+- Live Tennis provider ID
+- resolution method
+- resolution status
+- provenance
+
+==================================================
+5. TOURNAMENT RESOLUTION
+==================================================
+
+Resolve tournament identity before assigning competition level.
+
+Required taxonomy:
+
+- Grand Slam
+- Masters 1000
+- ATP 500
+- ATP 250
+- WTA 1000
+- WTA 500
+- WTA 250
+- Challenger
+- ITF
+- Other
+
+Do not infer ATP 250 merely because the category is missing.
+
+Do not infer surface from category.
+
+Do not infer best-of from tour alone.
+
+Each field must have provenance.
+
+==================================================
+6. SURFACE AND MATCH FORMAT
+==================================================
+
+Resolve:
+
+- HARD
+- CLAY
+- GRASS
+- CARPET where applicable
+
+Resolve:
+
+- BO3
+- BO5
+
+Use authoritative tournament/match metadata.
+
+Do not default missing surface to Hard.
+
+Do not default every match to BO3.
+
+If a value cannot be deterministically resolved, mark it UNKNOWN and exclude that match from the gradeable holdout rather than fabricating it.
+
+==================================================
+7. POINT-IN-TIME RECONSTRUCTION
+==================================================
+
+Every historical feature must be reconstructed as of the simulated match cutoff.
+
+Use the already-fixed:
+
+input.asOfDate
+
+behavior.
+
+Historical Availability must receive the historical cutoff.
+
+Current web research must remain suppressed whenever an explicit historical asOfDate is supplied.
+
+Do not use:
+
+- future rankings
+- post-match statistics
+- post-match form
+- post-match injury information
+- future tournament results
+- outcome-derived information
+
+==================================================
+8. HOLDOUT POPULATION
+==================================================
+
+After the adapter and deterministic mappings are validated:
+
+Find the earliest contiguous post-2026-06-02 period with sufficient gradeable completed singles matches.
+
+Do NOT choose the period based on B/D performance.
+
+Do NOT inspect outcomes to optimize the period.
+
+Predeclare:
+
+- start date
+- end date
+- population
+- exclusions
+- gradeable count
+
+Then freeze the population.
+
+Generate a SHA-256 population fingerprint.
+
+Only after the population is frozen may B/D scoring occur.
+
+==================================================
+9. NO MODEL CHANGES
+==================================================
+
+Do NOT modify:
+
+- Candidate B
+- Candidate D
+- Surface Elo
+- Serve & Return
+- Recent Form
+- calibration
+- ensemble priors
+- simulator
+- gradeability
+- orientation
+- scoring
+- Parlay Builder
+
+This assignment is data infrastructure and holdout construction only.
+
+==================================================
+10. DATABASE SAFETY
+==================================================
+
+Do not modify existing evaluation rows.
+
+Do not delete anything.
+
+Do not overwrite the 518,636 evaluation predictions.
+
+If persistent historical ingestion is not necessary, prefer a read-only/temporary evaluation path.
+
+If persistence is required to construct the holdout, stop before writing and report exactly what storage is required and why.
+
+Do not fabricate authorization or data.
+
+==================================================
+11. REQUIRED TESTS
+==================================================
+
+Test:
+
+1. Completed singles retrieval.
+2. Date filtering.
+3. Player identity resolution.
+4. Tournament resolution.
+5. Competition classification.
+6. Surface resolution.
+7. Best-of resolution.
+8. Round resolution.
+9. Historical cutoff.
+10. Current-web-research suppression.
+11. Deterministic ordering.
+12. Duplicate prevention.
+13. Reproducible population generation.
+
+Run the same population construction twice.
+
+The two populations must be byte-identical.
+
+==================================================
+12. REQUIRED ARTIFACTS
+==================================================
+
+Create/update:
+
+docs/data-source-discovery/live-tennis-historical-adapter-20260920.md
+
+docs/data-source-discovery/live-tennis-historical-adapter-20260920.json
+
+If a valid holdout is successfully constructed:
+
+docs/data-source-discovery/live-tennis-temporal-holdout-20260920.md
+
+docs/data-source-discovery/live-tennis-temporal-holdout-20260920.json
+
+==================================================
+STOP CONDITIONS
+==================================================
+
+STOP without running B/D if:
+
+- player identity is not deterministic enough
+- tournament classification is not deterministic enough
+- surface cannot be resolved
+- best-of cannot be resolved
+- historical feature reconstruction is not point-in-time safe
+- completed outcomes cannot be independently verified
+- the resulting population is not reproducible
+- required data cannot be obtained
+
+Do not manufacture missing values.
+
+Do not use the 427 paper-trade rows.
+
+Do not substitute observational data that cannot be frozen.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. Live Tennis historical adapter status.
+2. Number of completed singles matches successfully retrieved.
+3. Player identity coverage.
+4. Tournament-category coverage.
+5. Surface coverage.
+6. Best-of coverage.
+7. Round coverage.
+8. Point-in-time reconstruction status.
+9. Exact holdout dates if successfully constructed.
+10. Total population.
+11. Gradeable population.
+12. Exclusions and reasons.
+13. Population fingerprint.
+14. Whether the population is frozen.
+15. Whether it is ready for B1/B2/D1/D2.
+16. Tests passed.
+17. Files changed.
+18. Commit SHA.
+
+DO NOT RUN B/D PERFORMANCE YET.
+
+NO MODEL TUNING.
+NO CANDIDATE CHANGES.
+NO PRODUCTION DEPLOYMENT.
+NO PUSH.
+NO MERGE.
