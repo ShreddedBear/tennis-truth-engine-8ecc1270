@@ -28,6 +28,7 @@ import { fetchFromSofascore } from "../parlayBuilder/sofascoreProvider.js";
 import { fetchFromBsdTennis } from "./bsdTennisProvider.js";
 import { getPlayerMatchesFromDb } from "./dbHistoryFallback.js";
 import { getCachedPlayerIdentityIndex, getAliasIds } from "./playerIdentity.js";
+import { fetchEspnFixturesRange, fetchEspnLiveScores } from "./espnScoreboardProvider.js";
 
 // ─── Sofascore tertiary fixture fallback ──────────────────────────────────────
 // Used when both RapidAPI (primary) and API-Tennis (fallback) are unavailable.
@@ -171,6 +172,7 @@ function mergeMatchRecords(a: MatchRecord[], b: MatchRecord[]): MatchRecord[] {
 
 export class CompositeTennisProvider implements TennisDataProvider {
   readonly name: string;
+  private espnLastSuccessfulCallAt: string | null = null;
 
   /**
    * Caches player names keyed by player ID so the Sofascore tier-3 fallback in
@@ -211,6 +213,14 @@ export class CompositeTennisProvider implements TennisDataProvider {
     if (primaryStatus.connected) return primaryStatus;
     const fallbackStatus = this.fallback.getStatus();
     if (fallbackStatus.connected) return fallbackStatus;
+    if (this.espnLastSuccessfulCallAt) {
+      return {
+        provider: "ESPN Tennis",
+        connected: true,
+        lastSuccessfulCallAt: this.espnLastSuccessfulCallAt,
+        lastError: null,
+      };
+    }
     // Both down: return primary so the error message is as specific as possible.
     return primaryStatus;
   }
@@ -385,13 +395,28 @@ export class CompositeTennisProvider implements TennisDataProvider {
       }
     }
 
-    // If both primary and fallback failed (or returned 0 results while both are known to be down),
-    // try Sofascore as a silent tertiary. Never throws.
+    // If both paid providers failed, try ESPN's public ATP/WTA scoreboard first. It supplies
+    // real schedules and live scores without requiring provider credentials.
     if (fixtures.length === 0 && usedTier === "") {
+      try {
+        fixtures = await fetchEspnFixturesRange(dateStart, dateStop);
+        this.espnLastSuccessfulCallAt = new Date().toISOString();
+        if (fixtures.length > 0) {
+          logger.info({ dateStart, dateStop, count: fixtures.length },
+            "compositeProvider: ESPN public scoreboard provided fixture list");
+        }
+      } catch (espnErr) {
+        logger.warn({ dateStart, dateStop, err: espnErr },
+          "compositeProvider: ESPN scoreboard unavailable — trying Sofascore");
+      }
+    }
+
+    // Final unauthenticated fallback. Never throws.
+    if (fixtures.length === 0 && usedTier === "" && !this.espnLastSuccessfulCallAt) {
       fixtures = await fetchSofascoreFixturesRange(dateStart, dateStop);
       if (fixtures.length > 0) {
         logger.info({ dateStart, dateStop, count: fixtures.length },
-          "compositeProvider: Sofascore tertiary provided fixture list (both primary providers unavailable)");
+          "compositeProvider: Sofascore provided fixture list");
       }
     }
 
@@ -434,7 +459,29 @@ export class CompositeTennisProvider implements TennisDataProvider {
     // MatchStat (primary) does not provide live scores — hard-route to API-Tennis so real
     // in-progress score data is never silently replaced with an empty map. Same pattern
     // as getCompletedMatchesByDateRange, which MatchStat also doesn't support.
-    return this.fallback.getLiveScores(fixtureIds);
+    const espnIds = fixtureIds.filter((id) => id.startsWith("espn-"));
+    const providerIds = fixtureIds.filter((id) => !id.startsWith("espn-"));
+    const scores = new Map<string, LiveScore>();
+
+    if (providerIds.length > 0) {
+      try {
+        for (const [id, score] of await this.fallback.getLiveScores(providerIds)) scores.set(id, score);
+      } catch (err) {
+        if (!(err instanceof ProviderUnavailableError)) throw err;
+        logger.warn({ err }, "API-Tennis unavailable for live scores");
+      }
+    }
+
+    if (espnIds.length > 0) {
+      try {
+        for (const [id, score] of await fetchEspnLiveScores(espnIds)) scores.set(id, score);
+        this.espnLastSuccessfulCallAt = new Date().toISOString();
+      } catch (err) {
+        logger.warn({ err }, "ESPN unavailable for live scores");
+      }
+    }
+
+    return scores;
   }
 
   async findTournamentSurfaceByName(name: string): Promise<{ surface: import("./types").Surface | null; level: import("./types").TournamentLevel | null } | null> {
