@@ -42,3 +42,21 @@ test("degraded player resolution preserves every OCR-read name and inferred even
   assert.ok(result.matchups?.every((entry) => entry.resolved === false));
   assert.deepEqual(result.warnings, [warning]);
 });
+
+test("degraded resolution still identifies WTA 125 Ljubljana as clay", () => {
+  const result = buildUnresolvedRecognitionResult(
+    {
+      matchups: [
+        {
+          player1Name: "Anastasiia Sobolieva",
+          player2Name: "Denisa Zoldakova",
+          eventName: "WTA 125K Ljubljana",
+        },
+      ],
+    },
+    "Player lookup timed out.",
+  );
+
+  assert.equal(result.event.surface, "Clay");
+  assert.equal(result.event.level, "WTA250");
+});

@@ -896,7 +896,18 @@ async function gatherCandidates(
 
   if (!isWeakOcrIdentityKey(norm)) {
     const localFuzzy = await ocrFuzzyFallback(provider, searchName, true);
-    if (localFuzzy) historicalAccumulated.set(localFuzzy.id, localFuzzy);
+    if (localFuzzy) {
+      // The historical-only fuzzy resolver accepts only a unique best full-name
+      // match under strict surname/full-name edit-distance ceilings. Preserve
+      // that safe local result instead of requiring a failing live provider to
+      // confirm it again.
+      return {
+        candidates: [localFuzzy],
+        canonicalAmbiguous: false,
+        requiresProviderResolution: false,
+        providerConfidentCount: 0,
+      };
+    }
   }
 
   // Only the live-provider phase is deadline-bound. Local historical scans above remain allowed
@@ -969,6 +980,22 @@ async function resolvePlayerMatch(
     };
   }
   const norm = normalizeName(searchName);
+
+  // The document-level exact-name query already resolved these identities in one
+  // local batch. Accept a single exact historical identity immediately instead
+  // of repeating local scans and then waiting on a live provider for every row.
+  const exactHistorical = preloadedHistoricalExact.filter(
+    (candidate) => normalizeName(candidate.name) === norm,
+  );
+  const uniqueExactHistorical = exactHistorical.filter(
+    (candidate, index, all) => all.findIndex((other) => other.id === candidate.id) === index,
+  );
+  if (uniqueExactHistorical.length === 1) {
+    return {
+      match: { recognizedName, player: uniqueExactHistorical[0]! },
+      status: "resolved",
+    };
+  }
 
   let candidates: PlayerSummary[];
   let canonicalAmbiguous = false;
@@ -1544,7 +1571,30 @@ export async function resolveScreenshotMatchup(
   const recognizedNames = raw.matchups.flatMap((entry) =>
     [entry.player1Name, entry.player2Name].filter((name): name is string => Boolean(name?.trim())),
   );
-  const historicalExactByName = await searchHistoricalPlayersByExactNames(recognizedNames);
+  // Resolve the compact canonical identity registry first. Most OCR names are
+  // settled by this one cached read, avoiding two full historical-match scans.
+  const canonicalOutcomes = await Promise.all(
+    recognizedNames.map(async (name) => ({
+      name,
+      outcome: await resolveCanonicalScreenshotPlayer(name),
+    })),
+  );
+  const historicalExactByName = new Map<string, PlayerSummary[]>();
+  const namesNeedingHistoricalScan: string[] = [];
+  for (const { name, outcome } of canonicalOutcomes) {
+    const key = name.trim().toLowerCase();
+    if (outcome.status === "resolved") {
+      historicalExactByName.set(key, [outcome.player]);
+    } else if (outcome.status === "ambiguous") {
+      historicalExactByName.set(key, outcome.candidates);
+    } else {
+      namesNeedingHistoricalScan.push(name);
+    }
+  }
+  const historicalFallbacks = await searchHistoricalPlayersByExactNames(namesNeedingHistoricalScan);
+  for (const [name, players] of historicalFallbacks) {
+    historicalExactByName.set(name, players);
+  }
   const allRecognizedNamesHaveOneExactLocalMatch = recognizedNames.every(
     (name) => historicalExactByName.get(name.trim().toLowerCase())?.length === 1,
   );

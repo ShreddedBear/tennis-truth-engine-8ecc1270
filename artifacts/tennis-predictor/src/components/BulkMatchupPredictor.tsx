@@ -144,7 +144,7 @@ interface BatchItem {
   result: ScreenshotMatchupResult | null
   errorMessage: string | null
   // Match conditions sent to the engine — each is editable per-item inline
-  surface: Surface
+  surface: Surface | null
   level: TournamentLevel
   matchFormat: MatchFormat
   tournamentName: string | null
@@ -168,7 +168,7 @@ interface BatchItem {
 }
 
 function isReady(item: BatchItem): boolean {
-  return item.status === "resolved"
+  return item.status === "resolved" && item.surface !== null
 }
 
 function needsPredicting(item: BatchItem): boolean {
@@ -187,7 +187,7 @@ function makeDefaultItem(key: string, fileName: string): BatchItem {
     status: "resolving",
     result: null,
     errorMessage: null,
-    surface: "Hard",
+    surface: null,
     level: "ATP250",
     matchFormat: "BestOf3",
     tournamentName: null,
@@ -204,7 +204,7 @@ function makeDefaultItem(key: string, fileName: string): BatchItem {
 // ---------------------------------------------------------------------------
 // Surface colour helper
 // ---------------------------------------------------------------------------
-function surfaceColour(s: Surface) {
+function surfaceColour(s: Surface | null) {
   if (s === "Clay") return "text-orange-500"
   if (s === "Grass") return "text-green-500"
   if (s === "IndoorHard") return "text-purple-400"
@@ -217,13 +217,13 @@ function surfaceColour(s: Surface) {
 interface DataGap { label: string; count: number; tip: string }
 
 function computeGaps(items: BatchItem[]): DataGap[] {
-  const ready = items.filter(isReady)
-  if (ready.length === 0) return []
+  const resolvedPlayers = items.filter((item) => item.status === "resolved")
+  if (resolvedPlayers.length === 0) return []
   const gaps: DataGap[] = []
-  const noSurface = ready.filter((i) => !i.surfaceDetected).length
-  const noTournament = ready.filter((i) => !i.tournamentDetected).length
-  const noLevel = ready.filter((i) => !i.levelDetected).length
-  if (noSurface > 0) gaps.push({ label: `${noSurface} match${noSurface > 1 ? "es" : ""}: surface not detected`, tip: "Defaulting to Hard. Tap ▸ Edit Conditions on any row to correct it.", count: noSurface })
+  const noSurface = resolvedPlayers.filter((i) => i.surface === null).length
+  const noTournament = resolvedPlayers.filter((i) => !i.tournamentDetected).length
+  const noLevel = resolvedPlayers.filter((i) => !i.levelDetected).length
+  if (noSurface > 0) gaps.push({ label: `${noSurface} match${noSurface > 1 ? "es" : ""}: surface not detected`, tip: "Surface is required. Open Edit Conditions on each row to select it.", count: noSurface })
   if (noTournament > 0) gaps.push({ label: `${noTournament} match${noTournament > 1 ? "es" : ""}: no tournament name`, tip: "Venue weather and travel distance won't be available.", count: noTournament })
   if (noLevel > 0) gaps.push({ label: `${noLevel} match${noLevel > 1 ? "es" : ""}: level not detected`, tip: "Defaulting to ATP 250. Tap ▸ Edit Conditions on any row to correct it.", count: noLevel })
   return gaps
@@ -454,7 +454,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
               status: (m.resolved ? "resolved" : "unresolved") as ItemStatus,
               result: entryToResult(m),
               errorMessage: m.resolved ? null : (m.warnings[0] ?? "Couldn't resolve this matchup from the screenshot."),
-              surface: (m.event.surface ?? "Hard") as Surface,
+              surface: m.event.surface as Surface | null,
               level: (m.event.level ?? "ATP250") as TournamentLevel,
               matchFormat: mFormat,
               tournamentName: mTournament,
@@ -560,7 +560,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
             status: (m.resolved ? "resolved" : "unresolved") as ItemStatus,
             result: entryToResult(m),
             errorMessage: m.resolved ? null : (m.warnings[0] ?? "Couldn't resolve this matchup."),
-            surface: (m.event.surface ?? "Hard") as Surface,
+            surface: m.event.surface as Surface | null,
             level: (m.event.level ?? "ATP250") as TournamentLevel,
             matchFormat: mFormat,
             tournamentName: mTournament,
@@ -585,7 +585,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
           rawTextEditing: false,
           rawTextParsing: false,
           errorMessage: ready ? null : (result.warnings[0] ?? "Couldn't match these names to known players."),
-          surface: (result.event.surface as Surface | null) ?? "Hard",
+          surface: result.event.surface as Surface | null,
           level: (result.event.level as TournamentLevel | null) ?? "ATP250",
           matchFormat: txtFormat,
           tournamentName: txtTournament,
@@ -635,21 +635,22 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
     const failedKeys: string[] = []
 
     for (const item of workItems) {
-      if (!needsPredicting(item) || !item.result?.player1.player || !item.result?.player2.player) continue
+      if (!needsPredicting(item) || !item.surface || !item.result?.player1.player || !item.result?.player2.player) continue
+      const surface = item.surface
       const makePredictionRequest = () => {
         const requestMatchId = buildClientMatchId({
           source: "bulk",
           player1Id: item.result!.player1.player!.id,
           player2Id: item.result!.player2.player!.id,
           tournamentName: item.tournamentName,
-          surface: item.surface,
+          surface,
           matchFormat: item.matchFormat,
         })
         return createPredictionWithIntegrity(
           {
             player1Id: item.result!.player1.player!.id,
             player2Id: item.result!.player2.player!.id,
-            surface: item.surface,
+            surface,
             matchFormat: item.matchFormat,
             tournamentLevel: item.level,
             tournamentName: item.tournamentName,
@@ -942,8 +943,8 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
                     {item.result.event.recognizedName && (
                       <RecognizedChip label="EVENT" name={item.result.event.recognizedName} matched={!!item.result.event.surface} />
                     )}
-                    <span className={`text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded bg-secondary font-mono ${surfaceColour(item.surface)} ${!item.surfaceDetected ? "opacity-50" : ""}`} title={item.surfaceDetected ? "Detected from screenshot" : "Default — not detected"}>
-                      {item.surface}
+                    <span className={`text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded bg-secondary font-mono ${surfaceColour(item.surface)} ${!item.surfaceDetected ? "opacity-70" : ""}`} title={item.surfaceDetected ? "Verified from tournament data" : "Surface unresolved — select it before prediction"}>
+                      {item.surface ?? "Unknown surface"}
                     </span>
                     <span className={`text-[0.6rem] text-muted-foreground uppercase font-mono px-1 py-0.5 rounded bg-secondary/60 ${!item.levelDetected ? "opacity-50" : ""}`} title={item.levelDetected ? "Detected from screenshot" : "Default — not detected"}>
                       {item.level}
@@ -1064,10 +1065,11 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
                     <div className="space-y-1">
                       <label className="text-[0.55rem] font-mono font-bold text-muted-foreground uppercase tracking-widest">Surface</label>
                       <Select
-                        value={item.surface}
+                        value={item.surface ?? ""}
                         onChange={(e) => updateItem(item.key, { surface: e.target.value as Surface, surfaceDetected: true })}
                         className="h-7 text-xs bg-background/50"
                       >
+                        <option value="" disabled>Select surface</option>
                         <option value="Hard">Hard</option>
                         <option value="Clay">Clay</option>
                         <option value="Grass">Grass</option>

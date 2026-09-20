@@ -79,6 +79,17 @@ test("legacy inferSurfaceAndLevel still resolves the named majors/Masters table 
   assert.deepEqual(inferSurfaceAndLevel("2026 W15 Brisbane"), { surface: null, level: "ITF" });
 });
 
+test("OCR name-only metadata resolves verified fixed lower-tier events without a live provider", () => {
+  assert.deepEqual(inferSurfaceAndLevel("WTA 125K Ljubljana"), {
+    surface: "Clay",
+    level: "WTA250",
+  });
+  assert.deepEqual(inferSurfaceAndLevel("ATP Challenger Rennes"), {
+    surface: "IndoorHard",
+    level: "Challenger",
+  });
+});
+
 test("Task #123: resolveSurfaceAndLevel resolves known fixed-venue indoor hard-court events via the reference list", () => {
   for (const name of ["Marseille", "Metz", "Sofia", "St. Petersburg", "Almaty", "Astana", "Tel Aviv", "Cologne"]) {
     const result = resolveSurfaceAndLevel({

@@ -26,6 +26,8 @@ const CANONICAL_EVENTS: Array<{ match: RegExp; name: string; surface: Surface; a
   { match: /\bpalermo\b/i, name: "Palermo Ladies Open", surface: "Clay", wtaLevel: "WTA250" },
   { match: /\beastbourne\b/i, name: "Eastbourne International", surface: "Grass", atpLevel: "ATP250", wtaLevel: "WTA250" },
   { match: /\bdoha\b|\bqatar\b/i, name: "Qatar Open", surface: "Hard", wtaLevel: "WTA1000" },
+  { match: /\bljubljana\b/i, name: "WTA 125 Ljubljana", surface: "Clay", wtaLevel: "WTA250" },
+  { match: /\brennes\b/i, name: "Open Blot Rennes", surface: "IndoorHard", atpLevel: "Challenger" },
 ];
 
 function normalizedRound(name: string): string | null {
@@ -203,6 +205,9 @@ const TOURNAMENT_SURFACE: Array<{ match: RegExp; surface: Surface; level?: Tourn
   // from overriding with a stale "ATP250" label from an old ATP Memphis/Vancouver edition.
   { match: /\bmemphis\b/i, surface: "Hard", level: "WTA250", tour: "WTA" },
   { match: /\bvancouver\b/i, surface: "Hard", level: "WTA250", tour: "WTA" },
+  // WTA 125 Ljubljana is played on outdoor clay. The shared tournament-level
+  // enum has no WTA125 value, so WTA250 remains the closest supported category.
+  { match: /\bljubljana\b/i, surface: "Clay", level: "WTA250", tour: "WTA" },
 
   // ── ATP 250 clay events ──────────────────────────────────────────────────────
   { match: /buenos aires/i, surface: "Clay", level: "ATP250" },
@@ -224,6 +229,10 @@ const TOURNAMENT_SURFACE: Array<{ match: RegExp; surface: Surface; level?: Tourn
 // 500-level tournament is ever named with these words, so this can only prevent false positives,
 // never suppress a real match.
 const NEVER_NAMED_TABLE = /challenger|\bitf\b|\bqualif|\bjunior|\bboys\b|\bgirls\b/i;
+
+const FIXED_LOWER_TIER_EVENTS: Array<{ match: RegExp; surface: Surface; level: TournamentLevel }> = [
+  { match: /\brennes\b/i, surface: "IndoorHard", level: "Challenger" },
+];
 
 function inferLevelFromNameOnlyTournament(tournamentName: string): TournamentLevel | null {
   // ITF tournament shorthand appears as "W15", "W35", "M25", etc.
@@ -287,7 +296,10 @@ export function inferSurfaceAndLevel(tournamentName: string | null | undefined):
   surface: Surface | null;
   level: TournamentLevel | null;
 } {
-  if (!tournamentName || NEVER_NAMED_TABLE.test(tournamentName)) return { surface: null, level: null };
+  if (!tournamentName) return { surface: null, level: null };
+  const fixedLowerTier = FIXED_LOWER_TIER_EVENTS.find((entry) => entry.match.test(tournamentName));
+  if (fixedLowerTier) return { surface: fixedLowerTier.surface, level: fixedLowerTier.level };
+  if (NEVER_NAMED_TABLE.test(tournamentName)) return { surface: null, level: null };
   for (const entry of TOURNAMENT_SURFACE) {
     if (entry.match.test(tournamentName)) {
       return { surface: entry.surface, level: entry.level ?? null };
