@@ -31,10 +31,16 @@ const appBuildInfo = {
       define: {
         __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
       },
+      optimizeDeps: {
+        entries: ["src/**/*.{ts,tsx}"],
+      },
       server: {
         host: "0.0.0.0",
         port: 5000,
         allowedHosts: true,
+        watch: {
+          ignored: ["**/.cache/**", "**/.local/**", "**/attached_assets/**"],
+        },
       },
    },
   
