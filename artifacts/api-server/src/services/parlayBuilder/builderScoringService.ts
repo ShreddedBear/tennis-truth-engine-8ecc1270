@@ -168,6 +168,23 @@ export interface BuilderResult {
   rawValidationScore: number;
   /** True when the engine's independent pick agrees with the caller's selectedPlayerId. */
   callerAgreesWithEngine: boolean;
+  /**
+   * Risk Floor observability (Exp1): the already-computed intermediate values behind
+   * riskScore's Risk Floor sequence (see the "5b/5c" comments in computeBuilderScore),
+   * exposed read-only so Exp1 can compare Risk Floor ON/OFF against graded outcomes.
+   * Never fed back into riskScore, decision, or any other scoring output -- this object
+   * is assembled strictly after riskScore is already final.
+   * Absent (undefined) on the DATA_UNAVAILABLE early-return path, where none of these
+   * values are ever computed -- never fabricated as zero on that path.
+   */
+  riskFloorObservability?: {
+    preClosenessRisk: number;
+    closenessRiskFloorValue: number;
+    closenessFloorFired: boolean;
+    postClosenessRisk: number;
+    thinDataRiskFloorValue: number;
+    thinDataFloorFired: boolean;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -2013,6 +2030,10 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   const builderPickedPlayerId = builderCalibratedProbability >= 50 ? selectedPlayerId : opponentId;
   const callerAgreesWithEngine = builderPickedPlayerId === selectedPlayerId;
 
+  // Observability only -- a pure read of values already computed above (5b/5c), plus one
+  // trivial derived comparison. Nothing here influences riskScore or decision.
+  const closenessFloorFired = riskFloor > preClosenessRisk;
+
   return {
     validationScore,
     riskScore,
@@ -2035,6 +2056,14 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     builderCalibratedProbability,
     rawValidationScore,
     callerAgreesWithEngine,
+    riskFloorObservability: {
+      preClosenessRisk,
+      closenessRiskFloorValue: riskFloor,
+      closenessFloorFired,
+      postClosenessRisk,
+      thinDataRiskFloorValue: _thinDataFloor,
+      thinDataFloorFired: _thinDataFloorFired,
+    },
   };
 }
 
