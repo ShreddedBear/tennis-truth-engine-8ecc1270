@@ -285,7 +285,7 @@ Committed as `docs/audits/metric-truth-market-calibration-audit.md` on `claude/t
 
 ---
 
-## 13. Authorized-Database Inventory and Experiment Disposition (2026-09-20)
+## 13a. Authorized-Database Inventory and Experiment Disposition (2026-09-20)
 
 A read-only inventory was run through the canonical application's existing database connection. It found:
 
@@ -312,3 +312,72 @@ Experiment status:
 | Market-weight sensitivity | **BLOCKED** | No market observations on which weight changes can be measured |
 
 Therefore no calibration, threshold, scoring, or UI change is justified by the current empirical evidence. In particular, the absence of populated odds columns still supports only **"structurally no obvious leakage found"**; it does not prove temporal leakage impossible.
+
+---
+
+## 13b. Offline Experiment Readiness (2026-09-20)
+
+**Reframing, explicitly (per user instruction):** database access is available now — the canonical
+app's authorized DB connection works, and nothing in this section is blocked by an inability to
+connect. **The actual blocker is that the current historical corpus does not contain the
+timestamped market evidence** the market-dependent experiments need to answer their questions:
+`evaluation_predictions` has 0 rows with `odds_fetched_at` populated (of 518,655 total, 518,209
+graded), and `parlay_leg_outcomes` has 0 graded rows (of 958 total) — see §13a above. **Connecting
+to a database in the future does not, by itself, complete the market audit.** The corpus has to be
+populated with graded, timestamped odds history (and `parlay_leg_outcomes` has to accumulate graded
+rows via `scripts/resolveParlayLegOutcomes.ts`) before any of these experiments can produce a real
+number. Database access being available now is not itself evidence that the audit is complete —
+that would only follow once this corpus gap is closed and the experiments below are actually run.
+
+Seven offline experiment scripts were written and unit-tested against synthetic, clearly-labeled
+test-only fixtures under `artifacts/api-server/src/scripts/offlineExperiments/` (see
+`EXPERIMENT_SPECS.md` in that directory for the full spec of each: required fields, exact
+calculation, temporal-cutoff rule, output shape, validation metrics, leakage protections,
+exclusions, and n-floor). Every script fails loudly — naming the exact missing field — rather than
+substituting a default when required data is absent, and every script's output is accompanied by a
+structured provenance record (`experimentProvenance.ts`: code commit read live via `git rev-parse
+HEAD`, pinned formula version, dataset hash, date range, cutoff rule, N_total/N_eligible/N_excluded
+with a reason breakdown) so a future real run is independently auditable rather than trusted on its
+own say-so — a direct response to this project's own history of citing a stale backtest report
+whose taxonomy no longer matched current code.
+
+**Test status — these are two separate claims and must not be conflated.** Of the shared
+infrastructure tests, `sharedValidation.test.ts` (10 tests) and `experimentProvenance.test.ts` (8
+tests) — pure logic, no production-file imports — were actually executed with the repo's
+`tsx --test` runner and passed (18/18). **This means only that the shared infrastructure's own
+logic (field-validation gating, accuracy/Brier/log-loss/calibration math, the provenance-record
+builder) is verified.** It does NOT mean any of the 7 experiments passed, ran, or produced a
+result — none of them executed. `productionFormulaMirror.test.ts` and all seven `exp*.test.ts`
+files are written, with expected values hand-derived directly from reading
+`builderScoringService.ts` (not by running the mirror itself), but remain **UNEXECUTED**: they
+import the real `builderScoringService.ts`, which imports the `@workspace/db` workspace package,
+which requires `pnpm install` — not run here per the task's own instruction to avoid the disk/time
+cost of installing this large monorepo. That is an environment gap, not a data gap or a logic
+defect. **"18 shared-infrastructure tests passed" must never be summarized elsewhere as "the
+experiments passed" or "the experiments were verified" — they were not run.**
+
+| # | Experiment | Status | Why | Script |
+|---|---|---|---|---|
+| 1 | Risk Floor ON vs OFF | **BLOCKED — MISSING DATA** | Needs graded `parlay_leg_outcomes` rows (0 of 958 are graded) — but data volume alone will not unblock this one. **Per external review:** the script's current design only infers which floor a stored `risk_score` is *consistent with* (`risk_score == closenessRiskFloor(matchup_closeness)`), which cannot distinguish the closeness floor from the separate thin-data floor and is **not a counterfactual floor-OFF arm**. This is **not an executable ON/OFF causal comparison today**, even with graded rows — the `floor_did_not_bind` bucket is simply the set of rows where the floor happened not to be binding, not a "what if the floor were removed" arm. It requires the historical dataset to additionally persist either (a) both pre-floor and final risk scores per row, or (b) enough component-level inputs to deterministically recompute pre-floor risk via the pinned mirror — neither exists yet. Any output from this script today must be read as descriptive bucketing only, never as an ON/OFF causal result. | `offlineExperiments/exp1RiskFloorOnOff.ts` |
+| 2 | Current KEEP/BORDERLINE/REMOVE calibration | **BLOCKED — MISSING DATA** | Same corpus as #1: needs graded `parlay_leg_outcomes` rows; 0 graded. The loader re-derives `decision` from stored inputs via the pinned `toDecision` mirror and excludes any row where that disagrees with the stored `decision` column, specifically to prevent a stale-formula-version row from contaminating a "current code" calibration study. | `offlineExperiments/exp2CurrentDecisionCalibration.ts` |
+| 3 | Borderline separation analysis | **BLOCKED — MISSING DATA** | Depends directly on #2's verified-current-code corpus; 0 graded rows means 0 BORDERLINE rows to bucket. | `offlineExperiments/exp3BorderlineSeparation.ts` |
+| 4 | Market Full / No-Market / Market-Only / Market+Independent | **BLOCKED — MISSING DATA** | Needs graded `evaluation_predictions` rows with `oddsFetchedAt <= cutoffAt`; 0 of 518,209 graded rows have `odds_fetched_at` populated at all. Arms B and D are additionally not offline-computable even with data (B needs a live engine re-run; D needs a blend spec that doesn't exist yet) — flagged in-script, not guessed. | `offlineExperiments/exp4MarketArms.ts` |
+| 5 | Market shuffle / placebo test | **BLOCKED — MISSING DATA** | Uses the identical admissible corpus as #4; same 0-row blocker. | `offlineExperiments/exp5MarketShufflePlacebo.ts` |
+| 6 | Market-weight sensitivity | **BLOCKED — MISSING DATA** | Needs graded, `source='backfill'` `parlay_leg_outcomes` rows joined to `evaluation_predictions` rows with admissible odds; both source counts are 0 (0 graded legs; 0 rows with odds_fetched_at). | `offlineExperiments/exp6MarketWeightSensitivity.ts` |
+| 7 | Closeness calibration controlling for market | **BLOCKED — MISSING DATA** | Same join-based corpus as #6, further requiring a PlayerStats-reconstruction export (via `computePlayerStats` against `historical_matches`) that has not been built; both underlying source counts are 0. | `offlineExperiments/exp7ClosenessControlledForMarket.ts` |
+
+All seven experiments are classified **BLOCKED — MISSING DATA** today, matching what the §13a
+inventory implies: with 0 graded `parlay_leg_outcomes` rows and 0 `evaluation_predictions` rows
+carrying `odds_fetched_at`, no experiment in this set has a real corpus to run against yet, and
+none is reported as more ready than that. None was inflated to PARTIALLY READY on the strength of
+written-but-unexecuted tests alone — the fail-fast/mechanism tests exist and their expected values
+were hand-verified against the real formulas, but "the mechanism was verified" requires the tests
+to have actually run, which the `@workspace/db` environment gap prevented here. Experiment #1
+carries the additional, permanent methodological caveat above: it will remain blocked even after
+`parlay_leg_outcomes` starts accumulating graded rows, until the schema or export additionally
+captures pre-floor risk or its reconstructable inputs.
+
+**What closes each blocker:**
+- Experiments #1–3: `parlay_leg_outcomes` needs graded rows (via `scripts/resolveParlayLegOutcomes.ts` running against real settled matches over time) — a volume/time problem, not a design problem, *except* Experiment #1, which additionally needs a schema/export change (see above).
+- Experiments #4–5: `evaluation_predictions` needs rows with `odds_fetched_at` populated — the odds-fetch pipeline needs to actually run and persist timestamped snapshots against graded predictions, which today it is not doing (0 of 518,209 graded rows have this field populated despite the column existing).
+- Experiments #6–7: needs both of the above, plus a one-time data-export/join step (not implemented in this task — explicitly out of scope per the preparation-only brief) to join `parlay_leg_outcomes` to `evaluation_predictions` and, for #7, to reconstruct `computePlayerStats`-derived closeness inputs.
