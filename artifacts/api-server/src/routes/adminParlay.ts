@@ -25,6 +25,28 @@ import { fetchMarketOdds } from "../services/oddsData";
 
 const router: IRouter = Router();
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const run = async (): Promise<void> => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index]!, index);
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, () => run()),
+  );
+  return results;
+}
+
 // ── Safety Score ──────────────────────────────────────────────────────────────
 
 interface CheckResult {
@@ -409,7 +431,7 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
 
     const gradeOrder = ["Reject", "Weak", "Solid", "Elite"] as const;
 
-    const results = await Promise.all(legs.map(async (leg) => {
+    const results = await mapWithConcurrency(legs, 2, async (leg) => {
       try {
         const result = await computeBuilderScore(leg);
         return {
@@ -443,7 +465,7 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
           builderVersion: BUILDER_VERSION,
         };
       }
-    }));
+    });
 
     const keepCount = results.filter(r => r.decision === "KEEP").length;
     const borderlineCount = results.filter(r => r.decision === "BORDERLINE").length;
@@ -568,7 +590,14 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
       summary: { keepCount, borderlineCount, removeCount, avgValidationScore, avgRiskScore, overallParlayGrade },
     });
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : "Validation failed" });
+    const message = e instanceof Error ? e.message : "Validation failed";
+    const isRateLimited = /too many requests|rate limit|rate-limited/i.test(message);
+    if (isRateLimited) {
+      res.setHeader("Retry-After", "2");
+      res.status(429).json({ error: "Too many requests — validation was throttled; retry shortly." });
+      return;
+    }
+    res.status(500).json({ error: message });
   }
 });
 
