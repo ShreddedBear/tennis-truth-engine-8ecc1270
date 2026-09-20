@@ -14,3 +14,31 @@ mtime_ms = 1789849755219
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/4992ca1f-fa57-4456-9ca0-b85ca5e6996d/7d8cc3c4-9956-4f2b-baf4-bf036efc498b"
 storage_version_token = "1789849779697777"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "9JKDZDGZEo92pK_mjYifo"
+uri = "file://.local/authoritative-replay-candidate/evaluation-artifacts/authoritative-paired-replay.md"
+type = "text"
+title = "Authoritative Paired Replay Report"
+description = "Concise findings for Baseline versus Candidate B, including pre-flight, paired metrics, low-surface attribution, and reproducibility."
+logical_id = "9074cf57-931b-4d3e-8ce3-f42eae15195a"
+content_hash = "sha256:bee137f6fde26dd87ee1e8457ff5b7ae3f0a904786a8143c15f3d5264936a3b0"
+size = 3320
+mtime_ms = 1789863467445
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/9074cf57-931b-4d3e-8ce3-f42eae15195a/f443582b-98e7-408c-9b44-8e65ca9e64a1"
+storage_version_token = "1789863482689693"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "3qWlQA81bzbvLy8kTJvk-"
+uri = "file://.local/authoritative-replay-candidate/evaluation-artifacts/authoritative-paired-replay.json"
+type = "unspecified"
+title = "Authoritative Paired Replay Data"
+description = "Machine-readable artifact with exact commits, population proof, aggregate metrics, paired deltas, partitions, reproducibility hashes, and 1,644 per-match records."
+logical_id = "4d1d364b-4348-46f3-9607-1bb6c9281535"
+content_hash = "sha256:f01a5cc56e3aa2c671c59afc624d0705ae31ebaa26ac4ec2d7155aa751967cbf"
+size = 14475353
+mtime_ms = 1789863467433
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/4d1d364b-4348-46f3-9607-1bb6c9281535/26c73524-499b-4e15-9705-6fdf3f5fb067"
+storage_version_token = "1789863483474978"
+content_type = "application/octet-stream"

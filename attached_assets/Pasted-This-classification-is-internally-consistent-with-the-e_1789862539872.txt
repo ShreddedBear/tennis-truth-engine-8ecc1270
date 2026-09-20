@@ -1,0 +1,190 @@
+This classification is internally consistent with the evidence you provided.
+
+What it establishes
+
+1. Current canonical HEAD is not the Prediction Engine.
+The current HEAD is a Truth Engine/evidence-reconstruction state. The executable Prediction Engine exists only in the accessible historical lineage under:
+
+artifacts/api-server/src/services/predictionEngine/
+
+So we should not call current HEAD “Baseline” or “Candidate B.”
+
+2. The low-surface investigation has a clean historical lineage:
+
+648b9158
+→ introduced the 0.75 dedicated low-surface probability discount
+
+d5f0f198...
+→ Candidate B removed/neutralized that dedicated post-calibration discount, while retaining Surface Elo’s internal sample-size treatment
+
+51b431176...
+→ later removed the retired constant and simplified the path, producing behavior functionally equivalent to Candidate B for this specific low-surface issue.
+
+That is an important distinction: Candidate B did not remove Surface Elo’s own sample-size reliability handling.
+
+3. The replay can now be done without altering production.
+
+The strongest part of this report is:
+
+baseline reproducible: YES
+Candidate B reproducible: YES
+same data/cutoff: YES
+isolated detached checkouts: YES
+
+That gives us the proper experimental setup.
+
+Therefore, the next step is NOT another code audit
+
+The 50% question should now be answered experimentally:
+
+Run the exact historical baseline and Candidate B against the same historical data, same cutoff, same match population, and same deterministic orientation, then compare paired predictions.
+
+And because the earlier 1,644-match Candidate B report was never independently verified, none of those previously reported Candidate B numbers should be reused.
+
+The experiment I would authorize next
+
+Have Claude execute only this:
+
+50% COMPRESSION — AUTHORITATIVE PAIRED REPLAY
+We now have an evidence-backed replay path for the historical Prediction Engine.
+DO NOT modify the current canonical production HEAD.
+DO NOT merge anything.
+DO NOT push anything.
+DO NOT alter the Truth Engine.
+DO NOT create a new prediction engine.
+DO NOT use market odds or market sentiment.
+Goal:
+Run the historical baseline and Candidate B as a paired, point-in-time replay to determine whether removing the dedicated LOW_SURFACE_SAMPLE_DISCOUNT materially reduces probability compression toward 50%.
+EXACT VERSIONS
+Baseline:
+1394afb13b921efb96d1a160e9be26478717bc19
+Candidate B:
+d5f0f198ff05cf2643cb39269a593762198ea5aa
+Use isolated detached worktrees/checkouts so the current canonical worktree remains untouched.
+PRE-FLIGHT — MUST PROVE BEFORE RUNNING THE FULL REPLAY
+For BOTH versions independently prove:
+1. Executable Prediction Engine exists.
+2. Required workspace/package dependencies resolve.
+3. Prediction Engine imports/boots successfully.
+4. DATABASE_URL points to the same helium/heliumdb database.
+5. Historical data source is identical.
+6. Same temporal cutoff is enforced.
+7. Same deterministic player-slot orientation is enforced.
+8. No market odds/sentiment enters the calculation.
+9. A single historical match can be replayed successfully.
+10. Current canonical worktree remains unchanged.
+If any item fails, STOP and report the exact failure.
+Do not substitute another repository, branch, commit, database, or fabricated result.
+FULL REPLAY
+Use the established clean-neutral historical population:
+Total persisted population:
+1,644
+Gradeable:
+1,604
+If the population cannot be reconstructed exactly, STOP rather than silently substituting a different population.
+For every match, record at minimum:
+- match ID
+- cutoff date
+- player1/player2 IDs
+- actual winner
+- baseline raw probability
+- baseline final probability
+- Candidate B raw probability
+- Candidate B final probability
+- baseline data quality
+- Candidate B data quality
+- surface
+- surface sample depth
+- whether low-surface logic was triggered
+- any relevant calibration/reliability factors
+- deterministic prediction orientation
+PAIRED METRICS
+Calculate independently for baseline and Candidate B:
+- accuracy
+- Brier score
+- log loss
+- ECE
+- exact 50.0%
+- 49–51%
+- 47–53%
+- 45–55%
+- 40–60%
+- mean absolute distance from 50
+- median absolute distance from 50
+Then calculate paired deltas:
+Candidate B − Baseline
+for every metric.
+Also calculate:
+- number of predictions that moved AWAY from 50
+- number that moved TOWARD 50
+- unchanged
+- mean signed probability change
+- mean absolute probability change
+- median absolute probability change
+- maximum absolute probability change
+- number of winner/loser selections changed
+- number of changed selections where baseline was correct
+- number of changed selections where Candidate B was correct
+LOW-SURFACE-SPECIFIC ANALYSIS
+Partition the exact same replay into:
+A. low-surface-sample cases
+B. non-low-surface cases
+For each partition calculate the same compression metrics.
+This is critical because Candidate B specifically targets the dedicated low-surface probability discount.
+ATTRIBUTION
+Do NOT claim Candidate B fixed the entire 50% problem merely because its probabilities move away from 50.
+Determine:
+1. Overall compression difference.
+2. Compression difference specifically attributable to low-surface cases.
+3. Whether Surface Elo's internal sample-size handling still produces substantial shrinkage.
+4. Whether other calibration/Data Quality/reliability mechanisms still compress probabilities.
+5. Whether Candidate B changes actual predictive performance or primarily changes probability extremity.
+REPRODUCIBILITY
+Run the complete replay twice.
+The two runs must produce byte-identical or mathematically identical result artifacts.
+If they differ, STOP and investigate determinism before reporting results.
+ARTIFACT
+Write one machine-readable JSON artifact containing:
+- exact baseline SHA
+- exact Candidate B SHA
+- database identity (non-secret)
+- cutoff
+- population counts
+- deterministic orientation rule
+- all aggregate metrics
+- paired deltas
+- low-surface partition metrics
+- reproducibility hashes/results
+Also write a concise Markdown report explaining the findings.
+Do NOT invent missing values.
+Do NOT infer successful execution from source inspection.
+Do NOT report results until the replay actually executed.
+FINAL REPORT FORMAT
+1. PRE-FLIGHT
+2. BASELINE EXECUTION
+3. CANDIDATE B EXECUTION
+4. PAIRED RESULTS
+5. LOW-SURFACE RESULTS
+6. COMPRESSION ANALYSIS
+7. PREDICTIVE-PERFORMANCE ANALYSIS
+8. REPRODUCIBILITY CHECK
+9. ARTIFACT PATHS
+10. EXACT COMMITS USED
+11. GIT STATUS OF CURRENT CANONICAL WORKTREE
+Commit only the replay/evaluation infrastructure or artifacts if necessary.
+DO NOT push.
+
+The key decision point afterward
+
+Once that actually runs, we’ll finally be able to distinguish among three possibilities:
+
+A. Candidate B materially reduces compression and improves/calibrates performance
+→ the dedicated low-surface discount was a genuine contributor.
+
+B. Candidate B moves probabilities away from 50 but predictive metrics barely change or worsen
+→ the discount was suppressing confidence, but it wasn’t necessarily the root cause of prediction accuracy.
+
+C. Candidate B barely changes the overall distribution
+→ the dominant compression is elsewhere—most likely the remaining Surface Elo sample-size shrinkage, Data Quality calibration, or other reliability/calibration layers.
+
+That is the experiment that can settle the 50% problem rather than another source-code inspection.
