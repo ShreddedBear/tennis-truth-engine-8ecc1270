@@ -302,6 +302,64 @@ test("local-first identity resolver uses local exact/surname evidence before pro
     assert.equal(calls.searchPlayers, 1);
     assert.equal(calls.getPlayer, 0);
   });
+
+  await t.test("one stalled provider lookup does not discard exact local matches from the document", async () => {
+    const { provider } = makeCountingProvider();
+    provider.searchPlayers = async () => new Promise<PlayerSummary[]>(() => {});
+
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [
+        { player1Name: "Darwin Blanch", player2Name: null, eventName: null },
+        { player1Name: `Neverresolves${runId}`, player2Name: null, eventName: null },
+      ],
+    });
+
+    assert.equal(result.matchups?.[0].player1.player?.id, "canonical-sackmann-atp-210464");
+    assert.equal(result.matchups?.[0].player1.status, undefined);
+    assert.equal(result.matchups?.[1].player1.player, null);
+    assert.equal(result.matchups?.[1].player1.status, "lookup-timeout");
+    assert.ok(
+      result.matchups?.[1].warnings.some((warning) =>
+        warning.includes("identity lookup timed out"),
+      ),
+    );
+  });
+
+  await t.test("unique local OCR spelling recovery resolves Sobolieva and Bruncik without provider identity calls", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [
+        { player1Name: "Anastasiia Sobolieva", player2Name: null, eventName: null },
+        { player1Name: "Petr Bruncik", player2Name: null, eventName: null },
+      ],
+    });
+
+    assert.equal(result.matchups?.[0].player1.player?.id, "canonical-sackmann-wta-222506");
+    assert.equal(result.matchups?.[0].player1.status, undefined);
+    assert.equal(result.matchups?.[1].player1.player?.id, "canonical-sackmann-atp-210557");
+    assert.equal(result.matchups?.[1].player1.status, undefined);
+    assert.equal(calls.searchPlayers, 0);
+    assert.equal(calls.getPlayer, 0);
+  });
+
+  await t.test("doubles teams are read but reported unsupported without singles identity lookup", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{
+        player1Name: "Derepasko / Lomakin",
+        player2Name: "Matsuda / Sharma",
+        eventName: "ATP Challenger Phan Thiet 4",
+      }],
+    });
+
+    assert.equal(result.player1.recognizedName, "Derepasko / Lomakin");
+    assert.equal(result.player1.status, "unsupported-doubles");
+    assert.equal(result.player2.recognizedName, "Matsuda / Sharma");
+    assert.equal(result.player2.status, "unsupported-doubles");
+    assert.equal(calls.searchPlayers, 0);
+    assert.equal(calls.getPlayer, 0);
+    assert.ok(result.warnings.some((warning) => warning.includes("supports singles only")));
+  });
 });
 
 test("resolveScreenshotMatchup falls back to a real name search for a Challenger event the name table never covers", async () => {

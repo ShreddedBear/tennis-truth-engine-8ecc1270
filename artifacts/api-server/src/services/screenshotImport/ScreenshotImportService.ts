@@ -36,7 +36,11 @@ import {
 import { imageHash, cacheGet, cacheSet, cacheStats, cacheClear } from "./imageHashCache.js";
 import { callOcrSpace } from "./ocrSpaceProvider.js";
 
-const PLAYER_RESOLUTION_TIMEOUT_MS = 15_000;
+// Catastrophic whole-document guard. Individual live identity lookups are bounded inside
+// screenshotMatchupResolver, so this only protects against a stuck DB/unknown resolver defect.
+// Multi-table documents may legitimately need several local fallback scans; do not erase every
+// successful exact-local result just because one or two names need that slower path.
+const PLAYER_RESOLUTION_TIMEOUT_MS = 45_000;
 
 export class ScreenshotResolutionTimeoutError extends Error {
   constructor(timeoutMs: number) {
@@ -349,7 +353,12 @@ class ScreenshotImportService {
     //    provider failure such as a circuit-breaker open). Caching a "resolution failed" result
     //    would cause every subsequent upload of the same image to instantly return null names
     //    even after the provider recovers.
-    if (!resolutionThrew) {
+    const hasTimedOutPlayerLookup = resolved.matchups?.some(
+      (entry) =>
+        entry.player1.status === "lookup-timeout" ||
+        entry.player2.status === "lookup-timeout",
+    ) ?? false;
+    if (!resolutionThrew && !hasTimedOutPlayerLookup) {
       cacheSet(hash, result);
     }
     logger.info(

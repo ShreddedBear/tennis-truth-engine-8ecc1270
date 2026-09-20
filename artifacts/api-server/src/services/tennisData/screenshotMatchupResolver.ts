@@ -63,13 +63,36 @@ interface PlayerResolveOutcome {
    * - not-found   — no match at all (no fuzzy candidate either).
    * - unreadable  — the name field was null/empty in the OCR result.
    */
-  status: "resolved" | "best-guess" | "unreadable" | "ambiguous" | "not-found";
+  status: "resolved" | "best-guess" | "unreadable" | "ambiguous" | "not-found" | "lookup-timeout" | "unsupported-doubles";
   /**
    * Populated when status === "ambiguous".
    * The confident candidates that caused the tie — used by the caller to attempt
    * opponent-fixture cross-disambiguation before giving up.
    */
   candidates?: PlayerSummary[];
+}
+
+const PLAYER_LOOKUP_TIMEOUT_MS = 7_500;
+
+class PlayerLookupTimeoutError extends Error {
+  constructor() {
+    super(`Player lookup exceeded ${PLAYER_LOOKUP_TIMEOUT_MS}ms`);
+    this.name = "PlayerLookupTimeoutError";
+  }
+}
+
+async function withPlayerLookupDeadline<T>(operation: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new PlayerLookupTimeoutError()), PLAYER_LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 interface FixtureCandidate {
@@ -711,6 +734,7 @@ function ocrVariants(surname: string): string[] {
   variants.add(surname.replace(/rn/g, "m"));     // OCR "rn" fused as "m"
   variants.add(surname.replace(/m/g, "rn"));     // OCR "m" split as "rn"
   variants.add(surname.replace(/VV/g, "W"));     // double-V → W
+  variants.add(surname.replace(/nc/gi, "ncl"));  // narrow lowercase-l dropped: Bruncik → Brunclik
   variants.delete(surname);                       // already searched — no-op if unchanged
   return Array.from(variants).filter((v) => v !== surname && v.length >= 3);
 }
@@ -729,14 +753,23 @@ function ocrVariants(surname: string): string[] {
 async function ocrFuzzyFallback(
   provider: TennisDataProvider,
   searchName: string,
+  historicalOnly = false,
 ): Promise<PlayerSummary | null> {
   const surname = extractOcrSurname(searchName);
   if (!surname) return null;
 
   const surnameNorm = normalizeName(surname);
 
+  const prefix = surname.length >= 4 ? surname.slice(0, 4) : surname;
+  const searchTerms = Array.from(new Set([...ocrVariants(surname), prefix]));
   const variantResults = await Promise.all(
-    ocrVariants(surname).map((v) => searchKnownPlayers(provider, v)),
+    searchTerms.map((term) =>
+      searchKnownPlayers(
+        provider,
+        term,
+        historicalOnly ? { historicalOnly: true, resultLimit: 100 } : undefined,
+      ),
+    ),
   );
 
   // Deduplicate across all variant searches
@@ -756,8 +789,21 @@ async function ocrFuzzyFallback(
     return pSurname.length >= 3 && levenshtein(surnameNorm, pSurname) <= 1;
   });
 
-  // Exactly one unambiguous best-guess — multiple still means "don't guess"
-  return fuzzyMatches.length === 1 ? fuzzyMatches[0]! : null;
+  if (fuzzyMatches.length === 1) return fuzzyMatches[0]!;
+  if (fuzzyMatches.length === 0) return null;
+
+  const fullNorm = normalizeName(searchName);
+  const scored = fuzzyMatches
+    .map((candidate) => ({
+      candidate,
+      distance: levenshtein(fullNorm, normalizeName(candidate.name)),
+    }))
+    .sort((a, b) => a.distance - b.distance);
+  const best = scored[0]!;
+  const second = scored[1];
+  return best.distance <= 3 && (!second || best.distance < second.distance)
+    ? best.candidate
+    : null;
 }
 
 // ── Candidate gathering ────────────────────────────────────────────────────
@@ -809,27 +855,36 @@ async function gatherCandidates(
     }
   }
 
-  // Primary search
-  const primary = await searchKnownPlayers(provider, searchName);
-  const primaryConfident = primary.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
-  if (primaryConfident.length > 0) return primary;
-
-  // Word-by-word fallback (surname first — most distinctive, fewest false positives)
-  // Min length of 2 catches very short surnames (e.g. "Lea Ma" → "Ma" is 2 chars).
-  const accumulated = new Map<string, PlayerSummary>();
-  for (const p of primary) accumulated.set(p.id, p);
-
-  for (const word of words) {
-    const wordResults = await searchKnownPlayers(provider, word);
-    for (const c of wordResults) {
-      if (!accumulated.has(c.id)) accumulated.set(c.id, c);
-    }
-    // Stop as soon as at least one confident match exists in the accumulated set
-    const hasConfident = Array.from(accumulated.values()).some((c) => isConfidentMatch(norm, normalizeName(c.name)));
-    if (hasConfident) break;
+  if (!isWeakOcrIdentityKey(norm)) {
+    const localFuzzy = await ocrFuzzyFallback(provider, searchName, true);
+    if (localFuzzy) return [localFuzzy];
   }
 
-  return Array.from(accumulated.values());
+  // Only the live-provider phase is deadline-bound. Local historical scans above remain allowed
+  // to complete so an under-load DB query cannot be mislabeled as a provider timeout.
+  return withPlayerLookupDeadline((async () => {
+    // Primary search
+    const primary = await searchKnownPlayers(provider, searchName);
+    const primaryConfident = primary.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
+    if (primaryConfident.length > 0) return primary;
+
+    // Word-by-word fallback (surname first — most distinctive, fewest false positives)
+    // Min length of 2 catches very short surnames (e.g. "Lea Ma" → "Ma" is 2 chars).
+    const accumulated = new Map<string, PlayerSummary>();
+    for (const p of primary) accumulated.set(p.id, p);
+
+    for (const word of words) {
+      const wordResults = await searchKnownPlayers(provider, word);
+      for (const c of wordResults) {
+        if (!accumulated.has(c.id)) accumulated.set(c.id, c);
+      }
+      // Stop as soon as at least one confident match exists in the accumulated set
+      const hasConfident = Array.from(accumulated.values()).some((c) => isConfidentMatch(norm, normalizeName(c.name)));
+      if (hasConfident) break;
+    }
+
+    return Array.from(accumulated.values());
+  })());
 }
 
 // ── Player resolution ──────────────────────────────────────────────────────
@@ -861,9 +916,26 @@ async function resolvePlayerMatch(
   // Strip OCR draw-sheet metadata (seeds, status tokens, birth years, etc.) before
   // matching. The original recognizedName is preserved for display and debugging.
   const searchName = stripOcrMetadata(recognizedName);
+  if (searchName.includes("/")) {
+    return {
+      match: { recognizedName, player: null },
+      status: "unsupported-doubles",
+    };
+  }
   const norm = normalizeName(searchName);
 
-  const candidates = await gatherCandidates(provider, searchName, preloadedHistoricalExact);
+  let candidates: PlayerSummary[];
+  try {
+    candidates = await gatherCandidates(provider, searchName, preloadedHistoricalExact);
+  } catch (error) {
+    if (error instanceof PlayerLookupTimeoutError) {
+      return {
+        match: { recognizedName, player: null },
+        status: "lookup-timeout",
+      };
+    }
+    throw error;
+  }
   const confident = candidates.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
 
   // A single confident candidate is unambiguous by definition — resolve it even when the OCR
@@ -874,6 +946,20 @@ async function resolvePlayerMatch(
   // when the live provider is unavailable and the historical DB is the only source.
   if (confident.length === 1) {
     return { match: { recognizedName, player: confident[0] }, status: "resolved" };
+  }
+
+  if (confident.length === 0 && candidates.length === 1) {
+    const candidate = candidates[0]!;
+    const searchSurname = extractOcrSurname(searchName);
+    const candidateWords = normalizeName(candidate.name).split(/\s+/).filter(Boolean);
+    const candidateSurname = candidateWords[candidateWords.length - 1] ?? "";
+    const surnameDistance = searchSurname
+      ? levenshtein(normalizeName(searchSurname), candidateSurname)
+      : Number.POSITIVE_INFINITY;
+    const fullDistance = levenshtein(norm, normalizeName(candidate.name));
+    if (surnameDistance <= 1 && fullDistance <= 3) {
+      return { match: { recognizedName, player: candidate }, status: "best-guess" };
+    }
   }
 
   if (isWeakOcrIdentityKey(norm)) {
@@ -1237,6 +1323,14 @@ async function resolveOneMatchup(
       warnings.push(
         `Read "${entry.player1Name}" for Player 1, but they were not found in any known player source. They may be a very low-ranked player not yet in the database.`,
       );
+    } else if (player1Outcome.status === "lookup-timeout") {
+      warnings.push(
+        `Read "${entry.player1Name}" for Player 1, but identity lookup timed out -- the recognized name was preserved for manual selection.`,
+      );
+    } else if (player1Outcome.status === "unsupported-doubles") {
+      warnings.push(
+        `Read doubles team "${entry.player1Name}" for Player 1, but this Prediction Engine supports singles only.`,
+      );
     } else {
       warnings.push(
         `Read "${entry.player1Name}" for Player 1, but couldn't confidently match them to a known player -- please use Search Players.`,
@@ -1254,6 +1348,14 @@ async function resolveOneMatchup(
     } else if (player2Outcome.status === "not-found") {
       warnings.push(
         `Read "${entry.player2Name}" for Player 2, but they were not found in any known player source. They may be a very low-ranked player not yet in the database.`,
+      );
+    } else if (player2Outcome.status === "lookup-timeout") {
+      warnings.push(
+        `Read "${entry.player2Name}" for Player 2, but identity lookup timed out -- the recognized name was preserved for manual selection.`,
+      );
+    } else if (player2Outcome.status === "unsupported-doubles") {
+      warnings.push(
+        `Read doubles team "${entry.player2Name}" for Player 2, but this Prediction Engine supports singles only.`,
       );
     } else {
       warnings.push(
