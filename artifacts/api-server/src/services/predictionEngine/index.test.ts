@@ -69,6 +69,68 @@ test("the final-consistency guard runs automatically on every real engine output
   assert.deepEqual(output.engine.consistencyViolations, [], "a normal, well-formed prediction must never trip any contradiction rule");
 });
 
+test("historical Availability is invariant to wall-clock changes when the simulated cutoff is fixed", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2030-01-01T00:00:00.000Z") });
+
+  const retiredPriorMatch: MatchRecord = {
+    ...match("retirement-opponent", "Retirement Opponent", false, "Hard", 1, 50),
+    id: "historical-retirement",
+    date: "2026-06-10",
+    tournamentName: "Historical Open",
+    retired: true,
+  };
+  const ordinaryPriorMatch: MatchRecord = {
+    ...match("ordinary-opponent", "Ordinary Opponent", true, "Hard", 1, 50),
+    id: "historical-ordinary",
+    date: "2026-06-09",
+    tournamentName: "Historical Open",
+  };
+  const input = baseInput({
+    player1Matches: [retiredPriorMatch],
+    player2Matches: [ordinaryPriorMatch],
+    asOfDate: new Date("2026-06-15T12:00:00.000Z"),
+  });
+
+  const first = await runPredictionEngine(input);
+  t.mock.timers.setTime(new Date("2040-01-01T00:00:00.000Z").getTime());
+  const second = await runPredictionEngine(input);
+
+  assert.deepEqual(
+    second.engine.availability,
+    first.engine.availability,
+    "the same historical cutoff must produce byte-for-byte identical Availability evidence regardless of execution time",
+  );
+  assert.equal(first.engine.availability.player1.daysSinceLastMatch, 6);
+  assert.equal(first.engine.availability.player1.recentRetirementOrWithdrawal, true);
+  assert.equal(first.engine.availability.player1.confirmedAvailabilityConcernType, "MidMatchRetirement");
+});
+
+test("live Availability still defaults to the current wall clock when no asOfDate is supplied", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-06-15T12:00:00.000Z") });
+
+  const priorMatch: MatchRecord = {
+    ...match("live-opponent", "Live Opponent", false, "Hard", 1, 50),
+    id: "live-retirement",
+    date: "2026-06-10",
+    tournamentName: "Historical Open",
+    retired: true,
+  };
+  const input = baseInput({
+    player1Matches: [priorMatch],
+    player2Matches: [priorMatch],
+    asOfDate: undefined,
+  });
+
+  const first = await runPredictionEngine(input);
+  t.mock.timers.setTime(new Date("2026-07-15T12:00:00.000Z").getTime());
+  const second = await runPredictionEngine(input);
+
+  assert.equal(first.engine.availability.player1.daysSinceLastMatch, 6);
+  assert.equal(first.engine.availability.player1.recentRetirementOrWithdrawal, true);
+  assert.equal(second.engine.availability.player1.daysSinceLastMatch, 36);
+  assert.equal(second.engine.availability.player1.recentRetirementOrWithdrawal, false);
+});
+
 test("a 'Surface Elo favors X' reason always names whichever player actually holds the HIGHER surface Elo rating, never the lower one", async () => {
   const output = await runPredictionEngine(baseInput());
   const surfaceEloReason = output.engine.reasons.find((r) => r.startsWith("Surface Elo favors"));
