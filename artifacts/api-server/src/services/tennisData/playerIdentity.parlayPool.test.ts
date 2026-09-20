@@ -111,6 +111,48 @@ function clearCaches() {
   clearTransientFailureCacheForTests();
 }
 
+test("historical-only player search resolves local canonical identities without touching the live provider", async (t) => {
+  const RUN_ID = `historical-only-${Date.now()}`;
+  const PROVIDER = `parlay-pool-test-${RUN_ID}`;
+  const PLAYER_ID = `canonical-sackmann-atp-${RUN_ID}`;
+  const PLAYER_NAME = `Zzztest Historicalonly ${RUN_ID}`;
+  let providerCalls = 0;
+
+  const inserted = await db
+    .insert(historicalMatchesTable)
+    .values(makeMatch({
+      player1Id: PLAYER_ID,
+      player1Name: PLAYER_NAME,
+      player2Id: `${RUN_ID}-opp`,
+      player2Name: "Zzztest Historicalonly Opponent",
+      tour: "ATP",
+      scheduledStartAt: new Date("2026-09-20T10:00:00Z"),
+      provider: PROVIDER,
+      externalIdSuffix: RUN_ID,
+    }))
+    .returning({ id: historicalMatchesTable.id });
+
+  t.after(async () => {
+    await db.delete(historicalMatchesTable).where(inArray(historicalMatchesTable.id, inserted.map((r) => r.id)));
+    clearCaches();
+  });
+
+  const provider = makeDownProvider();
+  provider.searchPlayers = async () => {
+    providerCalls += 1;
+    throw new Error("historical-only search must not call the live provider");
+  };
+  provider.getPlayer = async () => {
+    providerCalls += 1;
+    throw new Error("historical-only search must not validate against the live provider");
+  };
+
+  const results = await searchKnownPlayers(provider, PLAYER_NAME, { historicalOnly: true });
+
+  assert.equal(providerCalls, 0);
+  assert.ok(results.some((player) => player.id === PLAYER_ID && player.name === PLAYER_NAME));
+});
+
 // ── Test 1: Abbreviated DB names resolve when provider is down ────────────────
 // Scenario: DB has "T. Zzztestfritz" and "A. Zzztestsabalenka" — abbreviated first-name forms
 // that are weak identity keys. When the live provider is down, validateHistoricalPlayerId

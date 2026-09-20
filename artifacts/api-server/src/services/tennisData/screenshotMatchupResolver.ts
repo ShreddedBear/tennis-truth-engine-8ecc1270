@@ -1,5 +1,5 @@
 import type { Fixture, PlayerSummary, TennisDataProvider } from "./types";
-import { searchKnownPlayers } from "./playerIdentity";
+import { searchHistoricalPlayersByExactNames, searchKnownPlayers } from "./playerIdentity";
 import { inferSurfaceAndLevel } from "./surfaceMap";
 import type { RawScreenshotRecognition, RawMatchupEntry } from "./screenshotRecognition";
 
@@ -480,26 +480,49 @@ async function getTodayFixtures(provider: TennisDataProvider): Promise<Fixture[]
   const todayDate = new Date();
   const today = todayDate.toISOString().slice(0, 10);
   try {
-    const sameDay = await provider.getUpcomingFixtures(today);
-
-    // Always include a small adjacent-day range when available: some providers split fixtures
-    // across nearby calendar days relative to server UTC even when they belong to the same local
-    // tournament day. Limiting to ±1/+2 keeps this tight while preventing false "unresolved"
-    // skips caused by date-boundary drift.
-    if (!provider.getUpcomingFixturesRange) return sameDay;
-
     const startDate = new Date(todayDate);
     startDate.setUTCDate(startDate.getUTCDate() - 1);
     const stopDate = new Date(todayDate);
     stopDate.setUTCDate(stopDate.getUTCDate() + 2);
     const start = startDate.toISOString().slice(0, 10);
     const stop = stopDate.toISOString().slice(0, 10);
-    const range = await provider.getUpcomingFixturesRange(start, stop);
+
+    // Fixture context improves disambiguation, but it is optional. Never let a slow live
+    // provider consume the whole screenshot-resolution budget before local historical identity
+    // lookup can run. Same-day and adjacent-day reads run together and degrade to an empty list.
+    const [sameDay, range] = await Promise.all([
+      withOptionalContextDeadline(provider.getUpcomingFixtures(today), [] as Fixture[]),
+      provider.getUpcomingFixturesRange
+        ? withOptionalContextDeadline(provider.getUpcomingFixturesRange(start, stop), [] as Fixture[])
+        : Promise.resolve([] as Fixture[]),
+    ]);
     const deduped = new Map<string, Fixture>();
     for (const fixture of [...sameDay, ...range]) deduped.set(fixture.id, fixture);
     return Array.from(deduped.values());
   } catch {
     return [];
+  }
+}
+
+const OPTIONAL_CONTEXT_TIMEOUT_MS = 2_500;
+
+async function withOptionalContextDeadline<T>(
+  operation: Promise<T>,
+  fallback: T,
+  timeoutMs = OPTIONAL_CONTEXT_TIMEOUT_MS,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return fallback;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -748,8 +771,40 @@ async function ocrFuzzyFallback(
  *   entries like "P. Badosa" when the OCR read "Paula Badosa": searching "Badosa"
  *   finds "P. Badosa", then isConfidentMatch verifies it via the reverse path.
  */
-async function gatherCandidates(provider: TennisDataProvider, searchName: string): Promise<PlayerSummary[]> {
+async function gatherCandidates(
+  provider: TennisDataProvider,
+  searchName: string,
+  preloadedHistoricalExact: PlayerSummary[] = [],
+): Promise<PlayerSummary[]> {
   const norm = normalizeName(searchName);
+
+  const preloadedConfident = preloadedHistoricalExact.filter(
+    (candidate) => isConfidentMatch(norm, normalizeName(candidate.name)),
+  );
+  if (preloadedConfident.length > 0) return preloadedHistoricalExact;
+
+  // Screenshot imports usually contain full names and our historical store already carries
+  // canonical identities for them. Resolve that trusted local evidence first so a slow or
+  // circuit-open live provider cannot turn successful OCR into an item-level timeout.
+  const historical = await searchKnownPlayers(provider, searchName, { historicalOnly: true });
+  const historicalConfident = historical.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
+  if (historicalConfident.length > 0) return historical;
+
+  // A full-name LIKE query can hit the 25-row cap before the exact record when a common first or
+  // last name has many historical entries. Repeat the existing surname-first fallback locally
+  // before touching the network.
+  const words = searchName.trim().split(/\s+/).filter((w) => w.length >= 2).reverse();
+  const historicalAccumulated = new Map(historical.map((player) => [player.id, player]));
+  for (const word of words) {
+    const wordResults = await searchKnownPlayers(provider, word, { historicalOnly: true });
+    for (const candidate of wordResults) {
+      if (!historicalAccumulated.has(candidate.id)) historicalAccumulated.set(candidate.id, candidate);
+    }
+    const localCandidates = Array.from(historicalAccumulated.values());
+    if (localCandidates.some((candidate) => isConfidentMatch(norm, normalizeName(candidate.name)))) {
+      return localCandidates;
+    }
+  }
 
   // Primary search
   const primary = await searchKnownPlayers(provider, searchName);
@@ -758,7 +813,6 @@ async function gatherCandidates(provider: TennisDataProvider, searchName: string
 
   // Word-by-word fallback (surname first — most distinctive, fewest false positives)
   // Min length of 2 catches very short surnames (e.g. "Lea Ma" → "Ma" is 2 chars).
-  const words = searchName.trim().split(/\s+/).filter((w) => w.length >= 2).reverse();
   const accumulated = new Map<string, PlayerSummary>();
   for (const p of primary) accumulated.set(p.id, p);
 
@@ -792,6 +846,7 @@ async function resolvePlayerMatch(
   recognizedName: string | null,
   eventName?: string | null,
   todayFixtures?: Fixture[],
+  preloadedHistoricalExact: PlayerSummary[] = [],
 ): Promise<PlayerResolveOutcome> {
   if (!recognizedName) {
     return {
@@ -805,7 +860,7 @@ async function resolvePlayerMatch(
   const searchName = stripOcrMetadata(recognizedName);
   const norm = normalizeName(searchName);
 
-  const candidates = await gatherCandidates(provider, searchName);
+  const candidates = await gatherCandidates(provider, searchName, preloadedHistoricalExact);
   const confident = candidates.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
 
   // A single confident candidate is unambiguous by definition — resolve it even when the OCR
@@ -953,11 +1008,7 @@ async function resolveEventMatch(
   // A screenshot import has no tournament_key, so fall back to a real name search.
   if (eventName && surface === null && provider.findTournamentSurfaceByName) {
     let found: Awaited<ReturnType<NonNullable<typeof provider.findTournamentSurfaceByName>>> | null = null;
-    try {
-      found = await provider.findTournamentSurfaceByName(eventName);
-    } catch {
-      // Provider unavailable (e.g. circuit breaker open) — surface stays null, not an error.
-    }
+    found = await withOptionalContextDeadline(provider.findTournamentSurfaceByName(eventName), null);
     if (found) {
       surface = found.surface;
       // Suppress a provider-returned level that contradicts the event's known tour.
@@ -995,12 +1046,25 @@ async function resolveOneMatchup(
   provider: TennisDataProvider,
   entry: RawMatchupEntry,
   todayFixtures: Fixture[],
+  historicalExactByName: Map<string, PlayerSummary[]>,
 ): Promise<ScreenshotMatchupEntry> {
   const warnings: string[] = [];
 
   const [player1Outcome, player2Outcome, event] = await Promise.all([
-    resolvePlayerMatch(provider, entry.player1Name, entry.eventName, todayFixtures),
-    resolvePlayerMatch(provider, entry.player2Name, entry.eventName, todayFixtures),
+    resolvePlayerMatch(
+      provider,
+      entry.player1Name,
+      entry.eventName,
+      todayFixtures,
+      entry.player1Name ? historicalExactByName.get(entry.player1Name.trim().toLowerCase()) ?? [] : [],
+    ),
+    resolvePlayerMatch(
+      provider,
+      entry.player2Name,
+      entry.eventName,
+      todayFixtures,
+      entry.player2Name ? historicalExactByName.get(entry.player2Name.trim().toLowerCase()) ?? [] : [],
+    ),
     resolveEventMatch(provider, entry.eventName, warnings),
   ]);
 
@@ -1234,11 +1298,19 @@ export async function resolveScreenshotMatchup(
     };
   }
 
-  const todayFixtures = await getTodayFixtures(provider);
+  const recognizedNames = raw.matchups.flatMap((entry) =>
+    [entry.player1Name, entry.player2Name].filter((name): name is string => Boolean(name?.trim())),
+  );
+  const [todayFixtures, historicalExactByName] = await Promise.all([
+    getTodayFixtures(provider),
+    searchHistoricalPlayersByExactNames(recognizedNames),
+  ]);
 
   // Resolve each matchup concurrently
   const resolvedEntries = await Promise.all(
-    raw.matchups.map((entry) => resolveOneMatchup(provider, entry, todayFixtures)),
+    raw.matchups.map((entry) =>
+      resolveOneMatchup(provider, entry, todayFixtures, historicalExactByName),
+    ),
   );
 
   // Primary slot: first resolved entry (backward compatibility)

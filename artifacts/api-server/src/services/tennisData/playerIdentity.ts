@@ -1,4 +1,4 @@
-import { and, desc, eq, sql, type SQLWrapper } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, type SQLWrapper } from "drizzle-orm";
 import { db, historicalMatchesTable } from "@workspace/db";
 import { logger } from "../../lib/logger";
 import type { PlayerProfile, PlayerSummary, TennisDataProvider } from "./types";
@@ -948,7 +948,11 @@ export async function resolvePlayerProfileByName(
  * a real match we already imported. Never fabricates a player; every result is an exact
  * `player_key` + name the provider itself reported on some real match.
  */
-export async function searchKnownPlayers(provider: TennisDataProvider, query: string): Promise<PlayerSummary[]> {
+export async function searchKnownPlayers(
+  provider: TennisDataProvider,
+  query: string,
+  options?: { historicalOnly?: boolean },
+): Promise<PlayerSummary[]> {
   // Nickname expansion: if the query is a well-known moniker (e.g. "Rafa"), also search by the
   // canonical full name ("Rafael Nadal") so the result set includes the actual player record,
   // which downstream word-subset matching can then confidently identify.
@@ -976,11 +980,13 @@ export async function searchKnownPlayers(provider: TennisDataProvider, query: st
     }
   };
 
-  const [primaryResults, expandedResults, surnameResults] = await Promise.all([
-    searchSafely(query),
-    expandedName ? searchSafely(expandedName) : Promise.resolve([] as PlayerSummary[]),
-    surnameSupplement ? searchSafely(surnameSupplement) : Promise.resolve([] as PlayerSummary[]),
-  ]);
+  const [primaryResults, expandedResults, surnameResults] = options?.historicalOnly
+    ? [[], [], []] as [PlayerSummary[], PlayerSummary[], PlayerSummary[]]
+    : await Promise.all([
+        searchSafely(query),
+        expandedName ? searchSafely(expandedName) : Promise.resolve([] as PlayerSummary[]),
+        surnameSupplement ? searchSafely(surnameSupplement) : Promise.resolve([] as PlayerSummary[]),
+      ]);
 
   const existingIds = new Set(primaryResults.map((p) => p.id));
   const liveResults = [...primaryResults];
@@ -1062,9 +1068,11 @@ export async function searchKnownPlayers(provider: TennisDataProvider, query: st
   // 50 unique IDs × ~2.5 s MatchStat timeout = 125 s before any player resolved when the
   // provider is down. Parallelising brings this to one round-trip regardless of result count.
   const historicalEntries = Array.from(historicalById.values());
-  const validations = await Promise.all(
-    historicalEntries.map((row) => validateHistoricalPlayerId(provider, row.id)),
-  );
+  const validations = options?.historicalOnly
+    ? historicalEntries.map(() => undefined)
+    : await Promise.all(
+        historicalEntries.map((row) => validateHistoricalPlayerId(provider, row.id)),
+      );
 
   for (let hi = 0; hi < historicalEntries.length; hi++) {
     const row = historicalEntries[hi]!;
@@ -1202,7 +1210,76 @@ export async function searchKnownPlayers(provider: TennisDataProvider, query: st
     if (!deduped.has(player.id)) deduped.set(player.id, player);
   }
   const results = Array.from(deduped.values()).slice(0, 25);
-  await enrichCountryCodes(provider, results);
+  if (!options?.historicalOnly) {
+    await enrichCountryCodes(provider, results);
+  }
+  return results;
+}
+
+/**
+ * Resolves a screenshot-sized batch of exact OCR names with two historical-table scans total
+ * (one per player slot), instead of running the expensive fuzzy LIKE search once per player.
+ * Returned keys are lowercase trimmed input names. Near/fuzzy names are intentionally excluded;
+ * callers can fall back to the regular resolver for those.
+ */
+export async function searchHistoricalPlayersByExactNames(
+  names: string[],
+): Promise<Map<string, PlayerSummary[]>> {
+  const exactNames = Array.from(
+    new Set(names.map((name) => name.trim().toLowerCase()).filter(Boolean)),
+  );
+  const results = new Map<string, PlayerSummary[]>();
+  if (exactNames.length === 0) return results;
+
+  const [asPlayer1Rows, asPlayer2Rows] = await Promise.all([
+    db
+      .selectDistinct({
+        id: historicalMatchesTable.player1Id,
+        name: historicalMatchesTable.player1Name,
+        tour: historicalMatchesTable.tour,
+      })
+      .from(historicalMatchesTable)
+      .where(and(
+        inArray(sql`lower(${historicalMatchesTable.player1Name})`, exactNames),
+        sql`${historicalMatchesTable.player1Name} not like '%/%'`,
+      )),
+    db
+      .selectDistinct({
+        id: historicalMatchesTable.player2Id,
+        name: historicalMatchesTable.player2Name,
+        tour: historicalMatchesTable.tour,
+      })
+      .from(historicalMatchesTable)
+      .where(and(
+        inArray(sql`lower(${historicalMatchesTable.player2Name})`, exactNames),
+        sql`${historicalMatchesTable.player2Name} not like '%/%'`,
+      )),
+  ]);
+
+  const dedupedByName = new Map<string, Map<string, PlayerSummary>>();
+  for (const row of [...asPlayer1Rows, ...asPlayer2Rows]) {
+    const key = row.name.trim().toLowerCase();
+    if (!exactNames.includes(key)) continue;
+    let byId = dedupedByName.get(key);
+    if (!byId) {
+      byId = new Map();
+      dedupedByName.set(key, byId);
+    }
+    if (!byId.has(row.id)) {
+      byId.set(row.id, {
+        id: row.id,
+        name: row.name,
+        countryCode: null,
+        currentRank: null,
+        tour: row.tour,
+        source: "historical-match",
+      });
+    }
+  }
+
+  for (const [name, players] of dedupedByName) {
+    results.set(name, Array.from(players.values()));
+  }
   return results;
 }
 
