@@ -4,7 +4,7 @@ Repo: `ShreddedBear/tennis-truth-engine-8ecc1270` · Branch: `claude/tennis-engi
 
 Status: **consolidation of two completed code-level audits** (Parlay Builder scoring audit; Market Odds dependency audit) into the 12-phase structure requested, plus an explicit accounting of what remains blocked. No formulas, thresholds, or market inputs were touched. Committed as an audit-only artifact to this branch — see "Where this lives" at the end.
 
-Every finding below is classified **PROVEN** (verified against current source, or against a committed report confirmed consistent with current source), **LIKELY** (strong code-level evidence, not independently re-run), or **UNVERIFIED / BLOCKED** (would require live database access this sandbox did not have at the time of writing — no numbers guessed).
+Every finding below is classified **PROVEN** (verified against current source, or against a committed report confirmed consistent with current source), **LIKELY** (strong code-level evidence, not independently re-run), or **UNVERIFIED / BLOCKED** (required empirical evidence is unavailable — no numbers guessed). A read-only authorized-database inventory was completed on 2026-09-20; its results are recorded in §13.
 
 ---
 
@@ -281,4 +281,34 @@ No thresholds, formulas, or market inputs were changed. No systems were merged. 
 
 Committed as `docs/audits/metric-truth-market-calibration-audit.md` on `claude/tennis-engine-audit-32-razn75` — audit documentation only, no application code touched.
 
-**Database access status:** the canonical Replit app (`tennis-truth-engine-8ecc1270`) provisions its own `postgresql-16` module per its `.replit` config — this is the authorized, already-existing DB connection this audit relies on for anything empirical. No `DATABASE_URL` or other credential was requested from, or supplied by, the user; no secret value has been read or printed in the course of this audit. The remaining empirical experiments (Phase 3's four-arm ablation, Phase 5's market-controlled Closeness breakdown, Phase 6's floor on/off comparison, and Phase 8's fresh KEEP/BORDERLINE/REMOVE calibration, plus the market-shuffle placebo test and weight-sensitivity sweep) are to be executed *inside that authorized app*, via its own agent which already holds the DB connection, rather than by exporting the connection string into any other session.
+**Database access status:** the canonical Replit app (`tennis-truth-engine-8ecc1270`) provisions its own `postgresql-16` module per its `.replit` config — this is the authorized, already-existing DB connection this audit relies on for anything empirical. No `DATABASE_URL` or other credential was requested from, or supplied by, the user; no secret value was read or printed in the course of this audit. The remaining empirical experiments must run *inside that authorized app*, rather than by exporting the connection string into any other session.
+
+---
+
+## 13. Authorized-Database Inventory and Experiment Disposition (2026-09-20)
+
+A read-only inventory was run through the canonical application's existing database connection. It found:
+
+| Corpus | Total | Graded | Rows with usable market odds | Relevant timestamp evidence |
+|---|---:|---:|---:|---|
+| `evaluation_predictions` | 518,655 | 518,209 | 0 | 0 rows with `odds_fetched_at` |
+| `parlay_leg_outcomes` | 958 | 0 | 0 | Created 2026-09-14 through 2026-09-20 |
+| `predictions` | 188 | 36 | No historical odds snapshot corpus | 188 rows with `snapshot_captured_at`; this is not a timestamped odds history |
+
+This confirms that database access is **not** the blocker. The missing evidence is:
+
+1. a graded, timestamped historical market-odds corpus whose snapshots can be proven to predate each prediction cutoff; and
+2. graded current-code Builder outcomes, or a new read-only replay that computes current Builder fields without writing back to operational tables.
+
+Experiment status:
+
+| Experiment | Status | Reason |
+|---|---|---|
+| Full / No-Market / Market-Only / Market+Independent | **BLOCKED** | No graded timestamped market corpus |
+| Closeness controlled for market | **BLOCKED** | No market observations to control for |
+| Risk floor ON vs OFF | **REQUIRES READ-ONLY REPLAY** | Current `parlay_leg_outcomes` has no graded rows |
+| Fresh KEEP / BORDERLINE / REMOVE | **REQUIRES READ-ONLY REPLAY** | Current `parlay_leg_outcomes` has no graded rows |
+| Market placebo shuffle | **BLOCKED** | No market observations to shuffle |
+| Market-weight sensitivity | **BLOCKED** | No market observations on which weight changes can be measured |
+
+Therefore no calibration, threshold, scoring, or UI change is justified by the current empirical evidence. In particular, the absence of populated odds columns still supports only **"structurally no obvious leakage found"**; it does not prove temporal leakage impossible.
