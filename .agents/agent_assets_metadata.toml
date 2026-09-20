@@ -126,3 +126,59 @@ mtime_ms = 1789865467300
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/6a0c06b4-17e1-4535-9d60-c28edda5d944/74c16be4-8475-4647-9a71-8e385065f4ea"
 storage_version_token = "1789865505336777"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "SyfYzD2-tKKqQ1B7uh2v5"
+uri = "file://.local/candidate-d-authoritative/evaluation-artifacts-authoritative/candidate-d-authoritative-report.md"
+type = "text"
+title = "Authoritative Candidate D Report"
+description = "Reproducible B-vs-D results with compression, predictive, calibration, selection, and ESS-partition analysis."
+logical_id = "1c52d199-0130-4128-bab5-3f6bb013459d"
+content_hash = "sha256:0d497c6baffbcdf13af3139596eac09e9072d598e99064c06033a0ee7a29f675"
+size = 4698
+mtime_ms = 1789868418284
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/1c52d199-0130-4128-bab5-3f6bb013459d/435b8195-a226-4c81-ab0d-10bf43ee261d"
+storage_version_token = "1789868439321714"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "JNn4krB0Jpszye2nAs2ii"
+uri = "file://.local/candidate-d-authoritative/evaluation-artifacts-authoritative/candidate-d-authoritative-summary.json"
+type = "unspecified"
+title = "Candidate D Machine-Readable Summary"
+description = "Metrics, ECE bins, hashes, population proof, invariants, ESS partitions, and interpretation."
+logical_id = "bd614685-1939-4ffa-8743-c35c0ee16f69"
+content_hash = "sha256:e5650c8ed96c54731d7004dce51c515273487f2dcf80a3d20eb4ef8deb408054"
+size = 28055
+mtime_ms = 1789868390031
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/bd614685-1939-4ffa-8743-c35c0ee16f69/ebeac634-e56d-439e-997f-2351faff7477"
+storage_version_token = "1789868440120520"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "6SzYUk8re3Noj1k-sbPfo"
+uri = "file://.local/candidate-d-authoritative/evaluation-artifacts-authoritative/candidate-d-authoritative-paired-rows.jsonl"
+type = "unspecified"
+title = "Candidate D Paired Row Comparisons"
+description = "All 1,644 paired rows with ESS, original reliability, B/D weights, probabilities, movement, and selection outcomes."
+logical_id = "61d7a2d6-3aa8-484d-8e18-664dd043e39e"
+content_hash = "sha256:5c704b9736de2f76d48c10509074b2a1006f4e67281ad45d44e65f9f31eec341"
+size = 1650596
+mtime_ms = 1789868350091
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/61d7a2d6-3aa8-484d-8e18-664dd043e39e/546c0a65-55ec-4d9a-b2e7-9e9958352cdc"
+storage_version_token = "1789868440757904"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "u4ORIOg3cXg3FbahFWsSU"
+uri = "file://.local/candidate-d-authoritative/evaluation-artifacts-authoritative/candidate-d-authoritative-source.diff"
+type = "unspecified"
+title = "Candidate D Exact Source Diff"
+description = "The isolated ensemble-only Surface Elo reliability change applied on the deterministic replay base."
+logical_id = "376b9b4d-8c37-4ec1-9ee9-93d1ac36dd4c"
+content_hash = "sha256:0d8ba9f98a480bfb878dcd4eb09e17143be9dc4bd77ce6add041e272604f3193"
+size = 1116
+mtime_ms = 1789868347991
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/376b9b4d-8c37-4ec1-9ee9-93d1ac36dd4c/f8b9014f-2386-40ab-ba4a-c11b76113b2a"
+storage_version_token = "1789868441495785"
+content_type = "application/octet-stream"
