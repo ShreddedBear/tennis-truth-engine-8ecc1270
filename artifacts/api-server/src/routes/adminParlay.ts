@@ -21,8 +21,11 @@ import {
   type BuilderSnapshot,
 } from "../services/parlayBuilder/builderScoringService.js";
 import { fetchMarketOdds } from "../services/oddsData";
+import { runWithConcurrency } from "../lib/concurrency.js";
 
 const router: IRouter = Router();
+
+const VALIDATE_LEG_CONCURRENCY = 6;
 
 // ── Safety Score ──────────────────────────────────────────────────────────────
 
@@ -408,10 +411,17 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
 
     const gradeOrder = ["Reject", "Weak", "Solid", "Elite"] as const;
 
-    const results = await Promise.all(legs.map(async (leg) => {
+    // Bounded concurrency, order-preserving: results[i] always corresponds to
+    // legs[i], regardless of which worker slot computed it or how long any
+    // individual leg's external provider calls took.
+    const results: Array<Awaited<ReturnType<typeof computeBuilderScore>> & {
+      selectedPlayerName: string; opponentName: string; tournamentName: string | null; surface: string | null;
+    }> = new Array(legs.length);
+
+    await runWithConcurrency(legs, VALIDATE_LEG_CONCURRENCY, async (leg, i) => {
       try {
         const result = await computeBuilderScore(leg);
-        return {
+        results[i] = {
           ...result,
           selectedPlayerName: leg.selectedPlayerName,
           opponentName: leg.opponentName,
@@ -420,7 +430,7 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
         };
       } catch (e) {
         logger.error({ err: e, selectedPlayerName: leg.selectedPlayerName }, "Builder validation failed for leg — returning BORDERLINE fallback");
-        return {
+        results[i] = {
           selectedPlayerName: leg.selectedPlayerName,
           opponentName: leg.opponentName,
           tournamentName: leg.tournamentName ?? null,
@@ -440,9 +450,11 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
           sourcesTotal: 0,
           factorScores: [] as Array<{ name: string; score: number; weight: number; available: boolean; contribution: number }>,
           builderVersion: "1.0.0",
+        } as unknown as Awaited<ReturnType<typeof computeBuilderScore>> & {
+          selectedPlayerName: string; opponentName: string; tournamentName: string | null; surface: string | null;
         };
       }
-    }));
+    });
 
     const keepCount = results.filter(r => r.decision === "KEEP").length;
     const borderlineCount = results.filter(r => r.decision === "BORDERLINE").length;
