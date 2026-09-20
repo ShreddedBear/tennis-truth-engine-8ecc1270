@@ -1,0 +1,30 @@
+kind = "web"
+previewPath = "/"
+title = "Tennis Truth Engine"
+description = "The canonical Tennis Truth Engine application, preserving its TanStack Start Workers-compatible runtime, Supabase authentication, audit routes, and existing visual behavior."
+version = "1.0.0"
+id = "artifacts/tennis-truth-engine"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19024
+
+[services.development]
+run = "pnpm --filter @workspace/tennis-truth-engine run dev"
+
+[services.production]
+
+[services.production.build]
+args = [ "pnpm", "--filter", "@workspace/tennis-truth-engine", "run", "build" ]
+
+[services.production.run]
+args = [ "pnpm", "--filter", "@workspace/tennis-truth-engine", "run", "preview" ]
+
+[services.production.run.env]
+PORT = "19024"
+
+[services.env]
+PORT = "19024"
+BASE_PATH = "/"

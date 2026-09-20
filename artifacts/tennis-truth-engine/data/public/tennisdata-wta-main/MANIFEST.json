@@ -1,0 +1,20 @@
+{
+  "source": "TennisData.app user-supplied season CSVs (WTA Tour + WTA Challenger combined; WTA Challenger portion already ingested separately via production-history/wta_challenger)",
+  "scope": "WTA Tour (main draw) ONLY -- filtered at build time in build-runtime-tennis-index.mjs",
+  "filter": "tour_type_human == \"WTA Tour\" AND status == \"FINISHED\" AND winner_code in (1,2)",
+  "files": {
+    "2021wtaseason.csv": "9012c37a689bdb617ced873b83187cbcbc7c5258bb3494fdadd71d64846695c3",
+    "2022wtaseason.csv": "6638fbc41a8e5ed275f17cff03acc3a6df85399ba99e12be73fc89cc23185e81",
+    "2023wtaseason.csv": "6025591c5c1a5a1fbbfa0b9bbbf3bf4cb5d7e86a8da47c115c0a795b866c4859",
+    "2024wtaseason.csv": "70f5b7e26c0ff5d88d1492bdbaa1ae5c362bf0ff91d7b14f1f8a9e1adc3b198a",
+    "2025wtaseason.csv": "bfccceaa8d8e17f1656d6009f02f58199b0be061898495ecd36ab35f670f194d",
+    "2026wtaseason.csv": "53f067ec8fb11447e2696a5df8765689d57c1da241b07240d5229c4ddd63da65"
+  },
+  "wta_tour_rows_total": 23221,
+  "wta_tour_rows_accepted": 23027,
+  "skipped_scheduled": 71,
+  "skipped_missing_winner_code": 123,
+  "wta_chall_rows_present_but_not_reingested": 7615,
+  "wta_chall_row_count_matches_existing_production_history": true,
+  "production_tour_family": "WTA_MAIN"
+}

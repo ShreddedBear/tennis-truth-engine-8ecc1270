@@ -1,0 +1,83 @@
+name: BSD WTA Challenger PBP Validate + Integrate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bsd-wta-challenger-pbp-validate-integrate.yml'
+      - 'scripts/validate-integrate-bsd-wta-challenger-pbp.py'
+      - 'data/audit/bsd-wta-challenger-pbp/matches.jsonl'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bsd-wta-challenger-pbp-validate-integrate-only
+  cancel-in-progress: false
+
+jobs:
+  validate-integrate-wta-challenger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify WTA Challenger source and BSD secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BSD_TENNIS_API_KEY"
+          test -f data/audit/bsd-wta-challenger-pbp/matches.jsonl
+          test -f scripts/validate-integrate-bsd-wta-challenger-pbp.py
+          python3 -m py_compile scripts/validate-integrate-bsd-wta-challenger-pbp.py
+      - name: Validate and integrate WTA Challenger PBP only
+        run: python3 scripts/validate-integrate-bsd-wta-challenger-pbp.py | tee /tmp/wta-challenger-validate-integrate.log
+      - name: Hard contamination gate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          p='data/audit/bsd-wta-challenger-pbp-validation/summary.json'
+          s=json.load(open(p))
+          assert s['scope']=='WTA Challenger/WTA 125 only'
+          assert s['other_tours_excluded'] is True
+          assert s['unique_approved_match_ids']==s['approved_for_metrics']
+          assert s['unique_approved_pbp_hashes']==s['approved_for_metrics']
+          assert s['metrics_namespace']=='data/metrics/pbp/wta_challenger/approved-index.jsonl'
+          PY
+      - name: Commit WTA Challenger validation and metrics namespace only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-wta-challenger-pbp-validation
+          git add data/metrics/pbp/wta_challenger
+          if git diff --cached --quiet; then
+            echo 'No WTA Challenger validation changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Validate and integrate BSD WTA Challenger PBP'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsd-wta-challenger-pbp-validation-${{ github.run_id }}
+          path: |
+            /tmp/wta-challenger-validate-integrate.log
+            data/audit/bsd-wta-challenger-pbp-validation/
+            data/metrics/pbp/wta_challenger/
+          if-no-files-found: warn
+      - name: Summary
+        if: always()
+        run: |
+          echo '## BSD WTA Challenger PBP Validation + Metrics Integration' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '**WTA Challenger/WTA 125 ONLY — no ATP Main, WTA Main, or ATP Challenger staging.**' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          if [ -f data/audit/bsd-wta-challenger-pbp-validation/summary.md ]; then cat data/audit/bsd-wta-challenger-pbp-validation/summary.md >> "$GITHUB_STEP_SUMMARY"; fi

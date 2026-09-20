@@ -1,0 +1,31 @@
+name: BSD PBP Accuracy Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/bsd-pbp-accuracy-probe.py'
+      - '.github/workflows/bsd-pbp-accuracy-probe.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe BSD PBP payloads
+        run: python3 scripts/bsd-pbp-accuracy-probe.py
+      - name: Persist non-secret audit output
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-pbp-accuracy
+          if ! git diff --cached --quiet; then
+            git commit -m 'Persist BSD PBP accuracy probe'
+            git push
+          fi

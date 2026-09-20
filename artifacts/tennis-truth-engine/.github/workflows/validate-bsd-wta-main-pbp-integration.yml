@@ -1,0 +1,49 @@
+name: Validate BSD WTA Main PBP Integration
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/lib/bsd-wta-main-pbp.server.ts'
+      - 'src/lib/warehouse-first-researcher.server.ts'
+      - 'scripts/advance-bsd-wta-main-pbp-history.py'
+      - 'scripts/validate-bsd-wta-main-pbp-integration.py'
+      - '.github/workflows/validate-bsd-wta-main-pbp-integration.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validate-bsd-wta-main-pbp-integration
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate WTA Main BSD PBP firewall and boundary
+        run: python3 scripts/validate-bsd-wta-main-pbp-integration.py
+
+      - name: Persist validation report
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-wta-main-pbp-integration-validation.json data/audit/bsd-wta-main-pbp-integration-validation.md || true
+          if git diff --cached --quiet; then
+            echo 'No validation report changes.'
+          else
+            git commit -m 'Persist BSD WTA Main PBP integration validation'
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Show validation summary
+        if: always()
+        run: |
+          test -f data/audit/bsd-wta-main-pbp-integration-validation.md && cat data/audit/bsd-wta-main-pbp-integration-validation.md || true

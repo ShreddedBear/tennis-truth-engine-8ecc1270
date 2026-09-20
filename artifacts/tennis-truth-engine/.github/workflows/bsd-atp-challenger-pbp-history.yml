@@ -1,0 +1,22 @@
+name: BSD ATP Challenger PBP Historical Scan (STOPPED)
+
+# Historical scan intentionally stopped after confirming the BSD ATP Challenger
+# point-by-point boundary at 2025. No push or schedule trigger remains.
+# This file is retained only as an audit record and can be run manually if a
+# future boundary re-check is explicitly requested.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-confirmed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Historical scan stopped
+        run: |
+          echo 'BSD ATP Challenger historical scan is stopped.'
+          echo 'Confirmed usable coverage: 2025-current.'
+          echo '2024 returned no confirmed usable ATP Challenger PBP.'
+          echo 'No automatic backward scan will run.'

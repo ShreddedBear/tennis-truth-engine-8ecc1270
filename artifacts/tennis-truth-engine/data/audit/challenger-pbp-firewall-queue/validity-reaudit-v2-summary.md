@@ -1,0 +1,6 @@
+- Mappings checked: **9218**
+- Fully firewall-certified under v2: **0**
+- Provisional / re-audit required: **9218**
+- Duplicate/collision findings: **0**
+- Load errors: **0**
+- Required before promotion: exact independent match date + round + surface + all-historical-H2H uniqueness + forward/reverse uniqueness + structural validity.

@@ -1,0 +1,76 @@
+name: BSD WTA Challenger PBP
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bsd-wta-challenger-pbp.yml'
+      - 'scripts/bsd-wta-challenger-pbp.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bsd-wta-challenger-pbp-only
+  cancel-in-progress: false
+
+jobs:
+  collect-wta-challenger-pbp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      BSD_TENNIS_API_KEY: ${{ secrets.BSD_TENNIS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify BSD API secret
+        shell: bash
+        run: |
+          test -n "$BSD_TENNIS_API_KEY"
+          echo 'BSD_TENNIS_API_KEY available; value hidden.'
+      - name: Run WTA Challenger/WTA 125 PBP collector
+        run: python3 scripts/bsd-wta-challenger-pbp.py | tee /tmp/bsd-wta-challenger-pbp.log
+      - name: Safety gate - WTA Challenger only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f data/audit/bsd-wta-challenger-pbp/state.json
+          python3 - <<'PY'
+          import json
+          p='data/audit/bsd-wta-challenger-pbp/state.json'
+          s=json.load(open(p))
+          assert s['scope']=='WTA Challenger/WTA 125 only'
+          assert s['firewall']['other_tours_excluded'] is True
+          PY
+      - name: Commit WTA Challenger outputs only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/audit/bsd-wta-challenger-pbp
+          if git diff --cached --quiet; then
+            echo 'No new WTA Challenger PBP to commit.'
+            exit 0
+          fi
+          git commit -m 'Update BSD WTA Challenger PBP'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: Upload run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsd-wta-challenger-pbp-${{ github.run_id }}
+          path: |
+            /tmp/bsd-wta-challenger-pbp.log
+            data/audit/bsd-wta-challenger-pbp/
+          if-no-files-found: warn
+      - name: Job summary
+        if: always()
+        run: |
+          echo '## BSD WTA Challenger PBP' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '**WTA Challenger/WTA 125 ONLY.**' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          if [ -f data/audit/bsd-wta-challenger-pbp/summary.md ]; then cat data/audit/bsd-wta-challenger-pbp/summary.md >> "$GITHUB_STEP_SUMMARY"; fi

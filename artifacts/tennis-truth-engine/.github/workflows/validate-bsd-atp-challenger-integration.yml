@@ -1,0 +1,51 @@
+name: Validate BSD ATP Challenger Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/validate-bsd-atp-challenger-integration.yml'
+      - 'src/lib/bsd-atp-challenger-pbp.server.ts'
+      - 'src/lib/warehouse-first-researcher.server.ts'
+      - 'src/lib/source-observation-metric-bridge.server.ts'
+      - 'src/lib/metric-source-family-policy.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate ATP Challenger PBP integration and contamination firewall
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/lib/bsd-atp-challenger-pbp.server.ts
+          test -f src/lib/warehouse-first-researcher.server.ts
+          test -f src/lib/metric-source-family-policy.ts
+
+          node <<'NODE'
+          const fs = require('fs');
+          const pbp = fs.readFileSync('src/lib/bsd-atp-challenger-pbp.server.ts','utf8').replace(/\s+/g,'');
+          const researcher = fs.readFileSync('src/lib/warehouse-first-researcher.server.ts','utf8').replace(/\s+/g,'');
+          const policy = fs.readFileSync('src/lib/metric-source-family-policy.ts','utf8').replace(/\s+/g,'');
+          const requireAll = (text, patterns, label) => {
+            for (const pattern of patterns) if (!text.includes(pattern.replace(/\s+/g,''))) throw new Error(`${label} missing contract: ${pattern}`);
+          };
+          requireAll(pbp, [
+            'const COVERAGE_START = "2025-01-01"',
+            'Array.from({length:endYear-2025+1}',
+            'circuit!=="ATP"',
+            'wta 125', 'wta125', 'atp main', 'masters 1000', 'atp 250', 'atp 500',
+            'STRICT_ATP_CHALLENGER_ONLY', 'POINT_BY_POINT'
+          ], 'ATP Challenger PBP');
+          requireAll(researcher, ['buildBsdAtpChallengerPbpContext','bsdAtpChallengerPbp.packet','_bsd_atp_challenger_pbp_status'], 'researcher');
+          requireAll(policy, ['PBP_METRICS','allowed.add("POINT_BY_POINT")','allowed_families.includes(family)'], 'policy');
+          NODE
+
+          echo 'PASS: BSD ATP Challenger PBP is limited to 2025-current, wired into the metrics pipeline, and blocked from ATP Main/WTA/WTA125 contamination.'

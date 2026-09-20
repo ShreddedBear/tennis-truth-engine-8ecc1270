@@ -1,0 +1,17 @@
+name: BSD ATP Main PBP Historical Scan — BOUNDARY CONFIRMED 2024
+
+# Boundary confirmed by user and repository evidence: 2024.
+# Historical backward scan is intentionally disabled so 2023 and earlier are not processed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-confirmed:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'BSD ATP Main PBP boundary frozen at 2024; use 2024-current integration workflow.'

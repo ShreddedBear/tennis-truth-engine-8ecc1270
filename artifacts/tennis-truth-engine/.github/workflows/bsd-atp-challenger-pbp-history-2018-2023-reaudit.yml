@@ -1,0 +1,31 @@
+name: BSD ATP Challenger PBP 2018-2023 Exhaustive Re-audit (STOPPED)
+
+# STOPPED by explicit decision: the BSD/Bzzoiro subscription is no longer
+# being purchased, so no BSD credential will be supplied to this workflow
+# and no further BSD scans will run. This file is retained only as an audit
+# record of what was attempted (two runs, both confirming
+# BSD_TENNIS_API_KEY was not configured -- see
+# data/audit/challenger-2018-2024-availability/summary.json on the
+# claude/pbp-coverage-audit-four-lanes-r4mgl3 branch for the full result).
+#
+# Per that decision: 2018-2023 ATP Challenger PBP availability remains
+# UNRESOLVED against BSD specifically (spot-probed only, never confirmed
+# absent), not "no PBP" -- do not reinterpret this stop as a negative
+# finding. It can be re-enabled manually if a BSD credential is ever
+# supplied again, but no automatic trigger exists and none should be added.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stopped:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stopped -- BSD subscription discontinued
+        run: |
+          echo 'This workflow is stopped: the BSD/Bzzoiro subscription is no longer being purchased.'
+          echo 'No BSD_TENNIS_API_KEY will be supplied. No scan will run.'
+          echo '2018-2023 ATP Challenger PBP availability against BSD remains UNRESOLVED, not confirmed absent.'
+          echo 'See data/audit/challenger-2018-2024-availability/ on claude/pbp-coverage-audit-four-lanes-r4mgl3 for the full audit record.'
