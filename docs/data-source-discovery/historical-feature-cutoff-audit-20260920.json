@@ -1,0 +1,208 @@
+{
+  "auditDate": "2026-09-20",
+  "scope": "Code-level audit only; no provider calls, replay, reset, database writes, or production wiring.",
+  "decision": "NO_HISTORICAL_REPLAY_CERTIFICATION",
+  "paths": {
+    "historicalScoring": {
+      "path": "artifacts/api-server/src/services/evaluation/historicalScoring.ts",
+      "symbol": "scoreHistoricalMatch",
+      "status": "CONDITIONALLY_POINT_IN_TIME_SAFE",
+      "cutoffSource": "match.cutoffAt",
+      "engineAsOfDate": "match.cutoffAt",
+      "requirements": [
+        "historical corpus is complete and authorized",
+        "cutoffAt is valid and belongs to the scored match",
+        "surface and match format are present",
+        "both players have pre-cutoff history",
+        "run-scoped calibration/specialist policy is historical or explicitly unavailable"
+      ]
+    },
+    "predictionSnapshot": {
+      "path": "artifacts/api-server/src/services/evaluation/predictionSnapshot.ts",
+      "symbol": "predictFromSnapshot",
+      "status": "NOT_APPROVED_FOR_HISTORICAL_REPLAY",
+      "reasons": [
+        "current provider histories and H2H",
+        "current provider rank enrichment",
+        "current calibration and specialist state",
+        "current simulator adoption",
+        "live odds and optional upcoming weather",
+        "runPredictionEngine invoked without historical asOfDate"
+      ]
+    },
+    "parlayBackfill": {
+      "path": "artifacts/api-server/src/services/parlayBuilder/builderScoringService.ts",
+      "symbol": "buildHistorySQL/buildParlayBuilderScore",
+      "status": "CONDITIONALLY_POINT_IN_TIME_SAFE",
+      "cutoffPredicate": "scheduled_start_at < asOfDate",
+      "liveLayer5ProviderFetch": "disabled_when_asOfDate_is_set",
+      "stalenessSupplement": "disabled_when_asOfDate_is_set",
+      "webResearch": "disabled_in_backfill",
+      "missingData": "limited_or_unavailable; no current-data substitution"
+    }
+  },
+  "cutoffRules": {
+    "historicalMatchReconstruction": {
+      "path": "artifacts/api-server/src/services/historicalData/matchRecordReconstruction.ts",
+      "symbols": [
+        "reconstructPlayerMatchHistory",
+        "reconstructHeadToHead"
+      ],
+      "predicate": "scheduledStartAt < beforeCutoff",
+      "strictlyBefore": true
+    },
+    "parlayHistory": {
+      "path": "artifacts/api-server/src/services/parlayBuilder/builderScoringService.ts",
+      "symbol": "buildHistorySQL",
+      "predicate": "scheduled_start_at < asOfDate",
+      "rollingWindow": "two years before asOfDate"
+    },
+    "engine": {
+      "path": "artifacts/api-server/src/services/predictionEngine/index.ts",
+      "symbol": "runPredictionEngine",
+      "universalCutoffGuard": false,
+      "note": "asOfDate bounds selected modules such as fatigue/recovery and suppresses current research, but upstream arrays and provider inputs must already be historical."
+    }
+  },
+  "featureAudit": [
+    {
+      "feature": "ranking",
+      "historicalSource": "historicalScoring minimalProfile sets currentRank null; backfill reads stored rank columns",
+      "snapshotSource": "enrichPlayerRankFromSearch",
+      "cutoffSemantics": "stored historical rank is usable only with import/as-of provenance",
+      "missingDataBehavior": "null/unavailable",
+      "leakageRisk": "high",
+      "eligibility": "timestamped historical snapshot required; current/listing rank is ineligible"
+    },
+    {
+      "feature": "overallElo",
+      "historicalSource": "resolveOpponentStrengthFromIndex over pre-cutoff reconstructed history",
+      "snapshotSource": "resolveOpponentStrength over current provider histories",
+      "cutoffSemantics": "strictly pre-cutoff histories in dedicated scorer; absent in snapshot",
+      "missingDataBehavior": "neutral/limited module",
+      "leakageRisk": "medium_if_bounded_otherwise_high",
+      "eligibility": "bounded historical source only"
+    },
+    {
+      "feature": "surfaceElo",
+      "historicalSource": "computeSurfaceEloModule over bounded MatchRecord arrays",
+      "snapshotSource": "current provider histories",
+      "cutoffSemantics": "inherited from upstream histories",
+      "missingDataBehavior": "limited/neutral when surface or sample is absent",
+      "leakageRisk": "medium_if_bounded_otherwise_high",
+      "eligibility": "bounded histories and known surface"
+    },
+    {
+      "feature": "serveReturn",
+      "historicalSource": "bounded stats/set-game margins; computeServeReturnModule",
+      "snapshotSource": "current provider histories",
+      "cutoffSemantics": "inherited from upstream histories",
+      "missingDataBehavior": "limited/unavailable without evidence",
+      "leakageRisk": "medium_if_bounded_otherwise_high",
+      "eligibility": "pre-cutoff evidence only"
+    },
+    {
+      "feature": "recentForm",
+      "historicalSource": "computeRecentFormModule over reconstructed histories or bounded SQL",
+      "snapshotSource": "current provider histories",
+      "cutoffSemantics": "strictly pre-cutoff in historical paths",
+      "missingDataBehavior": "limited/neutral",
+      "leakageRisk": "medium_if_bounded_otherwise_high",
+      "eligibility": "bounded source only"
+    },
+    {
+      "feature": "headToHead",
+      "historicalSource": "reconstructHeadToHead; bounded Parlay SQL",
+      "snapshotSource": "provider.getHeadToHead",
+      "cutoffSemantics": "scheduledStartAt < cutoff in historical reconstruction",
+      "missingDataBehavior": "limited/neutral with sparse meetings",
+      "leakageRisk": "high_on_snapshot_path",
+      "eligibility": "historical bounded meetings only"
+    },
+    {
+      "feature": "fatigueRecovery",
+      "historicalSource": "runPredictionEngine with match.cutoffAt; bounded histories",
+      "snapshotSource": "engine called without asOfDate",
+      "cutoffSemantics": "historical scorer uses match cutoff; snapshot can use wall clock",
+      "missingDataBehavior": "module-level limited/default behavior",
+      "leakageRisk": "high_without_asOfDate",
+      "eligibility": "historical asOfDate required"
+    },
+    {
+      "feature": "injuryAvailability",
+      "historicalSource": "bounded recorded match evidence; no archived pre-match injury feed",
+      "snapshotSource": "current provider/profile context",
+      "cutoffSemantics": "no current injury substitution approved",
+      "missingDataBehavior": "explicit unavailable/disclosure",
+      "leakageRisk": "high_for_current_status",
+      "eligibility": "recorded pre-cutoff evidence only"
+    },
+    {
+      "feature": "weather",
+      "historicalSource": "null in scoreHistoricalMatch; no archived source",
+      "snapshotSource": "getUpcomingConditions",
+      "cutoffSemantics": "no historical archive established",
+      "missingDataBehavior": "null/unavailable",
+      "leakageRisk": "high_for_current_or_forecast_lookup",
+      "eligibility": "unavailable unless archived timestamped source is proven"
+    },
+    {
+      "feature": "tournamentStateExperience",
+      "historicalSource": "bounded historical records and match metadata",
+      "snapshotSource": "current profile/live context",
+      "cutoffSemantics": "must inherit bounded record cutoff",
+      "missingDataBehavior": "limited",
+      "leakageRisk": "medium",
+      "eligibility": "bounded historical evidence only"
+    },
+    {
+      "feature": "oddsMarket",
+      "historicalSource": "not supplied by dedicated scorer; stored Parlay odds require quote timestamp",
+      "snapshotSource": "fetchMarketOddsWithStatus",
+      "cutoffSemantics": "quote timestamp must be <= cutoff",
+      "missingDataBehavior": "excluded/unavailable",
+      "leakageRisk": "high_without_quote_provenance",
+      "eligibility": "only timestamped historical quote; live quote is ineligible"
+    },
+    {
+      "feature": "webResearch",
+      "historicalSource": "suppressed when asOfDate is present",
+      "snapshotSource": "live/current context if supplied",
+      "cutoffSemantics": "not a historical source",
+      "missingDataBehavior": "unavailable",
+      "leakageRisk": "high",
+      "eligibility": "ineligible for historical replay"
+    },
+    {
+      "feature": "calibrationSpecialistSimulatorState",
+      "historicalSource": "prior-cycle or per-cutoff artifacts only; historical scorer omits current simulator adoption",
+      "snapshotSource": "getActiveCalibration, resolveSegmentSpecialistInput, resolveSimulatorAdoption",
+      "cutoffSemantics": "current cache is not historical",
+      "missingDataBehavior": "unavailable/neutral",
+      "leakageRisk": "high_for_current_state",
+      "eligibility": "timestamped prior artifact or unavailable"
+    },
+    {
+      "feature": "caches",
+      "historicalSource": "preloaded corpus filtered per match; Parlay supplements disabled in backfill",
+      "snapshotSource": "current provider/calibration/specialist/weather caches",
+      "cutoffSemantics": "cache age does not prove as-of safety",
+      "missingDataBehavior": "depends on module; must remain explicit",
+      "leakageRisk": "high_without_entry_timestamp",
+      "eligibility": "entry-level as-of timestamp required"
+    }
+  ],
+  "truthEngine": {
+    "predictionEligibilityIndependent": true,
+    "rule": "Truth evidence completeness cannot make an identity, outcome, metadata, temporal, or feature-source failure prediction eligible.",
+    "example": "A prediction may be eligible with winner verified while PBP, injury, or weather evidence remains genuinely unavailable."
+  },
+  "conclusion": {
+    "historicalScoringPath": "conditionally_safe",
+    "parlayBackfillPath": "conditionally_safe",
+    "predictionSnapshotPath": "not_approved",
+    "holdoutFrozen": false,
+    "replayRun": false,
+    "databaseWritten": false
+  }
+}

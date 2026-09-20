@@ -213,7 +213,63 @@
     "availableFromScript": true,
     "reasonCountsAreNonExclusive": true,
     "changesGradeability": false,
-    "freezesPopulation": false
+    "freezesPopulation": false,
+    "pointInTimeGate": {
+      "implementation": "artifacts/api-server/src/services/tennisData/liveTennisEligibilityAudit.ts",
+      "canonicalStatuses": [
+        "MATCH_ELIGIBLE_FOR_BACKTEST",
+        "MATCH_INELIGIBLE_IDENTITY",
+        "MATCH_INELIGIBLE_OUTCOME",
+        "MATCH_INELIGIBLE_METADATA",
+        "MATCH_INELIGIBLE_TEMPORAL_DATA",
+        "MATCH_INELIGIBLE_FEATURE_SOURCE"
+      ],
+      "precedence": [
+        "identity",
+        "outcome",
+        "metadata",
+        "temporal",
+        "featureSource",
+        "eligible"
+      ],
+      "manifest": "in-memory per normalized fixture; not persisted and not emitted by default",
+      "truthEngineEvidenceIndependent": true,
+      "defaultAuditFeatureEvidence": "unproven; no rows are certified eligible from metadata alone",
+      "exactThreeWeekStatusCounts": {
+        "range": {
+          "from": "2026-08-30",
+          "to": "2026-09-20"
+        },
+        "totalMatches": 4929,
+        "MATCH_ELIGIBLE_FOR_BACKTEST": 0,
+        "MATCH_INELIGIBLE_IDENTITY": 1995,
+        "MATCH_INELIGIBLE_OUTCOME": 138,
+        "MATCH_INELIGIBLE_METADATA": 224,
+        "MATCH_INELIGIBLE_TEMPORAL_DATA": 2572,
+        "MATCH_INELIGIBLE_FEATURE_SOURCE": 0,
+        "reasonCountsAreNonExclusive": true,
+        "reasonCounts": {
+          "identity_unresolved_or_ambiguous": 1995,
+          "missing_cutoff": 4929,
+          "feature_source_unproven": 4929,
+          "retired_match": 183,
+          "missing_winner": 65,
+          "missing_final_set_games": 57,
+          "missing_surface": 430,
+          "missing_round": 95,
+          "missing_tournament_level": 267
+        },
+        "aggregateAuditOutputSha256": "eb25e9980b815ce85fbd440dd46d3e2466cdbe05627804e909b7cdb4113d505a",
+        "zeroEligibleExpectedBecauseTemporalEvidenceOmitted": true,
+        "notPopulationFingerprint": true,
+        "persistence": "none",
+        "reset": false,
+        "replay": false
+      },
+      "preGateAggregateAuditOutputSha256": "72b2ff0f5be76751bb4dc0a8acbf3abcd16827b9936384e960d35dc5710cebbd",
+      "preGateHashIsPopulationFingerprint": false,
+      "postGateHashIsPopulationFingerprint": false
+    }
   },
   "identityAudit": {
     "implementation": "artifacts/api-server/src/services/tennisData/liveTennisIdentityAudit.ts",

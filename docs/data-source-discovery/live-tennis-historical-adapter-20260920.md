@@ -180,6 +180,55 @@ Coverage is reported over the 4,929 normalized terminal singles:
 
 Aggregate audit-output SHA-256: `72b2ff0f5be76751bb4dc0a8acbf3abcd16827b9936384e960d35dc5710cebbd`.
 
+### Point-in-time eligibility gate
+
+The audit now evaluates every normalized fixture against a pure, in-memory eligibility gate. It
+returns one canonical status while retaining every overlapping reason:
+
+1. `MATCH_INELIGIBLE_IDENTITY`
+2. `MATCH_INELIGIBLE_OUTCOME`
+3. `MATCH_INELIGIBLE_METADATA`
+4. `MATCH_INELIGIBLE_TEMPORAL_DATA`
+5. `MATCH_INELIGIBLE_FEATURE_SOURCE`
+6. `MATCH_ELIGIBLE_FOR_BACKTEST`
+
+Canonical status precedence is identity, outcome, metadata, temporal data, feature source, then
+eligible. Identity requires two resolved, distinct canonical IDs. Outcome requires a winner and
+rejects cancellation; retirement and walkover acceptance must be explicitly supplied by policy.
+Metadata requires tournament level, surface, round, format, and final-set games. No defaults are
+invented.
+
+Temporal eligibility requires a valid match start and historical cutoff, zero future observations,
+and declarations that every required feature source is available and point-in-time safe. The
+default Live Tennis audit does not construct per-match historical feature evidence, so it
+deliberately does **not** certify rows as eligible merely because metadata is present. Truth Engine
+evidence completeness is independent and is represented separately; a Truth Engine evidence
+status cannot make a prediction row eligible.
+
+The aggregate JSON reports gate status and reason counts. The per-match manifest exists only in
+memory during the audit and is not persisted or included by default. The exact gate rerun for
+2026-08-30 through 2026-09-20 reported:
+
+| Canonical status | Count |
+|---|---:|
+| `MATCH_ELIGIBLE_FOR_BACKTEST` | 0 |
+| `MATCH_INELIGIBLE_IDENTITY` | 1,995 |
+| `MATCH_INELIGIBLE_OUTCOME` | 138 |
+| `MATCH_INELIGIBLE_METADATA` | 224 |
+| `MATCH_INELIGIBLE_TEMPORAL_DATA` | 2,572 |
+| `MATCH_INELIGIBLE_FEATURE_SOURCE` | 0 |
+
+The zero eligible count is expected for this audit because per-match temporal feature evidence
+was intentionally omitted. It does not prove that every one of the 4,929 rows will fail forever
+after authorized historical feature reconstruction. The previous 2,687 count remains metadata/
+identity diagnostic coverage, not backtest eligibility.
+
+The post-gate aggregate audit-output SHA-256 is
+`eb25e9980b815ce85fbd440dd46d3e2466cdbe05627804e909b7cdb4113d505a`. The earlier
+`72b2ff0f5be76751bb4dc0a8acbf3abcd16827b9936384e960d35dc5710cebbd` value remains explicitly
+the **pre-gate aggregate audit-output fingerprint**. Neither value is a population fingerprint.
+No provider data was persisted, and no reset or replay was run.
+
 ### Stop decision
 
 Status is **PREFLIGHT_FAILED_NO_RESET**. No backup, reset, or replay proceeded because the

@@ -1,0 +1,207 @@
+This is actually a good preflight result. It means the new process stopped at the correct place instead of repeating the earlier destructive failure.
+
+What this report proves
+
+The Live Tennis adapter is now a credible historical source candidate, because:
+
+* The exact Aug. 30–Sept. 20 population can be reproduced.
+* Two independent constructions produced identical aggregate results.
+* 4,929 terminal singles were retrieved.
+* There are no duplicate provider match IDs.
+* Pagination and deterministic ordering were tested.
+* No production data was touched.
+* The adapter has not been connected to the production provider factory.
+* The 40 focused tests pass.
+
+So I would not throw this work away.
+
+But the 4,929 ≠ 4,929 gradeable matches
+
+The report correctly identifies the real blocker:
+
+1,117 of 3,266 players cannot currently be deterministically mapped to your canonical player identities.
+
+That affects 1,995 matches.
+
+And even the remaining 2,687 cannot yet become the frozen holdout because the system hasn’t proven that the features used by the Prediction Engine are genuinely historical.
+
+That’s the much more important issue.
+
+For example, this would be leakage:
+
+Match: Player A vs Player B
+Match date: September 5
+Prediction generated using:
+Player A's current ranking
+Player A's September 20 statistics
+Player B's current Elo
+Player B's complete 2026 season record
+
+Even though the match itself occurred September 5, those values weren’t necessarily available on September 5.
+
+That would make the backtest invalid.
+
+⸻
+
+I would make the next Replit task much narrower
+
+Do not ask them to run the backtest yet.
+
+Ask them to resolve the point-in-time eligibility layer first.
+
+The next task should have four objectives:
+
+1. Solve canonical identity coverage
+
+For the 1,117 unresolved players:
+
+* inspect existing canonical mappings;
+* inspect existing provider aliases;
+* compare exact normalized names;
+* use deterministic metadata where available;
+* do not fuzzy-match automatically;
+* do not force ambiguous identities;
+* produce an explicit unresolved manifest.
+
+The goal isn’t necessarily 100%.
+
+The goal is:
+
+Every player used in the eventual holdout must have a provably correct canonical identity, or the match must be excluded with a documented reason.
+
+2. Audit every Prediction Engine input for temporal safety
+
+This is the big one.
+
+Trace every feature consumed by the current Prediction Engine and Parlay Builder.
+
+For each feature, establish:
+
+Feature	Historical source	As-of cutoff?	Leakage risk	Decision
+Ranking	?	?	High	Verify
+Surface Elo	?	?	High	Verify
+Serve/Return	?	?	High	Verify
+Recent Form	?	?	High	Verify
+H2H	?	?	High	Verify
+Fatigue	?	?	High	Verify
+Injury	?	?	High	Verify
+Weather	?	?	High	Verify
+Tournament state	?	?	High	Verify
+
+And this needs to be code-level, not merely documentation.
+
+They need to find the actual database queries/functions that populate those features and prove they honor:
+
+feature_date <= match_start
+
+or an equivalent historical cutoff.
+
+3. Determine exactly what happens when a historical feature is unavailable
+
+This is critical because you don’t want the system silently doing:
+
+historical ranking unavailable
+        ↓
+use current ranking
+
+Instead it must be something like:
+
+historical ranking unavailable
+        ↓
+ranking = unavailable
+        ↓
+current model's legitimate missing-data behavior
+
+Then the backtest tells us what the actual current system does when historical information is incomplete.
+
+4. Build the final eligibility gate
+
+I would require a machine-readable result for every match:
+
+MATCH_ELIGIBLE_FOR_BACKTEST
+MATCH_INELIGIBLE_IDENTITY
+MATCH_INELIGIBLE_OUTCOME
+MATCH_INELIGIBLE_METADATA
+MATCH_INELIGIBLE_TEMPORAL_DATA
+MATCH_INELIGIBLE_FEATURE_SOURCE
+
+And importantly:
+
+Do not reduce the 4,929 matches to 2,687 simply because they pass metadata checks.
+
+The final population should be determined after the feature-level temporal audit.
+
+⸻
+
+One thing I would change from the previous instruction
+
+I would not require every historical match to be gradeable at all costs.
+
+Your requirement should be:
+
+Every match that enters the official backtest must be fully legitimate and gradeable.
+
+If 4,929 matches exist but only 2,100 can genuinely satisfy all point-in-time requirements, then the honest result is a 2,100-match evaluation—not an artificially completed 4,929-match evaluation.
+
+And every excluded match should have a reason.
+
+That gives you a defensible denominator.
+
+⸻
+
+The Truth Engine should have an independent gate
+
+I would keep the Truth Engine separate from the Prediction Engine eligibility decision.
+
+A match could theoretically be:
+
+Prediction eligible
+→ enough historical pre-match features exist.
+
+But:
+
+Truth Engine partially verified
+→ winner verified, but some audit evidence unavailable.
+
+That should not be converted into fake “fully verified” status.
+
+The Truth Engine should report the actual evidence state.
+
+So the final record might legitimately say:
+
+Prediction:
+  GENERATED
+  CORRECT
+Truth Engine:
+  AUDIT COMPLETED
+  WINNER VERIFIED
+  PBP: GENUINELY_UNAVAILABLE
+  INJURY: GENUINELY_UNAVAILABLE
+  WEATHER: VERIFIED
+  IDENTITY: VERIFIED
+
+That’s vastly more valuable than making every field green.
+
+⸻
+
+Where you are now
+
+I’d classify the project like this:
+
+Historical source: 🟢 Reproducible
+Historical population: 🟢 4,929 retrieved
+Adapter: 🟢 Tested
+Production safety: 🟢 No destructive changes
+Canonical identity: 🟡 1,117 unresolved
+Point-in-time features: 🔴 Not proven
+Frozen holdout: 🔴 Not created
+Prediction backtest: 🔴 Not started
+Parlay backtest: 🔴 Not started
+Truth Engine audit: 🔴 Not started
+Leakage certification: 🔴 Not started
+
+So do not run the reset yet.
+
+The next correct move is to have Replit perform a full historical feature/cutoff audit of the current Prediction Engine and Parlay Builder, while separately finishing the Live Tennis identity reconciliation. Once those two gates pass, then—and only then—the three systems can be wiped/repopulated and the actual three-week walk-forward can run.
+
+This report is therefore not a failure of the project. It’s evidence that the new safety mechanism worked: the system found problems before deletion instead of after deletion.
