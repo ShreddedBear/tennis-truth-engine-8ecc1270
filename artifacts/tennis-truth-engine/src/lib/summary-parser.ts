@@ -13,7 +13,11 @@ export interface ParsedMatchup { player1_name:string; player2_name:string; page_
 // screenshots are full of dashes as dividers/bullets/table borders, and any
 // two nearby capitalized phrases separated by a stray one would otherwise
 // register as a fake "matchup" (e.g. two unrelated section headings).
-const VS=/([A-ZÀ-Ý][\p{L}'’.\- ]{1,55}?)\s+(?:vs\.?|v\.|versus)\s+([A-ZÀ-Ý][\p{L}'’.\- ]{1,55})/iu;
+// "/" is included in the name-character class so a doubles title line like
+// "Derepasko/Lomakin vs Matsuda/Sharma" captures each full team instead of
+// only the single surname adjacent to "vs" (the "/" would otherwise break
+// the run of name characters mid-team, silently dropping both other partners).
+const VS=/([A-ZÀ-Ý][\p{L}'’.\-/ ]{1,55}?)\s+(?:vs\.?|v\.|versus)\s+([A-ZÀ-Ý][\p{L}'’.\-/ ]{1,55})/iu;
 const NOISE=/^(?:tennis|today|tomorrow|live|open|closed|volume|vol|atp|wta|itf|challenger|moneyline|spread|total|draw|market|starts?|ends?)\b/i;
 const EVENTISH=/\b(?:ATP|WTA|ITF|Challenger|Cincinnati|Cancun|US Open|Wimbledon|Roland Garros|Australian Open)\b/i;
 // Best-effort only: OCR/text-layer output from a dense app screenshot is far less
@@ -29,7 +33,12 @@ const EVENTISH=/\b(?:ATP|WTA|ITF|Challenger|Cincinnati|Cancun|US Open|Wimbledon|
 // player-name candidates by exact phrase rather than by generic shape (a
 // generic 2-6-word title-case check can't otherwise tell "Model Votes" apart
 // from a real two-word name).
-const UI_CHROME_PHRASES=new Set(["model votes","monte carlo simulation","full engine breakdown","surface elo","serve return","serve and return","recent form","head to head","head-to-head","market consensus","general model","specialist model","set score distribution","fatigue index","match load recovery","rest travel injury","style matchup","builder check","bet score","win probability","data quality","model agreement","close matchup","independent conclusion","key tech view","score history","spot odds risk"]);
+const UI_CHROME_PHRASES=new Set(["model votes","monte carlo simulation","full engine breakdown","surface elo","serve return","serve and return","recent form","head to head","head-to-head","market consensus","general model","specialist model","set score distribution","fatigue index","match load recovery","rest travel injury","style matchup","builder check","bet score","win probability","data quality","model agreement","close matchup","independent conclusion","key tech view","score history","spot odds risk",
+ // Table-style "OCR verification" page column headers (# | PLAYER 1 | PLAYER 2 | EVENT DATA).
+ // "PLAYER 1"/"PLAYER 2" already fail the digit check in looksLikeFullPlayerName; "EVENT DATA"
+ // has no digit and is plain title-case text, so without this it would itself be picked up as
+ // a fake "name" and thrown into the no-vs pairing sequence, offsetting every real pair after it.
+ "event data","player 1","player 2"]);
 function isUiChromePhrase(s:string){return UI_CHROME_PHRASES.has(s.toLowerCase().replace(/[.,:&-]/g," ").replace(/\s+/g," ").trim());}
 const FIELD_PATTERNS:Array<[string,RegExp]>=[
  ["tournament",/(?:tournament|event)\s*[:\-]\s*(.+)/i],["event_level",/(?:event level|level|category)\s*[:\-]\s*(.+)/i],["round",/round\s*[:\-]\s*(.+)/i],["scheduled_date",/(?:date|scheduled)\s*[:\-]\s*(.+)/i],["surface",/surface\s*[:\-]\s*(.+)/i],["indoor_outdoor",/(indoor|outdoor)\s*[:\-]?\s*(.*)/i],["best_of",/best[\s\-]?(?:of)?\s*[:\-]?\s*([35])/i],
@@ -58,8 +67,23 @@ const ICON_NOISE_PREFIX=/^(?:[A-Za-zÀ-ÿ0-9]{1,2}\s+){1,2}(?=[\p{L}]{3,}\s+[\p{
 // a whole token) so "O'Connor" and "Auger-Aliassime" keep the letters after the
 // punctuation capitalized instead of being lowercased as one long "word".
 const titleCase=(v:string)=>v.replace(/\p{L}+/gu,w=>w[0].toUpperCase()+w.slice(1).toLowerCase());
-function cleanPlayer(v:string){return titleCase(cleanLine(v).replace(/^[^A-Za-zÀ-ÿ]{0,4}/,"").replace(ICON_NOISE_PREFIX,"").replace(/^(?:BEE|SE|s|a)\s+(?=[A-ZÀ-Ý])/i,"").replace(/\s+[+\-−]\s*\d{2,4}\s*$/," ").replace(/\s+/g," ").trim());}
-function looksLikeFullPlayerName(line:string){const s=cleanPlayer(line);if(!s||s.length<4||s.length>55||NOISE.test(s)||EVENTISH.test(s)||isUiChromePhrase(s))return false;if(/\d|\$|@|%|\bvol\b/i.test(s))return false;const words=s.split(/\s+/).filter(Boolean);return words.length>=2&&words.length<=6&&words.every(w=>/^[\p{L}][\p{L}'’.\-]*$/u.test(w));}
+// A doubles row in the table-style "OCR verification" page prints each team
+// as "Surname1 / Surname2" in a single cell (e.g. "Derepasko / Lomakin").
+// That "/" is not a name character, so without special-casing it here the
+// whole cell fails the name-shape check below and both doubles teams vanish
+// from the block's candidate pool entirely -- silently losing all 4 doubles
+// players from a match that otherwise never even shows up as an "orphan"
+// (its partner cell fails the same way, so the pair-count stays even and
+// nothing looks wrong). Normalizing " / " to "/" (no surrounding spaces)
+// gives a stable, singular representation a downstream doubles-aware
+// identity resolver can split on, while still reading as one player1_name/
+// player2_name pair to everything upstream that only knows about two sides.
+const SLASH=/\s*\/\s*/;
+function cleanPlayer(v:string){return titleCase(cleanLine(v).replace(/^[^A-Za-zÀ-ÿ]{0,4}/,"").replace(ICON_NOISE_PREFIX,"").replace(/^(?:BEE|SE|s|a)\s+(?=[A-ZÀ-Ý])/i,"").replace(/\s+[+\-−]\s*\d{2,4}\s*$/," ").replace(/\s+/g," ").trim()).replace(SLASH,"/");}
+function looksLikeSingleNameShape(s:string,minWords:number){const words=s.split(/\s+/).filter(Boolean);return words.length>=minWords&&words.length<=6&&words.every(w=>/^[\p{L}][\p{L}'’.\-]*$/u.test(w));}
+function looksLikeFullPlayerName(line:string){const s=cleanPlayer(line);if(!s||s.length<4||s.length>60||NOISE.test(s)||EVENTISH.test(s)||isUiChromePhrase(s))return false;if(/\d|\$|@|%|\bvol\b/i.test(s))return false;
+ if(s.includes("/")){const teams=s.split("/");return teams.length===2&&teams.every(t=>looksLikeSingleNameShape(t,1));}
+ return looksLikeSingleNameShape(s,2);}
 function add(out:ParsedField[],key:string,value:string,page:number,confidence=.9){const v=cleanLine(value);if(v&&!out.some(f=>f.field_key===key))out.push({field_key:key,raw_value:v,normalized_value:v,extraction_status:"DIRECT",confidence,page_number:page});}
 function fieldsFromBlock(block:string,page:number){const out:ParsedField[]=[];for(const[key,re]of FIELD_PATTERNS){const m=block.match(re);if(!m)continue;const raw=(m[1]??"").trim().replace(/\s{2,}.*$/,"");if(raw)add(out,key,key==="tournament"?cleanTournament(raw):raw,page);}
  const lines=block.split(/\n/).map(cleanLine).filter(Boolean);
@@ -75,7 +99,70 @@ function canonicalNamesAroundAnchor(lines:string[],anchor:number,p1Hint:string,p
  // artifact between two headings would otherwise register as a "vs" match).
  if(isUiChromePhrase(p1)||isUiChromePhrase(p2))return["",""];
  return[p1,p2];}
-function inferPairWithoutVs(lines:string[]):[string,string]|null{const candidates=lines.map(cleanLine).filter(looksLikeFullPlayerName).map(cleanPlayer);const unique=candidates.filter((n,i,a)=>a.findIndex(x=>normalizeName(x)===normalizeName(n))===i);return unique.length>=2?[unique[0],unique[1]]:null;}
-export function parseSummaryText(pages:string[]){const matchups:ParsedMatchup[]=[];pages.forEach((pageText,idx)=>{const page=idx+1;const lines=pageText.split(/\n/).map(cleanLine).filter(Boolean);const anchors:number[]=[];lines.forEach((l,i)=>{if(VS.test(l))anchors.push(i);});if(anchors.length){anchors.forEach((anchorIdx,k)=>{const nextAnchor=anchors[k+1]??lines.length;const block=lines.slice(anchorIdx,nextAnchor).join("\n");const m=lines[anchorIdx].match(VS);if(!m)return;const[p1,p2]=canonicalNamesAroundAnchor(lines,anchorIdx,m[1]??"",m[2]??"");if(!p1||!p2)return;const fields=fieldsFromBlock(block,page);matchups.push({player1_name:p1,player2_name:p2,page_number:page,fields,confidence:Number(Math.min(1,.72+fields.length*.03).toFixed(2))});});return;}const inferred=inferPairWithoutVs(lines);if(!inferred)return;const fields=fieldsFromBlock(lines.join("\n"),page);matchups.push({player1_name:inferred[0],player2_name:inferred[1],page_number:page,fields,confidence:Number(Math.min(.95,.75+fields.length*.03).toFixed(2))});});return matchups;}
+// A page with no literal "vs"/"v."/"versus" anchor is not necessarily a
+// single matchup -- a table-style "OCR verification" page (a header row of
+// "PLAYER 1 | PLAYER 2 | EVENT DATA" followed by many data rows, one pair of
+// name cells per row, no "vs" text anywhere) is exactly this shape, and a
+// real page commonly holds a dozen matches across one or more tournament
+// sections. The previous implementation returned only the first two
+// name-like lines on the whole page and silently discarded every other
+// match on it -- on a 10-13 match table page that dropped 90%+ of the
+// matches with no error, no warning, nothing: they just never appeared
+// downstream. Multiple tournament sections can also share one page (see the
+// real fixture below), each needing its own tournament/round/surface
+// fields, so lines are first split into per-section blocks at each EVENTISH
+// header line (mirroring how the "vs"-anchor branch already scopes fields
+// per matchup block) and pairing happens independently within each block.
+//
+// Within a block, every name-like line is treated as one half of a
+// consecutive pair (row-major order: name1, name2, name1, name2, ...),
+// matching the same consecutive-pairing heuristic already used by the
+// sibling OCR-text parser (rawTextParser.ts Strategy 2) for the identical
+// "no separator between two names" situation. A leftover unpaired name at
+// the end of a block (an odd count -- almost always a single OCR-missed
+// partner) is never dropped silently: it is still emitted as its own
+// PARTIAL matchup with an empty second name and an explicit warning field,
+// so a human reviewing the staged import sees it and fixes/confirms it
+// instead of the match vanishing without a trace.
+interface InferredBlock{startLine:number;endLine:number;pairs:Array<[string,string]>;orphan:string|null;}
+function splitIntoEventBlocks(lines:string[]):Array<{start:number;end:number}>{
+  const headerIdx:number[]=[];
+  lines.forEach((l,i)=>{if(EVENTISH.test(l)&&!VS.test(l)&&!looksLikeFullPlayerName(l))headerIdx.push(i);});
+  if(!headerIdx.length)return[{start:0,end:lines.length}];
+  const blocks:Array<{start:number;end:number}>=[];
+  if(headerIdx[0]>0)blocks.push({start:0,end:headerIdx[0]});
+  headerIdx.forEach((idx,k)=>{const end=headerIdx[k+1]??lines.length;blocks.push({start:idx,end});});
+  return blocks;
+}
+function inferPairsWithoutVs(lines:string[]):InferredBlock[]{
+  const blocks=splitIntoEventBlocks(lines);
+  return blocks.map(({start,end})=>{
+    const slice=lines.slice(start,end);
+    const candidates=slice.filter(looksLikeFullPlayerName).map(cleanPlayer);
+    const unique=candidates.filter((n,i,a)=>a.findIndex(x=>normalizeName(x)===normalizeName(n))===i);
+    const pairs:Array<[string,string]>=[];
+    let i=0;
+    for(;i+1<unique.length;i+=2)pairs.push([unique[i],unique[i+1]]);
+    const orphan=i<unique.length?unique[i]:null;
+    return{startLine:start,endLine:end,pairs,orphan};
+  });
+}
+export function parseSummaryText(pages:string[]){const matchups:ParsedMatchup[]=[];pages.forEach((pageText,idx)=>{const page=idx+1;const lines=pageText.split(/\n/).map(cleanLine).filter(Boolean);const anchors:number[]=[];lines.forEach((l,i)=>{if(VS.test(l))anchors.push(i);});if(anchors.length){anchors.forEach((anchorIdx,k)=>{const nextAnchor=anchors[k+1]??lines.length;const block=lines.slice(anchorIdx,nextAnchor).join("\n");const m=lines[anchorIdx].match(VS);if(!m)return;const[p1,p2]=canonicalNamesAroundAnchor(lines,anchorIdx,m[1]??"",m[2]??"");if(!p1||!p2)return;const fields=fieldsFromBlock(block,page);matchups.push({player1_name:p1,player2_name:p2,page_number:page,fields,confidence:Number(Math.min(1,.72+fields.length*.03).toFixed(2))});});return;}
+ const inferredBlocks=inferPairsWithoutVs(lines);
+ for(const{startLine,endLine,pairs,orphan}of inferredBlocks){
+  if(!pairs.length&&!orphan)continue;
+  const blockText=lines.slice(startLine,endLine).join("\n");
+  const fields=fieldsFromBlock(blockText,page);
+  for(const[p1,p2]of pairs)matchups.push({player1_name:p1,player2_name:p2,page_number:page,fields,confidence:Number(Math.min(.95,.75+fields.length*.03).toFixed(2))});
+  if(orphan){
+   // A single unmatched name-like line at the end of a block: almost always
+   // one match whose second name OCR never produced a name-shaped line.
+   // Surfacing it (rather than dropping it) is what lets a reviewer see
+   // "N matches detected, 1 needs a name" instead of quietly losing a row.
+   const orphanFields=[...fields,{field_key:"__unpaired_name_warning",raw_value:orphan,normalized_value:"Second player name not detected on this page -- verify against source image",extraction_status:"PARTIAL" as const,confidence:.3,page_number:page}];
+   matchups.push({player1_name:orphan,player2_name:"",page_number:page,fields:orphanFields,confidence:.3});
+  }
+ }
+});return matchups;}
 export function normalizeName(name:string){return name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z ]/g,"").replace(/\s+/g," ").trim();}
 export function canonicalKey(parts:{tournament?:string|null;round?:string|null;date?:string|null;p1:string;p2:string;}){const players=[normalizeName(parts.p1),normalizeName(parts.p2)].sort().join("|");return[(parts.tournament??"unknown").toLowerCase().trim(),(parts.round??"unknown").toLowerCase().trim(),(parts.date??"unknown").toLowerCase().trim(),players].join("::");}
