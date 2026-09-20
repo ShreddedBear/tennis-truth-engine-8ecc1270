@@ -47,6 +47,13 @@ await Promise.all([
   requireText("artifacts/tennis-truth-engine/.replit-artifact/artifact.toml", [
     { description: "separate Truth Engine preview path", pattern: /previewPath\s*=\s*"\/truth-engine"/ },
   ]),
+  requireText("artifacts/tennis-truth-engine/vite.config.ts", [
+    { description: "Vite base path from the artifact runtime", pattern: /base:\s*basePath/ },
+  ]),
+  requireText("artifacts/tennis-truth-engine/src/router.tsx", [
+    { description: "TanStack Router base path from Vite", pattern: /basepath:\s*import\.meta\.env\.BASE_URL/ },
+  ]),
+  requireFile("artifacts/tennis-predictor/e2e/truth-engine-restoration.spec.ts"),
   requireText("artifacts/api-server/.replit-artifact/artifact.toml", [
     { description: "API health check", pattern: /path\s*=\s*"\/api\/healthz"/ },
   ]),

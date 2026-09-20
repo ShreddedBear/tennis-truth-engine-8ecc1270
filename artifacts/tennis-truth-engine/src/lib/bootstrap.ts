@@ -3,10 +3,11 @@ import { CALIBRATION_BUCKETS, DEFAULT_SOURCES, MASTER_RECORD_START, SMALL_SAMPLE
 import { activationStatus, parseRuleDocument } from "./rule-parser";
 import { INVALIDATED_RUN_STATUS } from "./audit-stages";
 
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const SEED_DOCS: Array<{ doc_type: string; title: string; file: string }> = [
-  { doc_type: "VERIFICATION", title: "Tennis Matrix — Full Verification Audit", file: "/seed/verification.txt" },
-  { doc_type: "DISAGREEMENT", title: "Tennis Matrix — Disagreement / Trap Audit", file: "/seed/disagreement.txt" },
-  { doc_type: "METRICS", title: "Tennis Matrix — Verification Metrics", file: "/seed/metrics.txt" },
+  { doc_type: "VERIFICATION", title: "Tennis Matrix — Full Verification Audit", file: `${basePath}/seed/verification.txt` },
+  { doc_type: "DISAGREEMENT", title: "Tennis Matrix — Disagreement / Trap Audit", file: `${basePath}/seed/disagreement.txt` },
+  { doc_type: "METRICS", title: "Tennis Matrix — Verification Metrics", file: `${basePath}/seed/metrics.txt` },
 ];
 
 let bootstrapPromise: Promise<void> | null = null;
