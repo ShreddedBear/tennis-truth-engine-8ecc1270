@@ -161,11 +161,18 @@ function voteFor(comparisons: MetricComparison[]): { vote: FamilyVote; supportin
   const p1Mass = comparisons.filter((c) => c.favours === "P1").reduce((sum, c) => sum + metricWeight(c), 0) / denominator;
   const p2Mass = comparisons.filter((c) => c.favours === "P2").reduce((sum, c) => sum + metricWeight(c), 0) / denominator;
   const internallyContradictory = p1.length > 0 && p2.length > 0;
-  // Correlated rows are averaged within their family, so adding rows cannot
-  // create unbounded support. A material weighted imbalance resolves conflict;
-  // a true weighted tie remains explicitly conflicted.
-  const vote: FamilyVote = p1Mass === p2Mass
-    ? internallyContradictory ? "INTERNALLY_CONFLICTED" : "NEUTRAL"
+  // A family whose own metrics disagree votes for nobody, full stop -- this is the
+  // anti-double-counting invariant this module exists to enforce (see the file header), and
+  // it does not relax as the metrics' weighted masses drift apart. Gating it on an exact
+  // p1Mass === p2Mass tie (as a prior revision did) made it fire only when two DIFFERENT
+  // metrics' independently-derived quality weights happened to coincide to the sixth decimal
+  // place -- effectively never -- so a family with two genuinely opposing metrics would
+  // silently cast a directional vote for whichever one was fractionally heavier instead of
+  // being reported as conflicted. Internal disagreement is a fact about direction, not
+  // magnitude: it must always poison the family, exactly as `internally_contradictory` (the
+  // reported field below) already says it does.
+  const vote: FamilyVote = internallyContradictory
+    ? "INTERNALLY_CONFLICTED"
     : p1Mass > p2Mass ? "P1" : p2Mass > p1Mass ? "P2" : "NEUTRAL";
   return { vote, supporting: p1, opposing: p2, neutral, p1: p1Mass, p2: p2Mass };
 }
@@ -246,35 +253,31 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
   const activeCount = comparisons.filter((c) => isActiveMetricCode(c.metric_code)).length;
   const completeness = activeCount > 0 ? (comparedCount / activeCount) * 100 : 0;
 
-  // Share of directional QUALITY MASS. Each family is already bounded and
-  // normalized by its member count, so correlated rows cannot create a lead
-  // merely by being numerous.
-  // `rawPercent` is the exact, unrounded share and is what the 60% threshold below
-  // compares against. `percent` (rounded to 1 decimal) is for display/persistence only.
-  // Rounding before comparing would let a raw 59.95% round up to "60.0" and incorrectly
-  // clear the gate -- the threshold check must see the real value, not its display form.
+  // Share of directional evidence FAMILIES (a corroboration/breadth measure), not of their
+  // combined quality mass. Per-family magnitude (weighted_p1/weighted_p2) already decided
+  // each family's own vote and decides the LEADER itself (leaderOf, above) -- it must not
+  // also decide how broad that leader's corroboration looks, or one exceptionally strong
+  // single metric could manufacture a "broadly supported" reading that a genuinely wide,
+  // independent family count would never produce; that is exactly the "no side can win on
+  // magnitude what it lacks in independent corroboration" gate MIN_INDEPENDENT_SUPPORT_
+  // FAMILIES/EVIDENCE_SELECTION_THRESHOLD document. NEUTRAL families are excluded (parity is
+  // evidence for neither side); INTERNALLY_CONFLICTED families are counted in the
+  // denominator only -- they contain genuine opposing evidence and so dilute the leader's
+  // share, but (per independent_contradiction_families, which never lists them) are never
+  // credited to either side's numerator.
+  // `rawPercent` is the exact share and is what the 60% threshold below compares against.
+  // `percent` (rounded to 1 decimal) is for display/persistence only. Rounding before
+  // comparing would let a raw 59.95% round up to "60.0" and incorrectly clear the gate -- the
+  // threshold check must see the real value, not its display form.
   const evidenceShare = (support: string[], contra: string[]) => {
     const directionalFamilies = families.filter((f) => f.weighted_p1 > 0 || f.weighted_p2 > 0);
     const p1Mass = directionalFamilies.reduce((sum, f) => sum + f.weighted_p1, 0);
     const p2Mass = directionalFamilies.reduce((sum, f) => sum + f.weighted_p2, 0);
-    const rawPercent = p1Mass + p2Mass > 0
-      ? ((support.includes("P2") ? p2Mass : p1Mass) / (p1Mass + p2Mass)) * 100
-      : 0;
-    // Callers pass family names for the leader; infer the selected side from
-    // which family set contains the first supporting family.
-    const leaderMass = support.reduce((sum, name) => {
-      const family = families.find((f) => f.family === name);
-      return sum + (family?.vote === "P2" ? family.weighted_p2 : family?.weighted_p1 ?? 0);
-    }, 0);
-    const opposingMass = contra.reduce((sum, name) => {
-      const family = families.find((f) => f.family === name);
-      return sum + (family?.vote === "P2" ? family.weighted_p2 : family?.weighted_p1 ?? 0);
-    }, 0);
-    const selectedPercent = leaderMass + opposingMass > 0 ? (leaderMass / (leaderMass + opposingMass)) * 100 : rawPercent;
+    const rawPercent = directionalFamilies.length > 0 ? (support.length / directionalFamilies.length) * 100 : 0;
     return {
       directional: directionalFamilies.length,
-      rawPercent: selectedPercent,
-      percent: directionalFamilies.length > 0 ? Number(selectedPercent.toFixed(1)) : 0,
+      rawPercent,
+      percent: directionalFamilies.length > 0 ? Number(rawPercent.toFixed(1)) : 0,
       p1Mass, p2Mass,
     };
   };
@@ -284,6 +287,15 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
     const weightedScoreP1 = Number(share.p1Mass.toFixed(6));
     const weightedScoreP2 = Number(share.p2Mass.toFixed(6));
     const weightedBalance = Number((weightedScoreP1 - weightedScoreP2).toFixed(6));
+    // The TRUE quality-weighted share, distinct from evidence_percent's family-count share
+    // above: how the leaning side's combined mass compares to the total directional mass.
+    // This is diagnostic only -- it never gates the outcome -- but it is what lets a caller
+    // see that a selection backed by three strong families is a materially stronger read
+    // than one backed by three barely-above-materiality ones, even when both cross the same
+    // family-count threshold.
+    const weightedEvidencePercent = weightedScoreP1 + weightedScoreP2 > 0
+      ? Number(((Math.max(weightedScoreP1, weightedScoreP2) / (weightedScoreP1 + weightedScoreP2)) * 100).toFixed(1))
+      : 0;
     const directional = families.filter((f) => f.weighted_p1 > 0 || f.weighted_p2 > 0).length;
     const weakest = comparisons.filter((c) => c.status === "COMPARED").sort((a, b) => metricWeight(a) - metricWeight(b))[0];
     const reconstructed = comparisons.filter((c) => c.status === "COMPARED" && (c.treatment_quality_p1 === 0.8 || c.treatment_quality_p2 === 0.8));
@@ -307,7 +319,7 @@ export function decideTruthEngineSelection({ comparisons, p1Name, p2Name }: Deci
       sufficiency_status: outcome === "INSUFFICIENT_EVIDENCE" ? "INSUFFICIENT" : "SUFFICIENT",
       sufficiency_tier: outcome === "INSUFFICIENT_EVIDENCE" ? (families.length ? "RECOVERABLE" : "NONE") : stability === "ROBUST" ? "ROBUST" : "SUFFICIENT",
       weighted_score_p1: weightedScoreP1, weighted_score_p2: weightedScoreP2,
-      weighted_balance: weightedBalance, weighted_evidence_percent: share.percent,
+      weighted_balance: weightedBalance, weighted_evidence_percent: weightedEvidencePercent,
       usable_count_p1: usableP1, usable_count_p2: usableP2, quality_counts: qualityCounts,
       family_support_details: families.map((f) => ({ family: f.family, support_p1: f.weighted_p1, support_p2: f.weighted_p2, weight: f.family_weight, contradiction: f.internally_contradictory })),
       contradiction: { independent_families: contra, conflicted_families: conflictedFamilies, weighted_mass: Number(families.filter((f) => contra.includes(f.family) || f.internally_contradictory).reduce((sum, f) => sum + Math.min(f.weighted_p1, f.weighted_p2), 0).toFixed(6)) },

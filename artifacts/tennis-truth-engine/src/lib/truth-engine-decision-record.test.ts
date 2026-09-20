@@ -36,8 +36,16 @@ describe("the record separates diagnostic coverage from the prediction", () => {
   it("captures the prediction, the support share and the coverage as three distinct fields", () => {
     const r = record(strongP1());
     expect(r.selected_player).toBe("Ana");
-    expect(r.evidence_support_percent).toBe(r.weighted_evidence_percent);
-    expect(r.evidence_support_percent).toBeGreaterThan(75);
+    // evidence_support_percent is the SELECTION FEATURE the 60% gate itself reads: a share of
+    // independent FAMILIES (3 supporting of 4 directional = 75% exactly here), never of their
+    // combined magnitude -- see decideTruthEngineSelection's evidenceShare() for why: letting
+    // magnitude decide this number would let one exceptionally strong metric manufacture a
+    // "broadly supported" reading no family count would produce. weighted_evidence_percent is
+    // the separate, purely diagnostic quality-weighted share (it never gates anything), which
+    // is why it reads higher here: these three P1 families are individually strong, not just
+    // numerous.
+    expect(r.evidence_support_percent).toBe(75);
+    expect(r.weighted_evidence_percent).toBeGreaterThan(r.evidence_support_percent);
     // Coverage is 4 of the active set, not the weighted support share.
     expect(r.evidence_coverage_expected).toBe(ACTIVE_METRIC_CODES.length);
     expect(r.evidence_coverage_usable).toBe(4);

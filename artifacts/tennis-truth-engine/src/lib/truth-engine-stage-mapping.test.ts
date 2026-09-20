@@ -7,17 +7,24 @@ const P1 = "Alpha Player";
 const P2 = "Beta Player";
 const NOW = "2026-09-11T00:00:00.000Z";
 
-function row(metric_code: string, p1_value: string | null, p2_value: string | null): MetricRowForComparison {
-  return { metric_code, p1_value, p2_value, p1_treatment: "RECONSTRUCTED", p2_treatment: "RECONSTRUCTED" };
+function row(metric_code: string, p1_value: string | null, p2_value: string | null, treatments: [string, string] = ["RECONSTRUCTED", "RECONSTRUCTED"]): MetricRowForComparison {
+  return { metric_code, p1_value, p2_value, p1_treatment: treatments[0], p2_treatment: treatments[1] };
 }
 function auditOf(rows: MetricRowForComparison[]) {
   return runTruthEngineAudit(compareMetricRows(rows), P1, P2);
 }
 
 // P1 leads SURFACE_STRENGTH and RECENT_FORM; P2 leads H2H_PROBABILITY well beyond its floor.
+// SURFACE_STRENGTH/RECENT_FORM are pushed to the extremes of their scales (and to DIRECT
+// treatment) so the P1 lead actually SELECTS: the decision core weighs each family by a
+// continuous quality-weighted mass (evidence_weight), not a flat per-family count, and
+// H2H_PROBABILITY's materiality floor is tight enough that a modest H2H gap alone
+// outweighs a modest RECENT_FORM gap -- the lead must survive leave-one-family-out
+// (removing SURFACE_STRENGTH must not hand it to H2H_PROBABILITY), which several tests
+// below depend on via audit.audit_winner_side actually resolving to P1.
 const MIXED = [
-  row("001", "1900", "1500"),
-  row("005", "last10_win_pct=80", "last10_win_pct=30"),
+  row("001", "2200", "1000", ["DIRECT", "DIRECT"]),
+  row("005", "last10_win_pct=100", "last10_win_pct=0", ["DIRECT", "DIRECT"]),
   row("051", "shrunk_win_probability_pct=10", "shrunk_win_probability_pct=95"),
 ];
 

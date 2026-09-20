@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareMetricRow, compareMetricRows, parseMetricValue, COMPARISON_SPECS, type MetricRowForComparison } from "./truth-engine-metric-comparison";
+import { compareMetricRow, compareMetricRows, parseMetricValue, COMPARISON_SPECS, type MetricComparison, type MetricRowForComparison } from "./truth-engine-metric-comparison";
 import { decideTruthEngineSelection, MIN_INDEPENDENT_SUPPORT_FAMILIES } from "./truth-engine-decision";
 import { MATRIX_SUMMARY_REQUIRED_CODES } from "./metric-classification";
 import { deterministicIndependentConclusion } from "./audit-pipeline";
@@ -12,6 +12,31 @@ function row(metric_code: string, p1_value: string | null, p2_value: string | nu
 }
 function decide(rows: MetricRowForComparison[]) {
   return decideTruthEngineSelection({ comparisons: compareMetricRows(rows), p1Name: P1, p2Name: P2 });
+}
+
+// The LEADER (who wins) is decided by summed quality-weighted mass (evidence_weight -- a
+// continuous treatment-quality x reliability x sample-confidence x materiality-normalized
+// strength score, see truth-engine-metric-comparison.ts), not a flat per-family count -- see
+// leaderOf() in truth-engine-decision.ts. Some leave-one-family-out scenarios below need an
+// EXACT, hand-controlled mass for one family (a genuine mass tie, a lead that must survive
+// removing its weakest member) that natural metric inputs cannot reliably hit to six decimal
+// places. `familyComparison` builds one such synthetic, already-COMPARED MetricComparison
+// directly, reusing a real active metric_code (so isActiveMetricCode still passes it) with
+// only `family`, `favours` and `evidence_weight` overridden to the exact mass the scenario
+// needs.
+function familyComparison(metric_code: string, family: string, favours: "P1" | "P2", weight: number): MetricComparison {
+  return {
+    metric_code, label: null, family, status: "COMPARED", favours,
+    p1_number: null, p2_number: null, differential: null, advantage_p1: null, direction: null,
+    reason: "synthetic (familyComparison test helper)", reliability: null, normalized_reliability: null,
+    treatment_quality: 1, treatment_quality_p1: 1, treatment_quality_p2: 1,
+    sample_confidence: 1, sample_confidence_p1: 1, sample_confidence_p2: 1,
+    materiality_normalized_directional_strength: null, directional_strength: null,
+    evidence_weight: weight, diagnostics: [],
+  };
+}
+function decideFamilies(comparisons: MetricComparison[]) {
+  return decideTruthEngineSelection({ comparisons, p1Name: P1, p2Name: P2 });
 }
 
 // Real persisted shapes, copied from live metric_results rows.
@@ -128,10 +153,16 @@ describe("controlled decision scenarios", () => {
   });
 
   it("scenario 6/7: a strong contradiction is reported as an independent contradiction, not hidden", () => {
+    // The lead must survive leave-one-family-out: 051's H2H_PROBABILITY has a tight
+    // materiality floor (3), so even a modest H2H gap carries a large quality-weighted mass.
+    // 001/005 are pushed to their extremes (and to DIRECT treatment) so RECENT_FORM alone
+    // still outweighs H2H_PROBABILITY once SURFACE_STRENGTH is removed -- otherwise this
+    // would (correctly) be refused as FRAGILE rather than exercising the scenario this test
+    // is actually about: a supported-but-contradicted STABLE selection.
     const d = decide([
-      row("001", "1900", "1500"),
-      row("005", "last10_win_pct=80", "last10_win_pct=30"),
-      row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=80"), // P2 contradiction
+      row("001", "1900", "1500", ["DIRECT", "DIRECT"]),
+      row("005", "last10_win_pct=100", "last10_win_pct=0", ["DIRECT", "DIRECT"]),
+      row("051", "shrunk_win_probability_pct=35", "shrunk_win_probability_pct=65"), // P2 contradiction
     ]);
     expect(d.outcome).toBe("P1");
     expect(d.stability).toBe("STABLE"); // supported but contradicted -> not ROBUST
@@ -168,11 +199,17 @@ describe("anti-double-counting (scenario 12)", () => {
   it("three agreeing metrics inside one family do NOT beat two genuinely independent families", () => {
     // P1 wins the single COMMON_OPPONENT family (2 correlated metrics);
     // P2 wins two independent families. P2 must lead on independent families.
+    // The P2-favouring edges are pushed to the extremes of their scales (and to DIRECT
+    // treatment) so each family's quality-weighted mass clearly and robustly exceeds
+    // COMMON_OPPONENT's -- leaderOf() decides the winner by mass, not a flat per-family
+    // count, so a P2 margin merely larger than COMMON_OPPONENT's on average is not enough:
+    // it must survive leave-one-family-out, i.e. even the WEAKER of the two P2 families
+    // alone must still outweigh COMMON_OPPONENT.
     const d = decide([
       row("031", "opponent_adjusted_set_differential=2", "opponent_adjusted_set_differential=-2"),
       row("080", REAL_080_P1, REAL_080_P2),
-      row("001", "1500", "1900"),
-      row("005", "last10_win_pct=20", "last10_win_pct=90"),
+      row("001", "1000", "2200", ["DIRECT", "DIRECT"]),
+      row("005", "last10_win_pct=2", "last10_win_pct=98", ["DIRECT", "DIRECT"]),
     ]);
     expect(d.outcome).toBe("P2");
     expect(d.independent_support_families.sort()).toEqual(["RECENT_FORM", "SURFACE_STRENGTH"]);
@@ -193,19 +230,19 @@ describe("anti-double-counting (scenario 12)", () => {
 
 describe("leave-one-family-out stress test (scenarios 10 & 11)", () => {
   it("scenario 10: a lead a single family can REVERSE is refused as FRAGILE", () => {
-    // P1: 2 families (SURFACE_STRENGTH, RECENT_FORM). P2: 2 families (H2H_PROBABILITY,
-    // CLOSING_ABILITY) + COMMON_OPPONENT for P1 = 3-2 P1. Removing COMMON_OPPONENT makes
-    // it 2-2... to get a genuine reversal we give P2 two families and P1 three, where
-    // dropping one P1 family yields 2-2 (tie) -- so instead construct a real reversal:
-    // P1 leads 2-1; removing a P1 family gives 1-1 (tie, not reversal). A true reversal
-    // needs P2 to overtake, e.g. P1 2 families vs P2 2 families is a tie, so we build
-    // P1=2, P2=1 and then remove... see the dedicated reversal construction below.
-    const d = decide([
-      row("001", "1900", "1500"), // P1 SURFACE_STRENGTH
-      row("005", "last10_win_pct=80", "last10_win_pct=30"), // P1 RECENT_FORM
-      row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=80"), // P2 H2H
-      row("027", "lead_protection_rate_pct=40", "lead_protection_rate_pct=90"), // P2 CLOSING
-      row("031", "opponent_adjusted_set_differential=1.5", "opponent_adjusted_set_differential=-1.5"), // P1 COMMON_OPPONENT
+    // P1: 3 equal-mass families (SURFACE_STRENGTH, RECENT_FORM, COMMON_OPPONENT).
+    // P2: 2 equal-mass families (H2H_PROBABILITY, CLOSING_ABILITY), each carrying the SAME
+    // per-family weight as a P1 family. P1 leads 3-2 on mass (60% of the directional
+    // evidence). Every family's weight is hand-set (leaderOf() decides the winner from
+    // summed quality-weighted mass, not a flat per-family count -- natural metric inputs
+    // cannot reliably reproduce an exact 3-vs-2 mass ratio to six decimal places), so
+    // removing any single P1 family leaves an EXACT 2-vs-2 mass tie -- never a reversal.
+    const d = decideFamilies([
+      familyComparison("001", "SURFACE_STRENGTH", "P1", 0.5),
+      familyComparison("005", "RECENT_FORM", "P1", 0.5),
+      familyComparison("031", "COMMON_OPPONENT", "P1", 0.5),
+      familyComparison("051", "H2H_PROBABILITY", "P2", 0.5),
+      familyComparison("027", "CLOSING_ABILITY", "P2", 0.5),
     ]);
     // P1 leads 3-2. Removing any single P1 family makes it 2-2 (tie), never a reversal.
     expect(d.outcome).toBe("P1");
@@ -215,24 +252,26 @@ describe("leave-one-family-out stress test (scenarios 10 & 11)", () => {
   });
 
   it("a lead that a single family's removal genuinely REVERSES is refused", () => {
-    // P1 leads 2-1 on families; COMMON_OPPONENT holds TWO correlated P1 metrics that vote
-    // once. Removing SURFACE_STRENGTH leaves P1 1 - P2 1 (tie); to force a real reversal we
-    // give P2 two families and P1 two, with one P1 family removable to yield P2 lead.
-    const d = decide([
-      row("001", "1900", "1500"), // P1 SURFACE_STRENGTH
-      row("031", "opponent_adjusted_set_differential=1.5", "opponent_adjusted_set_differential=-1.5"), // P1 COMMON_OPPONENT
-      row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=80"), // P2 H2H
-      row("027", "lead_protection_rate_pct=40", "lead_protection_rate_pct=90"), // P2 CLOSING
-      row("005", "last10_win_pct=80", "last10_win_pct=30"), // P1 RECENT_FORM -> P1 3-2
+    // P1 leads 3-2 on equal-mass families (COMMON_OPPONENT, SURFACE_STRENGTH, RECENT_FORM
+    // vs H2H_PROBABILITY, CLOSING_ABILITY); removing any one P1 family leaves an exact 2-2
+    // mass tie, never a reversal. Weights are hand-set to exact equality for the same reason
+    // as scenario 10 above: natural metric inputs cannot reliably reproduce an exact mass
+    // tie to six decimal places, and a tie (not a near-tie) is exactly what this asserts.
+    const d = decideFamilies([
+      familyComparison("001", "SURFACE_STRENGTH", "P1", 0.5),
+      familyComparison("031", "COMMON_OPPONENT", "P1", 0.5),
+      familyComparison("051", "H2H_PROBABILITY", "P2", 0.5),
+      familyComparison("027", "CLOSING_ABILITY", "P2", 0.5),
+      familyComparison("005", "RECENT_FORM", "P1", 0.5), // -> P1 3-2
     ]);
     // Sanity: this is the 3-2 case, no reversal possible from a single removal.
     expect(d.flipping_families).toEqual([]);
     // Now drop one P1 family from the input entirely: 2-2 tie -> refusal (not a selection).
-    const tied = decide([
-      row("001", "1900", "1500"),
-      row("031", "opponent_adjusted_set_differential=1.5", "opponent_adjusted_set_differential=-1.5"),
-      row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=80"),
-      row("027", "lead_protection_rate_pct=40", "lead_protection_rate_pct=90"),
+    const tied = decideFamilies([
+      familyComparison("001", "SURFACE_STRENGTH", "P1", 0.5),
+      familyComparison("031", "COMMON_OPPONENT", "P1", 0.5),
+      familyComparison("051", "H2H_PROBABILITY", "P2", 0.5),
+      familyComparison("027", "CLOSING_ABILITY", "P2", 0.5),
     ]);
     expect(tied.outcome).toBe("INSUFFICIENT_EVIDENCE");
     expect(tied.reason).toMatch(/tied/i);
@@ -257,18 +296,22 @@ describe("leave-one-family-out stress test (scenarios 10 & 11)", () => {
       row("051", "shrunk_win_probability_pct=20", "shrunk_win_probability_pct=80"),
     ]);
     // Independently re-derive the recount for every family this engine named as tie-inducing.
+    // The leader is decided by summed quality-weighted MASS (evidence_weight), not a flat
+    // per-family count -- see leaderOf() in truth-engine-decision.ts -- so a genuine,
+    // independent re-verification of "was this family really tie-inducing / really leaves
+    // the leader intact" must re-sum weighted_p1/weighted_p2 the same way, not recount votes.
     for (const family of d.tie_inducing_families) {
       const remaining = d.families.filter((f) => f.family !== family);
-      const p1 = remaining.filter((f) => f.vote === "P1").length;
-      const p2 = remaining.filter((f) => f.vote === "P2").length;
-      expect(p1).toBe(p2); // genuinely no leader once that family is removed
+      const p1 = remaining.reduce((sum, f) => sum + f.weighted_p1, 0);
+      const p2 = remaining.reduce((sum, f) => sum + f.weighted_p2, 0);
+      expect(p1).toBeCloseTo(p2, 6); // genuinely no leader once that family is removed
     }
     // And every family NOT named must genuinely leave the leader intact.
     for (const f of d.families) {
       if (d.tie_inducing_families.includes(f.family) || d.flipping_families.includes(f.family)) continue;
       const remaining = d.families.filter((o) => o.family !== f.family);
-      const p1 = remaining.filter((o) => o.vote === "P1").length;
-      const p2 = remaining.filter((o) => o.vote === "P2").length;
+      const p1 = remaining.reduce((sum, o) => sum + o.weighted_p1, 0);
+      const p2 = remaining.reduce((sum, o) => sum + o.weighted_p2, 0);
       expect(p1).toBeGreaterThan(p2);
     }
   });
@@ -375,7 +418,14 @@ describe("refusal is first-class", () => {
   });
 
   it("a tie on independent families is refused", () => {
-    const d = decide([row("001", "1900", "1500"), row("005", "last10_win_pct=20", "last10_win_pct=90")]);
+    // leaderOf() decides the leader from summed quality-weighted mass, not a flat per-family
+    // count, so a genuine EXACT mass tie (as opposed to merely "close") needs a hand-set
+    // weight -- two different metrics' independently-derived masses essentially never
+    // coincide to six decimal places from natural inputs.
+    const d = decideFamilies([
+      familyComparison("001", "SURFACE_STRENGTH", "P1", 0.5),
+      familyComparison("005", "RECENT_FORM", "P2", 0.5),
+    ]);
     expect(d.outcome).toBe("INSUFFICIENT_EVIDENCE");
     expect(d.reason).toMatch(/tied/i);
   });

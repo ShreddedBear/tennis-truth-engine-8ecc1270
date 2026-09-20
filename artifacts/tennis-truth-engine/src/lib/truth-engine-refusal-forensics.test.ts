@@ -134,7 +134,14 @@ describe("classification of refusals that the decision core itself makes", () =>
     expect(f.trace.after_stress).toBe("TIE");
   });
 
-  it("uses weighted family evidence rather than a raw family-count majority", () => {
+  it("a raw family-count majority that still misses the 60% threshold is BELOW_THRESHOLD, not a tie", () => {
+    // P1 leads 3 families (SURFACE_STRENGTH, RECENT_FORM, RESULTS_HISTORY) to P2's 4
+    // (CLOSING_ABILITY, H2H_PROBABILITY, IMPROVEMENT_TREND, COMMON_OPPONENT) -- family_vote
+    // (a raw, pre-threshold family-count majority; see familyVoteLeader() above) correctly
+    // reads P2, not a tie. It still refuses: 3 of 7 directional families is 42.9% for the
+    // family_vote leader, short of the 60% the decision core actually requires, so the real
+    // decision core (decideTruthEngineSelection) refuses below-threshold rather than
+    // ratifying family_vote's naive majority.
     const rows = [
       row("001", "1600", "1500"),                              // P1  SURFACE_STRENGTH
       row("005", "last10_win_pct=70", "last10_win_pct=40"),    // P1  RECENT_FORM
@@ -145,9 +152,9 @@ describe("classification of refusals that the decision core itself makes", () =>
       row("080", "favorable_divergent_outcomes=10; unfavorable_divergent_outcomes=16", "favorable_divergent_outcomes=16; unfavorable_divergent_outcomes=10"), // P2 COMMON_OPPONENT
     ];
     const f = forensics(rows);
-    expect(f.trace.family_vote).toBe("TIE");
-    expect(f.classification).toBe("TRUE_TIE");
-    expect(f.trace.after_threshold).toBe("TIE");
+    expect(f.trace.family_vote).toBe("P2");
+    expect(f.trace.after_threshold).toBe("INSUFFICIENT");
+    expect(f.classification).toBe("BELOW_THRESHOLD");
   });
 
   it("classifies a match with no two-sided evidence at all as DATA_OR_PIPELINE_BUG", () => {

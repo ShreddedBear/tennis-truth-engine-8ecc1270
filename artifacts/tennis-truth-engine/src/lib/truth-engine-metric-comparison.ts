@@ -385,6 +385,13 @@ function codeOf(value: unknown) {
 }
 
 function normalizeReliability(raw: unknown): number | null {
+  // Explicit unknown must stay unknown. `Number(null)` is 0 (a finite number), so without
+  // this guard an explicitly-null reliability -- persisted for the vast majority of real
+  // metric rows -- was silently read as "measured reliability of zero" instead of "not
+  // measured", collapsing evidence_weight (which reads `reliability ?? 1`) to 0 for almost
+  // every comparison. `undefined` already produced null via the NaN branch below; this
+  // makes `null` consistent with it rather than with a real reliability=0 reading.
+  if (raw === null || raw === undefined) return null;
   const n = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(n)) return null;
   const normalized = n > 1 ? n / 100 : n;
