@@ -22,6 +22,35 @@
  *     design already forbids by policy; it grants no new capability and touches no existing row.
  *   - Nothing here ALTERs or DROPs an existing column, index, or table.
  */
+/**
+ * Split out from MARKET_EVIDENCE_MIGRATIONS (declared below, which spreads this in) so the Risk
+ * Floor persistence-wiring change (builderScoringService.ts commit 680d06e's follow-up) can import
+ * and wire ONLY this subset into ensureEvaluationSchema.ts's own STATEMENTS array -- so these
+ * columns actually exist on the canonical database -- without also activating
+ * market_snapshots/its trigger/view below, which remain deliberately unwired pending their own
+ * separate review.
+ *
+ * Mirrors builderScoringService.ts's preClosenessRisk/closenessRiskFloor/postClosenessRisk/
+ * _thinDataFloor/_thinDataFloorFired variable names exactly (see design doc section C) so a
+ * reader can match a stored column to the exact variable in the scoring function that would
+ * have produced it, with no renaming/relabeling step.
+ */
+export const RISK_FLOOR_OBSERVABILITY_COLUMNS: string[] = [
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS pre_closeness_risk INTEGER`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS closeness_risk_floor_value INTEGER`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS closeness_floor_fired BOOLEAN`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS post_closeness_risk INTEGER`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS thin_data_risk_floor_value INTEGER`,
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS thin_data_floor_fired BOOLEAN`,
+  // Provenance for the observability write itself -- lets a reader tell which code commit
+  // computed these new columns on any given row, since (unlike risk_score/matchup_closeness) they
+  // will only be populated going forward, never backfilled. NOT populated by the current
+  // persistence wiring (a live HTTP route is not a safe place for a synchronous git-shell-out
+  // per request -- see writeParlayLegOutcomeRow's own comment); reserved for a future build-time
+  // provenance source.
+  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS risk_observability_captured_by_commit TEXT`,
+];
+
 export const MARKET_EVIDENCE_MIGRATIONS: string[] = [
   // ── New table: market_snapshots ────────────────────────────────────────────────────────────
   // Attempt-aware (design doc section A/B): one row per capture ATTEMPT, not only per success.
@@ -152,20 +181,7 @@ export const MARKET_EVIDENCE_MIGRATIONS: string[] = [
   `,
 
   // ── Risk Floor observability: parlay_leg_outcomes additive columns ────────────────────────────
-  // Mirrors builderScoringService.ts's preClosenessRisk/closenessRiskFloor/postClosenessRisk/
-  // _thinDataFloor/_thinDataFloorFired variable names exactly (see design doc section C) so a
-  // reader can match a stored column to the exact variable in the scoring function that would
-  // have produced it, with no renaming/relabeling step. These columns are added now, ahead of and
-  // independent from the (still unapplied, still unapproved) builderScoringService.ts
-  // instrumentation diff itself -- populating them is future work gated on that separate approval.
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS pre_closeness_risk INTEGER`,
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS closeness_risk_floor_value INTEGER`,
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS closeness_floor_fired BOOLEAN`,
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS post_closeness_risk INTEGER`,
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS thin_data_risk_floor_value INTEGER`,
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS thin_data_floor_fired BOOLEAN`,
-  // Provenance for the observability write itself -- lets a reader tell which code commit
-  // computed these new columns on any given row, since (unlike risk_score/matchup_closeness) they
-  // will only be populated going forward, never backfilled.
-  `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS risk_observability_captured_by_commit TEXT`,
+  // See RISK_FLOOR_OBSERVABILITY_COLUMNS above -- spread in here (not duplicated) so this array
+  // stays the single complete additive-migration list it was designed to be.
+  ...RISK_FLOOR_OBSERVABILITY_COLUMNS,
 ];

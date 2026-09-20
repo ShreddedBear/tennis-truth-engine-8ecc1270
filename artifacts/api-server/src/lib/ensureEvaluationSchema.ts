@@ -1,6 +1,7 @@
 import { pool } from "@workspace/db";
 import { logger } from "./logger";
 import { extractFallbackInstrumentation } from "../services/evaluation/fallbackInstrumentation";
+import { RISK_FLOOR_OBSERVABILITY_COLUMNS } from "./marketEvidenceMigrations.js";
 
 const STATEMENTS: string[] = [
   // Ledger table used by /api/predictions (Run Model, Paste, Bulk).
@@ -551,6 +552,10 @@ const STATEMENTS: string[] = [
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS backfill_match_id INTEGER`,
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS matchup_closeness INTEGER`,
   `ALTER TABLE parlay_leg_outcomes ADD COLUMN IF NOT EXISTS removal_probability INTEGER NOT NULL DEFAULT 0`,
+  // Risk Floor observability (see marketEvidenceMigrations.ts's RISK_FLOOR_OBSERVABILITY_COLUMNS
+  // for the full column-by-column rationale) -- additive, nullable, populated going forward by
+  // writeParlayLegOutcomeRow in builderScoringService.ts; never backfilled onto existing rows.
+  ...RISK_FLOOR_OBSERVABILITY_COLUMNS,
   // Backfill dedup: one row per graded match (prevents re-running from doubling data)
   `CREATE UNIQUE INDEX IF NOT EXISTS parlay_leg_outcomes_backfill_match_idx ON parlay_leg_outcomes (backfill_match_id) WHERE backfill_match_id IS NOT NULL`,
   // Resolution job: scan for unresolved rows ordered by age

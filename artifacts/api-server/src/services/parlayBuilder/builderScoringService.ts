@@ -2511,6 +2511,142 @@ export async function writeBuilderDecisionLog(opts: WriteBuilderDecisionOpts): P
 }
 
 // ---------------------------------------------------------------------------
+// Risk Floor observability persistence (Exp1) — parlay_leg_outcomes
+// ---------------------------------------------------------------------------
+//
+// Wires BuilderResult.riskFloorObservability (added in commit 680d06e) into the six
+// parlay_leg_outcomes columns of the same name that the market-evidence migration already added
+// (see marketEvidenceMigrations.ts's RISK_FLOOR_OBSERVABILITY_COLUMNS, now wired into
+// ensureEvaluationSchema.ts's STATEMENTS array). Future rows only -- nothing here touches an
+// existing row, and no historical backfill of these columns is performed.
+
+export interface RiskFloorObservabilityColumns {
+  preClosenessRisk: number | null;
+  closenessRiskFloorValue: number | null;
+  closenessFloorFired: boolean | null;
+  postClosenessRisk: number | null;
+  thinDataRiskFloorValue: number | null;
+  thinDataFloorFired: boolean | null;
+}
+
+/**
+ * Pure shaping function, no DB, no I/O: maps BuilderResult.riskFloorObservability onto the six
+ * parlay_leg_outcomes column values, exactly as computeBuilderScore produced them -- never
+ * recomputed from riskScore, never approximated. When riskFloorObservability is absent (the
+ * DATA_UNAVAILABLE early-return path, see builderScoringService.ts's computeBuilderScore, never
+ * computes these values), every column is NULL rather than a fabricated zero/false -- NULL is the
+ * honest "not computed for this row" state, matching the same convention market_snapshots already
+ * uses for its own no-quote rows.
+ */
+export function shapeRiskFloorObservabilityColumns(
+  riskFloorObservability: BuilderResult["riskFloorObservability"],
+): RiskFloorObservabilityColumns {
+  if (!riskFloorObservability) {
+    return {
+      preClosenessRisk: null,
+      closenessRiskFloorValue: null,
+      closenessFloorFired: null,
+      postClosenessRisk: null,
+      thinDataRiskFloorValue: null,
+      thinDataFloorFired: null,
+    };
+  }
+  return {
+    preClosenessRisk: riskFloorObservability.preClosenessRisk,
+    closenessRiskFloorValue: riskFloorObservability.closenessRiskFloorValue,
+    closenessFloorFired: riskFloorObservability.closenessFloorFired,
+    postClosenessRisk: riskFloorObservability.postClosenessRisk,
+    thinDataRiskFloorValue: riskFloorObservability.thinDataRiskFloorValue,
+    thinDataFloorFired: riskFloorObservability.thinDataFloorFired,
+  };
+}
+
+export interface WriteParlayLegOutcomeOpts {
+  sessionId: number | null;
+  selectedPlayerId: string;
+  opponentId: string;
+  selectedPlayerName: string;
+  opponentName: string;
+  tournamentName: string | null;
+  surface: string | null;
+  validationScore: number;
+  riskScore: number;
+  reliabilityGrade: string;
+  parlayGrade: string;
+  decision: string;
+  dataCoverage: number;
+  sourceAgreement: number;
+  factorScores: unknown;
+  marketOdds: number | null;
+  matchupCloseness: number | null;
+  removalProbability: number;
+  /** Pass straight through from BuilderResult -- absent (undefined) on DATA_UNAVAILABLE legs. */
+  riskFloorObservability: BuilderResult["riskFloorObservability"];
+}
+
+/**
+ * Write one row to parlay_leg_outcomes for a LIVE /admin/parlay/validate leg, now including the
+ * six Risk Floor observability columns alongside every column this route already wrote. DB is
+ * injectable for unit tests, matching __TEST_writeBuilderDecisionRow's established pattern.
+ *
+ * Column list and ordering for every pre-existing column are unchanged from the prior inline
+ * `pool.query` call this replaces -- only the six new columns are appended, so an existing row's
+ * shape (and this route's existing behavior for every field it already wrote) is unaffected.
+ *
+ * @internal exported as __TEST_writeParlayLegOutcomeRow for unit tests.
+ */
+export async function __TEST_writeParlayLegOutcomeRow(
+  db: MinimalDb,
+  opts: WriteParlayLegOutcomeOpts
+): Promise<void> {
+  const obs = shapeRiskFloorObservabilityColumns(opts.riskFloorObservability);
+  await db.query(
+    `INSERT INTO parlay_leg_outcomes
+       (session_id, selected_player_id, opponent_id, selected_player_name, opponent_name,
+        tournament_name, surface, validation_score, risk_score, reliability_grade,
+        parlay_grade, decision, data_coverage, source_agreement, factor_scores, market_odds,
+        matchup_closeness, removal_probability,
+        pre_closeness_risk, closeness_risk_floor_value, closeness_floor_fired,
+        post_closeness_risk, thin_data_risk_floor_value, thin_data_floor_fired)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18,
+             $19, $20, $21, $22, $23, $24)`,
+    [
+      opts.sessionId,
+      opts.selectedPlayerId,
+      opts.opponentId,
+      opts.selectedPlayerName,
+      opts.opponentName,
+      opts.tournamentName,
+      opts.surface,
+      opts.validationScore,
+      opts.riskScore,
+      opts.reliabilityGrade,
+      opts.parlayGrade,
+      opts.decision,
+      opts.dataCoverage,
+      opts.sourceAgreement,
+      JSON.stringify(opts.factorScores),
+      opts.marketOdds,
+      opts.matchupCloseness,
+      opts.removalProbability,
+      obs.preClosenessRisk,
+      obs.closenessRiskFloorValue,
+      obs.closenessFloorFired,
+      obs.postClosenessRisk,
+      obs.thinDataRiskFloorValue,
+      obs.thinDataFloorFired,
+    ]
+  );
+}
+
+/**
+ * Production entry-point: same as __TEST_writeParlayLegOutcomeRow but uses the real pool.
+ */
+export async function writeParlayLegOutcomeRow(opts: WriteParlayLegOutcomeOpts): Promise<void> {
+  return __TEST_writeParlayLegOutcomeRow(pool, opts);
+}
+
+// ---------------------------------------------------------------------------
 // Grading decision — pure logic (exported for unit tests)
 // ---------------------------------------------------------------------------
 

@@ -39,6 +39,8 @@ import {
   __TEST_filterRowsByCeiling,
   __TEST_computeGradingDecision,
   __TEST_writeBuilderDecisionRow,
+  __TEST_writeParlayLegOutcomeRow,
+  shapeRiskFloorObservabilityColumns,
   __TEST_STALE_MIN_MATCH_COUNT,
   __TEST_STALE_MAX_MATCH_AGE_DAYS,
   THIN_DATA_RISK_FLOOR,
@@ -54,6 +56,8 @@ import {
   type BuilderAccuracyStats,
   type BuilderAccuracyByDecisionStats,
   type __TEST_AccuracyRow,
+  type WriteParlayLegOutcomeOpts,
+  type BuilderResult,
 } from "./builderScoringService.js";
 
 // ─── Fixture helpers ────────────────────────────────────────────────────────
@@ -1614,6 +1618,213 @@ describe("__TEST_writeBuilderDecisionRow — mock-DB integration for request-cri
     assert.ok(gradingResult != null, "must return a result even for null match_id (marks it excluded)");
     assert.strictEqual(gradingResult!.included_in_accuracy, false,
       "row with null historical_match_id must be excluded from accuracy calculations");
+  });
+});
+
+// ── Risk Floor observability persistence (Exp1) ─────────────────────────────────
+//
+// shapeRiskFloorObservabilityColumns is pure (no DB) -- tested directly with literal
+// BuilderResult["riskFloorObservability"] shapes. __TEST_writeParlayLegOutcomeRow uses the same
+// mock-MinimalDb pattern as __TEST_writeBuilderDecisionRow above to prove the six columns reach
+// the INSERT without touching a live database.
+
+describe("shapeRiskFloorObservabilityColumns — pure mapping, no DB", () => {
+  it("maps all six fields through exactly when riskFloorObservability is present", () => {
+    const observability: NonNullable<BuilderResult["riskFloorObservability"]> = {
+      preClosenessRisk: 41,
+      closenessRiskFloorValue: 55,
+      closenessFloorFired: true,
+      postClosenessRisk: 55,
+      thinDataRiskFloorValue: 45,
+      thinDataFloorFired: true,
+    };
+    const cols = shapeRiskFloorObservabilityColumns(observability);
+    assert.deepStrictEqual(cols, {
+      preClosenessRisk: 41,
+      closenessRiskFloorValue: 55,
+      closenessFloorFired: true,
+      postClosenessRisk: 55,
+      thinDataRiskFloorValue: 45,
+      thinDataFloorFired: true,
+    });
+  });
+
+  it("returns all six columns as null when riskFloorObservability is undefined (DATA_UNAVAILABLE) — never fabricates zero/false", () => {
+    const cols = shapeRiskFloorObservabilityColumns(undefined);
+    assert.deepStrictEqual(cols, {
+      preClosenessRisk: null,
+      closenessRiskFloorValue: null,
+      closenessFloorFired: null,
+      postClosenessRisk: null,
+      thinDataRiskFloorValue: null,
+      thinDataFloorFired: null,
+    });
+  });
+
+  it("preserves both floor-fired flags as false when neither floor fired", () => {
+    const cols = shapeRiskFloorObservabilityColumns({
+      preClosenessRisk: 60,
+      closenessRiskFloorValue: 0,
+      closenessFloorFired: false,
+      postClosenessRisk: 60,
+      thinDataRiskFloorValue: 0,
+      thinDataFloorFired: false,
+    });
+    assert.strictEqual(cols.closenessFloorFired, false);
+    assert.strictEqual(cols.thinDataFloorFired, false);
+  });
+
+  it("preserves the case where both floors are active and thin-data overrides post-closeness risk", () => {
+    // Mirrors computeBuilderScore's actual sequence: closeness floor raises pre->post, then
+    // thin-data floor overrides (not maxes with) post when it fires and is higher.
+    const cols = shapeRiskFloorObservabilityColumns({
+      preClosenessRisk: 30,
+      closenessRiskFloorValue: 55,
+      closenessFloorFired: true,
+      postClosenessRisk: 55, // raised by the closeness floor
+      thinDataRiskFloorValue: 70,
+      thinDataFloorFired: true, // then overridden by the thin-data floor
+    });
+    assert.strictEqual(cols.closenessFloorFired, true);
+    assert.strictEqual(cols.thinDataFloorFired, true);
+    assert.strictEqual(cols.postClosenessRisk, 55, "postClosenessRisk stays the closeness-floor result, never overwritten by the thin-data value");
+    assert.strictEqual(cols.thinDataRiskFloorValue, 70, "thinDataRiskFloorValue is stored separately, not conflated with postClosenessRisk");
+  });
+});
+
+describe("__TEST_writeParlayLegOutcomeRow — mock-DB integration for parlay_leg_outcomes persistence", () => {
+  type QueryCall = { sql: string; params: unknown[] };
+
+  function makeMockDb(onInsert?: (params: unknown[]) => void): { db: MinimalDb; calls: QueryCall[] } {
+    const calls: QueryCall[] = [];
+    const db = {
+      query: async (sql: string, params: unknown[]) => {
+        calls.push({ sql, params });
+        onInsert?.(params);
+        return { rows: [] };
+      },
+    } as unknown as MinimalDb;
+    return { db, calls };
+  }
+
+  const baseOpts: Omit<WriteParlayLegOutcomeOpts, "riskFloorObservability"> = {
+    sessionId: 7,
+    selectedPlayerId: "p1",
+    opponentId: "p2",
+    selectedPlayerName: "Player One",
+    opponentName: "Player Two",
+    tournamentName: "Test Open",
+    surface: "Hard",
+    validationScore: 68,
+    riskScore: 42,
+    reliabilityGrade: "B",
+    parlayGrade: "Solid",
+    decision: "KEEP",
+    dataCoverage: 90,
+    sourceAgreement: 75,
+    factorScores: [{ key: "surfaceElo", score: 60 }],
+    marketOdds: 1.85,
+    matchupCloseness: 60,
+    removalProbability: 20,
+  };
+
+  it("inserts exactly one row with all pre-existing columns unchanged from before this change", async () => {
+    const insertedParams: unknown[][] = [];
+    const { db, calls } = makeMockDb((params) => insertedParams.push(params));
+
+    await __TEST_writeParlayLegOutcomeRow(db, {
+      ...baseOpts,
+      riskFloorObservability: {
+        preClosenessRisk: 41, closenessRiskFloorValue: 55, closenessFloorFired: true,
+        postClosenessRisk: 55, thinDataRiskFloorValue: 0, thinDataFloorFired: false,
+      },
+    });
+
+    assert.strictEqual(insertedParams.length, 1, "must insert exactly one row");
+    assert.match(calls[0]!.sql, /INSERT INTO parlay_leg_outcomes/);
+    const p = insertedParams[0]!;
+    // Pre-existing columns (indices 0-17) -- byte-for-byte the same mapping the inline
+    // pool.query call in adminParlay.ts used before this change.
+    assert.strictEqual(p[0], 7, "session_id");
+    assert.strictEqual(p[1], "p1", "selected_player_id");
+    assert.strictEqual(p[2], "p2", "opponent_id");
+    assert.strictEqual(p[3], "Player One", "selected_player_name");
+    assert.strictEqual(p[4], "Player Two", "opponent_name");
+    assert.strictEqual(p[5], "Test Open", "tournament_name");
+    assert.strictEqual(p[6], "Hard", "surface");
+    assert.strictEqual(p[7], 68, "validation_score");
+    assert.strictEqual(p[8], 42, "risk_score -- existing final riskScore, untouched by observability");
+    assert.strictEqual(p[9], "B", "reliability_grade");
+    assert.strictEqual(p[10], "Solid", "parlay_grade");
+    assert.strictEqual(p[11], "KEEP", "decision");
+    assert.strictEqual(p[12], 90, "data_coverage");
+    assert.strictEqual(p[13], 75, "source_agreement");
+    assert.strictEqual(p[14], JSON.stringify([{ key: "surfaceElo", score: 60 }]), "factor_scores (JSON-stringified)");
+    assert.strictEqual(p[15], 1.85, "market_odds");
+    assert.strictEqual(p[16], 60, "matchup_closeness");
+    assert.strictEqual(p[17], 20, "removal_probability");
+    // New columns (indices 18-23)
+    assert.strictEqual(p[18], 41, "pre_closeness_risk");
+    assert.strictEqual(p[19], 55, "closeness_risk_floor_value");
+    assert.strictEqual(p[20], true, "closeness_floor_fired");
+    assert.strictEqual(p[21], 55, "post_closeness_risk");
+    assert.strictEqual(p[22], 0, "thin_data_risk_floor_value");
+    assert.strictEqual(p[23], false, "thin_data_floor_fired");
+    assert.strictEqual(p.length, 24, "exactly 24 params, matching the 24 placeholders in the SQL");
+  });
+
+  it("placeholder count in the SQL matches the params array length exactly", async () => {
+    const insertedParams: unknown[][] = [];
+    const { db, calls } = makeMockDb((params) => insertedParams.push(params));
+    await __TEST_writeParlayLegOutcomeRow(db, {
+      ...baseOpts,
+      riskFloorObservability: {
+        preClosenessRisk: 10, closenessRiskFloorValue: 0, closenessFloorFired: false,
+        postClosenessRisk: 10, thinDataRiskFloorValue: 0, thinDataFloorFired: false,
+      },
+    });
+    const sql = calls[0]!.sql;
+    const placeholderCount = new Set(Array.from(sql.matchAll(/\$(\d+)/g)).map(m => m[1])).size;
+    assert.strictEqual(placeholderCount, insertedParams[0]!.length,
+      "distinct $N placeholders in the SQL must equal the params array length");
+  });
+
+  it("writes all six observability columns as null for a DATA_UNAVAILABLE leg — never fabricates a value", async () => {
+    const insertedParams: unknown[][] = [];
+    const { db } = makeMockDb((params) => insertedParams.push(params));
+
+    // riskFloorObservability is undefined, exactly as computeBuilderScore's DATA_UNAVAILABLE
+    // early return produces it (see builderScoringService.ts's BuilderResult interface).
+    await __TEST_writeParlayLegOutcomeRow(db, {
+      ...baseOpts,
+      validationScore: 0,
+      riskScore: 0,
+      decision: "DATA_UNAVAILABLE",
+      riskFloorObservability: undefined,
+    });
+
+    const p = insertedParams[0]!;
+    assert.strictEqual(p[18], null, "pre_closeness_risk must be null, not 0");
+    assert.strictEqual(p[19], null, "closeness_risk_floor_value must be null, not 0");
+    assert.strictEqual(p[20], null, "closeness_floor_fired must be null, not false");
+    assert.strictEqual(p[21], null, "post_closeness_risk must be null, not 0");
+    assert.strictEqual(p[22], null, "thin_data_risk_floor_value must be null, not 0");
+    assert.strictEqual(p[23], null, "thin_data_floor_fired must be null, not false");
+  });
+
+  it("the persisted row is joinable to its match/players via the same columns as before (session_id, selected_player_id, opponent_id)", async () => {
+    const insertedParams: unknown[][] = [];
+    const { db } = makeMockDb((params) => insertedParams.push(params));
+    await __TEST_writeParlayLegOutcomeRow(db, {
+      ...baseOpts,
+      riskFloorObservability: undefined,
+    });
+    const p = insertedParams[0]!;
+    // These join keys are unchanged by this commit -- confirms the new columns were appended,
+    // not inserted in a way that shifted any existing column's position.
+    assert.strictEqual(p[0], baseOpts.sessionId);
+    assert.strictEqual(p[1], baseOpts.selectedPlayerId);
+    assert.strictEqual(p[2], baseOpts.opponentId);
   });
 });
 

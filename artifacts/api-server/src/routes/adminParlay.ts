@@ -18,6 +18,7 @@ import {
   computeBuilderAccuracyByDecision,
   gradeBuilderDecisions,
   writeBuilderDecisionLog,
+  writeParlayLegOutcomeRow,
   type BuilderSnapshot,
 } from "../services/parlayBuilder/builderScoringService.js";
 import { fetchMarketOdds } from "../services/oddsData";
@@ -482,38 +483,34 @@ router.post("/admin/parlay/validate", requireAdmin, async (req, res): Promise<vo
 
     // Per-leg outcome rows — PRIMARY calibration data source; log loudly on failure.
     // Unlike the session insert above, a silent swallow here means permanent data loss.
+    // writeParlayLegOutcomeRow also persists the six Risk Floor observability columns
+    // (Exp1) straight from each result's riskFloorObservability -- absent (null) for any
+    // DATA_UNAVAILABLE leg, exactly as computeBuilderScore produced it.
     try {
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         const leg = legs[i];
-        await pool.query(
-          `INSERT INTO parlay_leg_outcomes
-             (session_id, selected_player_id, opponent_id, selected_player_name, opponent_name,
-              tournament_name, surface, validation_score, risk_score, reliability_grade,
-              parlay_grade, decision, data_coverage, source_agreement, factor_scores, market_odds,
-                matchup_closeness, removal_probability)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, $17, $18)`,
-          [
-            sessionId,
-            leg.selectedPlayerId,
-            leg.opponentId,
-            result.selectedPlayerName,
-            result.opponentName,
-            result.tournamentName ?? null,
-            result.surface ?? null,
-            result.validationScore,
-            result.riskScore,
-            result.reliabilityGrade,
-            result.parlayGrade,
-            result.decision,
-            result.dataCoverage,
-            result.sourceAgreement,
-            JSON.stringify(result.factorScores),
-            leg.marketOdds ?? null,
-            result.matchupCloseness ?? null,
-            result.removalProbability,
-          ]
-        );
+        await writeParlayLegOutcomeRow({
+          sessionId,
+          selectedPlayerId: leg.selectedPlayerId,
+          opponentId: leg.opponentId,
+          selectedPlayerName: result.selectedPlayerName,
+          opponentName: result.opponentName,
+          tournamentName: result.tournamentName ?? null,
+          surface: result.surface ?? null,
+          validationScore: result.validationScore,
+          riskScore: result.riskScore,
+          reliabilityGrade: result.reliabilityGrade,
+          parlayGrade: result.parlayGrade,
+          decision: result.decision,
+          dataCoverage: result.dataCoverage,
+          sourceAgreement: result.sourceAgreement,
+          factorScores: result.factorScores,
+          marketOdds: leg.marketOdds ?? null,
+          matchupCloseness: result.matchupCloseness ?? null,
+          removalProbability: result.removalProbability,
+          riskFloorObservability: result.riskFloorObservability,
+        });
       }
     } catch (err) {
       logger.error({ err, sessionId, legCount: results.length },
