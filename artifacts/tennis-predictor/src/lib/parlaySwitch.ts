@@ -101,14 +101,24 @@ export function selectKeysByDecision(
   return keys;
 }
 
-/** Flip `selectedSide` for exactly the legs whose key is in `keys`; all others are returned unchanged. */
+/**
+ * Flips `selectedSide` for exactly the legs whose key is in `keys`; all others are
+ * returned unchanged. Throws rather than defaulting to Player 1 when a targeted leg
+ * has no resolved side (`selectedSide === null`) — that state means no valid
+ * prediction/player selection exists yet (e.g. the Prediction Engine call failed),
+ * and switching such a leg would otherwise silently manufacture a Player 1 pick.
+ */
 export function flipLegsByKey<T extends { key: string; selectedSide: Side | null }>(
   legs: ReadonlyArray<T>,
   keys: ReadonlySet<string>,
 ): T[] {
-  return legs.map((leg) =>
-    keys.has(leg.key) ? { ...leg, selectedSide: flipSide(leg.selectedSide ?? "1") } : leg,
-  );
+  return legs.map((leg) => {
+    if (!keys.has(leg.key)) return leg;
+    if (leg.selectedSide == null) {
+      throw new Error(`Cannot flip a leg without a selected side (leg "${leg.key}")`);
+    }
+    return { ...leg, selectedSide: flipSide(leg.selectedSide) };
+  });
 }
 
 export interface BuilderLegResultLike {
