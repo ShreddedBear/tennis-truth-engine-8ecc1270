@@ -27,6 +27,7 @@ const appBuildInfo = {
 };
 
 const port = Number(process.env.PORT ?? 5000);
+const basePath = process.env.BASE_PATH ?? "/";
 
 if (!Number.isFinite(port) || port <= 0) {
   throw new Error(`Invalid PORT value: ${process.env.PORT}`);
@@ -34,6 +35,7 @@ if (!Number.isFinite(port) || port <= 0) {
 
   export default defineConfig({
     vite: {
+      base: basePath,
       define: {
         __APP_BUILD_INFO__: JSON.stringify(appBuildInfo),
       },

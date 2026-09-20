@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/"
+previewPath = "/truth-engine"
 title = "Tennis Truth Engine"
 description = "The canonical Tennis Truth Engine application, preserving its TanStack Start Workers-compatible runtime, Supabase authentication, audit routes, and existing visual behavior."
 version = "1.0.0"
@@ -8,7 +8,7 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = [ "/truth-engine" ]
 localPort = 19024
 
 [services.development]
@@ -27,4 +27,4 @@ PORT = "19024"
 
 [services.env]
 PORT = "19024"
-BASE_PATH = "/"
+BASE_PATH = "/truth-engine"

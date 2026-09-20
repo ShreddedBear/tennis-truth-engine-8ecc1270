@@ -1,0 +1,1 @@
+- [Truth Engine preservation](truth-engine-preservation.md) — product-shell recovery must preserve the current Truth Engine and never restore it from prediction-era history.

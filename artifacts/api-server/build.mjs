@@ -15,7 +15,15 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/jobs/runPaperTradingJob.ts"),
+      path.resolve(artifactDir, "src/jobs/runCalibrationRefitJob.ts"),
+      path.resolve(artifactDir, "src/jobs/runHistoricalBackfillJob.ts"),
+      // Task #154: Monte Carlo simulator worker — compiled as a separate bundle so the main
+      // process can reference it by path via __dirname and load it in a persistent Worker thread.
+      path.resolve(artifactDir, "src/services/predictionEngine/simulatorWorker.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",

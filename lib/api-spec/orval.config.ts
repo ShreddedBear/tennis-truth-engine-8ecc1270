@@ -57,13 +57,14 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
-          // Orval resolves `auto` from lib/api-spec/package.json, which has no
-          // zod dependency, so orval >= 8.23 falls back to Zod 4 syntax while
-          // the catalog installs zod 3. Pin to match the catalog.
-          version: 3,
           coerce: {
-            query: ['boolean', 'number', 'string'],
-            param: ['boolean', 'number', 'string'],
+            // Coercing query/path strings is a no-op at best -- query/path values already arrive
+            // as strings -- and actively harmful at worst: zod.coerce.string() turns a *missing*
+            // required param into the literal string "undefined" (String(undefined)), which then
+            // passes .min()/non-empty checks instead of failing validation. Only coerce
+            // boolean/number, which genuinely need string->type conversion from the wire format.
+            query: ['boolean', 'number'],
+            param: ['boolean', 'number'],
             body: ['bigint', 'date'],
             response: ['bigint', 'date'],
           },

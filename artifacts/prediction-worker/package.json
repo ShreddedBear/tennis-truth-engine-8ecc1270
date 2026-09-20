@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/prediction-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @workspace/api-server run build",
+    "typecheck": "pnpm --filter @workspace/api-server run typecheck",
+    "paper-trading": "pnpm run build && pnpm --filter @workspace/api-server run job:paper-trading",
+    "calibration-refit": "pnpm run build && pnpm --filter @workspace/api-server run job:calibration-refit",
+    "historical-backfill": "pnpm run build && pnpm --filter @workspace/api-server run job:historical-backfill",
+    "degraded-recompute": "pnpm run build && pnpm --filter @workspace/api-server run job:degraded-recompute"
+  }
+}
