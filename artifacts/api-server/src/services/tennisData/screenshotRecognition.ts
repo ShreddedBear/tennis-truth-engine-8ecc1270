@@ -111,6 +111,7 @@ Respond with ONLY a JSON array, no markdown:
 // ---------------------------------------------------------------------------
 
 type Provider = "openai" | "anthropic" | "gemini";
+const VISION_PROVIDER_TIMEOUT_MS = 20_000;
 
 /**
  * Detect provider from key prefix.
@@ -324,7 +325,11 @@ function parseRecognitionResponse(raw: string | null | undefined): RawScreenshot
 // ---------------------------------------------------------------------------
 
 async function callOpenAI(resolved: ResolvedKey, imageDataUrl: string, systemPrompt = SYSTEM_PROMPT): Promise<string | null> {
-  const client = new OpenAI({ apiKey: resolved.key, ...(resolved.baseUrl ? { baseURL: resolved.baseUrl } : {}) });
+  const client = new OpenAI({
+    apiKey: resolved.key,
+    timeout: VISION_PROVIDER_TIMEOUT_MS,
+    ...(resolved.baseUrl ? { baseURL: resolved.baseUrl } : {}),
+  });
   const response = await client.chat.completions.create({
     model: "gpt-4o",
     max_completion_tokens: 2000,
@@ -361,8 +366,11 @@ async function callGemini(resolved: ResolvedKey, data: string, mediaType: "image
   ];
 
   let lastErr: unknown;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), VISION_PROVIDER_TIMEOUT_MS);
 
-  for (const model of GEMINI_MODELS) {
+  try {
+    for (const model of GEMINI_MODELS) {
     // All Gemini API key formats (AIza*, AQ.*, etc.) use ?key= URL parameter auth.
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${resolved.key}`;
 
@@ -378,84 +386,87 @@ async function callGemini(resolved: ResolvedKey, data: string, mediaType: "image
       generationConfig: { maxOutputTokens: 2000 },
     };
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
-    if (res.ok) {
-      const json = await res.json() as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
-      return json.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text ?? null;
-    }
-
-    const errBody = await res.json().catch(() => ({})) as {
-      error?: {
-        code?: number;
-        status?: string;
-        message?: string;
-        details?: Array<{ retryDelay?: string; [k: string]: unknown }>;
+      if (res.ok) {
+        const json = await res.json() as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
+        return json.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text ?? null;
       }
-    };
-    const gStatus = errBody.error?.status ?? "";
-    const httpStatus = res.status;
+
+      const errBody = await res.json().catch(() => ({})) as {
+        error?: {
+          code?: number;
+          status?: string;
+          message?: string;
+          details?: Array<{ retryDelay?: string; [k: string]: unknown }>;
+        }
+      };
+      const gStatus = errBody.error?.status ?? "";
+      const httpStatus = res.status;
 
     // Parse retry delay hint from Gemini error (e.g. "155.278535ms", "2s")
-    let retryAfterMs: number | undefined;
-    for (const detail of errBody.error?.details ?? []) {
-      if (typeof detail.retryDelay === "string") {
-        const ms = detail.retryDelay.endsWith("ms")
-          ? parseFloat(detail.retryDelay)
-          : detail.retryDelay.endsWith("s")
-            ? parseFloat(detail.retryDelay) * 1000
-            : undefined;
-        if (ms !== undefined && !isNaN(ms)) { retryAfterMs = ms; break; }
+      let retryAfterMs: number | undefined;
+      for (const detail of errBody.error?.details ?? []) {
+        if (typeof detail.retryDelay === "string") {
+          const ms = detail.retryDelay.endsWith("ms")
+            ? parseFloat(detail.retryDelay)
+            : detail.retryDelay.endsWith("s")
+              ? parseFloat(detail.retryDelay) * 1000
+              : undefined;
+          if (ms !== undefined && !isNaN(ms)) { retryAfterMs = ms; break; }
+        }
       }
-    }
     // Also check the message text: "retry in Xs" / "retry in Xms"
-    if (retryAfterMs === undefined) {
-      const m = errBody.error?.message?.match(/retry in ([\d.]+)(m?s)/i);
-      if (m) retryAfterMs = m[2].toLowerCase() === "ms" ? parseFloat(m[1]) : parseFloat(m[1]) * 1000;
-    }
+      if (retryAfterMs === undefined) {
+        const m = errBody.error?.message?.match(/retry in ([\d.]+)(m?s)/i);
+        if (m) retryAfterMs = m[2].toLowerCase() === "ms" ? parseFloat(m[1]) : parseFloat(m[1]) * 1000;
+      }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const err: any = new Error(`Gemini API error ${httpStatus} (${model}): ${errBody.error?.message ?? res.statusText}`);
-    err.status = httpStatus;
-    err.geminiStatus = gStatus;
-    err.model = model;
-    err.retryAfterMs = retryAfterMs;
+      const err: any = new Error(`Gemini API error ${httpStatus} (${model}): ${errBody.error?.message ?? res.statusText}`);
+      err.status = httpStatus;
+      err.geminiStatus = gStatus;
+      err.model = model;
+      err.retryAfterMs = retryAfterMs;
 
     // Permanent auth failures — no point trying other models
-    if (gStatus === "PERMISSION_DENIED" || httpStatus === 403) { err.status = 403; throw err; }
-    if (gStatus === "UNAUTHENTICATED" || httpStatus === 401) { err.status = 401; throw err; }
+      if (gStatus === "PERMISSION_DENIED" || httpStatus === 403) { err.status = 403; throw err; }
+      if (gStatus === "UNAUTHENTICATED" || httpStatus === 401) { err.status = 401; throw err; }
     // 404 = model not found — try next model in the chain
-    if (httpStatus === 404) { lastErr = err; continue; }
+      if (httpStatus === 404) { lastErr = err; continue; }
     // RESOURCE_EXHAUSTED with a very short retry hint = transient RPM limit, NOT quota exhaustion
-    if (gStatus === "RESOURCE_EXHAUSTED" || httpStatus === 429) {
-      const isTransient = retryAfterMs !== undefined && retryAfterMs < 30_000;
-      if (isTransient) {
+      if (gStatus === "RESOURCE_EXHAUSTED" || httpStatus === 429) {
+        const isTransient = retryAfterMs !== undefined && retryAfterMs < 30_000;
+        if (isTransient) {
         // Let outer retry loop handle it — do NOT mark as insufficient_quota
-        throw err;
+          throw err;
+        }
+        lastErr = err;
+        continue;
       }
-      // Long or unknown delay = likely daily quota exhausted for this model; try next model
-      lastErr = err;
-      continue;
+
+      throw err;
     }
 
-    throw err;
+    // All models in the chain exhausted with long/unknown quota delays — mark as permanent so
+    // the outer provider loop skips to the next provider rather than pointlessly retrying.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (lastErr) (lastErr as any).code = "quota_exhausted";
+    throw lastErr ?? new Error("Gemini: all models in fallback chain failed");
+  } finally {
+    clearTimeout(timeout);
   }
-
-  // All models in the chain exhausted with long/unknown quota delays — mark as permanent so
-  // the outer provider loop skips to the next provider rather than pointlessly retrying.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (lastErr) (lastErr as any).code = "quota_exhausted";
-  throw lastErr ?? new Error("Gemini: all models in fallback chain failed");
 }
 
 async function callAnthropic(resolved: ResolvedKey, data: string, mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif", systemPrompt = SYSTEM_PROMPT): Promise<string | null> {
-  const client = new Anthropic({ apiKey: resolved.key });
+  const client = new Anthropic({ apiKey: resolved.key, timeout: VISION_PROVIDER_TIMEOUT_MS });
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 2000,

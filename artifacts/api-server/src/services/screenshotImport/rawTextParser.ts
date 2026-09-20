@@ -26,8 +26,8 @@ const SKIP_PATTERNS = [
   /\d{2,}%/, // percentage "65%"
   /^(ATP|WTA|ITF|USD|EUR|GBP|\$|€|£)/, // currency / tour prefix
   /^(live|upcoming|scheduled|finished|court\s?\d|round\s?\d)/i, // status text
-  /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i, // day names
-  /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i, // month prefixes
+  /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i, // day names
+  /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i, // month abbreviations
   /^\[|\]$/, // bracket lines
   /^[-—–_=*#•>|]+$/, // decoration-only lines
   // Sportsbook UI labels and betting market type names
@@ -38,12 +38,20 @@ const SKIP_PATTERNS = [
   /\bleg\s+parlay\b/i, // "3 leg parlay"
   /@/, // anything with @ (time references like "/ @ 4:20PM EDT")
   /\b(am|pm)\b.*\b(edt|est|pst|mst|cst|pt|ct|et|mt)\b/i, // time+timezone
+  /(?:https?:\/\/|www\.|\.(?:com|net|org|io|dev|app)\b)/i, // URLs and app hostnames
+  /[/_\\]/, // paths, timezone identifiers, and host fragments
+  /\d/, // player names do not contain digits; rejects diagnostics/timestamps/odds
+  /\b(run model|sign in|log in|save predictions|fixtures?|diagnostics|provider|received|filtered|timezone|retained|dismissed|last refresh|refresh|upcoming|live data|history|no .+ found)\b/i,
 ];
 
 function isNameLike(line: string): boolean {
   const t = line.trim();
   if (t.length < 3 || t.length > 60) return false;
-  if (!/[a-zA-Z]/.test(t)) return false;
+  if (!/\p{L}/u.test(t)) return false;
+  // Human names may contain Unicode letters, spaces, apostrophes, periods, and hyphens.
+  // Reject arrows, bullets, colons, URL punctuation, and other app/UI decoration before pairing
+  // consecutive OCR lines as a matchup.
+  if (!/^[\p{L}\p{M}][\p{L}\p{M}.'’ -]*$/u.test(t)) return false;
   return !SKIP_PATTERNS.some((p) => p.test(t));
 }
 
@@ -71,8 +79,8 @@ export function parseOcrText(text: string): RawMatchupEntry[] {
   for (const line of lines) {
     const m = vsRe.exec(line);
     if (m) {
-      const p1 = cleanName(m[1]);
-      const p2 = cleanName(m[2]);
+      const p1 = isNameLike(m[1]) ? cleanName(m[1]) : null;
+      const p2 = isNameLike(m[2]) ? cleanName(m[2]) : null;
       if (p1 && p2 && p1 !== p2) {
         matchups.push({ player1Name: p1, player2Name: p2, eventName: null });
       }

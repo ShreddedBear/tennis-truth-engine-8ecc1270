@@ -24,6 +24,7 @@ import {
 import { resolveScreenshotMatchup } from "../tennisData/screenshotMatchupResolver.js";
 import type { ScreenshotMatchupResult } from "../tennisData/screenshotMatchupResolver.js";
 import { getTennisDataProvider } from "../tennisData/index.js";
+import { inferSurfaceAndLevel } from "../tennisData/surfaceMap.js";
 import {
   isProviderSkippable,
   recordSuccess,
@@ -34,6 +35,79 @@ import {
 } from "./providerHealthMonitor.js";
 import { imageHash, cacheGet, cacheSet, cacheStats, cacheClear } from "./imageHashCache.js";
 import { callOcrSpace } from "./ocrSpaceProvider.js";
+
+const PLAYER_RESOLUTION_TIMEOUT_MS = 15_000;
+
+export class ScreenshotResolutionTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Screenshot player resolution exceeded ${timeoutMs}ms`);
+    this.name = "ScreenshotResolutionTimeoutError";
+  }
+}
+
+export async function withScreenshotResolutionDeadline<T>(
+  operation: Promise<T>,
+  timeoutMs = PLAYER_RESOLUTION_TIMEOUT_MS,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new ScreenshotResolutionTimeoutError(timeoutMs)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export function buildUnresolvedRecognitionResult(
+  raw: Pick<RawScreenshotRecognitionWithDebug, "matchups">,
+  warning: string,
+): ScreenshotMatchupResult {
+  const entries = raw.matchups.map((entry) => {
+    const inferred = inferSurfaceAndLevel(entry.eventName);
+    return {
+      player1: {
+        recognizedName: entry.player1Name,
+        player: null,
+        status: entry.player1Name ? "not-found" : "unreadable",
+      },
+      player2: {
+        recognizedName: entry.player2Name,
+        player: null,
+        status: entry.player2Name ? "not-found" : "unreadable",
+      },
+      event: {
+        recognizedName: entry.eventName,
+        surface: inferred.surface,
+        level: inferred.level,
+      },
+      resolved: false,
+      warnings: [warning],
+    };
+  });
+  const primary = entries[0];
+
+  if (!primary) {
+    return {
+      player1: { recognizedName: null, player: null, status: "unreadable" },
+      player2: { recognizedName: null, player: null, status: "unreadable" },
+      event: { recognizedName: null, surface: null, level: null },
+      warnings: [warning],
+      matchups: [],
+    };
+  }
+
+  return {
+    player1: primary.player1,
+    player2: primary.player2,
+    event: primary.event,
+    warnings: [warning],
+    matchups: entries,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -242,17 +316,18 @@ class ScreenshotImportService {
     let resolved: ScreenshotMatchupResult;
     let resolutionThrew = false;
     try {
-      resolved = await resolveScreenshotMatchup(getTennisDataProvider(), rawForResolver);
+      resolved = await withScreenshotResolutionDeadline(
+        resolveScreenshotMatchup(getTennisDataProvider(), rawForResolver),
+      );
     } catch (resolveErr) {
       resolutionThrew = true;
       logger.warn({ err: resolveErr }, "ScreenshotImportService: player resolution failed");
-      resolved = {
-        player1: { recognizedName: null, player: null, status: "not-found" },
-        player2: { recognizedName: null, player: null, status: "not-found" },
-        event: { recognizedName: null, surface: null, level: null },
-        warnings: ["Player resolution failed — please verify names manually."],
-        matchups: [],
-      };
+      const timedOut = resolveErr instanceof ScreenshotResolutionTimeoutError;
+      const warning = timedOut
+        ? "Player lookup timed out, but OCR succeeded. The recognized names were preserved — verify or select the players manually."
+        : "Player lookup failed, but OCR succeeded. The recognized names were preserved — verify or select the players manually.";
+      debugLog.push(`[RESOLUTION] ${timedOut ? "Timed out" : "Failed"} — returning OCR names without resolved player records`);
+      resolved = buildUnresolvedRecognitionResult(rawForResolver, warning);
     }
 
     const totalDurationMs = Date.now() - t0;
