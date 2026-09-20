@@ -1,0 +1,320 @@
+CANDIDATE D — TEMPORAL HOLDOUT REPLICATION
+
+We have completed the authoritative Candidate B vs Candidate D ablation.
+
+DO NOT modify Candidate D.
+DO NOT tune Candidate D.
+DO NOT introduce partial-strength reliability.
+DO NOT optimize thresholds.
+DO NOT change calibration.
+DO NOT merge.
+DO NOT push.
+DO NOT modify canonical production.
+
+VERIFIED TRAINING/DEVELOPMENT EXPERIMENT
+
+Candidate B:
+d5f0f198ff05cf2643cb39269a593762198ea5aa
+
+Deterministic replay infrastructure:
+570c4f2e61c1a26de952a891f3d0700158ebdb69
+
+Authoritative Candidate D:
+22dead027c2599485fffdb4a9fe03dc4724a0e5a
+
+Previous protected population:
+1,644 total
+1,604 gradeable
+MD5:
+b1cce027e68cc689b43922ca9a0ffd19
+
+Observed B → D result:
+
+Accuracy:
+63.591% → 64.339%
+
+Brier:
+0.231633 → 0.230457
+
+Log loss:
+0.655960 → 0.653459
+
+ECE:
+0.082243 → 0.085443
+
+Mean distance from 50:
+5.3505 → 5.7742 pp
+
+Surface ESS effect:
+
+LOW:
+549 rows
+519 changed
+Accuracy Δ +2.045 pp
+Brier Δ −0.003294
+Log-loss Δ −0.007016
+
+MEDIUM:
+547 rows
+292 changed
+
+HIGH:
+548 rows
+0 changed
+
+IMPORTANT
+
+This experiment is now CLOSED.
+
+Do not tune Candidate D against this population.
+
+OBJECTIVE
+
+Test whether the observed Candidate D predictive improvement replicates on a completely separate, predeclared temporal holdout.
+
+The holdout must be NON-OVERLAPPING with the original 1,644-match population.
+
+PREDECLARE THE HOLDOUT BEFORE RUNNING IT
+
+First identify the exact temporal boundary of the original 1,644-match population.
+
+Then select the next chronologically available historical period that:
+
+1. occurs strictly after the original evaluation period;
+2. contains sufficient gradeable matches;
+3. has the same required historical data;
+4. does not overlap the original population;
+5. can be reconstructed with the same point-in-time rules.
+
+Do NOT choose the holdout because it produces favorable results.
+
+Do NOT inspect Candidate D performance before fixing the holdout boundary.
+
+Record the exact:
+
+- start date
+- end date
+- population fingerprint
+- total rows
+- gradeable rows
+
+BEFORE running the B/D comparison.
+
+If there is insufficient data immediately after the original period, report the limitation rather than selecting an arbitrary favorable period.
+
+EXACT COMPARISON
+
+Run:
+
+Candidate B
+vs
+Candidate D
+
+using the exact same holdout population.
+
+Everything else must remain identical:
+
+- database
+- cutoff logic
+- deterministic same-date ordering
+- canonical player orientation
+- calibration
+- ensemble priors
+- module inputs
+- provider logic
+- no market odds
+- no market sentiment
+
+DATABASE
+
+Read-only.
+
+Database writes MUST be zero.
+
+REPRODUCIBILITY
+
+Run:
+
+B #1
+B #2
+D #1
+D #2
+
+Require:
+
+B1 == B2
+D1 == D2
+
+If either pair differs:
+
+STOP.
+
+Do not calculate performance conclusions.
+
+PRIMARY METRICS
+
+Calculate:
+
+- Accuracy
+- Brier
+- Log loss
+- ECE, 10 bins
+- Exact 50%
+- 49–51%
+- 47–53%
+- 45–55%
+- 40–60%
+- Mean distance from 50
+- Median distance from 50
+
+PAIRED ANALYSIS
+
+Calculate D − B for all metrics.
+
+Also calculate:
+
+- moved away from 50
+- moved toward 50
+- unchanged
+- mean signed probability change
+- mean absolute probability change
+- median absolute probability change
+- maximum probability change
+
+SELECTION ANALYSIS
+
+Calculate:
+
+- selections changed
+- B correct / D wrong
+- D correct / B wrong
+- net correct-selection difference
+
+SURFACE ESS PARTITION
+
+Use the SAME partition methodology as the original experiment:
+
+min(player1 Surface ESS, player2 Surface ESS)
+
+Use predeclared/holdout-derived thresholds only if required by the exact analysis protocol.
+
+Report:
+
+- row count
+- changed count
+- mean absolute movement
+- Brier Δ
+- log-loss Δ
+- ECE Δ
+- accuracy Δ
+
+for low / medium / high ESS.
+
+DO NOT redefine partitions after seeing the results.
+
+CALIBRATION TRADEOFF
+
+Explicitly test whether the original finding replicates:
+
+Predictive metrics improve
+BUT
+10-bin ECE worsens.
+
+Do not treat an ECE increase alone as automatic failure.
+
+Report the complete fixed-width bin table so the calibration change can be inspected.
+
+REPLICATION CRITERIA
+
+Do NOT declare Candidate D validated simply because one metric improves.
+
+Report separately:
+
+1. Predictive replication:
+   - accuracy
+   - Brier
+   - log loss
+
+2. Compression replication:
+   - probability distance from 50
+   - probability bands
+
+3. Calibration replication:
+   - ECE
+   - bin-level behavior
+
+4. Selection replication:
+   - changed selections
+   - correctness
+
+5. ESS replication:
+   - concentration of effect in low/medium/high ESS
+
+The goal is to determine whether the ORIGINAL EFFECT reproduces out-of-sample.
+
+NO TUNING
+
+Do NOT:
+
+- test alternative reliability strengths
+- test 50/75/80/90 reliability
+- modify ESS thresholds
+- change priors
+- change calibration
+- modify Surface Elo formulas
+- change the ensemble
+- remove other reliability mechanisms
+
+Those are separate experiments that may happen ONLY after this replication.
+
+ARTIFACTS
+
+Create:
+
+1. Holdout definition JSON
+2. Machine-readable paired results
+3. Markdown report
+4. Row-level B/D comparison
+5. Population fingerprint
+6. Four run hashes
+7. Exact source/model SHAs
+
+Do not overwrite the previous experiment artifacts.
+
+GIT
+
+Use an isolated evaluation branch.
+
+Commit artifacts if necessary.
+
+DO NOT PUSH.
+DO NOT MERGE.
+
+FINAL REPORT
+
+Use:
+
+1. HOLDOUT DEFINITION
+2. POPULATION VERIFICATION
+3. REPRODUCIBILITY GATE
+4. B VS D RESULTS
+5. COMPRESSION REPLICATION
+6. PREDICTIVE REPLICATION
+7. CALIBRATION REPLICATION
+8. WINNER-SELECTION REPLICATION
+9. SURFACE-ESS REPLICATION
+10. COMPARISON WITH ORIGINAL 1,644-MATCH RESULT
+11. ARTIFACT HASHES
+12. DATABASE WRITE CHECK
+13. CONCLUSION
+14. NEXT EXPERIMENT
+
+The conclusion must explicitly answer:
+
+- Did Candidate D's predictive improvement replicate?
+- Did the compression reduction replicate?
+- Did the ECE degradation replicate?
+- Did the effect remain concentrated in low-ESS matches?
+- Are the results strong enough to justify designing a partial-strength ablation?
+
+Do NOT recommend merging Candidate D unless the user explicitly asks after seeing the holdout results.

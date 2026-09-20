@@ -1,0 +1,224 @@
+This is actually the right checkpoint. Do not choose the “inert code first” option, and do not let the generic hook force a commit/push.
+
+The manifest uncovered a much bigger issue: this isn’t a simple Git/file merge. The two applications have different runtime architectures.
+
+What I recommend
+
+Leave the manifest uncommitted for now. Don’t commit or push it yet.
+
+And before Claude touches implementation, we need to resolve the four architecture questions. Otherwise we could burn a huge amount of Replit/Claude credits migrating code that can’t run in the destination environment.
+
+Send Claude this:
+
+Leave docs/migration-manifest-tse-consolidation.md uncommitted and unpushed for now.
+
+Do NOT let a generic hygiene hook override the explicit instruction that this consolidation-audit task is read-only.
+
+Do NOT begin porting code yet.
+
+The manifest uncovered a critical runtime mismatch, so we need to resolve architecture before implementation.
+
+Current facts
+
+Canonical Truth Engine:
+
+* TanStack Start
+* Cloudflare Workers runtime
+* Supabase Auth
+* Supabase-oriented database access
+* bun/single-package architecture
+
+Tennis-Stats-Engine:
+
+* pnpm workspace
+* Node/Express API server
+* long-running app.listen() process
+* Clerk authentication
+* Drizzle + raw PostgreSQL
+* in-process background jobs
+* Vite Tennis Predictor frontend
+
+The objective remains:
+
+ONE canonical repository:
+
+ShreddedBear/tennis-truth-engine-8ecc1270
+
+containing three separate engines:
+
+1. Truth Engine
+2. Prediction Engine
+3. Parlay Builder
+
+However, we must not assume the TSE Node application can simply be copied into a Cloudflare Worker.
+
+Before implementation, resolve these four architecture questions
+
+1. Runtime
+
+Determine whether the final application is intended to:
+
+A. Run the Prediction Engine/Parlay Builder API inside the Cloudflare Workers/TanStack Start runtime,
+
+OR
+
+B. Keep the Node API server as a separately deployed runtime while its source lives in the canonical repository.
+
+Do NOT choose based merely on which is easier.
+
+Assess the actual requirements of:
+
+* Monte Carlo simulator
+* background jobs
+* historical backfill
+* calibration refit
+* paper trading
+* long-running workloads
+* PostgreSQL connections
+* provider integrations
+
+Return the technically appropriate architecture and why.
+
+2. Authentication
+
+Compare:
+
+* Supabase Auth
+* Clerk
+
+Determine whether the final application should:
+
+* standardize on one;
+* support both temporarily;
+* or keep authentication boundaries between services.
+
+Do not migrate authentication yet.
+
+3. Database
+
+Determine, READ-ONLY:
+
+* whether TSE’s DATABASE_URL points to the same logical database as the canonical application’s operational database;
+* whether both applications use helium/heliumdb;
+* whether the connected Supabase PostgreSQL instance is separate;
+* which schema/table ownership currently belongs to each system.
+
+Do not modify either database.
+
+4. Frontend
+
+Determine whether the TSE Tennis Predictor Vite SPA should:
+
+A. become routes/components inside the canonical TanStack Start application,
+
+or
+
+B. remain a separately deployed frontend whose source is stored in the canonical repository.
+
+Assess:
+
+* routing;
+* authentication;
+* API contracts;
+* deployment;
+* existing UI functionality.
+
+Do not migrate it yet.
+
+IMPORTANT
+
+Do not make the “inert source code” option the final architecture.
+
+We are not trying to create a repository that merely contains unused copies of TSE.
+
+The goal is a functioning consolidated application.
+
+But we also should NOT attempt a runtime rewrite until the architecture is explicitly established.
+
+Manifest
+
+The migration manifest is useful and should remain available for review:
+
+docs/migration-manifest-tse-consolidation.md
+
+Do not delete it.
+
+Do not commit it.
+
+Do not push it.
+
+RETURN
+
+Provide:
+
+1. Runtime recommendation
+
+* final architecture:
+* why:
+* what happens to Node/background jobs:
+
+2. Authentication recommendation
+
+* chosen architecture:
+* migration implications:
+
+3. Database determination
+
+* canonical DB:
+* TSE DB:
+* same/different:
+* Supabase DB relationship:
+* schema ownership:
+
+4. Frontend recommendation
+
+* final architecture:
+* why:
+* routing/auth implications:
+
+5. Migration complexity
+
+Classify as:
+
+FILE CONSOLIDATION
+
+SERVICE CONSOLIDATION
+
+RUNTIME REWRITE
+
+or
+
+HYBRID
+
+6. Recommended implementation phases
+
+Give the minimum number of phases required to safely produce the functioning consolidated application.
+
+Do NOT implement any of them yet.
+
+No commits.
+No pushes.
+No database writes.
+No production deployment changes.
+
+Why I’m choosing this
+
+The four questions are not equal.
+
+The biggest one is #1.
+
+If we decide the final Prediction Engine has to execute inside Cloudflare Workers, then we’re talking about a genuine runtime migration of the Node API and background-job architecture. That’s a substantial engineering project.
+
+If instead the canonical repo can contain and deploy a Node application alongside the Truth Engine, then we can preserve much more of the mature TSE system and avoid rewriting a huge amount of working code.
+
+And I strongly prefer preserving the mature Prediction Engine rather than rewriting it just to make the repository look uniform.
+
+On the commit question
+
+For now:
+
+Leave the manifest uncommitted.
+
+Once we agree on the architecture, the manifest can become the authoritative migration plan and be committed as the first controlled consolidation artifact.
+
+So don’t spend a credit on a pointless commit/push just because a hygiene hook complained. The manifest is currently doing exactly what we need: showing us that the “simple merge” assumption was wrong before we damage either application.
