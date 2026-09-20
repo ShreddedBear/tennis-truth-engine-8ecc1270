@@ -19,6 +19,7 @@
     "check:parlay-boundary": "tsx src/scripts/checkParlayBoundary.ts",
     "test:parlay-boundary": "tsx --test src/scripts/checkParlayBoundary.test.ts",
     "test:ledgerPlayers": "tsx --test src/services/evaluation/ledgerPlayers.test.ts",
+    "test:marketEvidence": "tsx --test src/services/marketEvidence/captureMarketSnapshot.test.ts src/services/oddsData/providerRouting.test.ts",
     "test:job-smoke": "pnpm run build && tsx --test src/jobs/runPaperTradingJob.smoke.test.ts src/jobs/runCalibrationRefitJob.smoke.test.ts src/jobs/runHistoricalBackfillJob.smoke.test.ts",
     "job:paper-trading": "export PAPER_TRADING_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runPaperTradingJob.mjs",
     "job:paper-trading:dev": "export PAPER_TRADING_JOB_STANDALONE=1 && tsx src/jobs/runPaperTradingJob.ts",

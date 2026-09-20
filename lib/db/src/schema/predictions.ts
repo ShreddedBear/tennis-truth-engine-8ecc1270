@@ -82,14 +82,22 @@ export const predictionsTable = pgTable(
     clerkUserId: text("clerk_user_id"),
 
     /**
-     * Task #146: three-state market-odds outcome recorded at creation time, never updated.
-     * - "included"       — odds were fetched and passed to the engine for this prediction
-     * - "outside_window" — provider returned no odds (match outside the ~28-31h availability
-     *                      window, or not covered by this sport key); expected, not an error
-     * - "provider_error" — fetchMarketOdds threw (quota exhausted, network failure, circuit open)
-     * Null for rows inserted before this column existed.
+     * Task #146 (corrected): four-state market-odds outcome recorded at creation time, never
+     * updated. The original three-state version collapsed "a provider was queried and had no
+     * odds" and "no provider was even configured" into the same "outside_window" label — corrected
+     * here to distinguish them (see OddsStatus's own doc comment in services/oddsData/index.ts for
+     * the shared vocabulary):
+     * - "included"                — odds were fetched and passed to the engine for this prediction
+     * - "no_market_available"     — a configured, working provider was queried and genuinely had
+     *                              no odds for this matchup
+     * - "provider_not_configured" — no provider had an API key set at all; nothing was queried
+     * - "provider_error"          — fetchMarketOdds threw (quota exhausted, network failure,
+     *                              circuit open)
+     * Null for rows inserted before this column existed. Rows written before this correction may
+     * still hold the legacy string "outside_window" — readers must treat that as
+     * "no_market_available OR provider_not_configured, ambiguous" rather than assuming either.
      */
-    oddsStatus: text("odds_status").$type<"included" | "outside_window" | "provider_error">(),
+    oddsStatus: text("odds_status").$type<"included" | "no_market_available" | "provider_not_configured" | "provider_error">(),
 
     /**
      * Shadow-replay / recommendation-audit columns (added via ensureEvaluationSchema.ts
@@ -125,7 +133,7 @@ export const insertPredictionSchema = createInsertSchema(predictionsTable, {
   // createInsertSchema infers text columns as z.string(), losing the .$type<>() literal union.
   // Override explicitly so InsertPrediction.oddsStatus stays typed as the literal union,
   // matching what drizzle's insert overloads require.
-  oddsStatus: z.enum(["included", "outside_window", "provider_error"]).nullable().optional(),
+  oddsStatus: z.enum(["included", "no_market_available", "provider_not_configured", "provider_error"]).nullable().optional(),
 }).omit({
   id: true,
   createdAt: true,

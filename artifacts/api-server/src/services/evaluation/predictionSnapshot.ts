@@ -71,8 +71,10 @@ export interface PredictionSnapshotResult {
    */
   marketOdds: OddsQuote | null;
   /**
-   * Task #146: three-state odds outcome — "included" / "outside_window" / "provider_error".
-   * Callers record this on their respective rows so it's distinguishable at query time.
+   * Task #146 (corrected): four-state odds outcome — "included" / "no_market_available" /
+   * "provider_not_configured" / "provider_error" (see OddsStatus's own doc comment for the full
+   * vocabulary). Callers record this on their respective rows so it's distinguishable at query
+   * time.
    */
   marketOddsStatus: OddsStatus;
 }

@@ -334,7 +334,8 @@ export const CreatePredictionResponse = zod.object({
   "upsetRisk": zod.enum(['LOW', 'MODERATE', 'HIGH', 'EXTREME']),
   "recommendation": zod.enum(['HIGHEST_CONFIDENCE', 'HIGH_CONFIDENCE', 'MODERATE_CONFIDENCE', 'LOW_CONFIDENCE', 'INSUFFICIENT_EDGE', 'DATA_INCOMPLETE', 'STRONG_RECOMMENDATION', 'MODERATE_LEAN', 'HIGH_RISK', 'NO_STRONG_SIGNAL', 'DO_NOT_RECOMMEND']),
   "predictedSetScore": zod.string(),
-  "oddsStatus": zod.enum(["included", "outside_window", "provider_error"]).nullish().describe('Task #146: three-state market-odds outcome. "included" — odds contributed to ensemble. "outside_window" — match outside ~28-31h availability window (expected, not an error). "provider_error" — provider unreachable or quota-exhausted. Null for legacy predictions.'),
+  // Hand-synced ahead of the next orval regeneration (Task #146 corrected 4-state status) — the source route/schema (lib/db/src/schema/predictions.ts) is the source of truth; regenerate this file from it at review/apply time rather than trusting this hand-edit long-term.
+  "oddsStatus": zod.enum(["included", "no_market_available", "provider_not_configured", "provider_error"]).nullish().describe('Task #146 (corrected): four-state market-odds outcome. "included" — odds contributed to ensemble. "no_market_available" — a configured provider was queried and had no odds for this matchup. "provider_not_configured" — no provider had an API key set; nothing was queried. "provider_error" — provider unreachable or quota-exhausted. Null for legacy predictions; legacy rows may hold the older "outside_window" value, ambiguous between no_market_available and provider_not_configured.'),
   "engine": zod.object({
   "surfaceElo": zod.object({
   "player1SurfaceElo": zod.number(),
