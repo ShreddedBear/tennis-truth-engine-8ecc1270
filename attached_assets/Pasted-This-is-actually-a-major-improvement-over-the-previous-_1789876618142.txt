@@ -1,0 +1,228 @@
+This is actually a major improvement over the previous audit.
+
+The biggest blocker is gone
+
+The Serve/Return issue turned out to not be a blocker at all.
+
+The authoritative 1,644-match experiment used:
+
+score/game-margin proxy — 1,644/1,644 (100%)
+
+So Live Tennis API Pro’s lack of Ultra match statistics does not change the data regime we’re trying to reproduce.
+
+That means we do not need Ultra just to reproduce the original B/D experiment.
+
+Current status
+
+Gate	Status
+Live/upcoming provider	✅ Pass
+Player profiles	✅ Pass
+Completed history	✅ Pass
+PBP	✅ Pass
+H2H	✅ Pass, but derive historically
+Historical rankings	✅ Pass
+Serve/Return parity	✅ Pass
+Availability point-in-time safety	🔴 Blocked
+Player identity mapping	🟡 Blocked
+Tournament-level mapping	🟡 Blocked
+Licensing/storage	🔴 Blocked
+Candidate D holdout	⛔ Not ready
+
+So we’re no longer dealing with a provider-capability problem. We’re dealing with historical reconstruction integrity + licensing.
+
+⸻
+
+1. Availability is now the most important technical fix
+
+The audit found that Availability uses wall-clock time during historical replay.
+
+That’s unacceptable for the holdout.
+
+A June 2026 match must only see information that was available before that match, not information that became known in September.
+
+The correct remediation should be something like:
+
+historical replay
+     ↓
+match cutoff timestamp
+     ↓
+Availability
+     ↓
+only evidence ≤ cutoff
+
+And this should be fixed before we even construct the holdout.
+
+Importantly, this isn’t a Candidate D change. It’s a point-in-time correctness fix to the historical evaluation infrastructure.
+
+⸻
+
+2. The identity number needs one small audit correction
+
+The report says:
+
+* 3,723 deterministic matches
+* 7,990 unmapped
+* 11,714 total
+
+But:
+
+3,723 + 7,990 = 11,713
+
+So there is one player unaccounted for.
+
+That’s probably trivial—e.g. another classification—but because we’re building a historical holdout, I would have Claude reconcile that one-row discrepancy before proceeding.
+
+More importantly, the broad 11,714-player test isn’t necessarily the right final measure.
+
+We don’t need to prove that every player in Live Tennis API maps perfectly.
+
+We need to prove that every player appearing in the eventual holdout maps deterministically.
+
+So the proper sequence is:
+
+Live Tennis population
+        ↓
+filter to eligible singles matches
+        ↓
+candidate holdout
+        ↓
+player identity mapping
+        ↓
+0 ambiguous / 0 unresolved
+
+If a player can’t be mapped, that match should be excluded from the predeclared gradeability rule, not guessed.
+
+⸻
+
+3. Tournament-level mapping needs the same treatment
+
+Same principle.
+
+Don’t try to solve every tournament in the provider.
+
+For the eventual holdout, we need deterministic mapping of:
+
+Live Tennis tournament
+        ↓
+canonical tournament
+        ↓
+canonical level
+        ↓
+Prediction Engine taxonomy
+
+No guessing.
+
+No “probably ATP 250.”
+
+If a tournament can’t be classified safely, it needs to be marked ungradeable/excluded according to a rule declared before looking at B/D performance.
+
+⸻
+
+4. The 33,357 number is NOT our holdout
+
+This is important.
+
+The audit found:
+
+33,357 rows from June 3–September 20.
+
+That’s evidence that the missing post-June population exists.
+
+But it is not yet an evaluation population, because it contains:
+
+* non-singles
+* potentially incomplete records
+* unmapped identities
+* potentially ambiguous tournament levels
+* varying PBP completeness
+
+So we should not call 33,357 our holdout.
+
+Instead:
+
+33,357 observed source rows
+          ↓
+eligibility rules
+          ↓
+singles only
+          ↓
+supported tours/levels
+          ↓
+valid identities
+          ↓
+valid surface
+          ↓
+valid outcome
+          ↓
+required feature availability
+          ↓
+point-in-time safe
+          ↓
+FINAL HOLDOUT
+
+And only then do we fingerprint it.
+
+⸻
+
+5. Licensing is the other hard stop
+
+This one cannot be solved by code.
+
+Before we put Live Tennis historical data into your persistent historical database, we need written clarification from Live Tennis API regarding:
+
+* persistent storage
+* backups
+* historical backtesting
+* model validation
+* temporal holdouts
+* derived features
+* commercial prediction outputs
+* retention after cancellation
+
+Until that’s clarified, do not ingest the 33,357 records.
+
+⸻
+
+What I would do next
+
+We’re finally at the point where I would split the work into two independent tracks:
+
+Track A — engineering
+
+Fix the historical Availability cutoff and validate:
+
+* identity mapping
+* tournament-level mapping
+* singles filtering
+* gradeability rules
+
+No B/D runs.
+
+Track B — provider/legal
+
+Get written confirmation from Live Tennis API about persistent historical storage and model-validation use.
+
+Once both tracks pass:
+
+             LIVE TENNIS API
+                    ↓
+          eligible post-6/2 data
+                    ↓
+        point-in-time reconstruction
+                    ↓
+         freeze population + hash
+                    ↓
+              B1 / B2
+              D1 / D2
+
+One thing I would explicitly NOT do
+
+Don’t let Claude “fix” the availability issue and immediately run the holdout in the same task.
+
+The clean sequence should be:
+
+Fix → test → independently verify → establish population → freeze → then experiment.
+
+That keeps the Candidate D experiment scientifically clean.
+
+And the most encouraging finding here is that Live Tennis API Pro’s lack of direct match statistics is no longer an obstacle to reproducing the original 1,644-match B/D experiment, because the authoritative experiment itself used the score/game-margin proxy for 100% of the population.
