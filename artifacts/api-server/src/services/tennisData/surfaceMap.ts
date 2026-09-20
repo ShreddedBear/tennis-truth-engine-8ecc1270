@@ -1,4 +1,84 @@
-import type { Surface, TournamentLevel } from "./types";
+import type { MatchFormat, MetadataFieldProvenance, Surface, TournamentLevel } from "./types";
+
+export interface LocalTournamentMetadata {
+  canonicalName: string | null;
+  tour: "ATP" | "WTA" | null;
+  category: TournamentLevel | null;
+  surface: Surface | null;
+  bestOf: MatchFormat | null;
+  round: string | null;
+  provenance: Record<"tournament" | "tour" | "category" | "surface" | "bestOf" | "round", MetadataFieldProvenance>;
+}
+
+const unresolved = (): MetadataFieldProvenance => ({ source: null, method: "none", status: "unresolved", direct: false });
+const local = (direct = true): MetadataFieldProvenance => ({ source: "canonical tournament registry", method: "local-registry", status: direct ? "verified" : "derived", direct });
+const derived = (source: string): MetadataFieldProvenance => ({ source, method: "competition-rule", status: "derived", direct: false });
+
+const CANONICAL_EVENTS: Array<{ match: RegExp; name: string; surface: Surface; atpLevel?: TournamentLevel; wtaLevel?: TournamentLevel }> = [
+  { match: /wimbledon/i, name: "Wimbledon", surface: "Grass", atpLevel: "GrandSlam", wtaLevel: "GrandSlam" },
+  { match: /roland garros|french open/i, name: "Roland Garros", surface: "Clay", atpLevel: "GrandSlam", wtaLevel: "GrandSlam" },
+  { match: /\bus open\b/i, name: "US Open", surface: "Hard", atpLevel: "GrandSlam", wtaLevel: "GrandSlam" },
+  { match: /australian open/i, name: "Australian Open", surface: "Hard", atpLevel: "GrandSlam", wtaLevel: "GrandSlam" },
+  { match: /indian wells/i, name: "Indian Wells", surface: "Hard", atpLevel: "Masters1000", wtaLevel: "WTA1000" },
+  { match: /miami open/i, name: "Miami Open", surface: "Hard", atpLevel: "Masters1000", wtaLevel: "WTA1000" },
+  { match: /cincinn(?:ati|nati|atti)/i, name: "Cincinnati Open", surface: "Hard", atpLevel: "Masters1000", wtaLevel: "WTA1000" },
+  { match: /s[aã]o paulo/i, name: "São Paulo Open", surface: "Hard", wtaLevel: "WTA250" },
+  { match: /\bpalermo\b/i, name: "Palermo Ladies Open", surface: "Clay", wtaLevel: "WTA250" },
+  { match: /\beastbourne\b/i, name: "Eastbourne International", surface: "Grass", atpLevel: "ATP250", wtaLevel: "WTA250" },
+  { match: /\bdoha\b|\bqatar\b/i, name: "Qatar Open", surface: "Hard", wtaLevel: "WTA1000" },
+];
+
+function normalizedRound(name: string): string | null {
+  if (/\bqf\b|quarter[\s-]*final/i.test(name)) return "QF";
+  if (/\bsf\b|semi[\s-]*final/i.test(name)) return "SF";
+  if (/\bfinal\b/i.test(name) && !/semi/i.test(name)) return "F";
+  const round = name.match(/\b(?:r|round\s*(?:of\s*)?)(16|32|64|128)\b/i)?.[1];
+  return round ? `R${round}` : null;
+}
+
+export function resolveLocalTournamentMetadata(eventName: string | null | undefined): LocalTournamentMetadata {
+  const base = {
+    tournament: unresolved(), tour: unresolved(), category: unresolved(),
+    surface: unresolved(), bestOf: unresolved(), round: unresolved(),
+  };
+  if (!eventName?.trim()) return { canonicalName: null, tour: null, category: null, surface: null, bestOf: null, round: null, provenance: base };
+  const explicitTour = /\bwta\b/i.test(eventName) ? "WTA" : /\batp\b/i.test(eventName) ? "ATP" : null;
+  const candidates = CANONICAL_EVENTS.filter((event) =>
+    event.match.test(eventName) && (!explicitTour || (explicitTour === "ATP" ? event.atpLevel : event.wtaLevel)),
+  );
+  const round = normalizedRound(eventName);
+  if (candidates.length !== 1) {
+    const ambiguous = candidates.length > 1;
+    return {
+      canonicalName: null, tour: explicitTour, category: null, surface: null, bestOf: null, round,
+      provenance: {
+        ...base,
+        tournament: ambiguous ? { source: "canonical tournament registry", method: "local-registry", status: "ambiguous", direct: false } : base.tournament,
+        tour: explicitTour ? { source: "OCR event label", method: "ocr", status: "verified", direct: true } : base.tour,
+        round: round ? { source: "OCR event label", method: "ocr", status: "verified", direct: true } : base.round,
+      },
+    };
+  }
+  const event = candidates[0]!;
+  const tour = explicitTour;
+  const category = tour === "ATP"
+    ? event.atpLevel ?? null
+    : tour === "WTA"
+      ? event.wtaLevel ?? null
+      : event.atpLevel === event.wtaLevel
+        ? event.atpLevel ?? null
+        : null;
+  const bestOf: MatchFormat | null = category === "GrandSlam" ? (tour === "ATP" ? "BestOf5" : tour === "WTA" ? "BestOf3" : null) : tour ? "BestOf3" : null;
+  return {
+    canonicalName: event.name, tour, category, surface: event.surface, bestOf, round,
+    provenance: {
+      tournament: local(), tour: tour ? (explicitTour ? { source: "OCR event label", method: "ocr", status: "verified", direct: true } : local(false)) : unresolved(),
+      category: local(), surface: local(),
+      bestOf: bestOf ? derived(category === "GrandSlam" ? "Grand Slam tour format rule" : "ATP/WTA tour format rule") : unresolved(),
+      round: round ? { source: "OCR event label", method: "ocr", status: "verified", direct: true } : unresolved(),
+    },
+  };
+}
 
 // API-Tennis does not report court surface or tournament tier on `get_fixtures` rows directly,
 // but (confirmed live, 2026-07-11 -- verify live, don't trust docs, per prior provider quirks)

@@ -1168,6 +1168,7 @@ export type Database = {
           identity_status: string
           indoor: boolean | null
           match_status: string
+          metadata_provenance: Json
           player1_id: string | null
           player1_name: string
           player2_id: string | null
@@ -1200,6 +1201,7 @@ export type Database = {
           identity_status?: string
           indoor?: boolean | null
           match_status?: string
+          metadata_provenance?: Json
           player1_id?: string | null
           player1_name: string
           player2_id?: string | null
@@ -1232,6 +1234,7 @@ export type Database = {
           identity_status?: string
           indoor?: boolean | null
           match_status?: string
+          metadata_provenance?: Json
           player1_id?: string | null
           player1_name?: string
           player2_id?: string | null

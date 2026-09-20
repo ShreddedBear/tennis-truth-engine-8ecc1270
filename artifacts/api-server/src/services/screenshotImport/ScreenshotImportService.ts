@@ -25,6 +25,7 @@ import { resolveScreenshotMatchup } from "../tennisData/screenshotMatchupResolve
 import type { ScreenshotMatchupResult } from "../tennisData/screenshotMatchupResolver.js";
 import { getTennisDataProvider } from "../tennisData/index.js";
 import { inferSurfaceAndLevel } from "../tennisData/surfaceMap.js";
+import type { MetadataFieldProvenance } from "../tennisData/types.js";
 import {
   isProviderSkippable,
   recordSuccess,
@@ -72,6 +73,8 @@ export function buildUnresolvedRecognitionResult(
 ): ScreenshotMatchupResult {
   const entries = raw.matchups.map((entry) => {
     const inferred = inferSurfaceAndLevel(entry.eventName);
+    const empty: MetadataFieldProvenance = { source: null, method: "none", status: "unresolved", direct: false };
+    const localEvidence: MetadataFieldProvenance = { source: "local tournament name table", method: "local-registry", status: "verified", direct: true };
     return {
       player1: {
         recognizedName: entry.player1Name,
@@ -85,8 +88,13 @@ export function buildUnresolvedRecognitionResult(
       },
       event: {
         recognizedName: entry.eventName,
+        canonicalName: null,
+        tour: null,
         surface: inferred.surface,
         level: inferred.level,
+        bestOf: null,
+        round: null,
+        provenance: { tournament: empty, tour: empty, surface: inferred.surface ? localEvidence : empty, level: inferred.level ? localEvidence : empty, bestOf: empty, round: empty },
       },
       resolved: false,
       warnings: [warning],
@@ -98,7 +106,7 @@ export function buildUnresolvedRecognitionResult(
     return {
       player1: { recognizedName: null, player: null, status: "unreadable" },
       player2: { recognizedName: null, player: null, status: "unreadable" },
-      event: { recognizedName: null, surface: null, level: null },
+      event: { recognizedName: null, canonicalName: null, tour: null, surface: null, level: null, bestOf: null, round: null, provenance: { tournament: { source: null, method: "none", status: "unresolved", direct: false }, tour: { source: null, method: "none", status: "unresolved", direct: false }, surface: { source: null, method: "none", status: "unresolved", direct: false }, level: { source: null, method: "none", status: "unresolved", direct: false }, bestOf: { source: null, method: "none", status: "unresolved", direct: false }, round: { source: null, method: "none", status: "unresolved", direct: false } } },
       warnings: [warning],
       matchups: [],
     };
@@ -300,7 +308,7 @@ class ScreenshotImportService {
           return {
             player1: { recognizedName: null, player: null, status: "not-found" },
             player2: { recognizedName: null, player: null, status: "not-found" },
-            event: { recognizedName: null, surface: null, level: null },
+            event: buildUnresolvedRecognitionResult({ matchups: [] }, "").event,
             warnings: [
               "All OCR providers are currently unavailable. Please try again later or enter player names manually.",
             ],

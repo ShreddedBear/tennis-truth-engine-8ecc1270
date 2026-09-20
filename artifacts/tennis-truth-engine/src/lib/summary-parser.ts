@@ -4,7 +4,7 @@
 
 export type ExtractionStatus = "DIRECT" | "RECONSTRUCTED" | "PARTIAL" | "UNAVAILABLE" | "EXCLUDED";
 export interface ParsedField { field_key:string; raw_value:string|null; normalized_value:string|null; extraction_status:ExtractionStatus; confidence:number; page_number:number; }
-export interface ParsedMatchup { player1_name:string; player2_name:string; page_number:number; fields:ParsedField[]; confidence:number; }
+export interface ParsedMatchup { player1_name:string; player2_name:string; page_number:number; fields:ParsedField[]; confidence:number; metadata_provenance?:Record<string,{source:string|null;method:string;status:string;direct:boolean}>; }
 
 // Deliberately requires the literal word "vs"/"v."/"versus" — every real
 // matchup title observed (betting cards and the app's own reports alike)
@@ -32,7 +32,7 @@ const EVENTISH=/\b(?:ATP|WTA|ITF|Challenger|Cincinnati|Cancun|US Open|Wimbledon|
 const UI_CHROME_PHRASES=new Set(["model votes","monte carlo simulation","full engine breakdown","surface elo","serve return","serve and return","recent form","head to head","head-to-head","market consensus","general model","specialist model","set score distribution","fatigue index","match load recovery","rest travel injury","style matchup","builder check","bet score","win probability","data quality","model agreement","close matchup","independent conclusion","key tech view","score history","spot odds risk"]);
 function isUiChromePhrase(s:string){return UI_CHROME_PHRASES.has(s.toLowerCase().replace(/[.,:&-]/g," ").replace(/\s+/g," ").trim());}
 const FIELD_PATTERNS:Array<[string,RegExp]>=[
- ["tournament",/(?:tournament|event)\s*[:\-]\s*(.+)/i],["event_level",/(?:event level|level|category)\s*[:\-]\s*(.+)/i],["round",/round\s*[:\-]\s*(.+)/i],["scheduled_date",/(?:date|scheduled)\s*[:\-]\s*(.+)/i],["surface",/surface\s*[:\-]\s*(.+)/i],["indoor_outdoor",/(indoor|outdoor)\s*[:\-]?\s*(.*)/i],["best_of",/best[\s\-]?of\s*[:\-]?\s*(\d)/i],
+ ["tournament",/(?:tournament|event)\s*[:\-]\s*(.+)/i],["event_level",/(?:event level|level|category)\s*[:\-]\s*(.+)/i],["round",/round\s*[:\-]\s*(.+)/i],["scheduled_date",/(?:date|scheduled)\s*[:\-]\s*(.+)/i],["surface",/surface\s*[:\-]\s*(.+)/i],["indoor_outdoor",/(indoor|outdoor)\s*[:\-]?\s*(.*)/i],["best_of",/best[\s\-]?(?:of)?\s*[:\-]?\s*([35])/i],
  ["matrix_predicted_winner",/predicted winner\s*[:\-]\s*(.+)/i],["matrix_wp",/(?:win probability|matrix wp|wp)\s*[:\-]\s*([\d.]+)\s*%?/i],["matrix_wp_range",/\brange\s+(\d{1,3}\s*[-–]\s*\d{1,3})/i],["matrix_confidence_label",/\b(extreme|very high|high confidence|low confidence|no strong signal)\b/i],["matrix_agreement_label",/\b(strongly agree|high disagreement|close to a coin flip|moderate lean)\b/i],["monte_carlo_winner",/monte carlo winner\s*[:\-]\s*(.+)/i],["monte_carlo_prob",/monte carlo (?:win )?(?:probability|prob)\s*[:\-]\s*([\d.]+)/i],["monte_carlo_expected_sets",/expected sets\s*[:\-]\s*([\d.]+)/i],["monte_carlo_simulations",/simulations(?: run)?\s*[:\-]\s*([\d,]+)/i],["data_quality",/(?:data quality|dq)\s*[:\-]\s*(.+)/i],["upset_risk",/upset risk\s*[:\-]\s*(.+)/i],["model_agreement",/(?:model )?agreement\s*[:\-]\s*(.+)/i]
 ];
 function cleanLine(v:string){return v.replace(/[|]/g," ").replace(/\s+/g," ").trim();}

@@ -16,6 +16,15 @@ export type TournamentLevel =
   | "ITF"
   | "Other";
 
+export type MetadataResolutionStatus = "verified" | "derived" | "unresolved" | "ambiguous";
+export type MetadataResolutionMethod = "local-registry" | "provider" | "ocr" | "competition-rule" | "none";
+export interface MetadataFieldProvenance {
+  source: string | null;
+  method: MetadataResolutionMethod;
+  status: MetadataResolutionStatus;
+  direct: boolean;
+}
+
 /**
  * How a player's tour/rank were resolved. "live-standings" means the current ATP/WTA standings
  * feed had them (rank/tour are live). "historical-match" means the standings feed didn't have
@@ -239,7 +248,14 @@ export interface TennisDataProvider {
    * confident single-surface match exists -- never a guess. Optional so providers other than
    * API-Tennis aren't forced to implement a real name search they may not have.
    */
-  findTournamentSurfaceByName?(name: string): Promise<{ surface: Surface | null; level: TournamentLevel | null } | null>;
+  findTournamentSurfaceByName?(name: string): Promise<{
+    surface: Surface | null;
+    level: TournamentLevel | null;
+    canonicalName?: string | null;
+    tour?: "ATP" | "WTA" | null;
+    bestOf?: MatchFormat | null;
+    round?: string | null;
+  } | null>;
   /**
    * Fetches current ATP + WTA standings from the provider and returns them in a flat,
    * provider-neutral shape. Used by the ranking-verification job to compare stored

@@ -126,13 +126,14 @@ function Slate(){
     </div>
     <div className="panel overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
+        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Level / format","Round","Surface","Identity","Surface status","Audit run","Color","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
         <tbody>
           {visible.map((match:any)=>{
             const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id),activeStage=activeStageFor(run);
             return <tr key={match.id} className="border-t border-border">
               <td className="px-3 py-2 font-medium">{match.player1_name} vs {match.player2_name}</td>
               <td className="px-3 py-2">{match.tournament_name??"—"}</td>
+               <td className="px-3 py-2">{match.event_level??"unknown"} · {match.best_of?`BO${match.best_of}`:"format unknown"}</td>
               <td className="px-3 py-2">{match.round??"—"}</td>
               <td className="px-3 py-2">{match.surface??"—"}</td>
               <td className="px-3 py-2"><StateText state={match.identity_status}/></td>
@@ -147,7 +148,7 @@ function Slate(){
               </div></td>
             </tr>;
           })}
-          {!visible.length&&<tr><td colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
+          {!visible.length&&<tr><td colSpan={12} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
         </tbody>
       </table>
     </div>

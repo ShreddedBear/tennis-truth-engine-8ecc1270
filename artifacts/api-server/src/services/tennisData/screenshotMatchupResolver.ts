@@ -1,6 +1,6 @@
 import type { Fixture, PlayerSummary, TennisDataProvider } from "./types";
 import { searchHistoricalPlayersByExactNames, searchKnownPlayers } from "./playerIdentity";
-import { inferSurfaceAndLevel } from "./surfaceMap";
+import { inferSurfaceAndLevel, resolveLocalTournamentMetadata } from "./surfaceMap";
 import type { RawScreenshotRecognition, RawMatchupEntry } from "./screenshotRecognition";
 
 /**
@@ -27,8 +27,13 @@ export interface ScreenshotPlayerMatch {
 
 export interface ScreenshotEventMatch {
   recognizedName: string | null;
+  canonicalName: string | null;
+  tour: "ATP" | "WTA" | null;
   surface: import("./types").Surface | null;
   level: import("./types").TournamentLevel | null;
+  bestOf: import("./types").MatchFormat | null;
+  round: string | null;
+  provenance: Record<"tournament" | "tour" | "surface" | "level" | "bestOf" | "round", import("./types").MetadataFieldProvenance>;
 }
 
 export interface ScreenshotMatchupEntry {
@@ -1090,7 +1095,30 @@ async function resolveEventMatch(
   eventName: string | null,
   warnings: string[],
 ): Promise<ScreenshotEventMatch> {
-  let { surface, level } = inferSurfaceAndLevel(eventName);
+  const localMetadata = resolveLocalTournamentMetadata(eventName);
+  let surface = localMetadata.surface;
+  let level = localMetadata.category;
+  let canonicalName = localMetadata.canonicalName;
+  let tour = localMetadata.tour;
+  let bestOf = localMetadata.bestOf;
+  let round = localMetadata.round;
+  const provenance = {
+    tournament: localMetadata.provenance.tournament,
+    tour: localMetadata.provenance.tour,
+    surface: localMetadata.provenance.surface,
+    level: localMetadata.provenance.category,
+    bestOf: localMetadata.provenance.bestOf,
+    round: localMetadata.provenance.round,
+  };
+  const legacy = inferSurfaceAndLevel(eventName);
+  if (!surface && legacy.surface) {
+    surface = legacy.surface;
+    provenance.surface = { source: "local tournament name table", method: "local-registry", status: "verified", direct: true };
+  }
+  if (!level && legacy.level) {
+    level = legacy.level;
+    provenance.level = { source: "local tournament name table", method: "local-registry", status: "verified", direct: true };
+  }
 
   // The named table never resolves Challenger/ITF events by name (see surfaceMap.ts)
   // because live fixtures get a tournament_key → surface lookup instead.
@@ -1099,7 +1127,18 @@ async function resolveEventMatch(
     let found: Awaited<ReturnType<NonNullable<typeof provider.findTournamentSurfaceByName>>> | null = null;
     found = await withOptionalContextDeadline(provider.findTournamentSurfaceByName(eventName), null);
     if (found) {
-      surface = found.surface;
+      if (!canonicalName && found.canonicalName) {
+        canonicalName = found.canonicalName;
+        provenance.tournament = { source: provider.name, method: "provider", status: "verified", direct: true };
+      }
+      if (!tour && found.tour) {
+        tour = found.tour;
+        provenance.tour = { source: provider.name, method: "provider", status: "verified", direct: true };
+      }
+      if (!surface && found.surface) {
+        surface = found.surface;
+        provenance.surface = { source: provider.name, method: "provider", status: "verified", direct: true };
+      }
       // Suppress a provider-returned level that contradicts the event's known tour.
       // The provider's tournament DB sometimes returns a stale ATP-era label (e.g. "ATP250")
       // for a city that now hosts a WTA event (Memphis, Vancouver). The event name prefix is
@@ -1116,6 +1155,17 @@ async function resolveEventMatch(
         }
       }
       level = providerLevel;
+      if (providerLevel && provenance.level.status === "unresolved") {
+        provenance.level = { source: provider.name, method: "provider", status: "verified", direct: true };
+      }
+      if (!bestOf && found.bestOf) {
+        bestOf = found.bestOf;
+        provenance.bestOf = { source: provider.name, method: "provider", status: "verified", direct: true };
+      }
+      if (!round && found.round) {
+        round = found.round;
+        provenance.round = { source: provider.name, method: "provider", status: "verified", direct: true };
+      }
     }
   }
 
@@ -1125,7 +1175,7 @@ async function resolveEventMatch(
     warnings.push(`No event/tournament name could be read from the screenshot -- surface was not auto-detected.`);
   }
 
-  return { recognizedName: eventName, surface, level };
+  return { recognizedName: eventName, canonicalName, tour, surface, level, bestOf, round, provenance };
 }
 
 // ── Top-level resolution ───────────────────────────────────────────────────
@@ -1393,7 +1443,8 @@ export async function resolveScreenshotMatchup(
 ): Promise<ScreenshotMatchupResult> {
   if (raw.matchups.length === 0) {
     const noData: ScreenshotPlayerMatch = { recognizedName: null, player: null };
-    const noEvent: ScreenshotEventMatch = { recognizedName: null, surface: null, level: null };
+    const empty = { source: null, method: "none", status: "unresolved", direct: false } as const;
+    const noEvent: ScreenshotEventMatch = { recognizedName: null, canonicalName: null, tour: null, surface: null, level: null, bestOf: null, round: null, provenance: { tournament: empty, tour: empty, surface: empty, level: empty, bestOf: empty, round: empty } };
     return {
       player1: noData,
       player2: noData,

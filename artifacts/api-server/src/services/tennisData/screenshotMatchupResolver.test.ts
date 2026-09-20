@@ -416,6 +416,59 @@ test("resolveScreenshotMatchup prefers the precise named table over the name-sea
 
   assert.equal(result.event.surface, "Grass");
   assert.equal(result.event.level, "GrandSlam");
+  assert.equal(result.event.canonicalName, "Wimbledon");
+  assert.equal(result.event.bestOf, null);
+  assert.equal(result.event.provenance.surface.method, "local-registry");
+});
+
+test("metadata-only OCR resolves WTA São Paulo with independent provenance and no provider call", async () => {
+  let calls = 0;
+  const provider = makeProvider({
+    findTournamentSurfaceByName: async () => {
+      calls++;
+      return null;
+    },
+  });
+  const result = await resolveScreenshotMatchup(provider, {
+    matchups: [{ player1Name: null, player2Name: null, eventName: "WTA São Paulo Quarterfinal" }],
+  });
+  assert.equal(result.event.canonicalName, "São Paulo Open");
+  assert.equal(result.event.tour, "WTA");
+  assert.equal(result.event.surface, "Hard");
+  assert.equal(result.event.level, "WTA250");
+  assert.equal(result.event.bestOf, "BestOf3");
+  assert.equal(result.event.round, "QF");
+  assert.equal(result.event.provenance.bestOf.status, "derived");
+  assert.equal(calls, 0);
+});
+
+test("shared 1000 events resolve the correct WTA category locally without provider calls", async () => {
+  for (const eventName of ["WTA Indian Wells", "WTA Miami Open", "WTA Cincinnnati"]) {
+    let calls = 0;
+    const result = await resolveScreenshotMatchup(makeProvider({
+      findTournamentSurfaceByName: async () => {
+        calls++;
+        return null;
+      },
+    }), { matchups: [{ player1Name: null, player2Name: null, eventName }] });
+    assert.equal(result.event.tour, "WTA");
+    assert.equal(result.event.level, "WTA1000");
+    assert.equal(result.event.surface, "Hard");
+    assert.equal(result.event.bestOf, "BestOf3");
+    assert.ok(result.event.canonicalName);
+    assert.equal(calls, 0);
+  }
+});
+
+test("unknown OCR events stay fully unknown instead of defaulting to hard, 250, or BO3", async () => {
+  const result = await resolveScreenshotMatchup(makeProvider({ findTournamentSurfaceByName: async () => null }), {
+    matchups: [{ player1Name: null, player2Name: null, eventName: "Regional Cup Zeta" }],
+  });
+  assert.equal(result.event.canonicalName, null);
+  assert.equal(result.event.surface, null);
+  assert.equal(result.event.level, null);
+  assert.equal(result.event.bestOf, null);
+  assert.equal(result.event.provenance.tournament.status, "unresolved");
 });
 
 test("resolveScreenshotMatchup returns matchups array with multiple entries when input has multiple", async () => {

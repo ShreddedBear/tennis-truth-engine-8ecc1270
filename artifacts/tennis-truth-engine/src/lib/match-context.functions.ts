@@ -4,8 +4,9 @@
 // IMPORTANT: upload review must stay responsive. Online enrichment is best-effort
 // and may never hold the PDF review screen longer than a short fixed budget.
 import { createServerFn } from "@tanstack/react-start";
+import { emptyMetadataProvenance, METADATA_KEYS, type MetadataProvenanceMap } from "./match-metadata";
 
-const KEYS = ["tournament", "event_level", "round", "scheduled_date", "surface", "best_of"] as const;
+const KEYS = METADATA_KEYS;
 const ONLINE_ENRICHMENT_BUDGET_MS = 4000;
 type Fields = Record<string, string | null>;
 type Tour = "ATP" | "WTA";
@@ -14,7 +15,12 @@ function norm(v:string|null|undefined){return String(v??"").normalize("NFKD").re
 function nameTokens(v:string){return norm(v).split(" ").filter(Boolean);}
 function samePlayer(a:string,b:string){const x=nameTokens(a),y=nameTokens(b);if(!x.length||!y.length)return false;if(x.join(" ")===y.join(" "))return true;const xl=x[x.length-1],yl=y[y.length-1];if(xl!==yl)return false;const sx=new Set(x),sy=new Set(y);const overlap=[...sx].filter(t=>sy.has(t)).length;const shorter=Math.min(sx.size,sy.size);return overlap===shorter||overlap>=Math.min(2,shorter);}
 function samePair(a1:string,a2:string,b1:string,b2:string){return(samePlayer(a1,b1)&&samePlayer(a2,b2))||(samePlayer(a1,b2)&&samePlayer(a2,b1));}
-function compatible(a:string|null|undefined,b:string|null|undefined){const x=norm(a),y=norm(b);return !x||!y||x===y||x.includes(y)||y.includes(x);}
+export function identifiesSameEvent(a:string|null|undefined,b:string|null|undefined){
+  const x=norm(a),y=norm(b);
+  if(!x||!y)return false;
+  if(x===y)return true;
+  return Math.min(x.length,y.length)>=5&&(x.includes(y)||y.includes(x));
+}
 function suspicious(key:string,value:string|null|undefined){
   const v=String(value??"").trim(),n=norm(v);if(!v)return true;
   if(/^(unavailable|unknown|n a|na|null|none|-)$/.test(n))return true;
@@ -56,7 +62,7 @@ function deterministicEventLevel(tournament:string|null|undefined,tour:Tour|null
   return null;
 }
 
-async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{fields:Fields;sources:string[]}> {
+async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{fields:Fields;sources:string[];provenance:MetadataProvenanceMap;tour:Tour|null}> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin.from("matches")
@@ -65,10 +71,15 @@ async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{field
       .limit(1000);
     const rows=(data??[]) as Array<{player1_name:string;player2_name:string;tournament_name:string|null;event_level:string|null;round:string|null;scheduled_date:string|null;surface:string|null;best_of:number|null;updated_at:string|null}>;
     const pairRows=rows.filter(r=>samePair(p1,p2,r.player1_name,r.player2_name));
-    const tournamentHint=hints.tournament;
-    const contextual=pairRows.filter(r=>compatible(r.tournament_name,tournamentHint));
-    const pool=contextual.length?contextual:pairRows;
-    const best=pool[0]??null;
+    const tournamentHint=!suspicious("tournament",hints.tournament)?hints.tournament:null;
+    const dateHint=!suspicious("scheduled_date",hints.scheduled_date)?hints.scheduled_date:null;
+    // A repeated player pair is not a match identity. Reuse event-specific fields only
+    // when current OCR/provider evidence independently identifies the same event or date.
+    const contextual=pairRows.filter(r=>
+      (!tournamentHint||identifiesSameEvent(r.tournament_name,tournamentHint))
+      &&(!dateHint||r.scheduled_date===dateHint)
+    );
+    const best=(tournamentHint||dateHint)?contextual[0]??null:null;
 
     // An exact prior pair is strongest. If no exact pair exists, player history
     // may still independently establish that BOTH players belong to the same tour.
@@ -87,11 +98,13 @@ async function persistedContext(p1:string,p2:string,hints:Fields):Promise<{field
       best_of:best?.best_of===null||best?.best_of===undefined?null:String(best.best_of),
     };
     const sources:string[]=[];
+    const provenance=emptyMetadataProvenance();
+    for(const key of KEYS)if(fields[key])provenance[key]={source:best?"persisted exact player-pair match":"persisted player-tour history",method:"PERSISTED_MATCH",status:best?"VERIFIED":"DERIVED",direct:!!best};
     if(best)sources.push("Persisted exact player-pair match context");
     if(derivedLevel&&!best?.event_level)sources.push("Persisted player-tour history + deterministic tournament level");
-    return{fields,sources};
+    return{fields,sources,provenance,tour:historyTour};
   } catch {
-    return{fields:{},sources:[]};
+    return{fields:{},sources:[],provenance:emptyMetadataProvenance(),tour:null};
   }
 }
 
@@ -103,10 +116,19 @@ export const resolveMatchContext = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const persisted=await persistedContext(data.p1,data.p2,data.hints);
     const { resolveLocalMatchContext } = await import("./local-match-context.server");
-    const local = resolveLocalMatchContext(data.p1, data.p2, mergePreferVerified(data.hints,persisted.fields));
+    const local = resolveLocalMatchContext(data.p1, data.p2, mergePreferVerified(data.hints,persisted.fields), persisted.tour);
     let fields: Fields = mergePreferVerified(data.hints, persisted.fields);
     fields = mergePreferVerified(fields, local.fields);
+    for(const key of ["tournament","event_level","surface","best_of"] as const){
+      if(local.fields[key]&&local.provenance[key].status!=="UNRESOLVED"&&local.provenance[key].status!=="AMBIGUOUS")fields[key]=local.fields[key];
+    }
     const sources = [...persisted.sources,...local.sources];
+    const provenance=emptyMetadataProvenance();
+    for(const key of KEYS){
+      if(local.fields[key]&&local.provenance[key].status!=="UNRESOLVED")provenance[key]=local.provenance[key];
+      else if(persisted.fields[key])provenance[key]=persisted.provenance[key];
+      else if(data.hints[key])provenance[key]={source:"OCR review field",method:"OCR",status:"OCR",direct:true};
+    }
 
     if (missing(fields).length) {
       try {
@@ -126,6 +148,7 @@ export const resolveMatchContext = createServerFn({ method: "POST" })
             best_of: web.best_of === null || web.best_of === undefined ? null : String(web.best_of),
           });
           sources.push(...web.sources.map((s) => s.source_name).filter(Boolean));
+          for(const key of KEYS)if(fields[key]&&provenance[key].status==="UNRESOLVED")provenance[key]={source:web.sources[0]?.source_name??"bounded research provider",method:"PROVIDER",status:"VERIFIED",direct:true};
         }
       } catch {
         // Keep persisted/local fields; only true gaps remain unresolved.
@@ -137,6 +160,7 @@ export const resolveMatchContext = createServerFn({ method: "POST" })
       ok: Object.values(fields).some(Boolean),
       fields,
       sources: [...new Set(sources)],
+      provenance,
       unresolvedReason: unresolved.length ? `Still unresolved: ${unresolved.join(", ")}` : null,
     };
   });

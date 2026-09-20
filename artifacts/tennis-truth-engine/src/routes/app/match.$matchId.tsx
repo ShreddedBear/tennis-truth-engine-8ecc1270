@@ -380,7 +380,7 @@ function Workspace() {
             </h1>
             <p className="mono-num text-xs text-muted-foreground">
               {match.tournament_name ?? "tournament unverified"} · {match.round ?? "round unverified"} ·{" "}
-              {match.surface ?? "surface unverified"} · RUN {run.run_number} · lock{" "}
+              {match.surface ?? "surface unverified"} · {match.event_level ?? "level unverified"} · {match.best_of ? `BO${match.best_of}` : "format unverified"} · RUN {run.run_number} · lock{" "}
               {run.research_lock_at ? new Date(run.research_lock_at).toLocaleString() : "—"}
             </p>
           </div>
@@ -414,6 +414,15 @@ function Workspace() {
             </div>
           ))}
         </div>
+        <details className="mt-3 rounded-md border border-border p-3 text-xs">
+          <summary className="cursor-pointer font-semibold">Match metadata provenance</summary>
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            {["tournament","event_level","round","scheduled_date","surface","best_of"].map((key)=>{
+              const evidence=(match.metadata_provenance as Record<string,{source?:string;method?:string;status?:string;direct?:boolean}>|null)?.[key];
+              return <div key={key} className="rounded border border-border p-2"><div className="font-medium">{key}</div><div>{evidence?.status??"UNRESOLVED"} · {evidence?.direct?"direct":"derived/unknown"}</div><div className="text-muted-foreground">{evidence?.source??"No evidence source"}{evidence?.method?` · ${evidence.method}`:""}</div></div>;
+            })}
+          </div>
+        </details>
       </div>
 
       <div className="panel p-4">

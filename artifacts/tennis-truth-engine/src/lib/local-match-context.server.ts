@@ -4,6 +4,7 @@
 // identity resolution; this module only supplies deterministic tournament facts.
 
 type Fields = Record<string, string | null>;
+import { resolveDeterministicMetadata } from "./match-metadata";
 
 function norm(v: string | null | undefined) {
   return String(v ?? "")
@@ -62,47 +63,27 @@ function hintDate(hints: Fields) {
   return null;
 }
 
-function registryContext(tournament: string | null): Fields {
-  const n = norm(tournament);
-  if (/cincinnati/.test(n)) {
-    return {
-      tournament: "Cincinnati Open",
-      event_level: null,
-      round: null,
-      scheduled_date: null,
-      surface: "Hard",
-      best_of: "3",
-    };
-  }
-  return {
-    tournament: null,
-    event_level: null,
-    round: null,
-    scheduled_date: null,
-    surface: null,
-    best_of: null,
-  };
-}
-
-export function resolveLocalMatchContext(_p1: string, _p2: string, hints: Fields) {
+export function resolveLocalMatchContext(_p1: string, _p2: string, hints: Fields, knownTour?: "ATP" | "WTA" | null) {
   const tournament = hintTournament(hints);
-  const registry = registryContext(tournament);
+  const resolved = resolveDeterministicMetadata({ ...hints, tournament }, knownTour);
+  const registry = resolved.fields;
   const hintedLevel = usable(hints.event_level);
   const hintedSurface = usable(hints.surface);
   const hintedBestOf = usable(hints.best_of);
   const fields: Fields = {
     tournament: registry.tournament ?? tournament,
-    event_level: hintedLevel,
-    round: normalizeRound(hints.round),
+    event_level: registry.event_level ?? hintedLevel,
+    round: registry.round ?? normalizeRound(hints.round),
     scheduled_date: hintDate(hints),
-    surface: hintedSurface ?? registry.surface,
-    best_of: hintedBestOf ?? registry.best_of,
+    surface: registry.surface ?? hintedSurface,
+    best_of: registry.best_of ?? hintedBestOf,
   };
   const sources: string[] = [];
-  if (registry.tournament) sources.push("Static tournament context registry");
+  if (registry.tournament) sources.push("Canonical tournament registry");
   return {
     ok: Object.values(fields).some(Boolean),
     fields,
+    provenance: resolved.provenance,
     sources,
     sourceUrl: null,
     unresolvedReason: "Fast local resolver supplies deterministic event facts only; exact current round/date require persisted or bounded web verification.",
