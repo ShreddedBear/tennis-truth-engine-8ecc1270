@@ -1,6 +1,7 @@
 import { pgTable, serial, text, integer, real, boolean, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { isNotNull } from "drizzle-orm";
 import { evaluationPredictionsTable } from "./evaluation";
 
 /**
@@ -146,8 +147,13 @@ export const marketSnapshotsTable = pgTable(
     // One capture run should never write the same (predictionId, providerish) pairing twice --
     // repeat observations are legitimate (price movement) but must come from distinct capture
     // runs, never a retry double-write within the same run.
-    uniqueIndex("market_snapshots_prediction_run_idx").on(table.predictionId, table.captureRunId),
-    uniqueIndex("market_snapshots_leg_run_idx").on(table.legId, table.captureRunId),
+    // Partial (WHERE ... IS NOT NULL) to mirror the raw-SQL migration exactly
+    // (marketEvidenceMigrations.ts) -- this table is deliberately excluded from
+    // DRIZZLE_MANAGED_TABLES in drizzle.config.ts (raw-SQL-managed, like parlay_leg_outcomes), so
+    // drizzle-kit never pushes this definition today, but it must not silently diverge from the
+    // real constraint if that ever changes.
+    uniqueIndex("market_snapshots_prediction_run_idx").on(table.predictionId, table.captureRunId).where(isNotNull(table.predictionId)),
+    uniqueIndex("market_snapshots_leg_run_idx").on(table.legId, table.captureRunId).where(isNotNull(table.legId)),
     index("market_snapshots_prediction_idx").on(table.predictionId),
     index("market_snapshots_leg_idx").on(table.legId),
     // Backs the eligibility view/query helper's WHERE clause.
