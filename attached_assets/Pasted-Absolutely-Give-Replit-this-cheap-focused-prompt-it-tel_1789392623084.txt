@@ -1,0 +1,66 @@
+Absolutely. Give Replit this cheap, focused prompt — it tells it to analyze the existing 27-match re-audit without changing anything:
+
+Prompt for Replit:
+
+Audit the NEW 27-match production re-audit and identify exactly which metrics are still causing low evidence coverage.
+
+Do NOT change code, database data, the slate, or Audit logic.
+
+Use the actual completed 27-match re-audit results currently in the database.
+
+For each of the 25 active metrics, calculate:
+
+* total opportunities
+* active/usable results
+* genuine unavailable results
+* provider failures
+* producer failures
+* no-source failures
+* other failure categories
+* evidence coverage percentage
+* top failure reason
+* top failing provider/source
+
+Then rank all 25 metrics from worst evidence coverage to best.
+
+Most importantly, identify which metrics account for the largest number of lost evidence opportunities across the 27 matches.
+
+Separate the results into:
+
+1. REAL DATA ABSENCE — genuinely unavailable/insufficient evidence that should not be treated as a bug.
+
+2. PROVIDER PROBLEM — provider/API does not supply the required evidence or is failing.
+
+3. PRODUCER/PIPELINE BUG — evidence exists but our application isn’t successfully producing the metric.
+
+4. CLASSIFICATION/STATE BUG — evidence exists but is being incorrectly classified as unavailable/failure.
+
+5. HEALTHY — metric is working as intended.
+
+Do not recommend fixes yet. I only want the diagnosis.
+
+At the end give me:
+
+TOP 10 METRICS KEEPING EVIDENCE LOW
+
+For each, show:
+
+Metric code + name
+Coverage %
+Lost opportunities
+Primary failure reason
+Primary source/provider
+Category: DATA / PROVIDER / BUG / CLASSIFICATION / HEALTHY
+Whether it is worth fixing
+
+Then give me:
+
+TOTAL POTENTIAL RECOVERY
+
+Estimate how much evidence coverage could improve if the artificial failures were fixed, without counting genuinely unavailable evidence as recoverable.
+
+Use the NEW 27-match results only. Do not use the old 60- or 105-match reports.
+
+Do not run a new re-audit. Do not modify anything. Do not create commits.
+
+Just return the diagnostic report.

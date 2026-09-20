@@ -1,0 +1,511 @@
+Absolutely. I would give Replit one consolidated prompt that tells it to perform the 20–30-match forensic audit and simultaneously begin the 3-month no-look-ahead Walk-Forward/Backtest, while putting strict controls around Replit compute/credits.
+
+The key is that the 20–30 matches are the diagnostic sample, while the 3-month run is the larger validation sample. Neither should optimize the model yet.
+
+Prompt to give Replit
+
+I want you to begin the Model Truth Audit + 3-Month Historical No-Look-Ahead Walk-Forward/Backtest now.
+
+The purpose of this phase is to determine whether the Tennis Matrix AI prediction engine is actually using valid, time-safe, correctly oriented, Truth Engine-backed evidence before we make ANY attempt to optimize model weights or prediction methodology.
+
+I currently have no useful current match inventory because I recently integrated this application with my second app. Therefore, I want a substantial historical validation sample rather than waiting for new live matches.
+
+IMPORTANT — DO NOT OPTIMIZE THE ENGINE YET
+
+Freeze the current production prediction methodology for this entire audit.
+
+Do NOT change:
+
+* General Model weights
+* Specialist Model weights
+* Serve & Return weights
+* Recent Form weights
+* Surface Elo weights
+* Ensemble formula
+* Calibration parameters
+* Prediction thresholds
+* Model methodology
+
+The purpose right now is to audit and measure the existing system, not improve it.
+
+If you discover an obvious software/data bug that makes a displayed value incorrect, you may fix that specific bug, but do not tune the statistical model based on the results of this audit.
+
+PART 1 — 20–30 MATCH FORENSIC MODEL TRUTH AUDIT
+
+Before relying on the larger backtest, take approximately 20–30 representative historical matches and perform a deep forensic trace of every prediction.
+
+For each match, verify:
+
+* Player 1 identity
+* Player 2 identity
+* Tournament
+* Tour
+* Surface
+* Match date
+* Prediction timestamp
+* Truth Engine source
+* Specialist Model
+* General Model
+* Serve & Return
+* Recent Form
+* Surface Elo
+* Sample
+* Reliability
+* Availability
+* Status
+* Effective Weight
+* Contribution
+* Raw probability
+* Calibrated probability
+* Final probability
+* Predicted winner
+
+For every model, trace the displayed/output number backward to its actual source.
+
+I need to be able to determine:
+
+Final output → calculation → input → Truth Engine data → historical timestamp.
+
+Do not accept a number merely because the UI displays it.
+
+VERIFY WHETHER THE MODEL METRICS ARE REAL
+
+Specifically investigate whether:
+
+* Favored
+* Effective Weight
+* Contribution
+* Reliability
+* Availability
+* Sample
+* Status
+
+are backed by actual calculations and evidence.
+
+Determine whether each value is:
+
+* Database-backed
+* Truth Engine-backed
+* Calculated
+* UI-derived
+* Defaulted
+* Fallback-generated
+* Or otherwise unsupported
+
+If a metric cannot legitimately be calculated, it should be identified as unavailable rather than presented as if it were meaningful evidence.
+
+Do not fabricate replacement numbers.
+
+SPECIALIST MODEL
+
+Some matches currently have Specialist Model output while others do not.
+
+Determine exactly why.
+
+Identify whether Specialist is unavailable because of:
+
+* Tour
+* Surface
+* Missing data
+* Insufficient sample
+* Missing segment
+* Segment performance gate
+* Model fitting state
+* Data quality
+* Software error
+* Another condition
+
+Distinguish legitimate model unavailability from a bug.
+
+Do not create fake Specialist predictions simply to make every card look complete.
+
+If Specialist is legitimately unavailable, the system should clearly identify the reason.
+
+VERIFY PLAYER ORIENTATION
+
+For the 20–30-match audit, verify Player 1 / Player 2 orientation through every stage.
+
+Test both the normal matchup and reversed matchup.
+
+Make sure:
+
+* Every model identifies the correct player.
+* Probabilities correspond to the correct player.
+* Votes correspond to the correct player.
+* Contributions correspond to the correct player.
+* Calibration does not reverse the players.
+* Final winner corresponds to the correct probability.
+
+A player-order bug must be treated as a critical issue.
+
+VERIFY TRUTH ENGINE PROVENANCE
+
+For every model input that is supposed to originate from the Truth Engine, prove where it came from.
+
+For example, if Surface Elo is 1574, identify:
+
+* The calculation producing 1574
+* The underlying records
+* The player
+* The surface
+* The cutoff timestamp
+* The Truth Engine source
+
+Do the same wherever practical for Specialist, General, Serve & Return, Recent Form, and other historical features.
+
+VERIFY TIME SAFETY
+
+This is critical.
+
+Every historical prediction must behave as if we are standing immediately before the match began.
+
+No future information may be used.
+
+Verify that the prediction cannot access:
+
+* Future match results
+* Future rankings
+* Future Elo
+* Future Serve & Return statistics
+* Future Recent Form
+* Future PBP
+* Future Specialist results
+* Future General Model information
+* Future calibration artifacts
+* Future tournament results
+* Current player statistics that contain future matches
+
+Use explicit historical cutoff timestamps throughout the calculation.
+
+If any feature can see future information, flag it as a critical leakage issue.
+
+PART 2 — BEGIN THE 3-MONTH NO-LOOK-AHEAD WALK-FORWARD NOW
+
+After establishing the basic cutoff behavior, begin a chronological historical replay covering approximately the most recent 3 months of historical matches for which the Truth Engine has usable data.
+
+Do NOT simply run today’s model against historical matches using today’s database state.
+
+This must be a genuine historical no-look-ahead replay.
+
+For each historical match:
+
+1. Establish the prediction timestamp.
+2. Construct the information state available before that match.
+3. Generate the five model outputs using only information available at that time.
+4. Generate the current frozen ensemble.
+5. Freeze/save the prediction snapshot.
+6. Only after the prediction snapshot is finalized, allow the actual match result to become available to the evaluation process.
+7. Advance chronologically to the next match.
+8. Repeat.
+
+The historical prediction must never be allowed to benefit from information created after its prediction timestamp.
+
+DO NOT CHANGE WEIGHTS DURING THE 3-MONTH RUN
+
+This is a frozen evaluation of the existing engine.
+
+Do not:
+
+* Optimize weights
+* Tune hyperparameters
+* Refit calibration using the evaluation period
+* Optimize against the evaluation period
+* Adjust thresholds based on outcomes
+* Change Specialist influence based on results
+* Change General influence based on results
+
+The goal is to discover what the existing system actually does.
+
+RECORD A COMPLETE MODEL SNAPSHOT
+
+For every gradeable historical prediction, preserve as much of the following as the current architecture supports:
+
+Match ID, prediction timestamp, Player 1, Player 2, tournament, tour, surface, Specialist availability, Specialist probability, Specialist sample, Specialist reliability, Specialist effective weight, Specialist contribution, General availability, General probability, General sample, General reliability, General effective weight, General contribution, Serve & Return availability, probability, sample, reliability, effective weight and contribution, Recent Form availability, probability, sample, reliability, effective weight and contribution, Surface Elo availability, probability, sample, reliability, effective weight and contribution, ensemble raw probability, calibrated probability, final probability, predicted winner, actual winner, and any defaulted/fallback inputs.
+
+Do not create fake fields just to satisfy this list. If something is not currently available, identify it as unavailable and trace why.
+
+MODEL INFLUENCE AUDIT
+
+After enough historical predictions have been generated, measure—not assume—the influence of each model.
+
+For Specialist, General, Serve & Return, Recent Form, and Surface Elo calculate where supported:
+
+* Prediction count
+* Gradeable count
+* Correct predictions
+* Accuracy
+* Brier score
+* Log loss
+* Calibration
+* Availability rate
+* Average sample size
+* Average reliability
+* Average effective weight
+* Average absolute contribution
+* Correlation with other model outputs
+
+Most importantly, determine whether General or Specialist is receiving disproportionate influence compared with its demonstrated predictive value.
+
+Do NOT change the weights as part of this analysis.
+
+CORRELATED EVIDENCE
+
+Investigate whether:
+
+* Recent Form already incorporates Serve & Return evidence.
+* Monte Carlo is reusing Surface Elo and Serve & Return evidence.
+* Surface Elo and Recent Form are using overlapping historical information.
+* General and Specialist contain overlapping evidence.
+* Other modules are effectively counting the same information more than once.
+
+Measure this before recommending any weighting changes.
+
+50% ISSUE VERIFICATION
+
+The approximately 50% probability problem was recently fixed.
+
+Use this audit to verify that it remains fixed.
+
+Measure how many historical predictions:
+
+* Are exactly 50%
+* Are within a narrow band around 50%
+* Have meaningful separation
+* Have identical model outputs
+* Have identical voting results
+* Have missing/defaulted inputs
+* Have calibration flattening the output
+
+Trace any remaining 50% compression to its actual source.
+
+Do not “fix” it by artificially forcing probabilities away from 50%.
+
+PARLAY BUILDER SEPARATION
+
+Audit the Prediction Engine and Parlay Builder at the same time.
+
+They must remain independent.
+
+The ONLY intentional information shared between them should be:
+
+Cross-Engine Agreement.
+
+Verify that the Parlay Builder does not receive or depend on:
+
+* Prediction Engine probabilities
+* Prediction Engine confidence
+* Prediction Engine weights
+* Prediction Engine reliability
+* Prediction Engine risk
+* Prediction Engine recommendation status
+* Prediction Engine bankroll logic
+* Prediction Engine filtering
+* Prediction Engine cached state
+
+Also verify the reverse direction.
+
+The Prediction Engine must not depend on Parlay Builder scoring or validation logic.
+
+Include Parlay Builder OCR in this audit.
+
+OCR AUDIT
+
+I upload approximately 100–150 matches at a time.
+
+The OCR currently processes some visually similar PDFs/images successfully while other matches fail or are skipped.
+
+Audit the entire OCR path:
+
+Upload → PDF/image extraction → page/card segmentation → OCR → parser → player identification → tournament identification → match normalization → Truth Engine verification → prediction-ready match.
+
+Determine exactly where matches are being lost.
+
+Test with a small representative sample first.
+
+Do NOT initially process 100–150 files just for testing.
+
+Verify that:
+
+* One failed match does not destroy successful matches.
+* Failed items can be retried individually.
+* Provider exhaustion is distinguished from parser failure.
+* Successful OCR results are preserved.
+* Multi-page PDFs are handled correctly.
+* Long images are handled correctly.
+* Multiple match cards in one document are handled correctly.
+* Duplicate detection occurs after normalization.
+* OCR batching is bounded.
+* No unbounded Promise.all/concurrency exists.
+* Parlay Builder OCR has equivalent partial-success behavior.
+
+DAILY FIXTURES
+
+Do not investigate the already-resolved API outage.
+
+The API is currently working.
+
+However, audit why Daily Fixtures previously failed to rotate completed matches and why live scores may not attach/update correctly.
+
+Verify:
+
+* Automatic fixture refresh
+* Completed-match removal
+* Scheduled → Live transition
+* Live → Completed transition
+* Cache invalidation
+* Stable fixture identity
+* Live-score provider mapping
+* Score freshness
+* Correct player matching
+
+If the existing live-score data can be safely displayed inside the live fixture card, use the existing pipeline rather than creating a second unnecessary system.
+
+WALK-FORWARD RESOURCE SAFETY
+
+The previously confirmed crash cause was Walk-Forward exhausting approximately 2 GB of Node.js memory.
+
+Do not investigate the already-resolved outage.
+
+Instead, make the Walk-Forward/Backtesting system safe enough that it cannot take down the production API.
+
+Audit and, where necessary, implement:
+
+* Worker/child-process isolation
+* Heap limits
+* Timeouts
+* Cancellation
+* Bounded database queries
+* Chunking
+* Pagination
+* Memory cleanup
+* Job locking
+* Concurrent-job prevention
+* Progress tracking
+* Safe worker failure
+
+The 3-month run must be performed in bounded batches.
+
+Do not load the entire three-month corpus into memory if it can be processed incrementally.
+
+REPLIT CREDIT / RESOURCE CONTROL
+
+I am specifically trying to conserve Replit credits and compute usage.
+
+Do NOT:
+
+* Run the entire historical database unnecessarily.
+* Run optimizer sweeps.
+* Refit calibration.
+* Run repeated 20,000+ Monte Carlo simulations.
+* Run multiple copies of Walk-Forward.
+* Reprocess the same OCR files unnecessarily.
+* Run the 100–150-match OCR workload merely to prove the basic OCR path.
+* Run the full repository test suite after every change.
+* Rebuild unrelated systems.
+
+Instead:
+
+1. Perform static code tracing first.
+2. Use approximately 20–30 matches for the forensic audit.
+3. Use mocked/local fixtures wherever possible.
+4. Prove temporal cutoff behavior with a tiny deterministic test.
+5. Start the 3-month walk-forward only after the cutoff test passes.
+6. Process the 3-month dataset in bounded chunks.
+7. Reuse generated results instead of recalculating them.
+8. Run targeted tests only.
+9. Do not rerun successful stages unless code changes invalidate their results.
+
+GROUP THE WORK
+
+Group implementation so Claude can modify related files together.
+
+Preferred groups:
+
+Group A — Walk-Forward/Backtesting resource safety
+
+Group B — OCR + Parlay Builder OCR
+
+Group C — Model metric truthfulness + provenance
+
+Group D — Ensemble/voting/influence measurement
+
+Group E — Prediction Engine ↔ Parlay Builder separation
+
+Group F — Daily Fixtures/live scores
+
+Group G — Temporal integrity and historical validation
+
+For each group identify the exact files/functions before editing.
+
+If several issues are in the same files, fix them together rather than having Claude repeatedly rediscover the same code.
+
+IMPORTANT: DO NOT OPTIMIZE AFTER THE FIRST RESULTS
+
+The 3-month results are diagnostic.
+
+Do NOT automatically adjust the engine because one model performs poorly or another performs well.
+
+First determine whether the inputs, calculations, timestamps, weights, and displayed metrics are actually correct.
+
+Only after the audit is complete should we consider model optimization.
+
+FINAL REPORT
+
+Give me a final report containing:
+
+1. Exact root causes discovered.
+2. Bugs that were actually fixed.
+3. Issues that remain.
+4. Exact files modified.
+5. Exact functions/components modified.
+6. Model metric truthfulness findings.
+7. Specialist availability findings.
+8. General Model findings.
+9. Serve & Return findings.
+10. Recent Form findings.
+11. Surface Elo findings.
+12. Model weight/influence findings.
+13. Voting findings.
+14. 50% probability findings.
+15. Calibration findings.
+16. Truth Engine provenance findings.
+17. Temporal leakage findings.
+18. OCR findings.
+19. Parlay Builder OCR findings.
+20. Prediction/Parlay separation findings.
+21. Daily Fixture findings.
+22. Walk-Forward memory/resource findings.
+23. Three-month sample size.
+24. Gradeable predictions.
+25. Excluded predictions and reasons.
+26. Individual model performance.
+27. Final ensemble performance.
+28. Model availability rates.
+29. Average reliability.
+30. Average effective weight.
+31. Average contribution.
+32. Model correlation.
+33. Leave-one-model-family-out results where feasible.
+34. Number of predictions near 50%.
+35. Number of suspected leakage events.
+36. Number of defaulted/fallback inputs.
+
+Most importantly, clearly separate:
+
+WHAT THE CODE CURRENTLY DOES
+
+from
+
+WHAT IS ACTUALLY VALID
+
+from
+
+WHAT SHOULD BE CHANGED LATER.
+
+Do not silently optimize the system during this phase.
+
+The goal is to establish a trustworthy baseline first.
+
+Truth → Provenance → Time Safety → Model Validity → Influence → Correlation → Optimization.
+
+And keep the entire process Replit-credit efficient by using targeted tests, bounded historical processing, existing data, grouped file changes, and no unnecessary large-scale computation.

@@ -1,0 +1,69 @@
+We have now confirmed that the previously claimed 24-tape/16-value score-derived verifier does not exist. Do not reference it as an existing implementation.
+
+Now implement the smallest deterministic score-snapshot reconstruction needed for the actual LiveTennisAPI tape.
+
+Scope ONLY to the LiveTennisAPI adapter/reconstruction layer.
+
+Do NOT change:
+
+* metric definitions
+* metric formulas
+* evidence rules
+* thresholds
+* Truth Engine stages
+* decision logic
+* coverage calculation
+
+Use the already captured LiveTennisAPI response for match 157791; do not make additional provider requests if the captured response is available.
+
+LiveTennisAPI provides:
+points, games, sets, server, is_tiebreak
+
+and normally also point_winner.
+
+Implement a deterministic score-transition path that can derive a point winner ONLY when the supplied score snapshots uniquely determine it.
+
+Requirements:
+
+1. Explicit point_winner remains the preferred path.
+2. If point_winner is absent, use the provider’s consecutive points score states.
+3. Do not use the combined "score" field because LiveTennisAPI uses split score values.
+4. Preserve server information.
+5. Preserve game/set/tiebreak boundaries.
+6. Never invent the game-deciding point when the provider ends a game at a terminal state such as 40-A or 30-40.
+7. Never fill a missing score transition.
+8. Reject ambiguous transitions.
+9. Reject incomplete games/tapes rather than silently dropping unreadable games.
+10. Do not infer a winner from a score jump when multiple point sequences are possible.
+
+Create focused tests using the actual captured LiveTennisAPI tape:
+
+A: original tape with explicit point_winner.
+
+B: identical tape with point_winner removed.
+
+Both must produce identical canonical point/game results wherever the score snapshots uniquely determine the points.
+
+Also add negative tests for:
+
+* missing transition
+* ambiguous transition
+* unreadable game
+* incomplete terminal state
+
+The test must prove that invalid data is rejected rather than silently omitted.
+
+Do not run the 27-match audit.
+Do not scan the historical cohort.
+Do not make additional API calls unless the captured response is genuinely unavailable.
+Do not commit or push yet.
+
+Report:
+
+* reconstructed points
+* reconstructed games
+* explicit-winner vs score-derived differences
+* number of rejected/ambiguous games
+* whether the result is safe to feed into metrics 002/003/009/016/018/032.
+
+Stop after the focused test.

@@ -1,0 +1,80 @@
+AUTHORIZE — 2-WEEK CLEAN NEUTRAL EVALUATION
+
+The preflight is complete and PASS.
+
+Repository: ShreddedBear/Tennis-Stats-Engine
+
+Branch: main
+
+Commit: 1394afb13b921efb96d1a160e9be26478717bc19
+
+Database connectivity has been independently verified.
+
+Now execute ONLY a 2-week clean historical evaluation generation using the existing corrected shadow-replay path.
+
+Before execution
+
+Run one bounded, read-only query to determine the exact available match dates and eligible match count for a contiguous 14-day window.
+
+Select the first suitable 14-day window with sufficient data, preferably the most recent fully covered 14-day period available to the corrected historical pipeline.
+
+Report the exact window and count before starting.
+
+Execution requirements
+
+Use the existing:
+
+runShadowPaperTradingReplay / shadowReplayJob.ts
+
+Do not create a new replay implementation.
+
+Use a unique batch label:
+
+clean-neutral-eval-v1-<start>-to-<end>
+
+Keep the existing 1,400 MB memory ceiling. Do not increase it.
+
+Preserve checkpoint/resume behavior.
+
+The evaluation must use the neutral player ordering already implemented in scoreHistoricalMatch.
+
+The current match’s winner must be used only for post-prediction grading.
+
+Preserve all existing chronological cutoff/no-look-ahead protections.
+
+Absolutely do NOT
+
+* Run the 3-month replay
+* Run the optimizer
+* Run the ablation
+* Delete old historical_test/test rows
+* Modify existing evaluation rows
+* Modify prediction formulas
+* Modify ensemble weights
+* Modify calibration
+* Modify thresholds
+* Modify Specialist
+* Modify simulator methodology
+* Change production prediction behavior
+* Run broad repository tests
+
+After completion
+
+Return only verified results:
+
+1. Exact start date
+2. Exact end date
+3. Eligible source-match count
+4. Predictions generated
+5. Rows persisted
+6. Skipped/failed count
+7. Peak heap usage
+8. Stop reason
+9. Batch label
+10. Completion status
+11. Confirmation that the old historical_test/test population was untouched
+12. Confirmation that no production methodology was changed
+
+STOP immediately after the clean 2-week population is generated.
+
+Do not run ablation or analyze the results afterward.

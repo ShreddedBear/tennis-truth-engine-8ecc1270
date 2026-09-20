@@ -1,0 +1,89 @@
+Fix ONLY the OCR match-ingestion validation bug shown in the attached screenshots.
+
+PROBLEM:
+The OCR successfully extracts:
+- P1
+- P2
+- Surface (e.g. HARD)
+- Event level (e.g. ATP250)
+- Best of (e.g. BO3)
+
+But the ingestion validator says:
+"No event/tournament name could be read from the screenshot -- surface was not auto-detected. This item will be skipped unless you fix it."
+
+This is wrong for the OCR payload we are feeding it. The match card contains the required tournament/event metadata, but the validator is incorrectly treating missing/unreadable event/tournament text as a hard skip and is also conflating that with surface detection.
+
+GOAL:
+Make the smallest possible code change so valid OCR matchups are accepted when the required structured fields are already present.
+
+IMPORTANT:
+- Do NOT redesign the OCR parser.
+- Do NOT change the Tennis Matrix metrics.
+- Do NOT change prediction logic.
+- Do NOT change database schema.
+- Do NOT add a new OCR provider.
+- Do NOT broaden the scope.
+- Do NOT make network/API calls.
+- Do NOT create an audit run.
+- Do NOT modify unrelated files.
+- Do NOT commit unless explicitly asked.
+
+FIRST:
+Find the exact validation/error code producing:
+"No event/tournament name could be read from the screenshot -- surface was not auto-detected. This item will be skipped unless you fix it."
+
+Then trace the condition that causes the item to become SKIPPED.
+
+REQUIRED FIX:
+1. Separate event/tournament-name validation from surface validation.
+2. If the OCR payload already has a valid surface such as HARD, CLAY, or GRASS, do NOT reject the matchup merely because a separate event/tournament-name field was not read.
+3. If the existing OCR schema treats tournament/event-level as separate fields, use those existing fields rather than requiring a redundant combined "event/tournament name".
+4. Preserve existing validation for genuinely missing required fields.
+5. Do not turn genuinely malformed OCR into a valid match.
+6. Preserve the existing raw OCR/debug information so diagnostics still work.
+7. Keep the patch minimal.
+
+Use these screenshot examples as regression cases:
+
+P1: DAISUKE SUMIZAWA
+P2: KOSUKE OGURA
+Surface: HARD
+Event level: ATP250
+Best of: BO3
+
+P1: JESSE DELANEY
+P2: YUSUKE TAKAHASHI
+Surface: HARD
+Event level: ATP250
+Best of: BO3
+
+P1: KENNY DE SCHEPPER
+P2: ALBERTO BARROSO CAMPOS
+Surface: HARD
+Event level: ATP250
+Best of: BO3
+
+P1: LUCA POTENZA
+P2: FINN BASS
+Surface: HARD
+Event level: ATP250
+Best of: BO3
+
+Acceptance criteria:
+- These records must no longer be skipped solely because "event/tournament name" was not independently OCR'd.
+- HARD must be recognized as the surface.
+- ATP250 must remain the event-level value.
+- BO3 must remain Best Of.
+- P1/P2 must remain unchanged.
+- A truly missing surface must still fail according to the existing rules.
+- A truly missing player must still fail according to the existing rules.
+- Existing OCR tests must continue passing.
+
+Run ONLY the smallest relevant OCR/parser test(s), then typecheck if cheap.
+Report:
+1. exact file changed
+2. exact root cause
+3. minimal fix
+4. tests run/result
+
+STOP after that. Do not perform an audit or any other cleanup.

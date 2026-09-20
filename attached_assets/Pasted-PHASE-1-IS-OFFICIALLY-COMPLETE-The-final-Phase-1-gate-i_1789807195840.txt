@@ -1,0 +1,190 @@
+PHASE 1 IS OFFICIALLY COMPLETE.
+
+The final Phase 1 gate is CLOSED.
+
+The complete TSE Git history, all advertised branches, PR refs, deletions, renames, and repository objects have now been inspected. There are NO remaining Phase 1 history blockers.
+
+DO NOT IMPLEMENT YET
+
+Begin Phase 2 with ONE READ-ONLY TASK:
+
+BUILD THE AUTHORITATIVE PHASE 2 RECONCILIATION MANIFEST
+
+Use:
+
+1. All 19 imported docs/migration-audit/ reports.
+2. The final Phase 1 history report.
+3. Current State C source.
+4. Current TSE main.
+5. The historical branch findings identified in Phase 1.
+6. The existing live database and schema assumptions.
+
+Do NOT modify application code, tests, database, deployment, configuration, or Git history during this task.
+
+Do NOT blindly merge repositories.
+
+Every Phase 2 item must be classified
+
+For each item:
+
+* SOURCE / CAPABILITY
+* CURRENT STATE C STATUS
+* TSE MAIN STATUS
+* HISTORICAL BRANCH STATUS
+* TARGET STATE
+* EXACT FILES / TABLES / SERVICES AFFECTED
+* DEPENDENCIES
+* DATA MIGRATION REQUIREMENT, if any
+* TEST REQUIREMENT
+* RISK
+* ROLLBACK REQUIREMENT
+* PRESERVE / RECONCILE / REPLACE / RETIRE
+
+REQUIRED MASTER WORKSTREAMS
+
+A. Prediction Engine
+
+* Elo-gap confidence behavior
+* Historical asOfDate wiring
+* opponentStrength temporal bounds
+* playerIdentity temporal bounds
+* dataQuality low-surface-sample discount retirement
+* Remaining documented Prediction Engine differences
+* No-lookahead protections
+* Walk-forward protections
+
+B. Parlay Builder Independence
+
+* Remove Prediction Engine calibration dependency
+* Builder-owned calibration model
+* parlay_leg_outcomes
+* Builder calibration fit/cache/refit
+* Independent surface calculation
+* Independent serve/return calculation
+* Two-way boundary checker
+* Cross-engine independence tests
+
+This is a HIGH-PRIORITY reconciliation because full Git history proved the current architecture regressed from an independently designed Builder branch.
+
+C. Live Tennis / Live Scores
+
+* Preserve State C Live Tennis provider
+* Preserve Live Tennis-first fixture routing
+* Preserve diagnostics
+* Add TSE fixture metadata cache
+* Add API-Tennis identity score lookup
+* Native score lookup remains first
+* Preserve original fixture IDs
+* Cache Live Tennis fixtures despite the early-return path
+* Add mixed native/non-native regression coverage
+
+D. Provider Architecture
+
+* Reconcile compositeProvider.ts
+* Reconcile API-Tennis
+* Reconcile MatchStat
+* Reconcile Sofascore
+* Reconcile BSD
+* Preserve provider-specific namespaces
+* Preserve provider provenance
+* Preserve fixture diagnostics
+* Preserve history routing
+
+E. PBP / Historical Evidence
+
+* Compare branch-only pbp_evidence pipeline against Truth Engine
+* Preserve evidence eligibility
+* Preserve provenance
+* Preserve strict pre-cutoff lookup
+* Reconcile provider-agnostic PBP source router
+* Reconcile PBP engine bridges
+* Compare WTA Main PBP evidence against current Truth Engine
+* Do NOT create duplicate authoritative PBP systems
+
+F. Identity / Canonicalization
+
+* Preserve evidence-based identity
+* Preserve collision handling
+* Preserve alias groups
+* Preserve Live Tennis namespaces
+* Reconcile optional temporal corpus bounds
+* Never fabricate aliases
+
+G. Database / Production State
+
+* Preserve populated heliumdb
+* No reset
+* No destructive migrations
+* Map every schema change to existing production data
+* Identify backfill requirements separately from schema changes
+* Preserve rollback path
+
+H. Testing / Validation
+
+Define required validation for every reconciliation:
+
+* unit tests
+* integration tests
+* regression tests
+* no-lookahead tests
+* provider-routing tests
+* identity tests
+* PBP provenance tests
+* Parlay independence tests
+* database compatibility tests
+* production smoke tests
+
+CRITICAL RULE
+
+Do NOT copy an entire TSE directory over State C.
+
+Do NOT replace compositeProvider.ts wholesale.
+
+Do NOT replace the Prediction Engine wholesale.
+
+Do NOT replace the Parlay Builder wholesale.
+
+Do NOT create a second Truth Engine or second PBP authority.
+
+Every change must be reconciled at the capability/file/function/schema level.
+
+REQUIRED OUTPUT
+
+Produce:
+
+1. PHASE 2 MASTER MANIFEST
+2. WORKSTREAMS
+3. DEPENDENCY ORDER
+4. HIGH-RISK RECONCILIATIONS
+5. DATA / DATABASE RISKS
+6. TEST / VALIDATION GATES
+7. ROLLBACK STRATEGY
+8. FIRST IMPLEMENTATION TASK
+
+The manifest must explicitly incorporate the newly discovered historical requirements from:
+
+* d3bc3409782719b638d00a81f471f00c7e270102
+* 258545b023989d753c61b12bec7f07289be1fbe1
+* e498557a571545eb771ac11de65f9040742bcde6
+* b18b6ad4d6a451b9abadd2af1d09c54e5b9f6161
+* 6b1b0d22622d594871923e8e54f8b8fc8a6db934
+* 8c3ff17b27e2f6e8971838138072592a82968a8a
+* e5d902fdedd8c86774f2bb79ac4a0cf9d62336fb
+* e7b571b08c8aa48d9f55a78ccc330585de3f5148
+* 6a5654437814b9545b28e32150034dceaf4c2157
+* 2d4308eabb28a1e4020b5d5ff25ced9ca5747e8f
+* 3a044129e3b563c8cea8a94f2fb498a488ef5494
+* 243250d3fc66115991649cefeb86116319d16870
+* 3ba60816f1e268df985712dd2b41f0cb61ebaf92
+* 119fa2f63aae463b8827a166772ebc28dce826fc
+* f05438cdd53a5c7755f56afe7ed6355326dd590e
+
+Also explicitly include the previously established Phase 2 items from the 19 audit reports.
+
+STOP CONDITION
+
+After producing the manifest, STOP.
+
+Do not implement the first task yet.
+
+We will review the manifest before allowing Replit to begin modifications.

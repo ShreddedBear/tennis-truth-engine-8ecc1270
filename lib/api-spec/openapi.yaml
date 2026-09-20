@@ -1,0 +1,3376 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Tennis prediction engine API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: players
+    description: Player search and profiles
+  - name: matchups
+    description: Head-to-head and fixtures
+  - name: predictions
+    description: Prediction engine
+  - name: provider
+    description: Data provider status
+  - name: evaluation
+    description: Out-of-sample testing, calibration, and paper trading (Phase 4)
+  - name: auth
+    description: Owner-only login gate protecting data-changing and job-triggering endpoints
+  - name: payments
+    description: Stripe-backed workspace billing, checkout, and webhook flows
+paths:
+  /auth/status:
+    get:
+      operationId: getAdminAuthStatus
+      tags: [auth]
+      summary: Whether the current browser session is logged in as the owner
+      responses:
+        "200":
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuthStatus"
+
+  /auth/login:
+    post:
+      operationId: adminLogin
+      tags: [auth]
+      summary: Log in as the owner using the shared access key, setting a signed session cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Login succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuthStatus"
+        "401":
+          description: Access key was incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /auth/logout:
+    post:
+      operationId: adminLogout
+      tags: [auth]
+      summary: Clear the owner session cookie
+      responses:
+        "200":
+          description: Logout succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuthStatus"
+
+  /payments/status:
+    get:
+      operationId: getPaymentsStatus
+      tags: [payments]
+      summary: Current workspace billing status, entitlements, and recent Stripe webhook activity
+      responses:
+        "200":
+          description: Payments status snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPaymentsStatusResponse"
+
+  /payments/checkout-session:
+    post:
+      operationId: createPaymentsCheckoutSession
+      tags: [payments]
+      summary: Create a Stripe Checkout session for the current workspace subscription
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentsCheckoutSessionBody"
+      responses:
+        "200":
+          description: Stripe Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatePaymentsCheckoutSessionResponse"
+        "400":
+          description: Checkout session could not be created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /payments/billing-portal-session:
+    post:
+      operationId: createBillingPortalSession
+      tags: [payments]
+      summary: Create a Stripe Billing Portal session for the current workspace subscription
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBillingPortalSessionBody"
+      responses:
+        "200":
+          description: Stripe Billing Portal session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateBillingPortalSessionResponse"
+        "400":
+          description: Billing portal session could not be created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /payments/webhook:
+    post:
+      operationId: paymentsWebhook
+      tags: [payments]
+      summary: Receive Stripe webhook events and update workspace billing state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Webhook processed or recognized as duplicate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsWebhookResponse"
+        "400":
+          description: Webhook signature or payload was invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /provider/status:
+    get:
+      operationId: getProviderStatus
+      tags: [provider]
+      summary: Data provider status
+      description: Reports which live tennis-data provider is active and when it last responded successfully
+      responses:
+        "200":
+          description: Provider status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderStatus"
+
+  /players/search:
+    get:
+      operationId: searchPlayers
+      tags: [players]
+      summary: Search players by name
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+      responses:
+        "200":
+          description: Matching players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSummary"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /players/{playerId}:
+    get:
+      operationId: getPlayer
+      tags: [players]
+      summary: Get a player profile
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerProfile"
+        "404":
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /players/{playerId}/matches:
+    get:
+      operationId: getPlayerMatches
+      tags: [players]
+      summary: Recent match history for a player (all surfaces, most recent first)
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Match history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchRecord"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /fixtures/upcoming:
+    get:
+      operationId: getUpcomingFixtures
+      tags: [matchups]
+      summary: Upcoming scheduled matches
+      description: >-
+        Returns a rolling now-forward window of matches with a start time at or after the current
+        instant, sorted soonest-first, regardless of which calendar day (UTC) they fall on. The
+        window auto-extends further out when the near-term days are sparse, so the result is
+        capped by `limit` rather than by a fixed clock/day boundary. Use `offset` together with
+        `hasMore` in the response to page further into the window on busy days (e.g. Challenger/ITF
+        days with 50+ matches before noon).
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of fixtures to return. Defaults to 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          required: false
+          description: Number of soonest-first fixtures to skip before returning `limit` more. Defaults to 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: force
+          in: query
+          required: false
+          description: >-
+            When true, bypasses the provider's short in-memory fixtures cache for this call, so a
+            user-initiated refresh can actually pull fresh data instead of silently re-serving the
+            same cached response. Defaults to false (normal cached reads).
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Upcoming fixtures
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [fixtures, hasMore]
+                properties:
+                  fixtures:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Fixture"
+                  hasMore:
+                    type: boolean
+                    description: True when at least one more fixture exists beyond `offset + limit` within the lookahead window.
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /fixtures/live-scores:
+    get:
+      operationId: getLiveFixtureScores
+      tags: [matchups]
+      summary: Real-time set/game scores for currently-live fixtures
+      description: >-
+        Returns real, provider-reported set/game scores for a specific set of already-live
+        fixture ids, refreshed on a short (5-10s) cache lane separate from the general
+        upcoming-fixtures cache. Callers should poll this on a short interval ONLY while at
+        least one shown fixture is isLive, and merge the result onto the matching fixture by
+        id -- this endpoint never re-fetches or re-sorts the fixture list itself. Fixture ids
+        that are no longer live (already finished) or that the provider has no current score
+        for are simply omitted from the response, never fabricated.
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated fixture ids to fetch live scores for.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Live scores keyed by fixture id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scores]
+                properties:
+                  scores:
+                    type: object
+                    additionalProperties:
+                      $ref: "#/components/schemas/LiveScore"
+                    description: Map of fixture id -> LiveScore, only for ids the provider currently reports an in-progress score for.
+        "400":
+          description: Missing or invalid ids parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /h2h:
+    get:
+      operationId: getHeadToHead
+      tags: [matchups]
+      summary: Head-to-head match list between two players
+      parameters:
+        - name: player1Id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: player2Id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Head-to-head record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeadToHeadRecord"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /matchups/from-screenshot:
+    post:
+      operationId: recognizeMatchupScreenshot
+      tags: [matchups]
+      summary: Read a matchup screenshot and resolve players/surface
+      description: >-
+        Accepts an uploaded screenshot (e.g. a bracket, schedule, or another app's matchup card),
+        uses vision AI to read up to two distinct player names and an event/tournament name off
+        it, then resolves each recognized player against the same player search used by the
+        manual Search Players flow and resolves the event to a surface/level using the same
+        tournament-name knowledge used elsewhere in the engine. Never guesses -- anything not
+        confidently recognized or matched comes back null with an explanatory warning so the user
+        can fill it in manually.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenshotMatchupInput"
+      responses:
+        "200":
+          description: >-
+            Recognition result. A 200 does not mean everything was found -- check each field for
+            null and read `warnings` for what still needs manual input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScreenshotMatchupResult"
+        "400":
+          description: Missing or unreadable image payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+        "502":
+          description: Vision AI provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /predictions:
+    get:
+      operationId: listPredictions
+      tags: [predictions]
+      summary: List saved predictions (most recent first)
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        "200":
+          description: Prediction history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PredictionSummary"
+    post:
+      operationId: createPrediction
+      tags: [predictions]
+      summary: Run the prediction engine for a matchup and save the result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionRequest"
+      responses:
+        "201":
+          description: Prediction generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /predictions/stats:
+    get:
+      operationId: getPredictionStats
+      tags: [predictions]
+      summary: Aggregate stats across saved predictions
+      responses:
+        "200":
+          description: Aggregate stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionStats"
+
+  /predictions/players/search:
+    get:
+      operationId: searchLedgerPlayers
+      tags: [predictions]
+      summary: Search players who have at least one recorded prediction in the Ledger
+      description: >-
+        Distinct from /players/search (which searches the live tennis-data provider) -- this only
+        returns players actually found among saved Ledger predictions, for jumping straight to a
+        player's recorded history.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+      responses:
+        "200":
+          description: Matching players with at least one Ledger prediction
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LedgerPlayerSummary"
+
+  /predictions/players/{playerId}:
+    get:
+      operationId: getLedgerPlayerPredictions
+      tags: [predictions]
+      summary: Every recorded Ledger prediction involving a specific player, oldest first
+      description: >-
+        Not capped by the main list's page size -- returns the player's complete Ledger history so
+        the Ledger's player-navigation control can step through every one of their predictions,
+        including any older than what the main "recent predictions" list currently shows.
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: All predictions involving this player, ordered oldest to newest
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PredictionSummary"
+
+  /predictions/{predictionId}:
+    get:
+      operationId: getPrediction
+      tags: [predictions]
+      summary: Get a saved prediction with its full engine breakdown
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Prediction detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+        "404":
+          description: Prediction not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+    delete:
+      operationId: deletePrediction
+      tags: [predictions]
+      summary: Permanently delete a single saved prediction from the Ledger
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Prediction not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /predictions/bulk-delete:
+    post:
+      operationId: bulkDeletePredictions
+      tags: [predictions]
+      summary: Permanently delete multiple saved predictions from the Ledger at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkDeletePredictionsInput"
+      responses:
+        "200":
+          description: Number of predictions actually deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkDeletePredictionsResult"
+
+  /predictions/grade-pending:
+    post:
+      operationId: gradePendingLedgerPredictions
+      tags: [predictions]
+      summary: Check every still-pending Ledger prediction against real completed-match data and mark Win/Loss automatically (also runs on a schedule; this triggers an on-demand check, e.g. from a "Refresh Outcomes" button)
+      responses:
+        "200":
+          description: Grading summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerGradingSummary"
+        "502":
+          description: Upstream data provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /predictions/duplicates/preview:
+    post:
+      operationId: previewDuplicatePredictions
+      tags: [predictions]
+      summary: Scan the entire Ledger for true duplicate predictions (without deleting anything) so the UI can show a confirmation before removing them
+      responses:
+        "200":
+          description: Duplicate groups found, and how many rows would be removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DuplicatePredictionsPreviewResult"
+
+  /predictions/duplicates/remove:
+    post:
+      operationId: removeDuplicatePredictions
+      tags: [predictions]
+      summary: Re-scan the entire Ledger for true duplicate predictions and delete only the duplicate rows, keeping the original of each group
+      responses:
+        "200":
+          description: Duplicates removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoveDuplicatePredictionsResult"
+
+  /predictions/{predictionId}/outcome:
+    patch:
+      operationId: recordPredictionOutcome
+      tags: [predictions]
+      summary: Record the actual match winner for a saved prediction
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionOutcomeInput"
+      responses:
+        "200":
+          description: Updated prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+        "404":
+          description: Prediction not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /evaluation/runs:
+    get:
+      operationId: listEvaluationRuns
+      tags: [evaluation]
+      summary: List walk-forward fold results (most recent first)
+      responses:
+        "200":
+          description: Fold results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvaluationRun"
+
+  /evaluation/walk-forward/run:
+    post:
+      operationId: runWalkForward
+      tags: [evaluation]
+      summary: Run a fresh sequence of expanding-window walk-forward folds over the historical store
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunWalkForwardRequest"
+      responses:
+        "200":
+          description: Walk-forward run summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalkForwardSummary"
+
+  /evaluation/predictions:
+    get:
+      operationId: listEvaluationPredictions
+      tags: [evaluation]
+      summary: List locked evaluation predictions (historical-test, paper-trade, or live)
+      parameters:
+        - name: runKind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RunKind"
+        - name: segment
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Segment"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/EvaluationStatus"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Evaluation predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvaluationPrediction"
+
+  /evaluation/predictions/{predictionId}:
+    get:
+      operationId: getEvaluationPrediction
+      tags: [evaluation]
+      summary: Get one locked evaluation prediction with its full feature snapshot
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Evaluation prediction detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluationPrediction"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /evaluation/dashboard:
+    get:
+      operationId: getEvaluationDashboard
+      tags: [evaluation]
+      summary: Segmented, honestly-labeled accuracy dashboard (validation / test / paper-trade never combined)
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluationDashboard"
+
+  /evaluation/settings:
+    get:
+      operationId: getEvaluationSettings
+      tags: [evaluation]
+      summary: Get the admin-configurable evaluation settings
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionSettings"
+    patch:
+      operationId: updateEvaluationSettings
+      tags: [evaluation]
+      summary: Update the admin-configurable evaluation settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePredictionSettingsRequest"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionSettings"
+
+  /evaluation/simulator:
+    get:
+      operationId: getSimulatorValidation
+      tags: [evaluation]
+      summary: Current Phase 7 Monte Carlo simulator validation status against real graded outcomes
+      responses:
+        "200":
+          description: Simulator validation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulatorValidation"
+
+  /evaluation/simulator/validate:
+    post:
+      operationId: runSimulatorValidation
+      tags: [evaluation]
+      summary: Recompute the simulator's validation status from every real graded outcome currently available, and persist it
+      responses:
+        "200":
+          description: Freshly computed simulator validation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulatorValidation"
+
+  /paper-trading/run-cycle:
+    post:
+      operationId: runPaperTradingCycle
+      tags: [evaluation]
+      summary: Lock predictions for newly-eligible upcoming fixtures, mark missed cutoffs, and grade completed matches
+      responses:
+        "200":
+          description: Cycle summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaperTradingCycleSummary"
+
+  /paper-trading/job-runs:
+    get:
+      operationId: listPaperTradingJobRuns
+      tags: [evaluation]
+      summary: Recent invocations of the standalone paper-trading scheduled job, for monitoring gaps or failures
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Most recent job runs, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobRun"
+
+  /evaluation/ablation/run:
+    post:
+      operationId: runAblationAnalysis
+      tags: [evaluation]
+      summary: Start a one-time model ablation analysis (leave-one-out + combinations, replayed over the historical corpus, or a representative sample of it). Runs in the background -- poll /evaluation/ablation/status for progress and the finished report.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunAblationAnalysisRequest"
+      responses:
+        "200":
+          description: Whether the run was started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AblationRunResponse"
+
+  /evaluation/shadow-replay/run:
+    post:
+      operationId: runShadowReplay
+      tags: [evaluation]
+      summary: >-
+        Replay a historical date range day-by-day through the same leak-proof scoring path as
+        walk-forward, graded with today's active calibration, and store it as distinctly-labeled
+        simulated ('paper_trade_shadow') evidence -- append-only, never overwriting real
+        paper-trading or the historical_test backtest bucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunShadowReplayRequest"
+      responses:
+        "200":
+          description: Shadow replay batch summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShadowReplaySummary"
+        "400":
+          description: Invalid date range/batch label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderError"
+
+  /evaluation/shadow-replay/dashboard:
+    get:
+      operationId: getShadowReplayDashboard
+      tags: [evaluation]
+      summary: Aggregate shadow-replay (simulated) evidence and the list of replay batches on record -- always shown separately from genuinely-live evidence
+      responses:
+        "200":
+          description: Shadow replay dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShadowReplayDashboard"
+
+  /evaluation/ablation/status:
+    get:
+      operationId: getAblationStatus
+      tags: [evaluation]
+      summary: Poll the status/progress/result of the model ablation analysis job
+      responses:
+        "200":
+          description: Current job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AblationStatus"
+
+  /evaluation/calibration-refit/job-runs:
+    get:
+      operationId: listCalibrationRefitJobRuns
+      tags: [evaluation]
+      summary: Recent invocations of the standalone calibration-refit scheduled job, for monitoring gaps or failures
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Most recent job runs, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobRun"
+
+  /evaluation/historical-backfill/run-cycle:
+    post:
+      operationId: runHistoricalBackfillCycle
+      tags: [evaluation]
+      summary: Advance the canonical historical_matches record from wherever it last left off, through yesterday
+      responses:
+        "200":
+          description: Cycle result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalBackfillCycleResult"
+
+  /evaluation/historical-backfill/run-range:
+    post:
+      operationId: runHistoricalBackfillRange
+      tags: [evaluation]
+      summary: Fire a targeted historical backfill for a specific date range in the background and return immediately
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunHistoricalBackfillRangeRequest"
+      responses:
+        "200":
+          description: Backfill started in background
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunHistoricalBackfillRangeResult"
+
+  /evaluation/historical-backfill/job-runs:
+    get:
+      operationId: listHistoricalBackfillJobRuns
+      tags: [evaluation]
+      summary: Recent invocations of the standalone historical-backfill scheduled job, for monitoring gaps or failures
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Most recent job runs, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobRun"
+
+  /evaluation/historical-backfill/freshness:
+    get:
+      operationId: getHistoricalDataFreshness
+      tags: [evaluation]
+      summary: How far the canonical historical_matches record currently reaches, so staleness is visible rather than silent
+      responses:
+        "200":
+          description: Freshness status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalDataFreshness"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    AdminAuthStatus:
+      type: object
+      required: [authenticated]
+      properties:
+        authenticated:
+          type: boolean
+
+    AdminLoginInput:
+      type: object
+      required: [accessKey]
+      properties:
+        accessKey:
+          type: string
+          minLength: 1
+
+    PaymentEntitlements:
+      type: object
+      required:
+        - predictionHistory
+        - walkForward
+        - shadowReplay
+        - optimizer
+        - competitiveBalance
+        - evidenceReliability
+        - developerAnalytics
+        - eliteRecommendations
+        - alerts
+        - teamWorkspace
+      properties:
+        predictionHistory:
+          type: boolean
+        walkForward:
+          type: boolean
+        shadowReplay:
+          type: boolean
+        optimizer:
+          type: boolean
+        competitiveBalance:
+          type: boolean
+        evidenceReliability:
+          type: boolean
+        developerAnalytics:
+          type: boolean
+        eliteRecommendations:
+          type: boolean
+        alerts:
+          type: boolean
+        teamWorkspace:
+          type: boolean
+
+    PaymentWebhookEventSummary:
+      type: object
+      required:
+        - id
+        - stripeEventId
+        - eventType
+        - livemode
+        - processingStatus
+        - stripeCustomerId
+        - stripeSubscriptionId
+        - errorMessage
+        - receivedAt
+        - processedAt
+        - createdAt
+      properties:
+        id:
+          type: integer
+        stripeEventId:
+          type: string
+        eventType:
+          type: string
+        livemode:
+          type: boolean
+        processingStatus:
+          type: string
+        stripeCustomerId:
+          type: ["string", "null"]
+        stripeSubscriptionId:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        receivedAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentsStatusAccount:
+      type: object
+      required:
+        - id
+        - accountKey
+        - displayName
+        - stripeCustomerId
+        - stripeSubscriptionId
+        - stripePriceId
+        - planKey
+        - planName
+        - subscriptionStatus
+        - accessGrantedAt
+        - currentPeriodStartAt
+        - currentPeriodEndAt
+        - trialEndAt
+        - canceledAt
+        - cancelAtPeriodEnd
+        - entitlementSnapshot
+        - metadata
+        - lastWebhookEventId
+        - lastCheckoutSessionId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        accountKey:
+          type: string
+        displayName:
+          type: string
+        stripeCustomerId:
+          type: ["string", "null"]
+        stripeSubscriptionId:
+          type: ["string", "null"]
+        stripePriceId:
+          type: ["string", "null"]
+        planKey:
+          type: ["string", "null"]
+        planName:
+          type: ["string", "null"]
+        subscriptionStatus:
+          type: ["string", "null"]
+        accessGrantedAt:
+          type: ["string", "null"]
+          format: date-time
+        currentPeriodStartAt:
+          type: ["string", "null"]
+          format: date-time
+        currentPeriodEndAt:
+          type: ["string", "null"]
+          format: date-time
+        trialEndAt:
+          type: ["string", "null"]
+          format: date-time
+        canceledAt:
+          type: ["string", "null"]
+          format: date-time
+        cancelAtPeriodEnd:
+          type: boolean
+        entitlementSnapshot:
+          type: object
+          additionalProperties:
+            type: boolean
+        metadata:
+          type: object
+          additionalProperties: true
+        lastWebhookEventId:
+          type: ["string", "null"]
+        lastCheckoutSessionId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaymentsStripeStatus:
+      type: object
+      required:
+        - priceId
+        - webhookSecretConfigured
+        - secretKeyConfigured
+        - planKey
+        - planName
+      properties:
+        priceId:
+          type: ["string", "null"]
+        webhookSecretConfigured:
+          type: boolean
+        secretKeyConfigured:
+          type: boolean
+        planKey:
+          type: string
+        planName:
+          type: string
+
+    GetPaymentsStatusResponse:
+      type: object
+      required:
+        - featureFlagEnabled
+        - configured
+        - active
+        - account
+        - entitlements
+        - stripe
+        - recentWebhookEvents
+      properties:
+        featureFlagEnabled:
+          type: boolean
+        configured:
+          type: boolean
+        active:
+          type: boolean
+        account:
+          oneOf:
+            - $ref: "#/components/schemas/PaymentsStatusAccount"
+            - type: "null"
+        entitlements:
+          $ref: "#/components/schemas/PaymentEntitlements"
+        stripe:
+          $ref: "#/components/schemas/PaymentsStripeStatus"
+        recentWebhookEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentWebhookEventSummary"
+
+    CreatePaymentsCheckoutSessionBody:
+      type: object
+      properties:
+        returnPath:
+          type: string
+        customerEmail:
+          type: string
+          format: email
+
+    CreatePaymentsCheckoutSessionResponse:
+      type: object
+      required:
+        - sessionId
+        - url
+      properties:
+        sessionId:
+          type: string
+        url:
+          type: ["string", "null"]
+
+    CreateBillingPortalSessionBody:
+      type: object
+      properties:
+        returnPath:
+          type: string
+
+    CreateBillingPortalSessionResponse:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+
+    PaymentsWebhookResponse:
+      type: object
+      required:
+        - received
+        - processed
+      properties:
+        received:
+          type: boolean
+        processed:
+          type: boolean
+        duplicate:
+          type: boolean
+
+    ProviderError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        detail:
+          type: ["string", "null"]
+
+    ProviderStatus:
+      type: object
+      required: [provider, connected, lastSuccessfulCallAt, lastError]
+      properties:
+        provider:
+          type: string
+          description: Name of the active tennis data provider
+        connected:
+          type: boolean
+        lastSuccessfulCallAt:
+          type: ["string", "null"]
+          format: date-time
+        lastError:
+          type: ["string", "null"]
+
+    Surface:
+      type: string
+      enum: [Hard, Clay, Grass, IndoorHard]
+
+    TournamentLevel:
+      type: string
+      enum: [GrandSlam, Masters1000, ATP500, ATP250, WTA1000, WTA500, WTA250, Challenger, ITF, Other]
+
+    MatchFormat:
+      type: string
+      enum: [BestOf3, BestOf5]
+
+    PlayerSummary:
+      type: object
+      required: [id, name, countryCode]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        currentRank:
+          type: ["integer", "null"]
+        tour:
+          type: ["string", "null"]
+        source:
+          type: string
+          enum: [live-standings, historical-match]
+          description: >-
+            How this player was found. "live-standings" means they're in the current ATP/WTA
+            standings feed (rank/tour are live). "historical-match" means they were found only in
+            our own previously-fetched real match history -- a genuinely real player, but rank/tour
+            here reflect their last known match, not a live ranking. Omitted for legacy rows.
+
+    LedgerPlayerSummary:
+      type: object
+      required: [id, name, predictionCount]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        predictionCount:
+          type: integer
+          description: Total number of recorded Ledger predictions involving this player
+
+    PlayerProfile:
+      type: object
+      required: [id, name, countryCode]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        currentRank:
+          type: ["integer", "null"]
+        age:
+          type: ["number", "null"]
+        plays:
+          type: ["string", "null"]
+          description: Playing hand, e.g. "Right-handed"
+        tour:
+          type: ["string", "null"]
+        fullName:
+          type: ["string", "null"]
+          description: Provider's full given+family name, when it differs from the display name.
+        source:
+          type: string
+          enum: [live-standings, historical-match]
+          description: >-
+            How tour/rank were resolved. "live-standings" means the current ATP/WTA standings feed
+            had this player. "historical-match" means the standings feed didn't have them, but a
+            real, previously-fetched match record did (tour reflects their last known match, not a
+            live ranking). Omitted when neither source could resolve tour/rank at all.
+
+    MatchStatLine:
+      type: object
+      description: Raw serve/return counting stats for one player in one match, when the provider supplies them
+      properties:
+        firstServePct:
+          type: ["number", "null"]
+        firstServeWon:
+          type: ["number", "null"]
+        secondServeWon:
+          type: ["number", "null"]
+        aces:
+          type: ["integer", "null"]
+        doubleFaults:
+          type: ["integer", "null"]
+        breakPointsSaved:
+          type: ["number", "null"]
+        breakPointsFaced:
+          type: ["integer", "null"]
+        returnPointsWon:
+          type: ["number", "null"]
+
+    MatchRecord:
+      type: object
+      required: [id, date, opponentId, opponentName, opponentRank, surface, result]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+          format: date
+        tournamentName:
+          type: ["string", "null"]
+        tournamentLevel:
+          oneOf:
+            - $ref: "#/components/schemas/TournamentLevel"
+            - type: "null"
+        round:
+          type: ["string", "null"]
+        matchFormat:
+          $ref: "#/components/schemas/MatchFormat"
+        surface:
+          oneOf:
+            - $ref: "#/components/schemas/Surface"
+            - type: "null"
+        indoor:
+          type: ["boolean", "null"]
+        opponentId:
+          type: string
+        opponentName:
+          type: string
+        opponentRank:
+          type: ["integer", "null"]
+        result:
+          type: string
+          enum: [W, L]
+        score:
+          type: ["string", "null"]
+        retired:
+          type: boolean
+        walkover:
+          type: boolean
+        stats:
+          oneOf:
+            - $ref: "#/components/schemas/MatchStatLine"
+            - type: "null"
+        opponentStats:
+          oneOf:
+            - $ref: "#/components/schemas/MatchStatLine"
+            - type: "null"
+
+    Fixture:
+      type: object
+      required: [id, date, timeConfirmed, isLive, player1Id, player1Name, player2Id, player2Name, surface]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+          format: date
+          description: Calendar date the match is scheduled for (YYYY-MM-DD). Always present.
+        scheduledStart:
+          oneOf:
+            - type: "null"
+            - type: string
+              format: date-time
+          description: >-
+            Full real start instant (UTC) for this exact fixture, combining the provider's
+            per-match date and time. Null when the provider did not supply a verified time for
+            this fixture -- never fabricated or shared with another match. Clients must show
+            "Time TBD" when null. IMPORTANT -- null must be listed first in this oneOf union.
+            The generated zod.coerce.date() silently accepts a null input as epoch 1970 instead
+            of failing, so if the date branch were checked first a real null would be miscoerced
+            into a fake timestamp.
+        timeConfirmed:
+          type: boolean
+          description: True only when scheduledStart reflects a real provider-supplied time for this exact fixture.
+        isLive:
+          type: boolean
+          description: >-
+            True when this fixture's confirmed scheduledStart is already in the past and the
+            provider has not yet reported a winner -- i.e. the match is currently in progress.
+            False for a genuinely upcoming (not yet started) fixture, and also false for an
+            unconfirmed ("Time TBD") fixture, since we have no real evidence it has started.
+        tournamentName:
+          type: ["string", "null"]
+        tournamentLevel:
+          oneOf:
+            - $ref: "#/components/schemas/TournamentLevel"
+            - type: "null"
+        round:
+          type: ["string", "null"]
+        surface:
+          oneOf:
+            - $ref: "#/components/schemas/Surface"
+            - type: "null"
+        indoor:
+          type: ["boolean", "null"]
+        matchFormat:
+          $ref: "#/components/schemas/MatchFormat"
+        player1Id:
+          type: string
+        player1Name:
+          type: string
+        player2Id:
+          type: string
+        player2Name:
+          type: string
+
+    LiveScoreSet:
+      type: object
+      required: [player1Games, player2Games]
+      properties:
+        player1Games:
+          type: integer
+          description: Games won so far in this set by player1 (the same player1 identified on the Fixture).
+        player2Games:
+          type: integer
+          description: Games won so far in this set by player2 (the same player2 identified on the Fixture).
+
+    LiveScore:
+      type: object
+      required: [sets]
+      properties:
+        sets:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveScoreSet"
+          description: >-
+            One entry per set played so far, in order, always aligned to player1/player2 -- never
+            a generic "home/away" or "first/second" pairing that could be flipped relative to the
+            Fixture's own player1Id/player2Id.
+        statusText:
+          type: ["string", "null"]
+          description: Provider's own free-text match status (e.g. "2nd Set"), shown as-is, never inferred.
+
+    HeadToHeadMeeting:
+      type: object
+      required: [date, winnerId, surface]
+      properties:
+        date:
+          type: string
+          format: date
+        tournamentName:
+          type: ["string", "null"]
+        surface:
+          oneOf:
+            - $ref: "#/components/schemas/Surface"
+            - type: "null"
+        score:
+          type: ["string", "null"]
+        winnerId:
+          type: string
+
+    HeadToHeadRecord:
+      type: object
+      required: [player1Id, player2Id, meetings]
+      properties:
+        player1Id:
+          type: string
+        player2Id:
+          type: string
+        meetings:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeadToHeadMeeting"
+
+    ScreenshotMatchupInput:
+      type: object
+      required: [imageBase64]
+      properties:
+        imageBase64:
+          type: string
+          description: >-
+            Base64-encoded image data (a data URL such as "data:image/png;base64,..." or raw
+            base64 -- both accepted). PNG/JPEG/WEBP screenshots only.
+
+    ScreenshotPlayerMatch:
+      type: object
+      required: [recognizedName, player]
+      properties:
+        recognizedName:
+          type: ["string", "null"]
+          description: The player name as read off the screenshot, before any lookup. Null if vision AI could not distinguish a second player.
+        player:
+          oneOf:
+            - $ref: "#/components/schemas/PlayerSummary"
+            - type: "null"
+          description: The confidently-matched player from the existing player search, or null if the recognized name had no confident match.
+
+    ScreenshotEventMatch:
+      type: object
+      required: [recognizedName, surface, level]
+      properties:
+        recognizedName:
+          type: ["string", "null"]
+          description: The event/tournament name as read off the screenshot. Null if none was found.
+        surface:
+          oneOf:
+            - $ref: "#/components/schemas/Surface"
+            - type: "null"
+        level:
+          oneOf:
+            - $ref: "#/components/schemas/TournamentLevel"
+            - type: "null"
+
+    ScreenshotMatchupResult:
+      type: object
+      required: [player1, player2, event, warnings]
+      properties:
+        player1:
+          $ref: "#/components/schemas/ScreenshotPlayerMatch"
+        player2:
+          $ref: "#/components/schemas/ScreenshotPlayerMatch"
+        event:
+          $ref: "#/components/schemas/ScreenshotEventMatch"
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Human-readable notes on anything not confidently recognized or matched -- the user should fill these in manually.
+
+    PredictionRequest:
+      type: object
+      required: [player1Id, player2Id, surface, matchFormat]
+      properties:
+        player1Id:
+          type: string
+        player2Id:
+          type: string
+        surface:
+          $ref: "#/components/schemas/Surface"
+        matchFormat:
+          $ref: "#/components/schemas/MatchFormat"
+        tournamentLevel:
+          $ref: "#/components/schemas/TournamentLevel"
+        tournamentName:
+          type: ["string", "null"]
+        indoor:
+          type: ["boolean", "null"]
+
+    PredictionOutcomeInput:
+      type: object
+      required: [actualWinnerId]
+      properties:
+        actualWinnerId:
+          type: string
+
+    EngineModelOutput:
+      type: object
+      description: Standard shape every prediction-engine module returns
+      required: [player1Edge, player2Edge, reliability, summary]
+      properties:
+        player1Edge:
+          type: number
+          description: Signed edge toward player 1, roughly -50..50
+        player2Edge:
+          type: number
+        reliability:
+          type: number
+          description: 0-100 confidence in this module's inputs
+        summary:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+
+    SurfaceEloResult:
+      type: object
+      # Only the original (pre-recalibration) fields are required -- predictions saved before the
+      # 2026-07-13 Surface Elo recalibration have a stored `surfaceElo` blob with none of the new
+      # fields below (rawEloWinProbabilityPlayer1, effectiveSampleSize*, *OverallElo,
+      # *SurfaceOnlyElo, *BlendWeight); they must stay optional so reads of those legacy rows don't
+      # throw. New live predictions always populate every field -- see surfaceElo.ts.
+      required: [player1SurfaceElo, player2SurfaceElo, eloDifference, eloWinProbabilityPlayer1, reliability, sampleSizePlayer1, sampleSizePlayer2]
+      properties:
+        player1SurfaceElo:
+          type: number
+        player2SurfaceElo:
+          type: number
+        eloDifference:
+          type: number
+        eloWinProbabilityPlayer1:
+          type: number
+        rawEloWinProbabilityPlayer1:
+          type: number
+        reliability:
+          type: number
+        sampleSizePlayer1:
+          type: integer
+        sampleSizePlayer2:
+          type: integer
+        effectiveSampleSizePlayer1:
+          type: number
+        effectiveSampleSizePlayer2:
+          type: number
+        player1OverallElo:
+          type: number
+        player2OverallElo:
+          type: number
+        player1SurfaceOnlyElo:
+          type: number
+        player2SurfaceOnlyElo:
+          type: number
+        player1BlendWeight:
+          type: number
+        player2BlendWeight:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+
+    ServeReturnResult:
+      type: object
+      required: [player1ServeRating, player2ServeRating, player1ReturnRating, player2ReturnRating, reliability]
+      properties:
+        player1ServeRating:
+          type: number
+        player2ServeRating:
+          type: number
+        player1ReturnRating:
+          type: number
+        player2ReturnRating:
+          type: number
+        reliability:
+          type: number
+        note:
+          type: ["string", "null"]
+        warnings:
+          type: array
+          items:
+            type: string
+
+    RecentFormResult:
+      type: object
+      required: [player1Form, player2Form, player1Trend, player2Trend, reliability]
+      properties:
+        player1Form:
+          type: number
+        player2Form:
+          type: number
+        player1Trend:
+          type: string
+          enum: [improving, stable, declining]
+        player2Trend:
+          type: string
+          enum: [improving, stable, declining]
+        reliability:
+          type: number
+        player1OpponentAdjustedCoverage:
+          type: number
+          description: Share (0-100) of player1's recent matches with a real opponent-strength estimate available
+        player2OpponentAdjustedCoverage:
+          type: number
+        player1ServeReturnCoverage:
+          type: number
+          description: Share (0-100) of player1's recent matches with a real serve/return point-stat line factored into the score. Not present on predictions made before this field existed.
+        player2ServeReturnCoverage:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+
+    FatigueResult:
+      type: object
+      required: [player1FatigueScore, player2FatigueScore, player1MatchesLast7Days, player2MatchesLast7Days, reliability]
+      properties:
+        player1FatigueScore:
+          type: number
+        player2FatigueScore:
+          type: number
+        player1MatchesLast7Days:
+          type: integer
+        player2MatchesLast7Days:
+          type: integer
+        player1MatchesLast3Days:
+          type: integer
+        player2MatchesLast3Days:
+          type: integer
+        player1MatchesLast14Days:
+          type: integer
+        player2MatchesLast14Days:
+          type: integer
+        player1EstimatedGamesLast14Days:
+          type: number
+        player2EstimatedGamesLast14Days:
+          type: number
+        reliability:
+          type: number
+        note:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+
+    MatchLoadRecoveryResult:
+      type: object
+      description: >-
+        Task #93: went-the-distance recovery-risk signal (validated Candidate B from
+        docs/audit-fatigue-redesign-investigation.md) -- based only on whether each player's
+        single most recent prior match went the distance (3+ sets BestOf3 / 4+ BestOf5), not
+        recency-weighted match counts. Rest days are computed and shown for transparency only;
+        they do NOT feed the risk score (rest-days-only scoring was tested and rejected).
+      required: [player1RecoveryRiskScore, player2RecoveryRiskScore, reliability]
+      properties:
+        player1RestDays:
+          type: ["integer", "null"]
+          description: Real calendar days since this player's single most recent prior match. Null when there's no prior match on record.
+        player2RestDays:
+          type: ["integer", "null"]
+        player1RecentMatchWentDistance:
+          type: ["boolean", "null"]
+          description: Whether that most recent prior match went the distance -- null when the format or set count for that match isn't known.
+        player2RecentMatchWentDistance:
+          type: ["boolean", "null"]
+        player1RecoveryRiskScore:
+          type: number
+          description: 0-100, higher = more acute-recovery risk. Driven entirely by whether the most recent match went the distance.
+        player2RecoveryRiskScore:
+          type: number
+        reliability:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+
+    PlayerAvailability:
+      type: object
+      required: [daysSinceLastMatch, travelDistanceKm, recentRetirementOrWithdrawal, recentRetirementTournament]
+      properties:
+        daysSinceLastMatch:
+          type: ["integer", "null"]
+          description: Exact real days since this player's most recent completed match. Null when there's no prior match on record.
+        travelDistanceKm:
+          type: ["number", "null"]
+          description: Real great-circle distance between the venue of this player's last match and this match's venue. Null when either venue can't be resolved.
+        recentRetirementOrWithdrawal:
+          type: boolean
+          description: True only when this player's own match record shows they retired mid-match (the losing side of a retired result) within the last 3 weeks -- a real recorded fact, not a diagnosis.
+        recentRetirementTournament:
+          type: ["string", "null"]
+
+    AvailabilityResult:
+      type: object
+      description: Real injury/travel/rest signals derived from verified match data -- no external pre-match injury/withdrawal feed is connected (see availabilityNote).
+      required: [player1, player2, reliability, note, warnings]
+      properties:
+        player1:
+          $ref: "#/components/schemas/PlayerAvailability"
+        player2:
+          $ref: "#/components/schemas/PlayerAvailability"
+        reliability:
+          type: number
+        note:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+
+    StyleMatchupResult:
+      type: object
+      required: [player1Styles, player2Styles, reliability]
+      properties:
+        player1Styles:
+          type: array
+          items:
+            type: string
+        player2Styles:
+          type: array
+          items:
+            type: string
+        player1Advantages:
+          type: array
+          items:
+            type: string
+        player2Advantages:
+          type: array
+          items:
+            type: string
+        reliability:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+
+    HeadToHeadResult:
+      type: object
+      required: [player1Wins, player2Wins, surfaceMeetings, reliability]
+      properties:
+        player1Wins:
+          type: integer
+        player2Wins:
+          type: integer
+        surfaceMeetings:
+          type: integer
+        recentMeetings:
+          type: integer
+        weightedEdge:
+          type: number
+          description: Recency- and tournament-level-weighted edge toward player1, -1..1
+        reliability:
+          type: number
+        warnings:
+          type: array
+          items:
+            type: string
+
+    WeatherConditions:
+      type: object
+      description: Forecast conditions for a genuinely upcoming fixture with a known venue -- informational only, never used to adjust win probability.
+      required: [venueName, temperatureC, windSpeedKph, precipitationProbability, note]
+      properties:
+        venueName:
+          type: string
+        temperatureC:
+          type: number
+        windSpeedKph:
+          type: number
+        precipitationProbability:
+          type: number
+        note:
+          type: string
+
+    ModelVote:
+      type: object
+      required: [modelName, player1Probability, weightUsed, reliability]
+      properties:
+        modelName:
+          type: string
+        player1Probability:
+          type: number
+        weightUsed:
+          type: number
+        reliability:
+          type: number
+
+    EngineBreakdown:
+      type: object
+      description: Full module-by-module output of the prediction engine
+      # `availability` is intentionally NOT required: predictions saved before this field existed
+      # have a stored `engine` JSON blob without it, and must still parse/read back cleanly.
+      required: [surfaceElo, serveReturn, recentForm, fatigue, styleMatchup, headToHead, models]
+      properties:
+        surfaceElo:
+          $ref: "#/components/schemas/SurfaceEloResult"
+        serveReturn:
+          $ref: "#/components/schemas/ServeReturnResult"
+        recentForm:
+          $ref: "#/components/schemas/RecentFormResult"
+        fatigue:
+          $ref: "#/components/schemas/FatigueResult"
+        matchLoadRecovery:
+          $ref: "#/components/schemas/MatchLoadRecoveryResult"
+          description: Task #93 -- live-wired went-the-distance recovery signal. Absent on predictions made before this field existed.
+        availability:
+          $ref: "#/components/schemas/AvailabilityResult"
+        styleMatchup:
+          $ref: "#/components/schemas/StyleMatchupResult"
+        headToHead:
+          $ref: "#/components/schemas/HeadToHeadResult"
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelVote"
+        modelAgreement:
+          type: string
+          enum: [Strong, Moderate, Mixed, HighDisagreement]
+        disagreementNote:
+          type: ["string", "null"]
+          description: Recalibrated (2026-07-13) weighted-disagreement explanation naming the specific meaningfully-weighted models actually in conflict, their probabilities, and their weights. Null when modelAgreement is "Strong". Absent on predictions made before this field existed.
+        matchupCloseness:
+          type: string
+          enum: [VeryClose, Close, Moderate, Clear]
+          description: How near the final probability sits to a coin flip -- deliberately independent of modelAgreement (a match can be close while every model agrees, or genuinely disagree while the blend lands well away from 50). Absent on predictions made before this field existed.
+        reasons:
+          type: array
+          items:
+            type: string
+        risks:
+          type: array
+          items:
+            type: string
+        disclosures:
+          type: array
+          items:
+            type: string
+          description: >-
+            Informational disclosures that are real and worth showing but are NOT evidence this
+            specific match is more upset-prone or lower-quality -- e.g. "no prior head-to-head
+            meetings" (the normal case for most matchups) or "not enough matches to tag a surface
+            specialist" (a coverage gap, not a red flag). Added 2026-07-13 so this information
+            keeps showing up without being styled/counted like a real risk. Absent on predictions
+            made before this field existed.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Aggregated low-sample/low-coverage warnings from every module
+        availabilityNote:
+          type: string
+        conditionsNote:
+          type: string
+        weather:
+          oneOf:
+            - $ref: "#/components/schemas/WeatherConditions"
+            - type: "null"
+        segmentKey:
+          type: ["string", "null"]
+          description: Tour/surface segment key (e.g. "ATP-Clay") a specialist was evaluated for, or null when this match's tour isn't a Phase 6 candidate segment at all
+        segmentLabel:
+          type: ["string", "null"]
+        specialistApplied:
+          type: boolean
+          description: True only when a segment specialist actually contributed to calibratedProbability
+        segmentNote:
+          type: string
+          description: Always present -- explains whether a specialist was applied, or exactly why the engine fell back to the general model. Never silent.
+        simulation:
+          $ref: "#/components/schemas/MatchSimulationResult"
+        simulatorApplied:
+          type: boolean
+          description: True only when the Phase 7 Monte Carlo simulator's validated performance earned it a vote in calibratedProbability
+        simulatorNote:
+          type: string
+          description: Always present -- explains whether the simulator is voting, or exactly why not yet. Never silent.
+        modelConflict:
+          type: boolean
+          description: True only when the final calibrated pick crosses 50% in the opposite direction from the raw, reliability-weighted feature-module vote -- i.e. calibration/specialist/simulator blending overrode the underlying evidence. Not present on predictions made before this field existed.
+        modelConflictNote:
+          type: ["string", "null"]
+          description: Explanation of which metrics favored the other side and which pipeline stage flipped the pick. Null when there's no conflict, absent on predictions made before this field existed.
+        tieBreakerApplied:
+          type: boolean
+          description: True only when the raw core signals were genuinely close to a coin flip and the tie-break cascade picked a direction instead of leaving an uninformative ~50/50 average. Absent on predictions made before this field existed.
+        tieBreakerDecidingStep:
+          type: ["string", "null"]
+          description: Which cascade step decided the direction, or null when no tie-break was needed/possible.
+        tieBreakerNote:
+          type: ["string", "null"]
+          description: Explanation of why the raw signals were tied and which step broke it. Null when tieBreakerApplied is false.
+        isEliteTier:
+          type: boolean
+          description: True only when this prediction clears the Elite Prediction bar (high data quality, Surface Elo/Serve & Return/Recent Form agreement, a validated segment specialist, and passing fitted calibration). Absent on predictions made before this field existed.
+        eliteTierReason:
+          type: string
+          description: Always present -- explains why a prediction is or isn't elite tier. Never silent.
+        upsetRiskBreakdown:
+          $ref: "#/components/schemas/UpsetRiskResult"
+          description: Recalibrated (2026-07-13) component-based upset-risk breakdown. Absent on predictions made before this field existed -- the top-level upsetRisk tier is still always present.
+        surfaceSampleDepth:
+          $ref: "#/components/schemas/SurfaceSampleDepth"
+          description: Per-matchup count of prior matches each player has on the relevant surface, labeled Low/Moderate/High. Absent on predictions made before this field existed.
+
+    SurfaceSampleDepth:
+      type: object
+      description: Surfaces, per matchup, how many prior matches each player has on the relevant surface -- so a low-sample surface prediction is visibly flagged rather than silently blended in.
+      required: [player1Sample, player2Sample, minSample, label]
+      properties:
+        player1Sample:
+          type: integer
+        player2Sample:
+          type: integer
+        minSample:
+          type: integer
+          description: The weaker (smaller) of the two players' sample counts -- a matchup is only as well-supported as its thinner side.
+        label:
+          type: string
+          enum: [Low, Moderate, High]
+
+    UpsetRiskComponents:
+      type: object
+      description: Named, auditable components behind an upset-risk score -- see upsetRisk.ts for how each is derived and calibrated.
+      required: [modelConflict, favoriteWeakness, uncertainty, sampleDepth, volatility, matchupHazard]
+      properties:
+        modelConflict:
+          type: number
+          description: Core-model direction conflict + modelAgreement band.
+        favoriteWeakness:
+          type: number
+          description: How close the final probability sits to a coin flip.
+        uncertainty:
+          type: number
+          description: Missing/weak inputs not already covered by sampleDepth, plus raw-vs-calibrated divergence.
+        sampleDepth:
+          type: number
+          description: Thin surface-Elo sample for either player.
+        volatility:
+          type: number
+          description: Tournament-level favorite-loss deviation from this engine's own evaluation corpus, for levels with enough real sample to trust it.
+        matchupHazard:
+          type: number
+          description: Always 0 today -- no genuinely validated match-hazard signal exists yet; shown, not fabricated.
+
+    UpsetRiskResult:
+      type: object
+      required: [upsetRisk, score, components, topContributors, note]
+      properties:
+        upsetRisk:
+          type: string
+          enum: [LOW, MODERATE, HIGH, EXTREME]
+        score:
+          type: number
+          description: Raw combined component score behind the tier -- not itself shown to users, exposed for auditability/testing.
+        components:
+          $ref: "#/components/schemas/UpsetRiskComponents"
+        topContributors:
+          type: array
+          items:
+            type: string
+          description: Names of the components that meaningfully contributed, most-contributing first.
+        note:
+          type: string
+          description: Always present -- names the actual top contributors behind the tier. Never a silent label.
+
+    BulkDeletePredictionsInput:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+
+    BulkDeletePredictionsResult:
+      type: object
+      required: [deletedCount]
+      properties:
+        deletedCount:
+          type: integer
+
+    LedgerGradingSummary:
+      type: object
+      required: [checked, graded, errors]
+      properties:
+        checked:
+          type: integer
+          description: Pending predictions old enough to check for a real result
+        graded:
+          type: integer
+          description: Predictions actually marked Win/Loss this run
+        errors:
+          type: array
+          items:
+            type: string
+
+    DuplicatePredictionGroup:
+      type: object
+      required: [keepId, removeIds, player1Name, player2Name, tournamentName, predictedWinnerName]
+      properties:
+        keepId:
+          type: integer
+          description: The original prediction (earliest created) kept from this duplicate group
+        removeIds:
+          type: array
+          items:
+            type: integer
+          description: The duplicate prediction(s) in this group that would be/were removed
+        player1Name:
+          type: string
+        player2Name:
+          type: string
+        tournamentName:
+          type: ["string", "null"]
+        predictedWinnerName:
+          type: string
+
+    DuplicatePredictionsPreviewResult:
+      type: object
+      required: [removableCount, groups]
+      properties:
+        removableCount:
+          type: integer
+          description: Total number of duplicate rows that would be removed across all groups
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicatePredictionGroup"
+
+    RemoveDuplicatePredictionsResult:
+      type: object
+      required: [removedCount, groups]
+      properties:
+        removedCount:
+          type: integer
+          description: Total number of duplicate rows actually removed
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicatePredictionGroup"
+
+    SetScoreOutcome:
+      type: object
+      required: [score, probability, favors]
+      properties:
+        score:
+          type: string
+          description: Set score in "winner-loser" games form, e.g. "2-0", "3-1"
+        probability:
+          type: number
+          description: Percentage (0-100) of simulated matches that ended with this exact set score
+        favors:
+          type: string
+          enum: [player1, player2]
+
+    MatchSimulationResult:
+      type: object
+      description: Phase 7 point-by-point Monte Carlo simulation -- point/game/set/tiebreak scoring simulated thousands of times per match, with input service-point probabilities jittered within their measured reliability to produce a genuine confidence range rather than one falsely-precise number.
+      required:
+        [
+          player1WinProbability,
+          rangeLow,
+          rangeHigh,
+          straightSetsProbabilityPlayer1,
+          straightSetsProbabilityPlayer2,
+          setScoreDistribution,
+          expectedGamesPlayer1,
+          expectedGamesPlayer2,
+          player1ServicePointProbability,
+          player2ServicePointProbability,
+          inputReliability,
+          simulationsRun,
+          note,
+        ]
+      properties:
+        player1WinProbability:
+          type: number
+          description: Point-estimate probability (0-100) that player1 wins the match, from the simulation's mean
+        rangeLow:
+          type: number
+          description: 10th percentile of player1's simulated win rate across uncertainty draws
+        rangeHigh:
+          type: number
+          description: 90th percentile of player1's simulated win rate across uncertainty draws
+        straightSetsProbabilityPlayer1:
+          type: number
+        straightSetsProbabilityPlayer2:
+          type: number
+        setScoreDistribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetScoreOutcome"
+        expectedGamesPlayer1:
+          type: number
+        expectedGamesPlayer2:
+          type: number
+        player1ServicePointProbability:
+          type: number
+          description: Derived (not point-tracked) probability player1 wins a point on their own serve, 0-1
+        player2ServicePointProbability:
+          type: number
+        inputReliability:
+          type: number
+          description: 0-100 -- how much the underlying surface-Elo and serve/return signals can be trusted; drives how wide the uncertainty range is
+        simulationsRun:
+          type: integer
+        note:
+          type: string
+
+    SimulatorValidation:
+      type: object
+      description: Phase 7 simulator validation status against real graded outcomes -- honest either way, never silently adopted.
+      required: [sampleSize, minSampleSize, adopted, weight, note]
+      properties:
+        sampleSize:
+          type: integer
+        minSampleSize:
+          type: integer
+        simulatorAccuracy:
+          type: ["number", "null"]
+        simulatorLogLoss:
+          type: ["number", "null"]
+        simulatorBrier:
+          type: ["number", "null"]
+        ensembleAccuracy:
+          type: ["number", "null"]
+        ensembleLogLoss:
+          type: ["number", "null"]
+        ensembleBrier:
+          type: ["number", "null"]
+        adopted:
+          type: boolean
+        weight:
+          type: number
+        note:
+          type: string
+        computedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    Recommendation:
+      type: string
+      enum: [STRONG_RECOMMENDATION, MODERATE_LEAN, HIGH_RISK, NO_STRONG_SIGNAL, DO_NOT_RECOMMEND]
+
+    UpsetRisk:
+      type: string
+      enum: [LOW, MODERATE, HIGH, EXTREME]
+
+    Prediction:
+      type: object
+      required:
+        [
+          id,
+          player1Id,
+          player1Name,
+          player2Id,
+          player2Name,
+          surface,
+          matchFormat,
+          predictedWinnerId,
+          predictedWinnerName,
+          calibratedProbability,
+          predictedWinnerProbability,
+          dataQuality,
+          upsetRisk,
+          recommendation,
+          predictedSetScore,
+          engine,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: integer
+        player1Id:
+          type: string
+        player1Name:
+          type: string
+        player2Id:
+          type: string
+        player2Name:
+          type: string
+        surface:
+          $ref: "#/components/schemas/Surface"
+        matchFormat:
+          $ref: "#/components/schemas/MatchFormat"
+        tournamentLevel:
+          oneOf:
+            - $ref: "#/components/schemas/TournamentLevel"
+            - type: "null"
+        tournamentName:
+          type: ["string", "null"]
+        predictedWinnerId:
+          type: string
+        predictedWinnerName:
+          type: string
+        calibratedProbability:
+          type: number
+          description: Calibrated win probability for player 1, 0-100
+        predictedWinnerProbability:
+          type: number
+          description: >-
+            The predicted winner's own win probability (always >= 50) -- mirrored from
+            calibratedProbability when player 2 is the pick, so this can never disagree with the
+            player named as predictedWinnerName. Use this for display; calibratedProbability
+            stays player-1-relative for calibration/evaluation purposes.
+        dataQuality:
+          type: integer
+        dataQualityLabel:
+          type: string
+          enum: [Excellent, Strong, Acceptable, Limited, Poor]
+        upsetRisk:
+          $ref: "#/components/schemas/UpsetRisk"
+        recommendation:
+          $ref: "#/components/schemas/Recommendation"
+        predictedSetScore:
+          type: string
+        engine:
+          $ref: "#/components/schemas/EngineBreakdown"
+        actualWinnerId:
+          type: ["string", "null"]
+        actualWinnerName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    PredictionSummary:
+      type: object
+      required:
+        [
+          id,
+          player1Id,
+          player1Name,
+          player2Id,
+          player2Name,
+          surface,
+          predictedWinnerName,
+          calibratedProbability,
+          predictedWinnerProbability,
+          dataQuality,
+          upsetRisk,
+          recommendation,
+          createdAt,
+          usedHistoricalMatchFallback,
+        ]
+      properties:
+        id:
+          type: integer
+        player1Id:
+          type: string
+        player1Name:
+          type: string
+        player2Id:
+          type: string
+        player2Name:
+          type: string
+        surface:
+          $ref: "#/components/schemas/Surface"
+        tournamentName:
+          type: ["string", "null"]
+        predictedWinnerName:
+          type: string
+        calibratedProbability:
+          type: number
+        predictedWinnerProbability:
+          type: number
+          description: >-
+            The predicted winner's own win probability (always >= 50) -- see the field doc on
+            Prediction. Use this for display instead of calibratedProbability.
+        dataQuality:
+          type: integer
+        upsetRisk:
+          $ref: "#/components/schemas/UpsetRisk"
+        recommendation:
+          $ref: "#/components/schemas/Recommendation"
+        actualWinnerName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        usedHistoricalMatchFallback:
+          type: boolean
+          description: >-
+            Task #30: true when player1 and/or player2 was resolved via the historical-match
+            fallback (not in current live ATP/WTA standings) rather than a live ranking, per the
+            real `engine.warnings` recorded at prediction time -- never a new guess.
+
+    PredictionStats:
+      type: object
+      required: [totalPredictions, resolvedPredictions, correctPredictions, accuracy, byRecommendation]
+      properties:
+        totalPredictions:
+          type: integer
+        resolvedPredictions:
+          type: integer
+        correctPredictions:
+          type: integer
+        accuracy:
+          type: ["number", "null"]
+          description: correctPredictions / resolvedPredictions as a percentage, null if no resolved predictions yet
+        byRecommendation:
+          type: array
+          items:
+            type: object
+            required: [recommendation, count]
+            properties:
+              recommendation:
+                $ref: "#/components/schemas/Recommendation"
+              count:
+                type: integer
+
+    RunKind:
+      type: string
+      enum: [historical_test, paper_trade, live, paper_trade_shadow]
+      description: >-
+        historical_test replays the leak-proof historical store for backtesting; paper_trade/live
+        lock predictions for real fixtures ahead of time; paper_trade_shadow is a faster
+        day-by-day historical replay of the SAME leak-proof scoring path, graded with today's
+        active calibration to simulate what live paper trading would have produced -- always
+        disclosed as simulated evidence, never merged with genuinely-live paper_trade/live rows.
+
+    Segment:
+      type: string
+      enum: [validation, test]
+
+    EvaluationStatus:
+      type: string
+      enum: [pending, graded, void, missed]
+
+    ResultType:
+      type: string
+      enum: [normal, retired, walkover, cancelled]
+
+    CalibrationKnot:
+      type: object
+      required: [x, y]
+      properties:
+        x:
+          type: number
+          description: Raw predicted probability (0-1)
+        y:
+          type: number
+          description: Calibrated probability (0-1)
+
+    SegmentMetrics:
+      type: object
+      required:
+        [
+          n,
+          accuracy,
+          logLoss,
+          brier,
+          dateRangeStart,
+          dateRangeEnd,
+          retiredCount,
+          retiredAccuracy,
+          voidCount,
+          missedCount,
+          eceRaw,
+          eceCalibrated,
+        ]
+      properties:
+        n:
+          type: integer
+          description: Sample size actually counted toward accuracy/logLoss/Brier
+        accuracy:
+          type: ["number", "null"]
+        logLoss:
+          type: ["number", "null"]
+        brier:
+          type: ["number", "null"]
+        dateRangeStart:
+          type: ["string", "null"]
+          format: date-time
+        dateRangeEnd:
+          type: ["string", "null"]
+          format: date-time
+        retiredCount:
+          type: integer
+        retiredAccuracy:
+          type: ["number", "null"]
+          description: Accuracy on retirements alone, reported separately from the standard metric
+        voidCount:
+          type: integer
+          description: Walkovers and cancellations, always excluded from accuracy
+        missedCount:
+          type: integer
+        eceRaw:
+          type: ["number", "null"]
+          description: Expected Calibration Error on raw (pre-calibration) probabilities, 0-1. Lower is better; null when n=0.
+        eceCalibrated:
+          type: ["number", "null"]
+          description: Expected Calibration Error on calibrated probabilities, 0-1. Lower is better; null when n=0.
+
+    EvaluationRun:
+      type: object
+      required:
+        [
+          id,
+          foldIndex,
+          modelVersion,
+          trainStart,
+          trainEnd,
+          validationStart,
+          validationEnd,
+          testStart,
+          testEnd,
+          calibrationMapping,
+          validationMetrics,
+          testMetrics,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: integer
+        foldIndex:
+          type: integer
+        modelVersion:
+          type: string
+        trainStart:
+          type: string
+          format: date-time
+        trainEnd:
+          type: string
+          format: date-time
+        validationStart:
+          type: string
+          format: date-time
+        validationEnd:
+          type: string
+          format: date-time
+        testStart:
+          type: string
+          format: date-time
+        testEnd:
+          type: string
+          format: date-time
+        calibrationMapping:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalibrationKnot"
+        validationMetrics:
+          $ref: "#/components/schemas/SegmentMetrics"
+        testMetrics:
+          $ref: "#/components/schemas/SegmentMetrics"
+        createdAt:
+          type: string
+          format: date-time
+
+    RunWalkForwardRequest:
+      type: object
+      properties:
+        foldCount:
+          type: integer
+          minimum: 1
+          maximum: 20
+        warmupFraction:
+          type: number
+          minimum: 0.05
+          maximum: 0.95
+
+    WalkForwardSummary:
+      type: object
+      required: [foldsRun, foldIds, skippedNoEligibleMatches]
+      properties:
+        foldsRun:
+          type: integer
+        foldIds:
+          type: array
+          items:
+            type: integer
+        skippedNoEligibleMatches:
+          type: boolean
+
+    EvaluationPrediction:
+      type: object
+      required:
+        [
+          id,
+          runKind,
+          player1Id,
+          player1Name,
+          player2Id,
+          player2Name,
+          scheduledStartAt,
+          cutoffAt,
+          lockedAt,
+          modelVersion,
+          status,
+          usedHistoricalMatchFallback,
+        ]
+      properties:
+        id:
+          type: integer
+        runKind:
+          $ref: "#/components/schemas/RunKind"
+        foldId:
+          type: ["integer", "null"]
+        segment:
+          oneOf:
+            - $ref: "#/components/schemas/Segment"
+            - type: "null"
+        historicalMatchId:
+          type: ["integer", "null"]
+        provider:
+          type: ["string", "null"]
+        externalFixtureId:
+          type: ["string", "null"]
+        player1Id:
+          type: string
+        player1Name:
+          type: string
+        player2Id:
+          type: string
+        player2Name:
+          type: string
+        surface:
+          oneOf:
+            - $ref: "#/components/schemas/Surface"
+            - type: "null"
+        matchFormat:
+          oneOf:
+            - $ref: "#/components/schemas/MatchFormat"
+            - type: "null"
+        tournamentLevel:
+          type: ["string", "null"]
+        tournamentName:
+          type: ["string", "null"]
+        scheduledStartAt:
+          type: string
+          format: date-time
+        cutoffAt:
+          type: string
+          format: date-time
+        lockedAt:
+          type: string
+          format: date-time
+        modelVersion:
+          type: string
+        featureSnapshot:
+          description: Reduced feature set for historical_test rows, full EngineBreakdown for paper_trade/live
+        rawProbability:
+          type: ["number", "null"]
+          description: Player-1 win probability before Phase 4 calibration, 0-100
+        calibratedProbability:
+          type: ["number", "null"]
+          description: Player-1 win probability after Phase 4 calibration, 0-100
+        predictedWinnerId:
+          type: ["string", "null"]
+        predictedWinnerName:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/EvaluationStatus"
+        actualWinnerId:
+          type: ["string", "null"]
+        actualWinnerName:
+          type: ["string", "null"]
+        resultType:
+          oneOf:
+            - $ref: "#/components/schemas/ResultType"
+            - type: "null"
+        usedHistoricalMatchFallback:
+          type: boolean
+          description: >-
+            Task #30: true when player1 and/or player2 was resolved via the historical-match
+            fallback (not in current live ATP/WTA standings) rather than a live ranking, per the
+            real `engine.warnings` recorded inside this row's `featureSnapshot` -- never a new
+            guess. Always false for older rows whose snapshot predates this disclosure existing.
+        includedInAccuracy:
+          type: ["boolean", "null"]
+        gradedAt:
+          type: ["string", "null"]
+          format: date-time
+        oddsProvider:
+          type: ["string", "null"]
+          description: Which provider (The Odds API or Odds-API.io) supplied the odds below, null when neither had this matchup at lock time
+        oddsPlayer1Decimal:
+          type: ["number", "null"]
+          description: Real decimal odds for player1, captured at lock time
+        oddsPlayer2Decimal:
+          type: ["number", "null"]
+          description: Real decimal odds for player2, captured at lock time
+        oddsFetchedAt:
+          type: ["string", "null"]
+          format: date-time
+        impliedProbability:
+          type: ["number", "null"]
+          description: Vig-adjusted implied probability of player1 winning, 0-100
+        marketEdge:
+          type: ["number", "null"]
+          description: Market edge oriented to the model's own pick (predictedWinnerProbability minus the implied probability for that same side). Positive means the model found more value than the market priced in.
+
+    CalibrationBucket:
+      type: object
+      required: [label, min, max, n, avgPredicted, observedAccuracy]
+      properties:
+        label:
+          type: string
+        min:
+          type: number
+        max:
+          type: number
+        n:
+          type: integer
+        avgPredicted:
+          type: ["number", "null"]
+        observedAccuracy:
+          type: ["number", "null"]
+
+    StreakSummary:
+      type: object
+      required: [currentStreakType, currentStreakLength, longestWinStreak, longestLossStreak]
+      properties:
+        currentStreakType:
+          type: ["string", "null"]
+          enum: [win, loss, null]
+        currentStreakLength:
+          type: integer
+        longestWinStreak:
+          type: integer
+        longestLossStreak:
+          type: integer
+
+    EvaluationDashboardSegment:
+      type: object
+      required: [key, label, isGenuinelyUnseen, metrics, calibrationBuckets, streaks]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        isGenuinelyUnseen:
+          type: boolean
+          description: True for test/paper-trade/live; false for validation (used for fitting calibration)
+        metrics:
+          $ref: "#/components/schemas/SegmentMetrics"
+        calibrationBuckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalibrationBucket"
+        streaks:
+          $ref: "#/components/schemas/StreakSummary"
+
+    SpecialistSegmentSummary:
+      type: object
+      description: Phase 6 tour/surface specialist segment breakdown, always shown with its sample sizes so a small sample is never presented as a strong result
+      required:
+        [segmentKey, tour, surface, label, historicalMatchCount, meetsThreshold, validationSampleSize, weight]
+      properties:
+        segmentKey:
+          type: string
+        tour:
+          type: string
+        surface:
+          type: string
+        label:
+          type: string
+        historicalMatchCount:
+          type: integer
+          description: Real historical matches in this tour/surface segment (Phase 3 coverage check)
+        meetsThreshold:
+          type: boolean
+          description: Whether this segment has enough real data to run its own specialist calibration at all
+        validationSampleSize:
+          type: integer
+        accuracy:
+          type: ["number", "null"]
+          description: This segment's own calibration accuracy on its validation-segment points
+        logLoss:
+          type: ["number", "null"]
+        brier:
+          type: ["number", "null"]
+        generalAccuracy:
+          type: ["number", "null"]
+          description: The general (pooled) model's accuracy on the SAME segment-scoped validation points, for a fair comparison
+        generalLogLoss:
+          type: ["number", "null"]
+        generalBrier:
+          type: ["number", "null"]
+        weight:
+          type: number
+          description: This segment's measured blend weight (0-1) against the general model in live predictions; 0 when meetsThreshold is false
+        computedAt:
+          type: string
+          format: date-time
+
+    EliteTierBacktest:
+      type: object
+      description: >-
+        Task 46: real backtest of the Elite Prediction tier against genuinely-unseen graded
+        outcomes (historical_test test-segment + paper_trade/live), scored with the exact same
+        accuracy/logLoss/brier/ECE methodology as every other segment. "nearElite" is a
+        backtest-only comparison group -- every Elite gate met except segment-specialist support,
+        which is structurally unobservable during historical walk-forward scoring -- and never
+        affects which tier is shown as "Elite" in the live prediction UI.
+      required: [minSampleSize, elite, eliteMeetsMinSample, nearElite, nearEliteMeetsMinSample]
+      properties:
+        minSampleSize:
+          type: integer
+          description: Minimum n before either group's numbers are considered meaningful (matches the project's existing 30-sample convention for specialist segments and simulator validation)
+        elite:
+          $ref: "#/components/schemas/SegmentMetrics"
+        eliteMeetsMinSample:
+          type: boolean
+        nearElite:
+          $ref: "#/components/schemas/SegmentMetrics"
+        nearEliteMeetsMinSample:
+          type: boolean
+
+    UpsetRiskTierMetrics:
+      type: object
+      description: >-
+        Favorite-loss-rate for one upset-risk tier (LOW/MODERATE/HIGH/EXTREME), scoped to
+        honestly-graded, accuracy-eligible rows that have a persisted tier. Task 56: since
+        computeUpsetRisk is a pure downstream classifier of the already-calibrated probability
+        (it never feeds back into calibratedProbability), its validation is tier-level
+        monotonicity -- favoriteLossRate should rise from LOW toward EXTREME -- not a
+        before/after accuracy delta.
+      required: [tier, n, favoriteLossRate]
+      properties:
+        tier:
+          type: string
+        n:
+          type: integer
+        favoriteLossRate:
+          type: ["number", "null"]
+
+    DisagreementTierMetrics:
+      type: object
+      description: >-
+        Accuracy/error-rate for one model-agreement tier (Strong/Moderate/Mixed/
+        HighDisagreement), same scoping as UpsetRiskTierMetrics. computeWeightedDisagreement is
+        also a pure downstream classifier -- accuracy should fall (error rate rise) from Strong
+        toward HighDisagreement if the tier is doing real work.
+      required: [tier, n, accuracy, errorRate]
+      properties:
+        tier:
+          type: string
+        n:
+          type: integer
+        accuracy:
+          type: ["number", "null"]
+        errorRate:
+          type: ["number", "null"]
+
+    MarketEdgeSummary:
+      type: object
+      description: >-
+        Task 47: rolling average edge between the model's calibrated probability and real,
+        vig-adjusted market-implied probability, oriented to the model's own pick. A distinct
+        metric from accuracy/logLoss/Brier/ECE -- it measures agreement with the market, not with
+        the eventual real-world outcome.
+      required: [n, averageEdge]
+      properties:
+        n:
+          type: integer
+          description: How many graded/void paper-trade rows actually had real odds (and therefore an edge value) at lock time
+        averageEdge:
+          type: ["number", "null"]
+          description: Average market edge in percentage points; null when n=0. Positive means the model found more value in its pick than the market priced in.
+
+    EvaluationDashboard:
+      type: object
+      required:
+        [
+          segments,
+          activeCalibrationSampleSize,
+          activeCalibrationMethod,
+          specialistSegments,
+          eliteTierBacktest,
+          upsetRiskTierMetrics,
+          disagreementTierMetrics,
+          marketEdge,
+        ]
+      properties:
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvaluationDashboardSegment"
+        activeCalibrationSampleSize:
+          type: integer
+          description: How many validation-segment predictions the live paper-trading calibration was fit on
+        activeCalibrationMethod:
+          type: ["string", "null"]
+          enum: [isotonic, platt, null]
+          description: Which method (isotonic or Platt/sigmoid) won the holdout comparison and is currently active
+        activeCalibrationIsotonicHoldoutLogLoss:
+          type: ["number", "null"]
+          description: Isotonic method's log loss on the held-out comparison slice at the last refit
+        activeCalibrationPlattHoldoutLogLoss:
+          type: ["number", "null"]
+          description: Platt method's log loss on the held-out comparison slice at the last refit
+        specialistSegments:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpecialistSegmentSummary"
+        eliteTierBacktest:
+          $ref: "#/components/schemas/EliteTierBacktest"
+        upsetRiskTierMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpsetRiskTierMetrics"
+        disagreementTierMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/DisagreementTierMetrics"
+        marketEdge:
+          $ref: "#/components/schemas/MarketEdgeSummary"
+
+    RunShadowReplayRequest:
+      type: object
+      required: [startDate, endDate, batchLabel]
+      properties:
+        startDate:
+          type: string
+          description: >-
+            Inclusive UTC calendar date (YYYY-MM-DD) to start replaying from. Deliberately typed
+            as a plain string, not format:date -- this codebase's zod codegen coerces any
+            format:date/date-time REQUEST body field straight to a JS Date, which would silently
+            mangle a bare "2026-06-01" into a full timestamp before the service layer's own
+            explicit YYYY-MM-DD parsing/validation ever sees it.
+        endDate:
+          type: string
+          description: Inclusive UTC calendar date (YYYY-MM-DD) to replay through. See startDate's note on why this isn't format:date.
+        batchLabel:
+          type: string
+          minLength: 1
+          description: Identifies this replay invocation/group; distinct batches never collide or overwrite each other
+        overwrite:
+          type: boolean
+          default: false
+          description: >-
+            When true, first deletes ONLY this exact batch's own existing paper_trade_shadow rows,
+            then replays the range fresh under the same label. Never touches any other batch, and
+            never touches paper_trade/historical_test rows regardless of this flag.
+
+    ShadowReplaySummary:
+      type: object
+      required:
+        [batchLabel, startDate, endDate, overwrite, deletedExistingBatchRows, matchesInRange, inserted, skippedAlreadyClaimed, skippedInsufficientData, daysSimulated]
+      properties:
+        batchLabel:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        overwrite:
+          type: boolean
+        deletedExistingBatchRows:
+          type: integer
+          description: Rows deleted because overwrite=true and this exact batch already had rows; 0 otherwise
+        matchesInRange:
+          type: integer
+          description: Real, non-cancelled historical matches whose scheduledStartAt fell within the requested range
+        inserted:
+          type: integer
+          description: Newly written this run
+        skippedAlreadyClaimed:
+          type: integer
+          description: Matches in range already claimed by this or another shadow batch -- append-only skip, never a duplicate or a rescoring
+        skippedInsufficientData:
+          type: integer
+          description: scoreHistoricalMatch returned null (insufficient prior history) -- never inserted, never a fabricated guess
+        daysSimulated:
+          type: integer
+          description: Distinct UTC calendar days actually walked while pacing this replay
+
+    ShadowReplayBatchSummary:
+      type: object
+      required: [batchLabel, n, dateRangeStart, dateRangeEnd, earliestLockedAt, latestLockedAt]
+      properties:
+        batchLabel:
+          type: string
+        n:
+          type: integer
+        dateRangeStart:
+          type: ["string", "null"]
+          format: date-time
+        dateRangeEnd:
+          type: ["string", "null"]
+          format: date-time
+        earliestLockedAt:
+          type: ["string", "null"]
+          format: date-time
+        latestLockedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    ShadowReplayDashboard:
+      type: object
+      description: >-
+        Simulated evidence only -- see RunKind's paper_trade_shadow description. Always rendered
+        as its own clearly-labeled section, never combined with GetEvaluationDashboardResponse's
+        genuinely-live/backtest segments.
+      required: [overall, calibrationBuckets, batches]
+      properties:
+        overall:
+          $ref: "#/components/schemas/SegmentMetrics"
+        calibrationBuckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalibrationBucket"
+        batches:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShadowReplayBatchSummary"
+
+    PredictionSettings:
+      type: object
+      required: [retirementRule, paperTradeLeadMinutes]
+      properties:
+        retirementRule:
+          type: string
+          enum: [excluded, included]
+        paperTradeLeadMinutes:
+          type: integer
+
+    UpdatePredictionSettingsRequest:
+      type: object
+      properties:
+        retirementRule:
+          type: string
+          enum: [excluded, included]
+        paperTradeLeadMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+
+    PaperTradingCycleSummary:
+      type: object
+      required: [locked, missed, graded, errors]
+      properties:
+        locked:
+          type: integer
+        missed:
+          type: integer
+        graded:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+
+    HistoricalBackfillCycleSummary:
+      type: object
+      required:
+        - dateStart
+        - dateStop
+        - cutoff
+        - cutoffMinutes
+        - fixturesFetched
+        - matchesInserted
+        - matchesRecomputed
+        - matchesSkippedDuplicate
+        - matchesSkippedNoTerminalResult
+        - featureRowsInserted
+        - byTour
+        - bySurface
+        - earliestImportedMatchDate
+        - latestImportedMatchDate
+        - durationMs
+      properties:
+        dateStart:
+          type: string
+        dateStop:
+          type: string
+        cutoff:
+          type: string
+        cutoffMinutes:
+          type: integer
+        fixturesFetched:
+          type: integer
+        matchesInserted:
+          type: integer
+        matchesRecomputed:
+          type: integer
+        matchesSkippedDuplicate:
+          type: integer
+        matchesSkippedNoTerminalResult:
+          type: integer
+        featureRowsInserted:
+          type: integer
+        byTour:
+          type: object
+          additionalProperties:
+            type: integer
+        bySurface:
+          type: object
+          additionalProperties:
+            type: integer
+        earliestImportedMatchDate:
+          type: string
+          nullable: true
+        latestImportedMatchDate:
+          type: string
+          nullable: true
+        durationMs:
+          type: integer
+
+    HistoricalBackfillCycleResult:
+      type: object
+      required: [skipped]
+      properties:
+        skipped:
+          type: boolean
+        skippedReason:
+          type: string
+        summary:
+          allOf:
+            - $ref: "#/components/schemas/HistoricalBackfillCycleSummary"
+          nullable: true
+
+    HistoricalDataFreshness:
+      type: object
+      required: [latestCoveredDate, daysBehind, asOf]
+      properties:
+        latestCoveredDate:
+          type: string
+          nullable: true
+          description: Most recent scheduledStartAt date already stored in historical_matches (YYYY-MM-DD), or null if the table is empty.
+        daysBehind:
+          type: integer
+          nullable: true
+          description: Whole days between latestCoveredDate and today (UTC). Null when latestCoveredDate is null.
+        asOf:
+          type: string
+          format: date-time
+
+    RunHistoricalBackfillRangeRequest:
+      type: object
+      required: [dateStart, dateStop]
+      properties:
+        dateStart:
+          type: string
+          description: First date to backfill, inclusive (YYYY-MM-DD).
+        dateStop:
+          type: string
+          description: Last date to backfill, inclusive (YYYY-MM-DD).
+        chunkDays:
+          type: integer
+          minimum: 1
+          description: Provider chunk window in days. Defaults to 5 (the safe limit for busy periods).
+
+    RunHistoricalBackfillRangeResult:
+      type: object
+      required: [started, dateStart, dateStop]
+      properties:
+        started:
+          type: boolean
+        dateStart:
+          type: string
+        dateStop:
+          type: string
+
+    RunAblationAnalysisRequest:
+      type: object
+      properties:
+        sampleSize:
+          type: integer
+          nullable: true
+          description: >-
+            When set, scores a proportional stratified sample of roughly this many matches
+            (by surface and calendar year) instead of the full historical corpus -- sized to
+            complete in one sitting. Omit for a full-corpus run.
+
+    AblationRunResponse:
+      type: object
+      required: [started]
+      properties:
+        started:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+
+    AblationStatus:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [idle, running, done, error]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sampleSize:
+          type: integer
+          nullable: true
+        # Free-form: { phase, variantIndex, variantCount, matchIndex, matchCount } while running.
+        progress:
+          nullable: true
+        # Free-form: the full AblationReport (baseline/modelDeltas/combinations/diagnostics/sampleInfo) once state is "done".
+        report:
+          nullable: true
+        reportPath:
+          type: string
+          nullable: true
+        markdownPath:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    JobRun:
+      type: object
+      required: [id, jobName, startedAt, finishedAt, status, attempts]
+      properties:
+        id:
+          type: integer
+        jobName:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [success, failed]
+        attempts:
+          type: integer
+        summary:
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true

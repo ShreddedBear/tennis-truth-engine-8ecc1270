@@ -1,0 +1,12 @@
+{
+  "year": 2025,
+  "matches_listed_all_tours": 13037,
+  "atp_challenger_matches": 1450,
+  "atp_challenger_pbp_requests": 1450,
+  "pbp_available": 1436,
+  "no_pbp_or_unusable": 14,
+  "list_failures": [],
+  "earliest_confirmed_pbp_date": "2025-01-12T13:00:00+00:00",
+  "latest_confirmed_pbp_date": "2025-11-30T11:00:00+00:00",
+  "generated_at_utc": "2026-08-24T00:09:30.076549+00:00"
+}

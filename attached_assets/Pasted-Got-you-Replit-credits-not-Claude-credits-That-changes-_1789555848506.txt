@@ -1,0 +1,50 @@
+Got you — Replit credits, not Claude credits. That changes the emphasis. You want Replit/Claude to minimize Replit compute, agent usage, and unnecessary runs, while still doing a deep audit.
+
+Put this in Additional Comments:
+
+IMPORTANT — REPLIT CREDIT/COMPUTE EFFICIENCY
+
+I am trying to conserve Replit credits/usage, so perform this audit in the most resource-efficient way possible. Do NOT interpret “ultra-extensive audit” as permission to run massive backtests, full-database scans, repeated OCR jobs, large Monte Carlo simulations, or unnecessary builds/tests.
+
+Audit first, then fix. Start by inspecting the existing codebase, dependency graph, database queries, existing logs/errors, and current implementation. Reuse information already available instead of rerunning expensive operations.
+
+Group related problems into the largest safe implementation batches so Claude can fix multiple related issues in one pass instead of repeatedly reopening and rediscovering the same files.
+
+For each group, provide:
+
+* Exact root cause
+* Exact files/functions/components involved
+* Exact changes required
+* Related issues that can be fixed together
+* Minimal verification test
+* Whether an expensive test is actually necessary
+
+Do not make unnecessary architectural changes or rewrite functioning systems. Reuse existing OCR, Truth Engine, model, fixture, caching, database, backtesting, and Parlay Builder infrastructure whenever it is correct.
+
+Do not run the full 100–150 match OCR workload, full historical backtests, massive Walk-Forward runs, Optimizer sweeps, or 20,000+ Monte Carlo simulations unless the audit proves that such a test is necessary. Prefer small representative datasets first, then only scale up after the targeted fix passes.
+
+The previously resolved API crash should NOT be re-investigated. Replit already determined that the Walk-Forward process exhausted approximately 2 GB of Node.js memory. Keep Walk-Forward/Backtesting in the audit, but focus on memory safety, batching, pagination, resource limits, cancellation, isolation, and historical/data-leakage integrity.
+
+Prioritize the audit around the issues that can materially affect prediction correctness:
+
+1. OCR failing to process some visually similar uploaded matches
+2. Large 100–150 match OCR uploads and partial-failure handling
+3. Parlay Builder OCR
+4. Missing Specialist Model on some matches
+5. Truthfulness of Specialist, General, Serve & Return, Recent Form, and Surface Elo metrics
+6. Whether Favored, Effective Weight, Contribution, Reliability, Availability, Sample, and Status are backed by real calculations/data
+7. General/Specialist models being potentially overweighted relative to their demonstrated accuracy
+8. Voting/ensemble calculations
+9. Verification of the recent 50% probability fix
+10. Prediction Engine ↔ Parlay Builder separation, with Cross-Engine Agreement as the only intentional shared signal
+11. Daily Fixture rotation/refresh and live score integration
+12. Walk-Forward/Backtesting memory safety and historical leakage
+13. Calibration, Monte Carlo, caching, state, and database integrity
+
+Do not modify production data during the audit.
+
+Most importantly, don’t spend Replit credits proving something that can be established by tracing the existing code. Use targeted tests and existing evidence first. Only perform expensive validation after the corresponding root-cause fix is implemented and only when it provides meaningful additional verification.
+
+The final result should be an implementation-ready, grouped, prioritized plan for Claude Code, with the files/functions needed for each fix so Claude can knock out large related sections together efficiently.
+
+This makes it crystal clear that “low-credit” means conserve Replit resources/credits while still doing a serious audit, not “make the audit shallow.”

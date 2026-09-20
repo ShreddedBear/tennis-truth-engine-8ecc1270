@@ -1,0 +1,30 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "vHjviC5UlMqMdxnL5n_OT"
+uri = "file://reports/tennis-runs-2026-09-14.html"
+type = "text"
+title = "97 Stats + 105 Parlay Match Report"
+description = "Searchable horizontal report showing both players, engine predictions, Builder selections, validation scores, risk, coverage, provider results, and evidence reasons."
+logical_id = "f3e98a1d-c231-4531-9e6f-43d905595741"
+content_hash = "sha256:7bda0bd82544beccb8bd3629ee22d01db65d0add8cd93e3fabec5109654086f2"
+size = 246674
+mtime_ms = 1789421139906
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/f3e98a1d-c231-4531-9e6f-43d905595741/811b928e-16f4-410d-8941-e7ff6999b059"
+storage_version_token = "1789421140771921"
+content_type = "text/html"
+
+[[outputs]]
+id = "LN2-pRIcGZTjV7gxyAhfW"
+uri = "file://reports/truth-engine-latest-132-2026-09-14.html"
+type = "text"
+title = "Truth Engine — Latest 132 Match Report"
+description = "Horizontal two-sided report with independent winner, final selection, audit color/action, probability ranges, coverage, evidence completion, metric reliability, and provenance."
+logical_id = "037f7d3a-8f09-4b30-afcc-0b60bc1db64d"
+content_hash = "sha256:b52bbc1f63480b7fadc420088c66934fc9d78fbe48b99f7173c5d28bf8d6db95"
+size = 185713
+mtime_ms = 1789425940443
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/037f7d3a-8f09-4b30-afcc-0b60bc1db64d/8bdf2228-ee42-4179-b7f1-8e2ffdf19e91"
+storage_version_token = "1789425941595345"
+content_type = "text/html"

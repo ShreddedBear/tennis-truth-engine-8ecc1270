@@ -1,0 +1,118 @@
+## TENNIS MATRIX — FINAL DATA-SOURCE STRATEGY
+
+Use the cost-efficient execution rules.
+
+We are deliberately limiting external data sources.
+
+### APPROVED SOURCES ONLY
+
+1. EXISTING TENNIS MATRIX DATA
+Use everything already present in the application/database first.
+
+2. SACKMANN ARCHIVAL MIRROR — PRIMARY FREE HISTORICAL SOURCE
+GitHub:
+https://github.com/Aneeshers/tennis-sackmann-archive
+
+Fallback:
+https://huggingface.co/datasets/Aneeshers/tennis-sackmann-archive
+
+Use for:
+- ATP historical matches
+- WTA historical matches
+- rankings
+- players
+- surfaces
+- tournaments
+- rounds
+- match statistics where available
+- historical reconstruction
+
+Preserve Jeff Sackmann attribution and CC BY-NC-SA 4.0 requirements.
+
+3. POINT-BY-POINT
+Primary:
+https://github.com/ppaulojr/tennis_pointbypoint
+
+Fallback:
+Sackmann Grand Slam point-by-point archive.
+
+Use for:
+- PBP
+- pressure
+- tiebreak
+- set performance
+- point-level serve/return evidence
+
+Never treat missing PBP as zero.
+
+4. LIVE TENNIS API
+This is the ONLY external API we should depend on.
+
+Use it for:
+- current/live data
+- current fixtures
+- current results
+- data unavailable from the historical sources
+- other capabilities that our existing subscription actually provides
+
+Do NOT add additional external APIs.
+
+Do NOT integrate TennisDB, random GitHub APIs, random free APIs, or additional providers.
+
+### IMPORTANT
+
+Do not assume any of the existing APIs currently work.
+
+Audit the actual application first.
+
+Determine:
+- which API clients exist
+- which credentials/configuration exist
+- which endpoints are actually callable
+- which responses are actually being received
+- which data is actually persisted
+- which APIs are dead/unused
+- which data already exists in Supabase/database
+
+### EVIDENCE TARGETS
+
+Determine how much of these can be built from the approved sources:
+
+1. SERVE_RETURN
+2. SURFACE_STRENGTH
+3. RECENT_FORM
+4. FATIGUE_WORKLOAD
+5. POINT_BY_POINT
+6. STYLE_MATCHUP
+7. COMMON_OPPONENT
+8. H2H
+9. AVAILABILITY
+
+### SOURCE PRIORITY
+
+For every field:
+
+EXISTING DATABASE
+→ SACKMANN ARCHIVE
+→ POINT-BY-POINT
+→ LIVE TENNIS API
+
+Never use the Live Tennis API when the same historical evidence can be reconstructed reliably from our own database/free archival sources.
+
+### FIRST PHASE: AUDIT ONLY
+
+Do not modify code.
+
+Produce:
+
+| Evidence Family | Already Available | Existing DB Source | Sackmann Needed | PBP Needed | Live API Needed | Current Coverage | Main Gap |
+
+Then identify the TOP 5 evidence gaps that are most likely to reduce legitimate INSUFFICIENT_EVIDENCE decisions.
+
+Do not implement anything until this inventory is complete.
+
+No new APIs.
+No new paid providers.
+No decision-logic changes.
+No threshold changes.
+No fabricated evidence.

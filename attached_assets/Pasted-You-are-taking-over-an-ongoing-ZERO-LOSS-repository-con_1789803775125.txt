@@ -1,0 +1,943 @@
+You are taking over an ongoing ZERO-LOSS repository consolidation.
+
+IMPORTANT: This project has already undergone extensive Phase 1 forensic auditing by another agent.
+
+DO NOT restart the audit from scratch.
+
+The existing audit artifacts under:
+
+docs/migration-audit/
+
+are the accumulated forensic record.
+
+Your first job is to READ and INDEX those artifacts, then continue only from unresolved items.
+
+The objective is to complete the consolidation safely while preserving ALL functionality from both repositories.
+
+==================================================
+
+1. PROJECT OBJECTIVE
+
+==================================================
+
+We are consolidating two repositories/trees.
+
+PRIMARY DESTINATION / CURRENT CONSOLIDATED APPLICATION:
+
+ShreddedBear/tennis-truth-engine-8ecc1270
+
+SOURCE / SECOND REPOSITORY:
+
+ShreddedBear/Tennis-Stats-Engine
+
+IMPORTANT ARCHITECTURE CORRECTION:
+
+This is NOT a simple “replace destination with source” operation.
+
+Both sides contain unique functionality.
+
+State C / the current consolidated workspace contains:
+
+* frontend
+* backend/API
+* Prediction Engine
+* Parlay Builder
+* Truth Engine
+* shared database infrastructure
+* Live Tennis provider infrastructure
+* newer routing/diagnostic functionality
+
+Tennis-Stats-Engine contains functionality that State C lacks, including:
+
+* specific Prediction Engine fixes
+* live-score cross-provider correlation
+* additional provider routing behavior
+* other infrastructure identified by the forensic audit
+
+Therefore the goal is:
+
+ZERO-LOSS RECONCILIATION
+
+not:
+
+“make State C identical to TSE.”
+
+==================================================
+
+2. CURRENT PHASE
+
+==================================================
+
+We have completed substantial PHASE 1 forensic work.
+
+The next objective is:
+
+FINISH ONLY THE REMAINING PHASE 1 GAPS
+
+then move into:
+
+PHASE 2 — CONTROLLED CONSOLIDATION
+
+then:
+
+PHASE 3 — VALIDATION
+
+then:
+
+PHASE 4 — FINAL DESTINATION / MAIN RECONCILIATION
+
+Do not skip preservation.
+
+Do not blindly merge repositories.
+
+==================================================
+
+3. CREDIT-CONSERVATION RULE
+
+==================================================
+
+CRITICAL:
+
+DO NOT REDO COMPLETED AUDITS.
+
+Before investigating anything:
+
+1. Read all existing files under:
+    docs/migration-audit/
+2. Build a checklist of completed findings.
+3. Treat completed findings as established evidence.
+4. Only inspect something again if:
+    * the previous evidence is contradictory,
+    * the actual file has changed,
+    * a dependency requires confirmation,
+    * or it is necessary for implementation/validation.
+
+Do NOT repeatedly hash, inventory, or rediscover files already conclusively reconciled.
+
+Reuse the existing reports.
+
+Do not spend credits reproducing prior forensic work.
+
+==================================================
+
+4. PHASE 1 EVIDENCE ALREADY ESTABLISHED
+
+==================================================
+
+The following findings are already established.
+
+A. State C Git provenance
+
+State C is a real Git checkout.
+
+State C HEAD was verified against:
+
+origin/claude/tennis-engine-audit-32-razn75
+
+The consolidated State C tree is already represented on GitHub.
+
+The State C branch subsequently became 2 commits ahead of its tracking branch because of benign coco1 scratch-file cleanup commits.
+
+Those commits were confirmed to be cleanup only.
+
+Do not mistake them for lost production work.
+
+==================================================
+
+5. BACKUP BRANCH
+
+==================================================
+
+The local branch:
+
+backup/pre-authenticated-rebase
+
+contains 19 commits.
+
+It was audited.
+
+Its important unique commits were investigated.
+
+It remains protected.
+
+DO NOT DELETE IT.
+
+DO NOT RESET IT.
+
+DO NOT REBASE IT.
+
+DO NOT ALTER IT until final consolidation and validation are complete.
+
+==================================================
+
+6. FOUR-COMMIT PRESERVATION AUDIT
+
+==================================================
+
+The following four commits were previously identified as potentially unique:
+
+86faff34
+096f2e30
+49702125
+a687c358
+
+The preservation audit concluded all four are accounted for.
+
+Important correction:
+
+evidence-finding-selection.test.ts was initially thought missing.
+
+That was incorrect.
+
+Git proved it was cleanly renamed/moved during the multi-app workspace migration with zero content changes.
+
+Therefore:
+
+DO NOT attempt to recover or cherry-pick this test.
+
+==================================================
+
+7. DATABASE STATE
+
+==================================================
+
+State C uses PostgreSQL/Drizzle.
+
+Verified database:
+
+* PostgreSQL 16.10
+* database heliumdb
+* approximately 100 tables
+* substantial real production data
+* approximately 530,097 historical matches
+* approximately 2,578,706 feature snapshots
+* approximately 518,527 evaluation predictions
+* data spanning 2012–2026
+
+Do NOT recreate or reset this database.
+
+Do NOT run migrations unless Phase 2 explicitly authorizes a specific migration after schema reconciliation.
+
+Do NOT use drizzle-kit push casually.
+
+The existing database is production-relevant state.
+
+==================================================
+
+8. IMPORTANT SCHEMA UNKNOWN
+
+==================================================
+
+players and tournaments are empty.
+
+They were not found in:
+
+lib/db/src/schema/
+
+or the Truth Engine schema directory.
+
+They may be legacy/orphaned tables.
+
+DO NOT:
+
+* populate
+* delete
+* rename
+* modify
+
+until their ownership is conclusively established.
+
+==================================================
+
+9. CONFIRMED STATE C / TSE DIFFERENCES
+
+==================================================
+
+These are already established and MUST NOT be rediscovered unnecessarily.
+
+9.1 types.ts
+
+Difference is documentation only.
+
+State C is missing documentation describing the September 16 Availability fix.
+
+No direct runtime behavior change from this file alone.
+
+Classification:
+
+DOCUMENTATION DIFFERENCE.
+
+==================================================
+
+10. CONFIRMED AVAILABILITY BUG
+
+==================================================
+
+State C’s Prediction Engine currently has:
+
+computeAvailabilityModule(..., new Date(), ...)
+
+TSE main has:
+
+computeAvailabilityModule(..., input.asOfDate ?? new Date(), ...)
+
+Therefore State C ignores historical asOfDate for Availability.
+
+This is a REAL NO-LOOKAHEAD / HISTORICAL-CORRECTNESS ISSUE.
+
+Impact:
+
+Historical/backtest evaluation can use today’s date rather than the evaluation cutoff date.
+
+This can silently alter Availability calculations.
+
+The database had:
+
+backtest_predictions = 0
+backtest_runs = 0
+
+so no stored contaminated backtest results were identified.
+
+DO NOT assume that means the bug is harmless.
+
+Preservation classification:
+
+TARGETED CODE PRESERVATION REQUIRED.
+
+The TSE behavior must be reconciled into the final application while preserving live behavior.
+
+==================================================
+
+11. CONFIRMED ELO-GAP FIX GAP
+
+==================================================
+
+finalConsistencyCheck.ts
+
+State C lacks a confirmed TSE fix involving:
+
+eloGapPoints
+
+and:
+
+ELO_GAP_MIN_POINTS
+
+State C still contains the older Rule 12 wording/behavior.
+
+TSE main contains the newer Elo-gap confidence gating behavior.
+
+This is a REAL behavioral difference.
+
+Preservation classification:
+
+TARGETED CODE PRESERVATION REQUIRED.
+
+Do not blindly overwrite the State C file.
+
+Reconcile the actual implementation and tests.
+
+==================================================
+
+12. PREDICTION ENGINE RECONCILIATION
+
+==================================================
+
+Exact SHA-256 comparison established:
+
+55 Prediction Engine files examined.
+
+52 are byte-identical.
+
+Several differ.
+
+The important confirmed behavioral gap is:
+
+finalConsistencyCheck.ts
+
+Other differing files were identified and some require targeted review rather than being assumed equivalent.
+
+Do NOT redo the entire 55-file hash audit.
+
+Use:
+
+docs/migration-audit/step-prediction-parlay-content-reconciliation-20260919.md
+
+as the existing inventory.
+
+==================================================
+
+13. PARLAY BUILDER RECONCILIATION
+
+==================================================
+
+State C and TSE share most Parlay Builder code.
+
+builderScoringService.ts has a real difference.
+
+State C passes:
+
+fetchPlayerMatchesFromProviders(playerName, { playerId: rawId })
+
+TSE passes:
+
+fetchPlayerMatchesFromProviders(playerName)
+
+The additional State C context exists because of State C’s additional provider infrastructure.
+
+DO NOT remove it simply to match TSE.
+
+The provider dependency must be preserved.
+
+Also preserve the requirement that:
+
+PARLAY BUILDER REMAINS INDEPENDENT FROM PREDICTION ENGINE.
+
+Do not introduce prohibited coupling.
+
+==================================================
+
+14. MAJOR STATE C-ONLY LIVE TENNIS INFRASTRUCTURE
+
+==================================================
+
+State C contains:
+
+tennisData/liveTennisFixturesProvider.ts
+
+and its test.
+
+This is a substantial provider.
+
+It includes:
+
+* Live Tennis API
+* API-key authentication
+* 5-minute cache
+* 12-second timeout
+* rate-limit handling
+* ProviderUnavailableError
+* pagination
+* multiple response-schema support
+* doubles filtering
+* rank-based duplicate resolution
+* score reconstruction
+* provider-namespaced IDs
+* provenance handling
+
+It is wired into:
+
+* compositeProvider.ts
+* index.ts
+* builder provider fetching
+* broader tennisData operations
+
+It is used as:
+
+fixturePrimary
+
+in State C’s composite architecture.
+
+The provider is:
+
+MUST TRANSFER / PRESERVE.
+
+Do not remove it simply because TSE main lacks it.
+
+==================================================
+
+15. LIVE TENNIS PROVIDER INTEGRATION
+
+==================================================
+
+State C and TSE’s compositeProvider.ts are genuinely divergent.
+
+State C contains:
+
+* Live Tennis tier
+* ID-based merging
+* Live Tennis namespace protection
+* HistoryRoutingDiagnostics
+* improved routing
+* always-constructed composite provider
+
+TSE contains:
+
+* TtlCache cross-provider live-score correlation
+* fixtureMetaCache
+* getLiveScoresByIdentity
+* API Tennis identity-based live-score recovery
+* Sofascore history-fetch tier
+* different RapidAPI/API-Tennis fixture priority
+
+Neither side can simply overwrite the other.
+
+Classification:
+
+MERGE/RECONCILE.
+
+==================================================
+
+16. CONFIRMED TSE-ONLY LIVE-SCORE CORRELATION
+
+==================================================
+
+This was the most recent forensic finding.
+
+TSE’s:
+
+TtlCache
+
+utility itself is byte-identical to State C.
+
+NO ACTION REQUIRED for the utility.
+
+However, the following TSE functionality is completely absent from State C:
+
+* fixtureMetaCache
+* getLiveScoresByIdentity
+* corresponding ApiTennisProvider implementation
+* dedicated regression test:
+    compositeProvider.liveScoresIdentity.test.ts
+
+The feature was traced completely.
+
+Mechanism:
+
+When fixtures are listed:
+
+date + player names are cached under the fixture ID for approximately 8 hours.
+
+Later, if a live-score request uses an ID that is not natively API-Tennis’s own ID, the system can recover the fixture by:
+
+date + player names
+
+against API-Tennis’s live window.
+
+Therefore a fixture originally supplied by another provider can still obtain a live score from API Tennis.
+
+Without this functionality:
+
+State C can silently return no live score for some cross-provider fixtures.
+
+Classification:
+
+MUST TRANSFER.
+
+Risk:
+
+MEDIUM if left unreconciled.
+
+The State C Live Tennis namespace uses ID prefixes, while this system uses date/name correlation, so they appear structurally orthogonal.
+
+However, the combined system has never been tested together.
+
+==================================================
+
+17. IMPORTANT LIVE TENNIS ENVIRONMENT VARIABLE
+
+==================================================
+
+State C uses:
+
+process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API
+
+Do not expose actual secret values.
+
+Only preserve the variable names/configuration behavior.
+
+The provider gracefully falls back when the API key is absent.
+
+==================================================
+
+18. LIVE TENNIS TESTING GAP
+
+==================================================
+
+State C’s Live Tennis provider has substantive tests.
+
+However, State C’s compositeProvider.test.ts does not adequately cover all of the new routing behavior.
+
+The integration must eventually receive regression coverage.
+
+Do not rewrite tests unnecessarily.
+
+Add only the tests needed after reconciliation.
+
+==================================================
+
+19. ARCHITECTURAL CONCLUSION
+
+==================================================
+
+This is definitively NOT:
+
+“make State C equal TSE.”
+
+It is:
+
+TWO-WAY REPOSITORY CONSOLIDATION.
+
+State C has functionality TSE lacks.
+
+TSE has functionality State C lacks.
+
+The final system must preserve both.
+
+==================================================
+
+20. PHASE 1 REMAINING WORK
+
+==================================================
+
+Do NOT repeat completed audits.
+
+First read all existing migration-audit artifacts.
+
+Then identify ONLY unresolved items.
+
+The known unresolved areas include:
+
+1. Remaining differing Prediction Engine files whose significance was not yet established.
+2. checkParlayBoundary.ts scope verification.
+3. Live Tennis integration reconciliation.
+4. TSE live-score correlation feature integration.
+5. Remaining provider/history-routing differences.
+6. Relevant Supabase → Drizzle schema/migration parity.
+7. Final branch/history preservation inventory.
+8. Any other genuinely unresolved items discovered from the existing audit manifest.
+
+Before doing a new investigation, search the existing audit artifacts to ensure it hasn’t already been completed.
+
+==================================================
+
+21. PHASE 1 MANIFEST
+
+==================================================
+
+Create or update ONLY a NEW audit artifact unless a later phase explicitly authorizes modifying a designated manifest.
+
+Build a final Phase 1 manifest containing every meaningful item with:
+
+* source repository
+* source branch
+* source commit
+* source path
+* destination path
+* item type
+* equivalent
+* difference
+* dependency
+* runtime relevance
+* data relevance
+* provenance
+* classification
+* migration action
+* validation requirement
+* risk
+* rollback requirement
+* evidence source
+
+Every item must receive one classification:
+
+* TRANSFER
+* MERGE_RECONCILE
+* PRESERVE_DISTINCT
+* DUPLICATE_VERIFY
+* CONFLICT_DECISION_REQUIRED
+* BRANCH_ONLY
+* HISTORICAL_ONLY
+* GENERATED_REBUILDABLE
+* GENERATED_REQUIRED
+* EXCLUSION_CANDIDATE
+* UNKNOWN
+
+No meaningful functionality may remain silently unclassified.
+
+==================================================
+
+22. PHASE 2 — CONTROLLED CONSOLIDATION
+
+==================================================
+
+Do NOT enter Phase 2 until:
+
+* Phase 1 manifest is complete
+* all critical unknowns are resolved or explicitly documented
+* unique production functionality is identified
+* database/schema dependencies are understood
+* rollback strategy exists
+
+When Phase 2 begins:
+
+CREATE A DEDICATED CONSOLIDATION BRANCH.
+
+Do NOT work directly on main.
+
+Do NOT destroy the source repository.
+
+Do NOT delete backup branches.
+
+Use surgical file-level reconciliation rather than blindly merging entire repositories.
+
+Preserve both sides’ history where practical.
+
+==================================================
+
+23. PHASE 2 PRIORITY
+
+==================================================
+
+Prioritize:
+
+1. historical/no-lookahead correctness
+2. Prediction Engine behavioral fixes
+3. Parlay Builder independence
+4. Live Tennis provider
+5. live-score cross-provider correlation
+6. identity/provenance
+7. provider routing
+8. database/schema compatibility
+9. tests
+10. documentation
+
+Never sacrifice historical correctness for convenience.
+
+==================================================
+
+24. RECONCILIATION RULE
+
+==================================================
+
+For conflicting files:
+
+NEVER simply choose:
+
+“newer”
+“State C”
+“TSE”
+“larger”
+“main”
+
+Instead:
+
+1. identify behavior on each side
+2. identify why each behavior exists
+3. preserve non-conflicting functionality from both
+4. write regression tests
+5. validate
+6. only then finalize the reconciled implementation
+
+==================================================
+
+25. DATABASE SAFETY
+
+==================================================
+
+The existing database is valuable production state.
+
+Before any schema change:
+
+* inspect current schema
+* inspect Drizzle schema
+* inspect historical Supabase migrations
+* identify additive/destructive changes
+* verify data impact
+* create rollback strategy
+
+NEVER drop tables simply because they look unused.
+
+NEVER reset production data.
+
+NEVER run an unreviewed migration.
+
+==================================================
+
+26. NO-LOOKAHEAD VALIDATION
+
+==================================================
+
+The final system MUST preserve:
+
+* asOfDate
+* historical ranking cutoff
+* rating chronology
+* feature chronology
+* availability chronology
+* PBP chronology
+* runtime-index ordering
+* historical provider cutoff
+* deterministic historical reconstruction
+
+Explicitly regression-test the Availability defect discovered above.
+
+==================================================
+
+27. TESTING REQUIREMENTS
+
+==================================================
+
+After controlled reconciliation:
+
+Run targeted tests first.
+
+Then:
+
+* Prediction Engine tests
+* Parlay Builder tests
+* tennisData tests
+* Live Tennis tests
+* live-score identity tests
+* no-lookahead tests
+* historical evaluation tests
+* integration tests
+* typecheck
+* build
+
+Then run the broadest available validation suite.
+
+Do not interpret unrelated pre-existing failures as migration failures.
+
+Record baseline vs post-migration failures.
+
+==================================================
+
+28. PRODUCTION SAFETY
+
+==================================================
+
+Do NOT deploy automatically.
+
+Do NOT alter production configuration.
+
+Do NOT change API keys.
+
+Do NOT change external provider settings.
+
+Do NOT disable TennisMyLife or any existing provider without explicit evidence and authorization.
+
+==================================================
+
+29. GIT SAFETY
+
+==================================================
+
+Do not use a conventional blind merge between these repositories.
+
+The forensic audit established that the repositories do not have a clean shared Git relationship suitable for a simple merge.
+
+Use controlled repository consolidation.
+
+Preserve:
+
+* source repositories
+* source branches
+* backup branches
+* tags
+* commits
+* relevant Git history
+* migration artifacts
+
+until validation is complete.
+
+==================================================
+
+30. CREDIT CONSERVATION / EXECUTION STRATEGY
+
+==================================================
+
+Operate in BATCHES.
+
+Do not spend an entire turn re-reading files already audited.
+
+For each phase:
+
+1. read existing reports
+2. build unresolved checklist
+3. perform only missing inspections
+4. implement a coherent batch
+5. run targeted validation
+6. update audit record
+7. proceed to next unresolved batch
+
+Do not ask the user to manually repeat information already contained in the audit artifacts.
+
+Do not restart from Phase 1.
+
+==================================================
+
+31. STOP CONDITIONS
+
+==================================================
+
+STOP and report instead of guessing if:
+
+* source and destination behavior cannot be reconciled safely
+* a destructive database change appears necessary
+* credentials/secrets are required
+* licensing/provenance becomes ambiguous
+* a production behavior conflict has no evidence-based resolution
+* a branch contains unexplained unique production functionality
+* migration would require deleting unique functionality
+* a test baseline cannot distinguish old failure from new regression
+
+Do not silently choose.
+
+==================================================
+
+32. FINAL SUCCESS CONDITION
+
+==================================================
+
+The consolidation is complete only when:
+
+* all meaningful source functionality is accounted for
+* all State C functionality is preserved
+* all identified TSE fixes are reconciled
+* Live Tennis is preserved
+* live-score correlation is reconciled
+* Prediction Engine is validated
+* Parlay Builder remains independent
+* database/schema assumptions are validated
+* no-lookahead integrity is validated
+* tests pass or all failures are explained
+* build/typecheck are validated
+* provenance is documented
+* rollback is available
+* source repository remains preserved
+* backup branches remain preserved
+
+ONLY THEN may production/main reconciliation be considered.
+
+==================================================
+
+33. FIRST ACTION
+
+DO NOT START CODING.
+
+First:
+
+1. read every existing docs/migration-audit/* artifact
+2. identify completed vs unresolved work
+3. construct a compact internal Phase 1 checklist
+4. continue from the FIRST genuinely unresolved dependency
+5. do NOT repeat completed audits
+
+Report the current unresolved checklist before doing substantial new work.
+
+Then proceed through the remaining phases sequentially, preserving the rules above.
+
+Do not ask me to re-explain the prior audit.
+
+The existing audit artifacts ARE the handoff.
+
+==================================================
+
+FINAL RULE:
+
+ZERO LOSS > SPEED.
+
+But conserve credits by never repeating already-completed forensic work.
+
+Do not stop merely because the previous agent stopped; continue through the authorized phases, but preserve the phase gates and stop conditions above.
+
+Do not perform destructive or irreversible operations without explicit evidence and a safe rollback path.

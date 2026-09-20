@@ -1,0 +1,23 @@
+{
+  "state": "SUCCESS",
+  "scope": "WTA Challenger / WTA 125 ONLY",
+  "source": "data/public/tennisdata-wta-challenger/wta_challenger_matches_2021_2026.csv",
+  "output": "data/public/production-history/wta_challenger/matches_2021_2026.csv",
+  "years": {
+    "2021": 540,
+    "2022": 881,
+    "2023": 1096,
+    "2024": 1374,
+    "2025": 2092,
+    "2026": 1632
+  },
+  "rows_integrated": 7615,
+  "duplicate_keys": 0,
+  "wta_main_rows_integrated": 0,
+  "atp_rows_integrated": 0,
+  "atp_challenger_rows_integrated": 0,
+  "contamination_firewall": "PASS",
+  "production_tour_family": "WTA_CHALLENGER",
+  "production_competition_level": "WTA_125",
+  "generated_at_utc": "2026-08-24T04:48:39.756367+00:00"
+}

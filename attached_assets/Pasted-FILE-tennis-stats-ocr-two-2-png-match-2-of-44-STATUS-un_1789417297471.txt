@@ -1,0 +1,226 @@
+FILE: tennis_stats_ocr_two_2.png (match 2 of 44)
+STATUS: unresolved
+ERROR: No event/tournament name could be read from the screenshot.
+
+=== PIPELINE LOG ===
+[CACHE] HIT — returning cached result (hash=a9c0be58…)
+
+=== RAW MODEL OUTPUT ===
+MATCHUP 61
+Novak Djokovic vs Mariano Navone
+lournament: Us Open Men Singles
+event Level: Grand Slam Round: Round orled
+Scheduled Date: 2026-08-30 Surface: Hard Best Of: 5
+MATCHUP 62
+Elina Svitolina vs Solana Sierra
+tournamen us upen women blares
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2026-08-30 Surace: Hard Best Of: 3|
+MATCHUP 63
+Alexander Bublik vs Jeffrey John Wolf
+lournament us open men singles
+Event Level: Grand Slam Round: Round of 128
+cheole• bate LUzo-o-su sunace Hare besturs
+MATCHUP 64
+Sofia Kenin vs Venus Williams
+Tournament: US Open Women Singles Event Level: Grand Slam Round: Round of 128
+scheduled Date. zuzo-o-su surace. Mara best ur. s
+MATCHUP 65
+Norbert Gombos vs Svyatoslav Gulin
+Tournament: ATP Challenger Como
+Event Level: Challenger Round: Qualifying Round 2
+Scheduled Date: 2026-08-31 Surface: Clay Best Of: 3
+MATCHUP 66
+Andrej Nedic vs Laurent Lokoli
+Tourament: ATP Challenger Como Event Level: Challenger Round: Qualifying Round 2
+Scheduled Date: 2026-08-31 Surface: Clay Best Of: 3
+MATCHUP 67
+Johan Nikles vs Lorenzo Rottoli
+lournament: AlP Challenger Como Event Level: Challenger Round: Qualitying Round 2
+Scheduled Date: 2026-08-31
+Surface: Clay Best Of: 3
+MATCHUP 68
+Max Schoenhaus vs Alvaro Guillen Meza
+lournament: AlP Challenger Como
+Event Level: Challenger Round. Round of 32
+Scheduled Date: 2026-08-31 Surface: Clay Best Of: 3
+MATCHUP 69
+Matej Dodig vs Mili Poljicak
+lournament Air challender come
+Event Level: Challenger Round: Round of 32
+Scheduled Date: 2026-08-31 Surtace: Clay Best Ot: 3
+MATCHUP 70
+Jan Kumstat vs Juan Pablo Varillas
+Tournament: ATP Challenger Como
+event Level: Challenger Round: Round of 37
+scheduled Vale: (U/b-Uo-3l sunlace: Clav best ur 3
+MATCHUP 71
+Gonzalo Bueno vs loao Lucas Reis Da Silva
+Tournament: ATP Challenger Como
+Event Level: Challenger Round: Round of 32
+Scheduled Date: 2026-08-31
+Surface: Clay Best Of: 3
+MATCHUP 72
+Federico Bondioli vs Federico Arnaboldi
+Tournament: ATe Challenger Como
+Event Level: Challenger Round: Round of 32
+Scheduled Date: 2026-08-31
+Surface: Clay
+Best Of: 3
+MATCHUP 73
+Arthur Fils vs Stefanos Tsitsipas
+lournament: Us Open Men Singles
+event Level: Grand Slam Round: Round orled
+Scheduler Dato: 2026-08.31 Sumare. Hard Rect Of. 5l
+MATCHUP 74
+Valentin Vacherot vs Aleksandar Kovacevic
+tournamen us Coeves nares
+Event Level: Grand Slam Round: Round of 128
+scheduled Date: 2026-08-311
+surace. hard Best Of.
+MATCHUP 75
+Andrey Rublev vs Otto Virtanen
+Tournament: US Open Men Singles
+Event Level: Grand Slam Round: Round of 128
+MATCHUP 76
+Carlos Alcaraz vs Roman Safiullin
+Toumament: US Open Men Singles
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2026-08-31
+surace: Hard Best Of: 5
+MATCHUP 77
+Giovanni Mpetsni rerricara vs juri koalonov
+Tournament: US Open Men Singles
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2026-08-31 Surface: Hard Best Of: 5
+MATCHUP 78
+Matteo Arnaldi vs James Duckworth
+Tournament: US Open Men Singles
+Event Level: Grand Slam Round: Round of 128
+Scheduled Date: 2026-08-31
+Surface: Hard Best Of: 5
+MATCHUP 79
+Alec Deckers vs Pierre Antoine Tailleu
+nurnament AlP Challenger acci
+Event Level: Challenger Round: Qualitying Round 1
+Scheduled Date: 2026-09-06
+Surface: Hard Best Of: 3
+MATCHUP 80
+Adil Kalyanpur vs Matisse Bobichon
+lournament: Al? Challenger Cassis
+Event Level: Challenger Round: Qualitying Round
+MATCHUP 81
+Marnieu scadlla vs Amit vales
+Tournament: ATP Chal
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: <V20-U9•V0
+surlace. Mard Best of ?
+MATCHUP 82
+Selcuk Haita vs Arda Azkara
+Tournament: ATP Challenger Istanbul 3 Event Level: Challenger Round: Qualifying Round 1/
+Scheduled Date: 2026-09-06 Surface: Hard Best Of: 3
+MATCHUP 83
+Mert Turker vs Fadi Zakaria
+Taumamont. ATP Challondor letanbul 2 I
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Hard Best Of: 3
+MATCHUP 84
+Radu Albot vs Alexandru Braynin
+Tournament: ATP Challenger Istanbul 3 Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Hard Best Of: 3
+MATCHUP 85
+Lorenzo Rottoli vs Lorenzo Angelini
+lournament: AlP Cna
+lenger Genoa
+event Level: (nallenger kound, Qualitying kound lI
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 86
+Federico lannaccone vs Alexander Weis
+Tourament: ATP Challenger Genoa Event Level: Challenger Round: Qualifyina Round 1l
+Scheduled Date: 2026-09-06 surace: Cav Best Ot: 3
+MATCHUP 87
+Francesco Forti vs Niccolo Ciavarella
+Event Level: Challenger Round: Qualifying Round 1
+saneoule• bate tuzo-us-ub surace cav besturs
+MATCHUP 88
+cdoardo Cherie Lianiere vs rederico Arnaboldi
+Tournament: ATP Challenger Genoa Event Level: Challenger
+Round: Qualiving Round l
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 89
+Valerio Aboian vs Luca Castagnola
+Tournament: ATP Challenger Genoa Event Level: Challenger Round: Qualifying Round 1/
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 90
+Mika Petkovic vs Daniel Salazar Martinez
+Tournament, ATP Challenger Genoa
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 91
+Lucio Ratti vs Lukas Pokorny
+Tournament: ATP Challenger Tulin Event Level: Challenger Round: Oualifying Round 1|
+scheduled be 7070-04 bunaco ay oco s
+MATCHUP 92
+Andrew Paulson vs Robert Strombachs
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09.06 Surface: Clay Best Of: 3
+MATCHUP 93
+Anare Martin vs jonas Gundacker
+Tournam.
+ent: ATP Challenger Tulin Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 94
+Diego Dedura-Palomero vs Timo Rosenkranz Koenig
+Tournament: ATP Challenger Tulln Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 95
+Luca Wiedenmann vs Henry Bernet
+Tournament: ATP Challenger Tulin Event Level: Challenger Round: Qualifying Round 1|
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3]
+MATCHUP 96
+Svyatoslav Gulin vs Rudolf Molleker
+Tourament: ATP Challenger Tulln Fvent level: Challenger Round: Qualitying Round T
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 97
+Daniel Siniakov vs Niels Visker
+lournament: AlP challenger lulln
+Event Level: Challenger Round: Qualifying Round 1
+Scheduler Date: 2076.09.06 Surace Clav Rect Of 3
+MATCHUP 98
+Norbert Gombos vs Alexander Wagner
+Tournam
+ent: ATP Challenger Tulln
+Event Level: Challenger Round: Qualifying Round 1
+SCheduled Date: 2026-09-06 Surace: Clav Best Ot: 3
+MATCHUP 99
+Oleg Prihodko vs Ivan Gakhov
+Tournament:
+: ATP Challenger Tulin
+Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 100
+Matthias Ujvary vs Olle Wallin
+Tournament: ATP Challenger Tulin Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 101
+Jelle Sels vs Matthew William Donald
+Journament: AlP Challenger lulln event level: Challenger
+Round: Qualifying Round 1
+Scheduled Date: 2026-09-06 Surface: Clay Best Of: 3
+MATCHUP 102
+Mika Brunold vs Kai Wehnelt
+Tournament: ATP Challenger Tulin Event Level: Challenger Round: Qualifying Round 1
+Scheduled Date: 2076-09.06 Surface Clav Rest Or: 31
+MATCHUP 103
+Ben Shelton vs Stefanos Tsitsipas
+Tournament: US Open Men Singles
+Event Level: Grand Slam Round: Round 4
+MATCHUP 104
+Francisco Cerundolo vs Alexander Blockx
+Tournament: US Open Men Singles
+Event Level: Grand Slam Round: Round 4
+Cohodular Dato. 2076007 Curero. Hard Ract Of C
+MATCHUP 105
+Rotic Van de Zandschuln ve Arthur Goa
+Event Level: Grand Slam Round: Round 4
+Scheduled Date: 2026-09-07

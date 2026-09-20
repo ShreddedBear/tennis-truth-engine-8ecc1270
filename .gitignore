@@ -1,55 +1,49 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-node_modules
+# compiled output
 dist
-dist-ssr
-.output
-.vinxi
-.tanstack/**
-.nitro
-*.local
+tmp
+out-tsc
+*.tsbuildinfo
+.expo
+.expo-shared
 
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
+# dependencies
+node_modules
 
-# Editor directories and files
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
 .vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 !.vscode/extensions.json
-.idea
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
 
-# User-uploaded screenshots and image attachments
-attached_assets/*.png
-attached_assets/*.jpg
-attached_assets/*.jpeg
-attached_assets/*.gif
-attached_assets/*.webp
-attached_assets/*.svg
-attached_assets/*.bmp
-attached_assets/*.tif
-attached_assets/*.tiff
-screenshots/*.png
-screenshots/*.jpg
-screenshots/*.jpeg
-screenshots/*.gif
-screenshots/*.webp
-screenshots/*.svg
-screenshots/*.bmp
-screenshots/*.tif
-screenshots/*.tiff
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
 
-⁠bucket-database_export_28_08_26-files.zip⁠
-tennis-truth-engine_260828.backup
+# Replit
+.cache/
+.local/

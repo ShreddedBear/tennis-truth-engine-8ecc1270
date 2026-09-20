@@ -1,0 +1,413 @@
+Phase 2 — Continuous Reconciliation & Implementation
+
+Stage 0 G1/H1 is complete. Proceed with Phase 2 implementation now.
+
+Do NOT start another forensic/audit-only cycle. Do NOT ask me for approval after each routine task. Execute the approved reconciliation manifest in dependency order, validating and committing each coherent safe batch as you go.
+
+Governing rules
+
+State C remains the consolidation base.
+
+Tennis-Stats-Engine and its historical branches are capability/reference sources only. Do NOT wholesale-copy repositories, directories, services, Prediction Engine, Parlay Builder, providers, or Truth Engine.
+
+Preserve the existing heliumdb database and all existing populated data. No reset, destructive restore, speculative migration, or mass relabeling.
+
+Do not modify settled historical predictions/results merely to make new logic agree with them.
+
+The current Tennis Truth Engine remains the sole Truth Engine/PBP evidence authority. Reconcile unique capabilities into it; do not create a competing evidence authority.
+
+Preserve State-C-only Live Tennis functionality.
+
+Before any database write, explicitly confirm the actual application database connection and current row-count baseline. Treat the Stage 0 counts as a preservation reference, not an immutable snapshot, because the database is active.
+
+For every behavioral change:
+
+1. implement the smallest correct reconciliation;
+2. add/update targeted regression tests;
+3. run the relevant tests/typechecks;
+4. fix failures caused by the implementation;
+5. commit the coherent batch;
+6. continue automatically.
+
+Do not stop merely because unrelated pre-existing Truth Engine typecheck failures remain.
+
+STOP ONLY for a genuine blocker
+
+Stop and report only if one of these occurs:
+
+* destructive database operation is required;
+* ambiguous data migration/backfill requires a product decision;
+* two evidence sources conflict on which system is authoritative and the manifest does not resolve it;
+* an architecture change outside this manifest is required;
+* production credentials/authorization prevent safe execution;
+* an integrity problem makes continued implementation unsafe;
+* a migration would require relabeling/deleting existing historical data;
+* a test demonstrates an unexpected behavioral regression that cannot be resolved within the manifest.
+
+Routine implementation choices, test additions, compatibility fixes, and code reconciliation do NOT require approval.
+
+⸻
+
+STAGE 1 — Prediction Engine
+
+A1 — Availability asOfDate
+
+Fix the known index.ts defect:
+
+* Availability must receive the prediction’s effective asOfDate, not unconditional wall-clock new Date().
+* Preserve current behavior when asOfDate is absent.
+* Add a regression test specifically at the index.ts wiring boundary proving a historical asOfDate reaches Availability.
+* Ensure the change is safe for historical evaluation/backtest/walk-forward execution.
+* Do not alter unrelated Availability logic.
+
+Validate and commit A1.
+
+A2 — Elo-gap final consistency
+
+Reconcile finalConsistencyCheck.ts with the audited TSE implementation:
+
+* restore the documented Elo-gap prerequisite/gating behavior;
+* preserve the intended Rule 12 behavior;
+* do not blindly replace the whole file;
+* add/update tests for the Elo-gap threshold and boundary behavior;
+* preserve exact-50/tie behavior already covered elsewhere.
+
+Validate and commit A2.
+
+A4 — Retire dedicated low-surface probability discount
+
+Reconcile the retired LOW_SURFACE_SAMPLE_DISCOUNT behavior.
+
+The audited target is that sample-size information already influences:
+
+* Surface Elo probability,
+* ensemble weighting,
+* Data Quality calibration.
+
+Do not double-count it with a separate probability discount.
+
+Remove/disable only the dedicated legacy discount path and add the required regression test. Preserve the existing sample-size signals elsewhere.
+
+Validate and commit A4.
+
+⸻
+
+STAGE 2 — Temporal Corpus / Identity
+
+A3 + F1
+
+Reconcile the temporal corpus-bound work:
+
+* Add optional exclusive scheduledBefore cutoff to historical corpus loading.
+* Apply it consistently to historical_matches.scheduledStartAt.
+* Apply the corresponding cutoff to feature-snapshot source timestamps where required.
+* Preserve State C’s memory-safe 10k-batch identity loading.
+* Do NOT replace the paged State-C implementation with the older unbounded implementation.
+* Historical execution must never see records at or after the prediction cutoff.
+* Preserve normal live behavior when no cutoff is supplied.
+
+Add focused temporal/no-lookahead tests.
+
+F2 + D3
+
+Reconcile player identity namespace/alias behavior and provider provenance:
+
+* preserve provider IDs;
+* preserve namespaced external IDs;
+* never merge players solely by normalized name;
+* preserve collision separation;
+* maintain provider/source provenance;
+* reconcile the audited identity policy without destructive canonical-player backfill.
+
+Do not populate canonical_matches or match_source_links unless the manifest explicitly establishes a safe migration path.
+
+A6
+
+Audit and strengthen no-lookahead/walk-forward protections across the Prediction Engine.
+
+The existing matchesPlayed test failure must NOT automatically be “fixed” by changing production behavior.
+
+First determine whether the stored value is intentionally capped at 200. If so, correct the test contract or add a capped-value assertion rather than introducing false leakage remediation.
+
+Preserve all legitimate temporal cutoffs.
+
+Validate and commit.
+
+⸻
+
+STAGE 3 — Provider / Live Tennis Reconciliation
+
+C1
+
+Preserve and verify State-C Live Tennis as a first-class fixture source.
+
+Do not remove:
+
+* API endpoint;
+* API key support;
+* 5-minute cache;
+* timeout;
+* rate-limit backoff;
+* pagination;
+* doubles filtering;
+* namespaced player/fixture IDs;
+* current and legacy response parsing;
+* duplicate resolution;
+* score reconstruction;
+* graceful fallback;
+* fixture diagnostics.
+
+D1 + D2
+
+Reconcile an explicit provider-operation matrix.
+
+Clearly define which provider is used for:
+
+* fixtures;
+* live scores;
+* historical matches;
+* player lookup;
+* stats/PBP;
+* fallback operations.
+
+Do not replace State-C Live Tennis with the older TSE provider order.
+
+Preserve provider IDs and provenance.
+
+C3 + C2
+
+Restore the audited live-score correlation architecture:
+
+* fixtureMetaCache;
+* metadata capture for every fixture source, including the Live Tennis early-return path;
+* native API-Tennis event-key lookup first;
+* identity fallback only for unresolved IDs;
+* original caller fixture ID preserved in returned results;
+* exact date + normalized/sorted player-name identity;
+* no canonical player alias substitution for score correlation;
+* optional getLiveScoresByIdentity provider contract;
+* API-Tennis implementation;
+* graceful handling of missing metadata.
+
+Add mixed native/non-native and Live Tennis integration tests.
+
+C4
+
+Preserve and extend FixtureFetchDiagnostics.
+
+Diagnostics must identify fixture acquisition/routing without incorrectly claiming that the same provider supplied live scores.
+
+Validate the complete live path.
+
+⸻
+
+STAGE 4 — Parlay Builder Independence
+
+This stage is important: the Builder must remain an independent system.
+
+B1
+
+Remove Builder use of Prediction Engine calibration:
+
+* no getActiveCalibration();
+* no applyCalibrationOriented();
+* no borrowed Prediction Engine calibration state.
+
+Preserve existing Builder behavior until its own calibration is available.
+
+B3
+
+Reconcile Builder-owned surface and serve/return calculations.
+
+Remove direct Builder dependence on Prediction Engine surfaceElo and serveReturn.
+
+Use the audited Builder-owned implementations from historical commits as capability references.
+
+Do not copy unrelated Prediction Engine code.
+
+B4
+
+Strengthen checkParlayBoundary.ts so it catches:
+
+* direct Prediction Engine imports;
+* indirect calibration coupling;
+* forbidden runtime dependency paths;
+* future regressions where practical.
+
+Add tests.
+
+B2
+
+Implement/reconcile Builder-owned calibration using the audited historical design:
+
+* Builder-specific calibration fit;
+* Builder calibration cache/version;
+* parlay_leg_outcomes as Builder outcome source;
+* monotonic calibration behavior;
+* thresholds/schema;
+* explicit provenance/model version.
+
+Do not relabel old Builder outcomes as if they were generated by the new independent calibration.
+
+If a new schema table is genuinely required, defer the actual database migration until Stage 6 after confirming ownership and compatibility.
+
+B5
+
+Preserve current Builder API/historical compatibility while adding required model-version/provenance information.
+
+Validate the entire Builder path independently from the Prediction Engine.
+
+⸻
+
+STAGE 5 — PBP / Evidence Reconciliation
+
+Before implementation, inspect the current Truth Engine structures already holding evidence. Do not create duplicate authority.
+
+E4
+
+Establish and enforce the sole PBP/evidence authority and cutoff firewall.
+
+Existing Truth Engine evidence remains authoritative.
+
+Any imported historical capability must pass:
+
+* provenance;
+* source/license policy;
+* identity validation;
+* structural validation;
+* temporal cutoff;
+* duplicate/conflict checks.
+
+Do not alter existing verified evidence merely to match branch-derived structures.
+
+E1
+
+Reconcile the approved historical PBP evidence eligibility pipeline from the audited commits:
+
+* evidence eligibility;
+* provenance;
+* strict pre-cutoff lookup;
+* derived features;
+* usage policy;
+* recompute/FK handling.
+
+Import only genuinely unique capability.
+
+E2
+
+Reconcile the provider-agnostic PBP router/engine bridges:
+
+* source registration/priority;
+* validation;
+* corroboration/conflict detection;
+* identity review;
+* provenance;
+* derivation;
+* bounded Prediction Engine bridges;
+* Builder PBP context.
+
+Integrate into the existing Truth Engine rather than creating a second PBP system.
+
+E3
+
+Compare the historical WTA Main evidence capability against current Truth Engine WTA evidence at record level.
+
+Import only actual gaps.
+
+Do not blindly create a new WTA evidence table.
+
+Any licensing restriction remains enforced.
+
+⸻
+
+STAGE 6 — Database / Backfill / Rollout
+
+Do NOT execute this stage until the preceding code reconciliation is complete and tests identify an actual schema requirement.
+
+G2
+
+Reconcile only required additive schema changes.
+
+Because the database has:
+
+* no authoritative migration ledger;
+* two active Drizzle schema roots;
+* intentionally unmanaged tables;
+* historical raw-SQL tables;
+
+do not expand Drizzle ownership casually.
+
+Prefer additive/idempotent changes with explicit ownership and rollback.
+
+Never drop or rewrite existing populated tables merely because they are absent from one schema root.
+
+G3
+
+Only perform identity/provenance/evidence backfills that are explicitly proven necessary.
+
+Before each backfill:
+
+* capture exact row counts;
+* capture affected-row count;
+* run duplicate/orphan checks;
+* create rollback strategy;
+* perform the smallest possible batch;
+* re-run integrity checks.
+
+Never merge canonical players by normalized name alone.
+
+G4
+
+Preserve prediction and Builder provenance compatibility.
+
+Do not rewrite historical predictions or outcomes to appear generated by newly reconciled logic.
+
+H3 + H4
+
+Run:
+
+* database compatibility validation;
+* application integration tests;
+* production-style smoke tests;
+* live provider fallback tests where credentials permit;
+* Prediction Engine historical cutoff tests;
+* Builder independence tests;
+* Truth Engine evidence/refusal tests.
+
+Do not claim production migration success merely because local schema push succeeds. The Stage 0 report explicitly says the managed production database is not registered.
+
+⸻
+
+FINAL VALIDATION
+
+After all safe phases are complete:
+
+1. Run targeted tests for every changed subsystem.
+2. Run broader application tests.
+3. Run typechecks, clearly separating pre-existing Truth Engine failures from new failures.
+4. Run the Builder boundary test.
+5. Run temporal/no-lookahead tests.
+6. Run provider/live-score tests.
+7. Run Truth Engine evidence/refusal tests.
+8. Confirm Git working tree and commit history.
+9. Confirm no unintended database row-count changes.
+10. Produce a final implementation report containing:
+
+* completed phases;
+* commits;
+* tests passed/failed;
+* pre-existing failures;
+* database changes, if any;
+* migrations/backfills, if any;
+* remaining blockers;
+* exact next action if anything remains.
+
+Execution instruction
+
+Start immediately with A1. Continue automatically through the dependency order above.
+
+Do not pause after A1, A2, or each individual subtask for approval. Validate, commit, and continue.
+
+Only stop for the genuine blocker conditions defined at the top.
+
+The goal now is implementation and reconciliation, not another prolonged discovery cycle.

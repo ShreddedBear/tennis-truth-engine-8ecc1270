@@ -1,0 +1,148 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { fetchSlateBase, fetchSlateRunDetail } from "@/lib/screen-queries.functions";
+import { runAuditBatch } from "@/lib/audit-pipeline.functions";
+import { normalizeName } from "@/lib/summary-parser";
+import { activeRunExecutionPercent } from "@/lib/audit-progress";
+import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
+import { activeRunIds, activeSlateMatchIds, isRowOnActiveSlate } from "@/lib/current-audit-state";
+import { isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
+import { Button } from "@/components/ui/button";
+import { AuditColorBadge, StateText } from "@/components/StatusBadge";
+import { ProgressBar } from "@/components/ProgressBar";
+
+const AUDIT_CONCURRENCY=4;
+
+export const Route=createFileRoute("/app/slate")({
+  head:()=>({meta:[{title:"Active Slate — Tennis Matrix Audit System"}]}),
+  component:Slate,
+});
+
+function playerTokens(value:string){return normalizeName(value).split(" ").filter(Boolean);}
+function samePlayer(a:string,b:string){const x=playerTokens(a),y=playerTokens(b);if(!x.length||!y.length)return false;if(x.join(" ")===y.join(" "))return true;if(x[x.length-1]!==y[y.length-1])return false;const sx=new Set(x),sy=new Set(y),overlap=[...sx].filter(token=>sy.has(token)).length;return overlap===Math.min(sx.size,sy.size)||overlap>=Math.min(2,Math.min(sx.size,sy.size));}
+function samePair(a:any,b:any){return(samePlayer(a.player1_name,b.player1_name)&&samePlayer(a.player2_name,b.player2_name))||(samePlayer(a.player1_name,b.player2_name)&&samePlayer(a.player2_name,b.player1_name));}
+function contextScore(match:any){return[match.tournament_name,match.event_level,match.round,match.scheduled_date,match.surface,match.best_of,match.identity_status==="VERIFIED",match.surface_status==="VERIFIED"].filter(Boolean).length;}
+function mergeGroup(group:any[],runRows:any[]){const ranked=[...group].sort((a,b)=>{const ar=runRows.filter(run=>run.match_id===a.id).sort((x,y)=>y.run_number-x.run_number)[0],br=runRows.filter(run=>run.match_id===b.id).sort((x,y)=>y.run_number-x.run_number)[0];return(br?1:0)-(ar?1:0)||contextScore(b)-contextScore(a)||String(b.created_at??"").localeCompare(String(a.created_at??""));});const merged={...ranked[0]};const verified=ranked.filter(match=>match.identity_status==="VERIFIED"||match.surface_status==="VERIFIED"),source=verified.sort((a,b)=>contextScore(b)-contextScore(a))[0]??ranked[0];for(const row of ranked){merged.tournament_name ||=row.tournament_name;merged.event_level ||=row.event_level;merged.round ||=row.round;merged.scheduled_date ||=row.scheduled_date;merged.surface ||=row.surface;merged.best_of ||=row.best_of;}if(source.identity_status==="VERIFIED")merged.identity_status="VERIFIED";if(source.surface_status==="VERIFIED"){merged.surface_status="VERIFIED";if(source.surface)merged.surface=source.surface;}return{...merged,_all_ids:ranked.map(row=>row.id)};}
+
+function Slate(){
+  const qc=useQueryClient();
+  const[scope,setScope]=useState<"active"|"all">("active");
+  const executeBatch=useServerFn(runAuditBatch);
+  const{data}=useQuery({
+    queryKey:["slate"],
+    refetchInterval:3000,
+    queryFn:async()=>{
+      const{matches,runs,versions}=await fetchSlateBase();
+      const raw=matches,runRows=runs,groups:any[][]=[];
+      for(const match of raw){const index=groups.findIndex(group=>samePair(group[0],match));if(index<0)groups.push([match]);else groups[index].push(match);}
+      // The active slate = matches with an active summary_version -- the
+      // same definition Dashboard and the Master Ranked Board use (reused
+      // via activeSlateMatchIds), not "whichever upload happened to be
+      // uploaded most recently". Clear Slate deactivates every active
+      // summary_version without touching summary_uploads or matches rows,
+      // so a recency-of-upload proxy keeps showing cleared matches; only
+      // is_active correctly tracks whether a match is still on the slate.
+      const activeMatchIds=activeSlateMatchIds(versions??[]);
+      // activeRunIds combines BOTH layers -- a match's resolved active run
+      // (resolveActiveRun) AND that match still being on the active slate --
+      // so a cleared match can never surface stage/decision/coverage data
+      // even in the edge case where its run row itself wasn't independently
+      // invalidated.
+      const activeRunIdList=[...activeRunIds(runRows,activeMatchIds)];
+      // Stage/decision/coverage rows are fetched ONLY for those active run
+      // ids, never every historical run ever created. Two reasons this
+      // matters, not just one: (1) it is the "never aggregate across runs"
+      // contract audit-progress.ts already requires of its caller, enforced
+      // here at the query itself rather than only by in-memory filtering;
+      // (2) an unfiltered, unlimited `audit_stage_runs` select grows 16 rows
+      // per run, active or long-invalidated -- once a project's history
+      // passes Supabase's default max-rows cap, that select silently
+      // truncates and can omit the current run's own rows entirely, which
+      // reproduces exactly the reported bug (Execution Diagnostics on the
+      // match workspace is unaffected because it queries by that one run's
+      // id directly; Active Slate previously read 0% because its global
+      // fetch could stop containing this run's rows once the table grew
+      // past the cap).
+      const{decisions,stages,coverage}=await fetchSlateRunDetail({data:{runIds:activeRunIdList}});
+      return{matches:groups.map(group=>mergeGroup(group,runRows)),runs:runRows,decisions,stages,coverage,activeMatchIds:[...activeMatchIds]};
+    },
+  });
+  const drive=useMutation({
+    mutationFn:async(matchIds:string[])=>executeBatch({data:{matchIds,concurrency:AUDIT_CONCURRENCY}}),
+    onSuccess:result=>{
+      if(result.blocked)toast.error(`${result.blocked} audit run${result.blocked===1?" is":"s are"} blocked. Open the workspace for the persisted stage error.`);
+      qc.invalidateQueries({queryKey:["slate"]});
+    },
+    onError:error=>{
+      if(!isRecoverablePipelineTransportError(error))toast.error(safePipelineErrorMessage(error));
+      qc.invalidateQueries({queryKey:["slate"]});
+    },
+  });
+
+  useEffect(()=>{
+    if(!data||drive.isPending)return;
+    const active=[...new Set(data.runs.filter(run=>run.status==="RUNNING").map(run=>run.match_id))];
+    if(active.length)drive.mutate(active);
+  },[data,drive.isPending]);
+
+  // resolveActiveRun resolves straight through an INVALIDATED (Clear Slate,
+  // or a rule-version change) run to null -- a match whose latest run was
+  // just invalidated shows as "no active run" (Run Audit, 0%, no
+  // diagnostics), never that dead run's last-known progress.
+  const runFor=(match:any)=>{const ids=match?._all_ids??[match.id];return resolveActiveRun(data?.runs.filter((run:any)=>ids.includes(run.match_id))??[]);};
+  // Every lookup below is scoped to this ONE run's rows first (audit_run_id
+  // === run.id), then normalized through canonicalizeStageRows -- exactly
+  // one entry per canonical stage, in fixed 1-16 order -- so neither a prior
+  // run's rows nor a duplicate/retry record can ever be read as this run's
+  // progress.
+  const stagesFor=(run:any)=>run?.id?canonicalizeStageRows((data?.stages??[]).filter((stage:any)=>stage.audit_run_id===run.id)):[];
+  const executionFor=(run:any)=>activeRunExecutionPercent(run,(data?.stages??[]) as never);
+  const activeStageFor=(run:any)=>{const running=stagesFor(run).filter(({row})=>row?.status==="RUNNING");return running.length?running[running.length-1].row:null;};
+  const evidenceFor=(runId?:string)=>{if(!runId)return null;const rows=(data?.coverage??[]).filter((row:any)=>row.audit_run_id===runId&&Number(row.total_count)>0);if(rows.length<2)return null;return Math.min(...rows.map((row:any)=>Number(row.usable_coverage_percent)||0));};
+  const activeMatchIds=new Set(data?.activeMatchIds??[]);
+  // "active" is the true current slate (an active summary_version) --
+  // cleared matches are gone the instant Clear Slate runs. "all" is an
+  // explicit historical view: every match ever ingested, cleared or not.
+  const visible=(data?.matches??[]).filter((match:any)=>scope==="all"||isRowOnActiveSlate(match,activeMatchIds));
+
+  return <div className="space-y-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className="text-xl font-semibold">Active slate</h1>
+        <p className="text-sm text-muted-foreground">{scope==="active"?"Showing the current active slate -- matches cleared by Clear Slate disappear immediately.":"Showing every match ever ingested, including cleared/historical matches."} Active runs are claimed in bounded batches and refreshed from persisted stages every few seconds. Evidence is shown only after canonical coverage rows are persisted.</p>
+      </div>
+      <Button size="sm" variant="secondary" onClick={()=>setScope(scope==="active"?"all":"active")}>{scope==="active"?`Show all matches (${data?.matches?.length??0})`:"Show active slate only"}</Button>
+    </div>
+    <div className="panel overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-header text-header-foreground"><tr className="text-left">{["Match","Tournament","Round","Surface","Identity","Surface status","Audit run","Color","Winner","Execution","Evidence",""].map(label=><th key={label} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">{label}</th>)}</tr></thead>
+        <tbody>
+          {visible.map((match:any)=>{
+            const run=runFor(match),decision=data?.decisions?.find((row:any)=>row.audit_run_id===run?.id),evidence=evidenceFor(run?.id),activeStage=activeStageFor(run);
+            return <tr key={match.id} className="border-t border-border">
+              <td className="px-3 py-2 font-medium">{match.player1_name} vs {match.player2_name}</td>
+              <td className="px-3 py-2">{match.tournament_name??"—"}</td>
+              <td className="px-3 py-2">{match.round??"—"}</td>
+              <td className="px-3 py-2">{match.surface??"—"}</td>
+              <td className="px-3 py-2"><StateText state={match.identity_status}/></td>
+              <td className="px-3 py-2"><StateText state={match.surface_status}/></td>
+              <td className="mono-num px-3 py-2 text-xs">{run?<div>{`RUN ${run.run_number} · ${run.status}`}{activeStage&&<div className="mt-1 text-[10px] text-muted-foreground">{activeStage.stage} · {activeStage.done_count??0}/{activeStage.total_count??0}</div>}</div>:"—"}</td>
+              <td className="px-3 py-2"><AuditColorBadge color={decision?.final_audit_color??"INCOMPLETE"}/></td>
+              <td className="px-3 py-2">{decision?.final_selection??"—"}</td>
+              <td className="px-3 py-2"><ProgressBar percent={executionFor(run)}/></td>
+              <td className="mono-num px-3 py-2 text-xs">{evidence===null?"—":`${evidence}%`}</td>
+              <td className="px-3 py-2 text-right"><div className="flex justify-end gap-2">
+                <Button asChild size="sm" variant="secondary"><Link to="/app/match/$matchId" params={{matchId:run?.match_id??match.id}}>Open workspace</Link></Button>
+                {(!run||run.status!=="COMPLETE")&&<Button size="sm" onClick={()=>drive.mutate([run?.match_id??match.id])} disabled={drive.isPending}>{run?.status==="BLOCKED"?"Retry blocked stage":run?"Audit running":"Run Audit"}</Button>}
+              </div></td>
+            </tr>;
+          })}
+          {!visible.length&&<tr><td colSpan={12} className="px-3 py-8 text-center text-sm text-muted-foreground">{scope==="active"?"No matches on the active slate. Upload a summary PDF, or the slate was just cleared.":"No matches ingested yet."}</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>;
+}

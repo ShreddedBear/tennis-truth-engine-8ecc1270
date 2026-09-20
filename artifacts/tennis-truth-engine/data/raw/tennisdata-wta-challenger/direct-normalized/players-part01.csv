@@ -1,0 +1,962 @@
+player_id,name
+101488,Zhu C.
+101703,Labrana F.
+103288,Hartono A.
+103501,Giambelli C.
+103995,Prisacariu A.
+104163,Bulgaru M.
+104430,Lanca S.
+105318,Sanchez A. S.
+105874,Soldo J.
+107077,Becerra A. M.
+108861,Morderger Y.
+110945,Leme Da Silva N. V.
+111423,Ristic M.
+111614,Brancaccio N.
+111683,Ruggeri J.
+112056,Paganetti V.
+113910,Pattinama Kerkhove L.
+114904,Sasnovich A.
+114935,Osuigwe V.
+115828,Jani R-L.
+116448,Svetac S.
+117359,Mendez S.
+118256,Lee C. Y.
+119624,Vandromme J.
+120007,Estevez J.
+121013,Cocciaretto E.
+123431,Smith A.
+123538,Sramkova R.
+123872,Faga S.
+125061,Salkova D.
+126021,Milic E. N.
+126226,Blinkova A.
+126579,Tsurenko L.
+126649,Saigo R.
+127756,Alvarez A.
+129912,Szabo B.
+130972,Topalova G.
+131897,Kurt I.
+131935,Cantos Siemers I.
+132265,Portillo Ramirez M. J.
+132386,Brockmann T. J.
+133648,Murray S.
+133650,Putintseva Y.
+134241,Ye Q.
+135412,Aulia C.
+136364,Herrero Linana A.
+136674,Herea C. A.
+137412,Sutjiadi A.
+137430,Stolmar R.
+139977,Hristea C.
+141528,Tan H.
+142829,Oz I.
+143211,Naya G.
+145402,Wu R. X.
+146026,Stojanovic N.
+146235,Franco Dias T.
+148417,Korpanec Davies A.
+149280,Masarova R.
+149526,Janicijevic S.
+150341,Mettraux M.
+150576,Velaga N.
+151071,Shimizu E.
+151379,Trigosso N.
+151624,Cornet A.
+152508,Gonzalez Dominguez A.
+152735,Peterson R.
+152800,Bronzetti L.
+153748,Kaynak M. N.
+153777,Lim J.
+154914,Laskutova K.
+155404,Harrison C.
+156744,Potocnik N.
+157066,Voloshchuk A.
+159143,Rodriguez V.
+159693,Makarova E.
+159758,Xu G.
+159874,Lima K.
+161617,Liang E. S.
+161765,Boulard L.
+162428,Chiesa D.
+164078,Tamindzic A.
+164893,Pridankina E.
+165337,Ce G.
+165732,Diatchenko V.
+167678,Zaytseva K.
+169028,Branstine C.
+169247,Tomai C.
+169851,Zlochova Z.
+170252,Zamarripa M.
+171371,Garcia M.
+172120,Yoruk I.
+175731,Appleton E.
+176411,Raimondo D.
+177509,Sidorova K.
+178264,Moyano L.
+178679,Bergkvist Larsson B.
+182026,Maleckova J.
+185274,Radanovic D.
+186075,Chiesa E.
+186150,Fullana L.
+187314,Noskova L.
+188475,Tang Q.
+190070,Klimovicova L.
+190170,Burstein M. V.
+191141,Jang S. J.
+191524,Rompies J.
+192242,Ferro F.
+192862,Dodin O.
+193166,Curovic T.
+193876,Cinalli L. M.
+194628,Cascino E.
+195261,He I.
+199497,Helgo M.
+199761,Beck C.
+199960,Jimenez Kasintseva V.
+200769,Talbi S.
+200984,Seguel D.
+201697,Grant G.
+201748,Pate W.
+203674,Monnet C.
+205705,Medvedeva M.
+205744,Zantedeschi A.
+207769,Montano S.
+209866,Candiotto A.
+210654,Yepifanova A.
+214215,Seo J. Y.
+216320,Maristany G.
+216676,Sawangkaew M.
+216721,Granwehr A.
+218416,Bencic B.
+219553,Vidmanova D.
+221384,Fruhvirtova B.
+221785,Torres Lopez K.
+221817,Curmi F.
+222899,Ghioroaie I. G.
+224198,Moon J.
+224538,Lazar S.
+225794,Inoue H.
+225816,Yamalapalli S.
+226334,Abbagnato A.
+227025,Rame A.
+228084,Li X.
+228291,Leon S.
+228495,Okalova M.
+230315,McNeil C.
+230866,Lewis M.
+231579,Martynov D.
+231988,Pistola I.
+232364,Mintegi Del Olmo A.
+232439,Arconada U. M.
+233286,Gao X.
+233310,Vedder E.
+233335,Cross K.
+235190,Luini S.
+235216,Spiteri D.
+235561,Perez Garcia M. P.
+235584,Shymanovich I.
+235941,Drazic M.
+236813,Koike E.
+237003,Gatica B.
+237771,Day K.
+239166,Taraba Wallberg N.
+240339,Kingsley R.
+240894,Alves C.
+242171,Dittmann G. M.
+242760,Yu E.
+243915,Gasanova A.
+243955,Urhobo A.
+244341,Sawant M.
+244689,Mazzola A.
+245242,Vandeweghe C.
+248258,Alame Re.
+250420,Cabezas Dominguez E.
+251097,Jallorina L.
+251429,Herazo Gonzalez M.
+252693,Hontama M.
+252705,Geerlings Martinez A.
+252996,Simion O.
+253469,Robbe A.
+254032,Bjorklund M.
+254901,Doi M.
+254908,Glushkova D.
+255028,Plekhanova D.
+255338,Papamichail D.
+255985,Pereira R.
+258616,Liu M.
+259144,Stefani L.
+259283,Martinez Solis C. S.
+260262,Boskovic L.
+260370,Jeong B.
+260647,Matoula M.
+261026,Govortsova O.
+261807,Eala A.
+263836,Banks A.
+263947,Laboutkova A.
+264093,Rodina E.
+265061,Simionescu D.
+265144,Vecic A.
+265315,Kuwata H.
+265494,Serban R.
+267472,Petkovic A.
+267746,Cayetano E.
+268341,Boehner L.
+268473,Jorovic I.
+270717,Dudeney A.
+271074,Nguyen Tan L.
+272067,Adkar V.
+272422,Zund S.
+272544,Avanesyan E.
+272547,Radivojevic L.
+275150,Romero Gormaz L.
+275310,Ruse G.
+276473,Monnot A.
+280059,Kinard T.
+281349,Bush T.
+281568,Danilina A.
+281722,Karatancheva L.
+281922,Piccinini A.
+282059,Ibragimova A.
+282078,Plosnik E.
+282315,Vandewinkel H.
+282430,Cavalle-Reimers Y.
+284953,Dulgheru A.
+285129,Madis T.
+285754,Jara S.
+285817,Paszun A.
+286291,Garland J.
+286370,Samsonova L.
+287133,Tagger L.
+288191,Bogdan A.
+288848,Lee E.
+289001,Burel C.
+289514,Zamora V.
+289831,Choi J. H.
+290118,Murta I.
+290678,Konishi J.
+291031,Herrmann S.
+291614,Bains N.
+293402,Kuramochi M.
+293685,Korpatsch T.
+294982,Fossa Huergo N.
+296059,Hertel A.
+296409,Tkacheva M.
+300228,Pedone G.
+301067,Senica A.
+301356,Sagrista Bermejo M.
+302110,Marcinko P.
+302517,Noha Akugue N.
+303083,Rezai A.
+303568,Andreeva E.
+304646,Kobori M.
+305997,Podrez V.
+306836,Visentin E.
+307350,Burcescu M. I.
+309272,Berecoechea N.
+312022,Arcangioli M.
+313198,Gorska D.
+313970,Burillo Escorihuela I.
+314104,Rajecki A.
+314232,Vazquez M. Q. D.
+315188,Kozak V.
+315684,Zolotareva R.
+316374,Perez Alarcon L.
+316741,Lemaitre T.
+319137,Buyukakcay C.
+319163,Gervais J.
+320352,Collens B.
+322478,Genis Salas M.
+322585,Savinykh V.
+322624,Chang H.
+322918,Vicens Mas R.
+323630,Gracheva V.
+323944,Wolff V.
+324333,Paolini J.
+324365,Da Cruz Mendonca S.
+324536,Anisimova A.
+326381,Gallegos M.
+328017,Pigossi L.
+329751,Kung L.
+330724,Waltert S.
+330777,Bertoldo J.
+331161,Davis L.
+331254,Romero C.
+331703,Meyer Auf Der Heide L.
+331924,Fomenko V.
+332475,Shimizu A.
+334038,Seibold E.
+334255,Fruhvirtova L.
+334651,Jakupovic D.
+335315,Kulbiej N.
+335705,Mundhe P. A.
+335853,Iliev S.
+336392,Bosio V.
+336549,Vargova N.
+337339,Bulbarella M.
+337480,Sonmez Z.
+337877,Roura Llaverias R.
+338139,Ye S.
+338426,Saito S.
+338875,Rokusek S.
+339190,Middendorf J.
+339700,Vondrousova M.
+341071,Bai Z.
+342350,Emana K. A.
+342785,Rus A.
+344324,Bennemann E.
+344482,Siniakova K.
+344636,Jeanjean L.
+346262,Grabher J.
+346273,Suarez M. I.
+347598,Guth M.
+349378,Papadakis L.
+350354,Zavatska K.
+351317,Rajeshwaran Revathi M.
+352633,Pieri J.
+352877,Daavettila S.
+354962,Zheng W.
+355591,Sorribes Tormo S.
+355862,Petkovic A.
+355895,Johnson F.
+356283,Kubka M.
+357159,Hodzic M.
+357328,Crawley F.
+357952,Trevisan M.
+358837,Krejcikova B.
+358964,Palicova B.
+359411,Tauson C.
+359414,Diyas Z.
+359905,Hurkacz N.
+360863,Toth A. K.
+362293,Lopatetska D.
+362890,Frech M.
+363157,Shi H.
+363579,Alvisi E.
+364359,Bjork J.
+364743,Sizikova Y.
+365710,Zuger J.
+368334,Pliskova Kr.
+369605,Bouzkova M.
+369756,Vazquez Valles M.
+370844,Kozyreva M.
+371248,Ryser V.
+376856,Leonard M.
+377819,Ma L.
+381645,Hobgarski K.
+382331,Wickmayer Y.
+384199,Todoni A. A.
+385300,Couto L.
+386473,Arruabarrena L.
+387726,Griffiths E.
+388459,Jovic I.
+388510,Tanguilig C.
+388957,Vismane D.
+389789,Tomljanovic A.
+390282,Navarro M. F.
+390891,Lansere S.
+391020,Alexander A.
+391727,Markus C.
+392154,Hozumi E.
+392291,Gerald Gonzalez J. G.
+393113,Kalinskaya A.
+394004,Werner C.
+394244,Zacarias M.
+394647,Monroy Y.
+394732,Timofeeva M.
+396570,Marcinkevica D.
+397015,Gadecki O.
+397623,Kuzmova K.
+398327,Martinez Cirez C.
+400866,Zhao C.
+401183,Oana A. F.
+401531,Lincer O.
+402130,Vargas M.
+403135,Lukas T.
+403306,Hercog P.
+403954,Yaneva E.
+405386,Radwanska U.
+405606,Raina A.
+405670,Gamiz A.
+407822,Peternel Z.
+407856,Vig S.
+409001,Andreescu B.
+409125,Sun X.
+409787,Ascencio Jaramillo I.
+410890,Preston T.
+411769,Mrdeza T.
+412476,Martincova T.
+413598,Fita Boluda A.
+413848,Hanatani N.
+413935,Nahimana S.
+414418,Schoofs B.
+416641,Udvardy P.
+416812,Guerrero Alvarez E.
+418746,Min G.
+420409,Stakusic M.
+421236,Yamaguchi M.
+421789,Kessler M.
+421894,Volynets K.
+423074,De Stefano S.
+423172,Sawashiro K.
+423847,Lopez Martinez C.
+424088,Garakani S.
+425197,Ormaechea P.
+425404,Galfi D.
+425446,Shnaider D.
+426426,Partaud M.
+429149,Shroff S.
+429517,Bejlek S.
+431443,Stollar F.
+432302,Avdeeva J.
+434479,Bolkvadze M.
+434532,Cabrera L.
+435662,Rosca C.
+435936,Kulikova A.
+435950,Jamrichova R.
+435996,Ionescu E. M.
+436082,Riley A. J.
+436924,Senties X.
+437874,Horvit M.
+439600,Grant T. C.
+441079,Errani S.
+441252,Stephens S.
+443315,Konjuh A.
+443511,Ivanova D.
+444525,Kartal S.
+446307,Diaz Adrover C.
+446701,Dolehide C.
+446947,Ferrando C.
+448351,Yamazaki I.
+448449,Corte C.
+448529,Jones M.
+449205,Colmegna M.
+449857,Cadar E.-T.
+451003,Lohoff J.
+451842,Sebov K.
+452225,Betova M.
+453564,Vukovic D.
+453784,De Santa Ana L.
+455355,Baindl K.
+456082,Mansouri Y.
+457861,Parrizas-Diaz N.
+458195,Capurro Taborda M.
+460109,Bocchi E.
+460138,Sun L.
+460146,Minnen G.
+461428,Poppe T.
+461549,Charaeva A.
+461629,Reasco Gonzalez M. E.
+461778,Fourlis J.
+462354,Scilipoti S.
+463566,Kupres M.
+464502,Garcia C.
+465575,Sevastova A.
+467664,Hule P.
+469046,Laundes F.
+469230,Tubello A.
+470187,Hsu C.
+470366,Eidelvein L.
+470739,Zaar L.
+470781,Jeong Y. W.
+472080,Podlinska M.
+472206,Cakarevic S.
+472505,Ccuno R.
+473526,Zamarripa A.
+474466,Di Sarra F.
+474730,Cepelova J.
+475062,Samson L.
+475260,Cherubini D.
+476447,Vargas V.
+477119,Kokkinis T.
+478095,Britton D.
+478693,Daniel J.
+479475,Andrienko M.
+480371,Bucsa C.
+482028,Wang J.
+482165,Uchijima M.
+482640,Matz A.
+482662,Berberovic N.
+483379,Lovric P.
+483551,Webb S.
+483842,Fung S.
+484337,Tran L.
+485419,Meri E.
+485516,Bouchard E.
+485567,Ku Y.
+485612,Struplova J.
+488683,Frey A.
+489399,Puig M.
+492180,Petkovic A.
+493665,Rocchetti S.
+493996,Nepliy E.
+494470,Lollia M.
+496678,Gerlach K.
+497843,Webley-Smith E.
+498662,Castillo Meza M.
+498997,Coleman E.
+499387,Podoroska N.
+500305,Varela T.
+500520,Wei S.
+501248,Gomez Pezuela Cano M.
+501465,Gjorcheska L.
+501552,Guillen G. I.
+502395,Dell'Edera F.
+503957,Detiuc A.
+505128,Amariei I. D.
+506008,Juvan K.
+508136,Fernandez L.
+510532,Inisan E.
+510565,Zhu L.
+511844,Guryleva V.
+512224,Falkner Z.
+512327,Giovannini L.
+514019,Noel M.
+514467,Gureva A.
+515487,Sepa I.
+515592,Bartunkova N.
+516173,Ivantsiv M.
+516395,Mair L.
+518337,Rodriguez J.
+518976,Benoit M.
+519047,Sierra S.
+520136,Stafford E.
+520895,McNally C.
+521900,Arias Manjon P.
+524355,Sato N.
+525889,Vergara Rivera A.
+526040,Caffarena J.
+526053,Hesse A.
+527530,Abarquez E.
+529319,Cortez Llorca L.
+529546,Marzal L.
+529952,Sharma A.
+530449,Bayerlova M.
+530750,Douglas E.
+530813,Khomutsianskaya D.
+531454,Barthel M.
+531507,Arseneault A.
+532132,Tjandramulia O.
+532196,Ngounoue C.
+534553,Lodikova D.
+534612,Alcala A.
+534672,Niemeier J.
+534910,Gatto-Monticone G.
+534993,McDonald E.
+536741,Knight M.
+537908,Schmiedlova A. K.
+538390,Dartron E.
+539000,Urgesi F.
+540114,Scott K.
+540263,Zolotareva A.
+541028,Zelnickova R.
+541042,Urrutia M. F.
+542405,Rodionova Ar.
+542969,Udvardy L.
+543051,Ortenzi J.
+543285,Dang Y.
+543394,Dinu C.
+543786,Sakatsume H.
+545460,Caballer Catiru A.
+546244,Matuszewski S.
+546701,De Vroome I.
+547034,Whittle S.
+547054,Xu A.
+548563,Astakhova D.
+548584,Gabueva A.
+549141,Kenin S.
+550268,Crinebouch H.
+551013,Paszek T.
+551151,Mattioli F.
+555385,Vickery S.
+556756,Babos T.
+557168,Hu V.
+557676,Pera B.
+558914,Alexandrova E.
+559293,Jorge M.
+560157,Atay S.
+560389,Chong E.
+560722,Wagner A.
+561321,Kocak B.
+561744,Kalinina A.
+563551,Muchova K.
+563616,Huang Yujia
+564383,Ulueren S.
+564861,Vrancken Peeters A.
+565768,Qu Y.
+566894,Isakova P.
+568174,Breaz A.
+568609,Rakhimova K.
+568896,Svitolina E.
+569469,Bassols M.
+569601,Choi O.
+570453,Goldsmith Weinreich P.
+570872,Piter K.
+571591,Morvayova V.
+571895,Oliynykova O.
+572630,Kolb M.
+572929,Garcia J.
+573328,Rain Contreras F.
+576540,Paoletti M.
+578005,Kuhl C.
+578784,Cirpanli D.
+578915,Bartashevich Y.
+579236,Park E.
+579922,Wong Hong Yi C.
+580393,Hunter S.
+581067,Malygina E.
+583779,Chaudhari V.
+584165,Jorge F.
+584296,Ozgen P.
+585791,Kovacevic T.
+587923,Routliffe E.
+588873,Carbone Dos Santos M.
+589935,Prozorova T.
+591336,Fett J.
+592762,Krywoj M. S.
+594051,Bonardi B.
+595819,Bouzas Maneiro J.
+595928,Silva J.
+596468,Lu J.
+597941,Pawlikowska Z.
+598657,Sumoya V.
+598773,Zhu A.
+598811,Matias M.
+600494,Wang Xin.
+600745,Cirstea S.
+601054,Onciulescu C.
+601420,Mihalikova T.
+601584,Kucova K.
+602501,Strakhova V.
+604556,Rosatello C.
+604616,Ito A.
+605419,Wuerth T.
+605920,Lizarazo Y.
+608604,Dong E.
+609965,Allen K.
+609972,Stusek J.
+609978,Turini V.
+610520,Bondar A.
+611008,Schekaiban D.
+611334,Ciric Bagaric L.
+612234,Brantmeier R.
+612398,Velaga E.
+612587,Pedretti T.
+612612,Torres Murcia M. C.
+612621,Shinikova I.
+613068,Pigato L.
+613515,Fernandez B.
+613722,Garcia Vidal L.
+615273,Zanevska M.
+615524,Hibino N.
+616554,Salles Canudas A.
+619460,Li A.
+620119,Stoiber R. A.
+620466,Bhatia R.
+622836,Chang S.
+623550,Moratelli A.
+625150,Almenar Zabala A.
+625215,Hsieh S-W.
+625444,Glatch A.
+626163,Kasatkina D.
+628325,Kadi H.
+630986,Watson H.
+631020,Leong J.
+631331,Popa M. S.
+631483,Seidel E.
+631913,Kim D.
+632004,Martinez Hernandez M. F.
+634665,Higuita Barraza M. I.
+635918,Ewald W.
+636076,Vaissaud D.
+637260,Kumru A.
+638557,Tig P. M.
+640674,Duerst J.
+641848,Sobolieva A.
+644319,Kolonus Z.
+645945,Guadiana Campos A. K.
+646421,Inglis M.
+646446,Larraya Guidi S. A.
+647835,Stefanini L.
+650165,Naef C.
+651454,Ruzic A.
+651561,Kolodynska J.
+651611,Potapova A.
+652440,Costoulas S.
+652888,Tran D.
+653254,Brengle M.
+655613,Lazaro Garcia A.
+656660,Snigur D.
+657049,Cabaj Awad J.
+658597,Saville D.
+659115,Marozava L.
+660940,Ilie D. M.
+661221,Karatantcheva S.
+661260,Blokhina A.
+661928,Bertea A.
+662324,Noel C.
+663060,Parks A.
+664017,Failla J.
+670831,Bandecchi S.
+671871,Parry D.
+672600,Gonzalez M. A.
+673285,Zvonareva V.
+673298,Loeb J.
+673787,Ponchet J.
+673890,Lujan C.
+674631,Wang Xiy.
+675084,Marino R.
+676347,Neel I.
+676979,Guo H.
+678747,Pace F.
+678986,Micic E.
+679599,Chwalinska M.
+681373,Turkmen D.
+681390,Lee G.
+681751,Shibahara E.
+682219,Cooling R.
+682624,Nugroho P. M.
+683725,Park S.
+684064,Linette M.
+684536,Haas B.
+685452,Zucchini A.
+685585,da Silva Fick G.
+685811,Siegemund L.
+686384,Licht T.
+687632,Zhang R.
+688602,Minella M.
+688846,Stearns P.
+688936,Zidansek T.
+689222,Kempen M.
+689373,Lamens S.
+690300,Joint M.
+690743,Ercan M.
+691979,Imamura S.
+692146,Haddad Maia B.
+692744,Martinez D.
+692785,Aksu A.
+693081,Volodko K.
+694009,Bohrer Martins C.
+695399,Badosa P.
+696314,Stoiana M.
+696671,Losciale V.
+696963,Kovalchuk K.
+698016,Szabanin N.
+699242,Kiick A.
+699414,Naito Y.
+700516,Allen V.
+701534,Krueger A.
+703969,Di Lorenzo F.
+704367,Mikulskyte J.
+704715,Gumulya B.
+705345,Guo M.
+705789,Freitas A.
+706558,Kovacic N.
+707117,Begu I.
+708093,Castro B.
+708710,Gonzalez Vilar R.
+709638,Liu F.
+710097,Lu J.
+710939,Bara I.
+711600,Jauffret C.
+711882,Rouvroy M.
+712759,Plipuech P.
+713379,Hewitt D.
+714095,Sieg M.
+714334,Osaka N.
+714939,Hernandez M. J.
+715380,Eto N.
+715935,Teixido Garcia M. A.
+718010,Tsao C. Y.
+719011,Safta A.
+723286,Craciun G. A.
+724011,Amiraghyan A.
+725684,Kozarov K.
+727666,Andreeva M.
+728397,Blake E.
+728537,Vikhlyantseva N.
+729721,Sherif M.
+730092,Esquiva Banuls C.
+731934,Keys M.
+732387,Cepede V.
+733135,Efremova K.
+733514,Yang Y.
+733870,Gailis R.
+734243,Milovanovic E.
+735911,Montgomery R.
+737156,Liu C.
+738477,Sanz de Galdeano Bertomeu N.
+739765,Ma Y.
+741554,Li Z.
+741705,Arango E.
+742413,Brace C.
+742712,Basiletti N.
+743028,Hovde L.
+743463,Lys E.
+743963,Bhamidipaty S. R.
+745434,Bolsova Zadoinov A.
+746173,Wang Q.
+747397,Manasse M.
+748140,Tona M.
+749101,Smith T. N.
+750979,Mattek-Sands B.
+753020,Stevanovic N.
+756180,Kostyuk M.
+756182,Ren Y.
+757797,Ostlund F.
+758419,Bienzobas Fernandez O.
+759919,Flink V.
+759920,Bonaventure Y.
+761670,Dada-Mascoll S.
+762933,Semenistaja D.
+762962,Lene E.
+763492,Belgraver J.
+763849,Kotliar Y.
+764894,Marithe Aludo S.
+766060,Kalieva E.
+766389,Knutson G.
+768391,Falei A.
+769396,Osorio C.
+776122,Contreras Gomez F.
+776717,Bernstein G.
+778958,Herdzelas D.
+779057,Gimbrere J.
+779188,Aiava D.
+779847,Rosca A.
+780083,In-Albon Y.
+780952,Tararudee L.
+783430,McHale C.
+783984,Zheng S.
+787404,Iatcenko P.
+788681,Alonso S.
+789392,Wei Z.
+789917,Andrianjafitrimo T.
+790018,Siskova A.
+790156,Abduraimova N.
+791057,Shapatava S.
+791769,Osuigwe W.
+792158,Rakotomanga Rajaonah T.
+792466,Kaji H.
+794930,Jones F.
+795651,Bertacchi A.
+796304,Schoppe E.
+796484,Khromacheva I.
+797291,Tjen J.
+798845,Mitu A.
+799344,Boisson L.
+799426,Klugman H.
+799536,Kononova M.
+800493,Montesinos S.
+802714,Dmitruk K.
+803369,Lao D.
+803486,Yuan Y.
+803593,Falkowska W.
+803641,Jones E.
+804248,Navarro E.
+804503,Perez E.
+805782,Dart H.
+806694,Estable L. J.
+809492,Zheng Q.
+809758,Mertens E.
+810285,Radisic N.
+810328,Akli A.
+811222,Ignatik A.
+812349,Duval V.
+813190,Yastremska D.
+813711,Bertea E. R.
+814503,Krunic A.
+815073,Kudashova D.
+815132,Vazquez C.
+815623,Cervino Ruiz C.
+817090,Matsuda R.
+817394,Popovic I.
+818136,Dunne K.
+819607,Van Uytvanck A.
+821818,Chavez T.
+822142,Matsuda M.
+824052,Buzarnescu M.
+824108,Kudermetova P.
+824175,Back D.
+824350,Lares E.
+824559,Martic P.
+824735,Yao X.
+825397,Selekhmeteva O.
+825826,Delai M.
+826019,Mladenovic K.
+826437,Bektas E.
+826660,Aranzabal N.
+826836,Hennemann C. W.
+827435,Collins K.
+828867,Gibson T.
+830290,Subasic A.
+831574,Christie F.
+831593,Vagramov A.
+831755,Gavrila O.
+832703,Cakil D.
+833730,Pellicano H.
+833748,Gaillard D.
+834140,Pavlyuchenkova A.
+836015,Zeballos N.
+839545,Regalado Macias F.
+840243,Nitture A. D.
+840627,Di Giuseppe M.
+840869,Perrin C.
+841398,Nara K.
+841682,Arifullina A.
+842525,Martins I.
+844223,Mboko V.
+844265,Ukolova A.
+844493,Heisen V.
+846341,Miller K.
+847399,Osborne A.
+848660,Kostovic T.
+848844,Di Genova C.
+849090,Garibay Romero C.
+851560,Birrell K.
+852000,Suciu A.
+852825,Thandi K. K.
+853053,Halep S.
+855241,Meliss V.
+855453,Stankiewicz M.
+856909,Ospina M.
+857101,Rinaldo Persson K.
+858188,Raducanu E.
+860217,Lella E.
+860419,Ansari C.
+861465,Hon P.
+861814,Rabl L.
+863232,Pareja J.
+863713,Cooper N.
+863771,Glushko L.
+865642,Nilsson L.
+866608,Kawa K.
+866621,Sanchez Uribe M. J.
+867832,Casares M.
+868434,Zelinskaya D.
+868549,Kichenok N.
+869181,Tikhonova A.
+869298,Pohankova M.
+873121,Diaz Zayas L.
+873651,Lisicki S.
+873862,Alba Verastegui S.
+875153,Roldan Santander M. B.
+876509,Rapolu M.
+876717,Kazionova E.
+877208,Romeo C.
+877693,Moore T.
+878209,You X.
+879393,Kraus S.
+880806,Anderson R.
+880955,Amorim G.
+882868,Wu Ho C.
+884844,Pliskova Ka.
+885285,Saracoglu A.
+885615,Zhang Y.
+885650,Teodosescu A.
+885728,Cristian J.
+885767,Riera J.
+886250,Okamura K.
+887867,Miyazaki L.
+888093,Bhosale R.
+888662,Nagy A.
+888877,Hosogi S.

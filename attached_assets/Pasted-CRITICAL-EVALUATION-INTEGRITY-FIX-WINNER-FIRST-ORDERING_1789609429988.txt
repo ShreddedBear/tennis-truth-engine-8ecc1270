@@ -1,0 +1,64 @@
+CRITICAL EVALUATION INTEGRITY FIX — WINNER-FIRST ORDERING
+
+We have confirmed a real defect in the historical evaluation population.
+
+All 179,986 usable historical_test/test rows originate from Sackmann, whose ingestion maps:
+
+winner → historical_matches.player1_id
+loser → historical_matches.player2_id
+
+This assignment occurs after the match outcome is known.
+
+The downstream historical scoring/evaluation pipeline preserves those slots.
+
+Therefore the current held-out evaluation population is outcome-oriented and is not a clean neutral-order benchmark.
+
+Fix ONLY the evaluation/data-ordering defect.
+
+Do NOT change:
+
+* prediction formulas
+* ensemble weights
+* calibration methodology
+* model thresholds
+* Specialist methodology
+* simulator methodology
+* production prediction behavior
+
+Requirements:
+
+1. Historical evaluation must assign Player 1/Player 2 using an outcome-independent deterministic ordering.
+2. The current match’s winner must remain available only as the post-prediction grading target.
+3. Do not pass current-match winner information into the Prediction Engine.
+4. Do not allow current-match outcome information into current-match feature reconstruction.
+5. Preserve chronological cutoff behavior.
+6. Preserve player identities exactly; only neutralize the slot assignment.
+7. Do not rewrite the entire historical corpus unnecessarily.
+8. Determine whether the fix should apply at ingestion, evaluation, or an evaluation-only reconstruction layer. Choose the least invasive location that guarantees no outcome-derived ordering.
+9. Add a targeted regression test proving that swapping the recorded winner/loser does not change which competitor receives Player 1 except according to the deterministic outcome-independent ordering rule.
+10. Add a test proving the current winner is still used correctly for grading but cannot influence prediction inputs.
+11. Verify that ties/exact-50 behavior cannot systematically favor the eventual winner because of slot assignment.
+
+Before modifying code, trace the existing data flow and identify the smallest correct change.
+
+Do NOT run the 179,986-row replay.
+
+Do NOT run the 3-month replay.
+
+Do NOT run the optimizer.
+
+Do NOT perform broad repository tests.
+
+Run only targeted tests for the modified path.
+
+Report:
+
+* exact root cause
+* exact files changed
+* exact fix
+* tests executed
+* results
+* whether existing historical rows need regeneration
+* whether a clean evaluation population can be generated without changing production prediction methodology.
+
+Commit and push only this targeted fix.

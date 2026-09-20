@@ -1,0 +1,58 @@
+Implement the smallest LiveTennisAPI adapter fix.
+
+The single real LiveTennisAPI test for match 157791 returned a valid nonempty tape with 100 rows and these fields:
+
+points, games, sets, server, is_tiebreak
+
+It also contains point_winner.
+
+When point_winner was removed in memory, the current adapter produced 0 reconstructed points/games because it only passes point_winner into the canonical PBP structure and never sends the LiveTennisAPI points score snapshots through the existing score-derived reconstruction path.
+
+Fix ONLY that adapter boundary.
+
+Required behavior:
+
+1. Preserve the existing explicit point_winner path unchanged.
+2. When point_winner is missing, pass the LiveTennisAPI:
+    * points
+    * games
+    * sets
+    * server
+    * is_tiebreak
+        score/state information into the existing score-derived reconstruction function.
+3. Do NOT create a second reconstruction algorithm.
+4. Do NOT modify the existing reconstructor unless absolutely necessary to accept the provider’s existing field shape.
+5. Do NOT infer missing points from incomplete snapshots.
+6. Do NOT invent the game-deciding point. Preserve the existing rule that a game ending at 40-A, 30-40, etc. must not have an artificial winning point appended.
+7. Any ambiguous transition, missing transition, or incomplete game must remain rejected.
+8. Preserve the silent-drop fix already implemented: an unreadable game must invalidate the tape rather than quietly disappear from the evidence base.
+9. Preserve server information because metrics requiring server context depend on it.
+10. Preserve games, sets, and is_tiebreak so game/set/tiebreak boundaries remain exact.
+
+Cheap verification only:
+
+Use the same known LiveTennisAPI match 157791.
+
+Run TWO in-memory tests:
+
+Test A: original LiveTennisAPI tape with point_winner.
+
+Test B: same tape with point_winner removed.
+
+Compare the canonical reconstructed output and all derived values from A vs B.
+
+Success criteria:
+
+* both produce valid canonical PBP;
+* both produce the same point/game counts;
+* all derived values required by metrics 002, 003, 009, 016, 018, and 032 are identical;
+* zero differences between explicit-winner and score-derived results;
+* no incomplete/ambiguous game is silently dropped.
+
+Do NOT run the 27-match audit.
+Do NOT scan historical data.
+Do NOT make additional API requests beyond the single known match if the existing captured response can be reused.
+Do NOT change metric definitions, formulas, thresholds, evidence rules, or Truth Engine decision logic.
+Do NOT commit or push yet.
+
+Report only the before/after compatibility result and exact reconstructed point/game counts.

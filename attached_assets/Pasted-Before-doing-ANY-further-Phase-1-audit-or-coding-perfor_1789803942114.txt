@@ -1,0 +1,96 @@
+Before doing ANY further Phase 1 audit or coding, perform one narrowly scoped READ-ONLY filesystem/repository search.
+
+The previous handoff stated that the completed Phase 1 audit artifacts are under:
+
+docs/migration-audit/
+
+Your initial response reported that this directory does not exist in the current workspace.
+
+DO NOT reconstruct the audits.
+
+DO NOT begin Phase 1 again.
+
+DO NOT modify anything.
+
+READ-ONLY RULES
+
+Do not:
+
+* create files
+* copy files
+* move files
+* rename files
+* delete files
+* modify source
+* modify tests
+* modify Git
+* commit
+* push
+* merge
+* rebase
+* modify database
+* modify deployment
+
+SEARCH ONLY
+
+Determine whether the audit artifacts exist anywhere accessible to this current Replit workspace.
+
+Search for these exact filenames:
+
+* step-types-diff-20260919.md
+* step-index-availability-wiring-diff-20260919.md
+* step-builder-scoring-diff-20260919.md
+* step-builder-provider-fetch-diff-20260919.md
+* step-live-tennis-provider-audit-20260919.md
+* step-live-tennis-integration-audit-20260919.md
+* step-live-score-cache-audit-20260919.md
+* step-pre-merge-destination-audit-20260919.md
+* step-four-commit-preservation-audit-20260919.md
+* step-evidence-finding-test-preservation-20260919.md
+* step-backup-branch-diff-audit-20260919.md
+* step-git-db-verified-20260919.md
+* step-statec-preservation-20260919.md
+* step-statec-provenance-20260919.md
+* step-threeway-reconciliation-20260918.md
+* step0-identity-confirmation-20260918.md
+
+Also search for any directory named:
+
+migration-audit
+
+and any files matching:
+
+*migration*audit*
+
+Search only accessible workspace/repository files. Do not search external systems unless the current workspace already exposes them.
+
+IMPORTANT
+
+If found:
+
+Report the exact paths.
+
+Do NOT copy or modify them.
+
+If not found:
+
+Report:
+
+* exact search scope
+* exact search commands/checks
+* confirmation that none were found
+
+Do NOT recreate them.
+
+FINAL RESPONSE
+
+Return only:
+
+1. whether the audit artifacts exist in this workspace
+2. exact paths if found
+3. if absent, the exact search scope and confirmation
+4. confirmation that nothing was modified
+
+STOP.
+
+Do not continue to the Phase 1 audit.

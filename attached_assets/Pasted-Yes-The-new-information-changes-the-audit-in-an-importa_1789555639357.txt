@@ -1,0 +1,1388 @@
+Yes. The new information changes the audit in an important way:
+
+* Remove the app-crash/API-offline investigation from the audit. Replit already established that the crash was caused by the Walk-Forward process exhausting the roughly 2 GB Node.js memory limit, restarted the API, and confirmed the app/API/fixtures are back online.
+* Keep Walk-Forward/Backtesting in the audit, but now specifically audit memory safety, resource controls, historical integrity, leakage, cancellation, and scalability so the same process cannot take the server down again.
+* Add the OCR failure across visually similar PDFs/images as a major P0/P1 issue.
+* Add Parlay Builder OCR explicitly.
+* Add a truthfulness audit of every Specialist/General/Serve & Return/Recent Form/Surface Elo metric so Claude determines whether values such as Favored, Eff. Weight, Contribution, Reliability, Availability, Sample, Status are actually calculated from valid evidence or are merely UI labels/numbers without sufficient statistical support.
+* Add a model-weight audit so General and Specialist cannot dominate the ensemble simply because of implementation weights.
+* Group related fixes into Claude-sized work packages so Claude can make large, coherent changes rather than bouncing around the codebase.
+
+The uploaded PDF is also useful evidence: its fifth page shows a prediction result with “LOW CONFIDENCE” and “BUILDER CHECK: UNAVAILABLE,” while your screenshots show OCR items in both READY and SKIPPED states, with the skipped item explicitly reporting that the configured Vision AI providers are out of credits. Photo.pdf
+
+Here is the updated version I would give Replit for Claude Code:
+
+⸻
+
+TENNIS MATRIX AI — FULL PREDICTION ENGINE, OCR, TRUTH ENGINE & PARLAY BUILDER AUDIT
+
+CLAUDE CODE IMPLEMENTATION HANDOFF
+
+I need an ultra-extensive technical audit of the Tennis Matrix AI prediction system, followed by an implementation-ready list of fixes that Claude Code can execute efficiently.
+
+The objective is to find the actual root causes, not simply patch symptoms.
+
+I am currently low on Claude credits, so this audit and implementation plan must be extremely credit-efficient.
+
+Do not waste credits rewriting functioning systems, refactoring unrelated code, or running unnecessarily massive historical jobs.
+
+Critical instruction
+
+Audit first. Fix second.
+
+Do not assume that existing model outputs, confidence values, weights, OCR results, or statistical fields are correct simply because they are displayed in the UI.
+
+Trace them back to their actual source and calculation.
+
+⸻
+
+0. IMPORTANT INFORMATION FROM THE LATEST INCIDENT
+
+The application previously crashed after I entered the Backtesting area and attempted:
+
+* Paper Trading
+* Walk-Forward
+* Optimizer
+
+Replit has already investigated and confirmed:
+
+* The API server was restarted.
+* API health returns HTTP 200.
+* The mobile prediction homepage loads correctly.
+* Upcoming fixtures return successfully.
+* No code/database/backtesting/optimizer/configuration changes were made during the recovery.
+* The crash was caused by the Walk-Forward process exhausting approximately 2 GB of Node.js memory.
+* The remaining 502 entries were attributed to the separate API-Tennis live-score feed and are not preventing predictions or upcoming fixtures from functioning.
+
+Therefore:
+
+DO NOT spend audit credits investigating why the application is currently offline or rebuilding the API startup.
+
+That issue has already been identified and the application is back online.
+
+HOWEVER:
+
+The Walk-Forward / Backtesting system absolutely remains in this audit.
+
+The focus should now be:
+
+* Why Walk-Forward requires enough memory to kill the server.
+* Whether jobs are processing too much data at once.
+* Whether queries load entire datasets into memory.
+* Whether simulations/results are accumulating in memory.
+* Whether batches are missing.
+* Whether objects are retained unnecessarily.
+* Whether jobs can be isolated.
+* Whether jobs need pagination/chunking.
+* Whether cancellation works.
+* Whether a failed job can affect the main application.
+* Whether resource limits exist.
+* Whether the same problem exists in Optimizer/Paper Trading.
+* Whether historical calculations are time-safe and leakage-free.
+
+The fix should prevent a heavy analytical process from taking down the production API.
+
+⸻
+
+1. MASTER OBJECTIVE
+
+Audit these systems together:
+
+1. Truth Engine
+2. OCR Match Import
+3. Prediction Engine
+4. Specialist Model
+5. General Model
+6. Serve & Return Model
+7. Recent Form Model
+8. Surface Elo Model
+9. Voting / Ensemble System
+10. Calibration
+11. Monte Carlo
+12. Daily Fixtures
+13. Live Score Integration
+14. Walk-Forward
+15. Backtesting
+16. Paper Trading
+17. Optimizer
+18. Parlay Builder
+19. Parlay Builder OCR
+20. Database/state/caching
+21. Frontend/backend contracts
+
+The goal is to determine:
+
+Are these systems actually doing what the UI says they are doing?
+
+⸻
+
+2. P0 — OCR IS NOT READING ALL MATCHES
+
+This is one of the highest-priority problems.
+
+I routinely upload approximately 100–150 matches.
+
+The uploaded PDFs/images are visually very similar, but the OCR system is successfully reading some match cards while others fail or are skipped.
+
+The screenshots show this behavior directly:
+
+* Some OCR items show READY.
+* Some are SKIPPED.
+* One skipped item reports that the configured Vision AI providers are out of credits.
+* Other visually similar match cards are successfully parsed.
+
+I need the OCR system to reliably process the entire upload rather than successfully processing only a subset.
+
+Audit:
+
+Trace the entire OCR pipeline:
+
+Upload → File detection → PDF/image extraction → page/image segmentation → OCR provider selection → OCR request → response parsing → validation → match normalization → Truth Engine verification → matchup creation
+
+Determine exactly where matches are being lost.
+
+Check:
+
+* PDF page extraction
+* Image extraction
+* Multi-page PDFs
+* Long screenshots
+* Multiple matches per page
+* Vertical screenshot layouts
+* Image resolution
+* Cropping
+* OCR segmentation
+* Match boundary detection
+* Provider selection
+* Provider exhaustion
+* Retry behavior
+* Timeout behavior
+* Rate limiting
+* Batch size
+* Concurrency
+* Queue behavior
+* Failed OCR retries
+* Partial success handling
+* Duplicate detection
+* Name extraction
+* Event extraction
+* Surface extraction
+* Match format extraction
+* Player ordering
+* Truth Engine verification
+* Error handling
+
+Extremely important:
+
+Do not assume:
+
+“Vision provider ran out of credits = OCR problem solved.”
+
+The system needs to distinguish between:
+
+OCR provider failure
+
+and
+
+OCR/parser/application failure.
+
+If one provider fails or exhausts its quota, determine whether the application has an appropriate fallback or whether it incorrectly marks the entire item as permanently failed.
+
+⸻
+
+3. OCR MUST BE BATCH-SAFE
+
+Because uploads can contain 100–150 matches, determine whether OCR is trying to process too many images concurrently.
+
+Look for:
+
+* Promise.all over huge arrays
+* Unbounded concurrency
+* Entire PDFs loaded into memory
+* Entire uploads duplicated in memory
+* Repeated image conversion
+* Large base64 objects retained
+* Multiple Vision requests per match
+* Retry storms
+* Duplicate OCR requests
+
+Required behavior:
+
+Process large uploads in controlled batches.
+
+Example architecture:
+
+100 matches
+
+→ Batch 1
+→ Batch 2
+→ Batch 3
+→ etc.
+
+The exact batch size should be determined from the existing infrastructure rather than guessed.
+
+A failure on one match must not destroy the other 99 matches.
+
+⸻
+
+4. OCR SHOULD RETURN PARTIAL SUCCESS
+
+If 97/100 matches are successfully parsed and 3 fail:
+
+Do NOT discard the 97 successful matches.
+
+The system should preserve:
+
+* Successful matches
+* Failed matches
+* Failure reason
+* Retry status
+* Provider used
+* Parsing status
+
+The user should be able to retry only failed items.
+
+Do not make the user reprocess an entire 100–150 match upload because three images failed.
+
+⸻
+
+5. PARLAY BUILDER OCR MUST BE INCLUDED
+
+Do a separate audit of Parlay Builder OCR.
+
+The Parlay Builder must not accidentally depend on Prediction Engine OCR state.
+
+Audit:
+
+* Upload
+* OCR
+* Match parsing
+* Player extraction
+* Event extraction
+* Match deduplication
+* Match validation
+* Prediction lookup
+* Cross-engine agreement
+* Builder validation
+
+The Parlay Builder OCR should be reliable with the same large 100–150 match workloads.
+
+If OCR infrastructure can safely be shared, determine whether a common OCR service should be used.
+
+However:
+
+Sharing infrastructure is NOT the same as sharing prediction logic.
+
+The Parlay Builder and Prediction Engine must remain logically independent.
+
+⸻
+
+6. REQUIRED OCR ACCEPTANCE TEST
+
+Create a deterministic OCR test using representative uploaded images/PDFs.
+
+Test:
+
+* Single image
+* Multi-image upload
+* PDF
+* Multi-page PDF
+* 10 matches
+* 50 matches
+* 100+ matches
+* Visually similar match cards
+* Different tournaments
+* ATP
+* WTA
+* Challenger
+* ITF
+
+Measure:
+
+Uploaded matches → Parsed matches → Validated matches → Prediction-ready matches
+
+The system should clearly explain where any missing match disappeared.
+
+⸻
+
+7. EVERY MATCH MUST GET ALL REQUIRED MODELS
+
+I am seeing some matches with a Specialist Model and others without it.
+
+That is not acceptable.
+
+For every prediction-ready match, audit whether these are consistently generated:
+
+* Specialist Model
+* General Model
+* Serve & Return
+* Recent Form
+* Surface Elo
+
+If one is missing, determine why.
+
+Possible causes to investigate:
+
+* Missing data
+* API failure
+* Conditional execution
+* Incorrect eligibility logic
+* Timeout
+* Exception
+* Null result
+* Unsupported tournament
+* Incorrect surface
+* Player mapping failure
+* OCR mismatch
+* Database lookup failure
+
+Important:
+
+Do not simply fabricate a Specialist result when the required evidence does not exist.
+
+Instead, determine whether the model is supposed to be available and why it isn’t.
+
+If insufficient evidence legitimately prevents a model from running, that should be explicitly represented as:
+
+Unavailable — insufficient evidence
+
+rather than:
+
+fake/default/neutral value
+
+⸻
+
+8. AUDIT THE TRUTHFULNESS OF THE SIX MODEL DATA BLOCKS
+
+I specifically need the data under the model sections audited.
+
+For each:
+
+* Specialist Model
+* General Model
+* Serve & Return
+* Recent Form
+* Surface Elo
+
+audit fields such as:
+
+* Favored
+* Effective Weight
+* Contribution
+* Reliability
+* Availability
+* Sample
+* Status
+
+I need to know whether these are real calculated values or merely UI-generated numbers/labels.
+
+For every field determine:
+
+SOURCE
+
+Where does the value originate?
+
+FORMULA
+
+What calculation produces it?
+
+DATA
+
+What underlying records are being used?
+
+TIME SAFETY
+
+Was the information actually available before the match?
+
+SAMPLE
+
+How many valid observations support it?
+
+RELIABILITY
+
+How is reliability calculated?
+
+AVAILABILITY
+
+What determines whether the model is considered available?
+
+WEIGHT
+
+How is effective weight calculated?
+
+CONTRIBUTION
+
+How is contribution calculated?
+
+STATUS
+
+What conditions produce each status?
+
+⸻
+
+9. NO BULLSHIT NUMBERS
+
+This is a critical requirement.
+
+Do not allow the UI to display statistical-looking numbers simply because the UI expects a value.
+
+Examples:
+
+If there is insufficient evidence:
+
+Sample: 0
+
+should not become:
+
+Sample: 100
+
+If reliability cannot be calculated:
+
+Do not invent a reliability percentage.
+
+If effective weight cannot be determined:
+
+Do not display a fake weight.
+
+If the model has no usable data:
+
+Status = UNAVAILABLE
+
+is preferable to a fabricated prediction.
+
+Every displayed metric must have a traceable calculation.
+
+⸻
+
+10. MODEL WEIGHT AUDIT
+
+I need a very specific audit of the General Model and Specialist Model weights.
+
+Determine:
+
+* Their raw weights.
+* Their effective weights.
+* Their contribution to the final vote.
+* How contribution changes when reliability changes.
+* Whether missing data changes the weight.
+* Whether confidence changes the weight.
+* Whether calibration changes the weight.
+* Whether the models can overpower the other models.
+
+The concern is:
+
+General Model and Specialist Model may be weighted so heavily that they drown out Serve & Return, Recent Form, and Surface Elo even when their historical accuracy does not justify that influence.
+
+Do not assume this is happening.
+
+Measure it.
+
+⸻
+
+11. HISTORICAL ACCURACY MUST JUSTIFY MODEL INFLUENCE
+
+For each model calculate/inspect, using appropriate historical data:
+
+* Prediction count
+* Gradeable predictions
+* Correct predictions
+* Accuracy
+* Accuracy by surface
+* Accuracy by tour level where sample supports it
+* Accuracy by confidence band where sample supports it
+* Calibration
+* Sample size
+
+Then compare:
+
+Model accuracy → reliability → effective weight → final contribution
+
+The audit must identify cases where:
+
+A lower-performing model has disproportionate influence over the final prediction.
+
+Do not simply increase/decrease weights based on intuition.
+
+⸻
+
+12. ENSEMBLE / VOTING FORMULA
+
+Audit the complete voting system.
+
+For every prediction show conceptually:
+
+Specialist
++
+General
++
+Serve & Return
++
+Recent Form
++
+Surface Elo
++
+other intentionally included components
+
+→ weighting
+
+→ calibration
+
+→ ensemble
+
+→ final prediction
+
+Determine:
+
+* Exact votes
+* Exact probabilities
+* Exact weights
+* Exact contribution
+* Final probability
+
+Check Player 1 / Player 2 orientation throughout.
+
+A player reversal anywhere in the pipeline can completely invalidate the vote.
+
+⸻
+
+13. MODEL CORRELATION / DOUBLE COUNTING
+
+Audit whether models are unintentionally counting the same evidence multiple times.
+
+Pay particular attention to:
+
+* Specialist
+* General
+* Serve & Return
+* Recent Form
+* Surface Elo
+* Ranking
+* Head-to-head
+
+Determine whether correlated evidence is being double-counted.
+
+Do not redesign the statistical methodology unless the code proves the current implementation is incorrect.
+
+⸻
+
+14. 50% PROBABILITY ISSUE — VERIFY THE FIX
+
+A recent fix was shipped for predictions repeatedly landing around 50%.
+
+Do not assume it completely solved the issue.
+
+Trace:
+
+Raw model output
+
+→ Voting
+
+→ Weighting
+
+→ Calibration
+
+→ Monte Carlo
+
+→ Final probability
+
+→ Database
+
+→ Frontend
+
+Find anywhere probabilities could collapse toward 50%.
+
+Check:
+
+* Default values
+* Null handling
+* Fallbacks
+* Equal weights
+* Probability normalization
+* Calibration
+* Rounding
+* Database serialization
+* Cached results
+* Reused prediction objects
+* Player-order inversion
+* Model failures treated as 50%
+* Missing model handling
+
+⸻
+
+15. WALK-FORWARD / BACKTESTING — MEMORY SAFETY
+
+Keep this section even though the app crash itself has already been resolved.
+
+The confirmed problem was:
+
+Walk-Forward exhausted approximately 2 GB Node.js memory.
+
+Audit the implementation to determine why.
+
+Look for:
+
+* Entire datasets loaded into memory
+* Entire match histories loaded simultaneously
+* Large arrays retained across folds
+* Predictions accumulated indefinitely
+* Monte Carlo results retained
+* Feature matrices duplicated
+* Optimizer combinations retained
+* Database results not paginated
+* Promise concurrency
+* Recursive processing
+* Memory leaks
+* Unreleased objects
+* Repeated model initialization
+
+Required objective:
+
+A Walk-Forward run must not be capable of taking down the production API.
+
+Prefer:
+
+* Chunking
+* Pagination
+* Streaming where appropriate
+* Fold-by-fold processing
+* Explicit cleanup
+* Controlled concurrency
+* Job isolation
+* Resource limits
+* Progress tracking
+* Cancellation
+* Safe failure
+
+Do not redesign the entire backtesting engine if a smaller fix solves the memory problem.
+
+⸻
+
+16. WALK-FORWARD DATA INTEGRITY
+
+Separately from memory, audit whether Walk-Forward is statistically valid.
+
+Every historical prediction must use only information available at that historical timestamp.
+
+Check:
+
+* Elo snapshots
+* Ranking snapshots
+* Serve statistics
+* Return statistics
+* Recent form
+* PBP
+* Calibration
+* Player statistics
+* Tournament data
+* Head-to-head
+* Weather
+* Any availability information
+
+No future information may leak backward.
+
+⸻
+
+17. OPTIMIZER AUDIT
+
+Audit whether the Optimizer can:
+
+* Access the test set
+* Tune against test results
+* Reuse future data
+* Cause memory exhaustion
+* Generate too many combinations
+* Run unbounded simulations
+
+Ensure:
+
+Training / Optimization
+
+is separated from:
+
+Final validation / test
+
+The optimizer must not make a test set look better by repeatedly tuning against it.
+
+⸻
+
+18. PAPER TRADING AUDIT
+
+Audit:
+
+* Prediction creation
+* Timestamp
+* Entry state
+* Model state
+* Outcome grading
+* Historical feature state
+* Duplicate predictions
+* Settlement
+* Regrading
+* Data leakage
+
+Paper trading should represent what the model would actually have known at prediction time.
+
+⸻
+
+19. DAILY FIXTURES
+
+The Daily Fixtures system is currently working again.
+
+Do not spend time fixing the already-resolved API startup issue.
+
+However, audit the fixture rotation/update behavior.
+
+Previously, completed matches were not consistently rotating out.
+
+Check:
+
+* Match status
+* Completed status
+* Live status
+* Upcoming status
+* Refresh interval
+* Polling
+* Cache invalidation
+* Date/time handling
+* Time zones
+* Duplicate fixtures
+* Stale fixtures
+
+⸻
+
+20. LIVE SCORE INSIDE THE FIXTURE
+
+If the existing live-score data is available, integrate it directly into the live fixture card.
+
+The fixture card should be able to show:
+
+* Player 1
+* Player 2
+* Tournament
+* Surface
+* Match status
+* Current score
+* Set score
+* Live/upcoming/completed status
+* Last update where useful
+
+Do not create a completely separate live-score architecture if the current provider/data pipeline can support it.
+
+The separate API-Tennis 502 issue should be treated as a provider reliability issue, not an application-wide outage.
+
+⸻
+
+21. TRUTH ENGINE AUDIT
+
+Treat Truth Engine as the authoritative data boundary wherever applicable.
+
+Audit:
+
+* Player identity
+* Match identity
+* Tournament identity
+* Surface
+* Date
+* Score
+* Historical results
+* PBP
+* Match metadata
+* Data quality
+* Duplicate detection
+* Missing records
+* Player normalization
+* Tournament normalization
+
+Ensure prediction features are not silently replaced by unsupported fallback values.
+
+⸻
+
+22. PREDICTION ENGINE / PARLAY BUILDER SEPARATION
+
+This is one of the most important architectural requirements.
+
+The Prediction Engine and Parlay Builder must remain independent.
+
+The ONLY intentional information they should share is:
+
+CROSS-ENGINE AGREEMENT
+
+Audit for unintended information transfer involving:
+
+* Probability
+* Confidence
+* Risk
+* Reliability
+* Model weights
+* Recommendation status
+* Bankroll logic
+* Validation score
+* Historical performance
+* Filtering
+* Pick selection
+* Cached state
+* Prediction state
+* Database records
+* Frontend state
+* API state
+
+Anything beyond Cross-Engine Agreement should be flagged.
+
+The Parlay Builder must not modify prediction probabilities.
+
+The Prediction Engine must not modify Parlay Builder risk/validation calculations.
+
+⸻
+
+23. PARLAY BUILDER INDEPENDENT AUDIT
+
+Audit independently:
+
+* Pick selection
+* Validation Score
+* Risk Score
+* Reliability Grade
+* Parlay Grade
+* KEEP/REMOVE
+* Duplicate detection
+* Player conflicts
+* Match conflicts
+* Correlation
+* Exposure
+* Leg limits
+* Cross-Engine Agreement
+
+Make sure stale Prediction Engine state cannot silently affect the builder.
+
+⸻
+
+24. CALIBRATION
+
+Audit:
+
+Raw probability → calibration → ensemble → final probability
+
+Check:
+
+* Double calibration
+* Wrong calibration stage
+* Over-flattening
+* Incorrect probability clipping
+* Small samples
+* Test contamination
+* Walk-forward contamination
+* Calibration data leakage
+
+⸻
+
+25. MONTE CARLO
+
+Audit:
+
+* Simulation count
+* Input probability
+* Player ordering
+* Set/game logic
+* Tie-break logic
+* Match winner calculation
+* Output persistence
+* Displayed probability
+* Resource usage
+* Repeated simulations
+
+Make sure Monte Carlo cannot become another source of memory exhaustion.
+
+⸻
+
+26. DATABASE / CACHE / STATE
+
+Audit relevant Supabase tables, queries, state and caching for:
+
+* Duplicate predictions
+* Duplicate matches
+* Stale records
+* Active/inactive prediction versions
+* Reused prediction IDs
+* Reused match IDs
+* Stale cached results
+* TanStack Query cache
+* Backend cache
+* Incorrect invalidation
+* Race conditions
+* Incorrect timestamps
+* Future data
+* Retired records accidentally reused
+
+Do not modify production data during the audit.
+
+⸻
+
+27. FRONTEND/BACKEND CONTRACT
+
+Verify that the UI displays what the engine actually returns.
+
+Especially:
+
+* Probability
+* Model votes
+* Model weights
+* Contribution
+* Reliability
+* Availability
+* Sample
+* Status
+* Data Quality
+* Upset Risk
+* Monte Carlo
+* Cross-Engine Agreement
+* Builder Check
+
+The PDF screenshot showing “LOW CONFIDENCE” and “BUILDER CHECK: UNAVAILABLE” should be treated as a useful example for tracing whether those displayed states are coming from real engine data or fallback/UI logic. Photo.pdf
+
+⸻
+
+28. GROUP THE IMPLEMENTATION WORK FOR CLAUDE
+
+Do NOT give Claude 30 unrelated tasks.
+
+Group fixes into coherent work packages.
+
+GROUP A — OCR PIPELINE
+
+Include:
+
+* OCR failure diagnosis
+* PDF/image segmentation
+* Batch processing
+* Provider fallback
+* Retry logic
+* Partial success
+* Failed-item retry
+* 100–150 match testing
+* OCR validation
+
+List every relevant file Claude needs to modify.
+
+⸻
+
+GROUP B — MODEL DATA INTEGRITY
+
+Include:
+
+* Specialist availability
+* General Model
+* Serve & Return
+* Recent Form
+* Surface Elo
+* Sample
+* Reliability
+* Availability
+* Status
+* Contribution
+* Effective Weight
+* Favored
+
+Determine whether each value is real.
+
+List every relevant file/function.
+
+⸻
+
+GROUP C — ENSEMBLE / WEIGHTING
+
+Include:
+
+* Voting
+* Model weights
+* General vs Specialist influence
+* Correlation
+* Double counting
+* 50% issue
+* Calibration interaction
+* Player ordering
+
+List every relevant file/function.
+
+⸻
+
+GROUP D — WALK-FORWARD / BACKTESTING
+
+Include:
+
+* Memory exhaustion
+* Chunking
+* Pagination
+* Resource limits
+* Cancellation
+* Job isolation
+* Historical leakage
+* Optimizer/test separation
+* Paper trading integrity
+
+List every relevant file/function.
+
+⸻
+
+GROUP E — DAILY FIXTURES / LIVE SCORE
+
+Include:
+
+* Rotation
+* Refresh
+* Cache invalidation
+* Completed matches
+* Live matches
+* Scores
+* API provider failures
+
+List every relevant file/function.
+
+⸻
+
+GROUP F — PARLAY BUILDER + PARLAY OCR
+
+Include:
+
+* OCR
+* Match parsing
+* Builder independence
+* Cross-engine agreement
+* Validation
+* Risk
+* Reliability
+* Grade
+* KEEP/REMOVE
+* Duplicate/correlation controls
+
+List every relevant file/function.
+
+⸻
+
+GROUP G — DATABASE / STATE / CACHING
+
+Include:
+
+* Duplicate records
+* Stale state
+* Cache
+* Prediction versions
+* Match identity
+* Query correctness
+* Frontend/backend state synchronization
+
+List every relevant file/function.
+
+⸻
+
+29. FILE-BY-FILE IMPLEMENTATION MAP
+
+This is extremely important for saving Claude credits.
+
+For every issue, provide:
+
+Issue
+
+Root cause
+
+Exact file
+
+Exact function/component
+
+Required change
+
+Related files
+
+Dependencies
+
+Test
+
+If multiple issues can safely be fixed in the same file during the same pass, GROUP THEM TOGETHER.
+
+Do not have Claude repeatedly reopen and rediscover the same files.
+
+⸻
+
+30. DO NOT CREATE DUPLICATE SYSTEMS
+
+Before adding anything, search the repository for existing:
+
+* OCR services
+* Parser utilities
+* Match normalization
+* Truth Engine functions
+* Model calculations
+* Weight calculations
+* Cache utilities
+* Fixture services
+* Live-score services
+* Backtesting utilities
+* Monte Carlo utilities
+* Parlay validation
+
+Reuse correct existing infrastructure.
+
+⸻
+
+31. CREDIT-EFFICIENT DEVELOPMENT RULES
+
+Because I am low on credits:
+
+DO:
+
+* Search the repository once.
+* Map dependencies before editing.
+* Group related fixes.
+* Reuse existing services.
+* Fix root causes.
+* Run targeted tests.
+* Use representative samples.
+* Validate changes incrementally.
+* Avoid unnecessary rewrites.
+
+DO NOT:
+
+* Rewrite the prediction engine.
+* Rewrite the Parlay Builder.
+* Rewrite the Truth Engine.
+* Rewrite working OCR infrastructure without proving it is defective.
+* Run the entire historical database unnecessarily.
+* Run 20,000+ simulations repeatedly just for debugging.
+* Refactor unrelated code.
+* Add dependencies without necessity.
+* Generate duplicate services.
+
+⸻
+
+32. REQUIRED FINAL AUDIT FORMAT
+
+For every discovered problem:
+
+ISSUE #[X]
+
+Severity: P0 / P1 / P2 / P3
+
+System:
+
+Root Cause:
+
+Evidence:
+
+Current Behavior:
+
+Expected Behavior:
+
+Impact:
+
+Exact Fix:
+
+Files to Modify:
+
+Functions/Components:
+
+Related Files:
+
+Can Be Grouped With:
+
+Minimal Test:
+
+Regression Risk:
+
+Credit-Efficient Implementation:
+
+⸻
+
+33. REQUIRED MODEL AUDIT TABLE
+
+Create a table like:
+
+Model	Raw Accuracy	Gradeable N	Reliability	Current Weight	Effective Weight	Contribution	Availability	Sample Quality	Calibration Status
+Specialist									
+General									
+Serve & Return									
+Recent Form									
+Surface Elo									
+
+Do not populate values from guesses.
+
+If a value cannot be legitimately calculated, explicitly state:
+
+NOT AVAILABLE / NOT CURRENTLY COMPUTED
+
+⸻
+
+34. REQUIRED ENSEMBLE AUDIT
+
+For representative predictions, show:
+
+SPECIALIST
+Prediction:
+Probability:
+Weight:
+Contribution:
+GENERAL
+Prediction:
+Probability:
+Weight:
+Contribution:
+SERVE & RETURN
+Prediction:
+Probability:
+Weight:
+Contribution:
+RECENT FORM
+Prediction:
+Probability:
+Weight:
+Contribution:
+SURFACE ELO
+Prediction:
+Probability:
+Weight:
+Contribution:
+--------------------------------
+FINAL ENSEMBLE
+Prediction:
+Raw Probability:
+Calibration:
+Monte Carlo:
+Final Probability:
+
+This should allow us to see immediately if General/Specialist are drowning out everything else.
+
+⸻
+
+35. REQUIRED OCR AUDIT
+
+Show:
+
+UPLOAD
+↓
+Pages detected
+↓
+Images detected
+↓
+Match regions detected
+↓
+OCR attempts
+↓
+Successful OCR
+↓
+Failed OCR
+↓
+Truth Engine verification
+↓
+Prediction-ready matches
+
+Give exact counts for the test dataset.
+
+⸻
+
+36. REQUIRED FINAL PRIORITY
+
+At the end, produce:
+
+🔴 P0 — MUST FIX
+
+Anything involving:
+
+* Incorrect predictions
+* Fake/statistically unsupported numbers
+* Data leakage
+* OCR losing matches
+* Model failure
+* Engine contamination
+* Production crashes caused by analytical jobs
+* Database corruption
+
+🟠 P1 — HIGH PRIORITY
+
+Anything involving:
+
+* Weighting
+* Voting
+* Calibration
+* Fixtures
+* Live scores
+* Backtesting integrity
+* Parlay integrity
+
+🟡 P2 — IMPORTANT
+
+Performance, UX, maintainability and reliability improvements.
+
+⸻
+
+37. FINAL ROOT-CAUSE MAP
+
+Determine whether multiple visible problems come from the same underlying defect.
+
+For example:
+
+Incorrect predictions
+       ↓
+Model voting incorrect
+       ↓
+Specialist/General overweighted
+       ↓
+Effective weight calculation incorrect
+       ↓
+Reliability metric not actually tied to historical accuracy
+
+Or:
+
+Only some OCR matches process
+       ↓
+Unbounded/incorrect OCR batching
+       ↓
+Provider exhaustion / failed retries
+       ↓
+Partial results incorrectly marked complete
+
+Or:
+
+Fixtures don't rotate
+       ↓
+Stale match status
+       ↓
+Cache not invalidated
+       ↓
+Frontend receives old fixture state
+
+Find the common root cause whenever one exists.
+
+⸻
+
+38. MOST IMPORTANT RULES
+
+1. Do not guess.
+2. Do not fabricate statistical values.
+3. Every displayed model metric must have a traceable source/calculation.
+4. Every prediction must be time-safe.
+5. Truth Engine remains the authoritative data boundary where applicable.
+6. All prediction-ready matches should receive the required model outputs when sufficient evidence exists.
+7. General and Specialist models must not automatically dominate the ensemble.
+8. Model influence must be measurable and defensible from actual historical performance/reliability.
+9. Prediction Engine and Parlay Builder must remain independent.
+10. Cross-Engine Agreement is the only intentional information shared between them.
+11. Parlay Builder OCR must be audited separately.
+12. 100–150 match uploads must be handled safely.
+13. One OCR failure must not cause successful matches to disappear.
+14. Walk-Forward/Backtesting must remain in the audit.
+15. Walk-Forward must not be capable of taking down the production server.
+16. Historical backtesting must not leak future information.
+17. Do not modify production data during the audit.
+18. Do not rewrite working systems unnecessarily.
+19. Group related fixes so Claude can complete large chunks in a single pass.
+20. List the exact files/functions for every grouped fix.
+21. Use targeted tests before expensive full-scale validation.
+22. Optimize the entire process for Claude Code credit efficiency.
+
+END GOAL
+
+I do not want a generic code review.
+
+I want a forensic audit of why Tennis Matrix AI is currently producing incomplete OCR, inconsistent model outputs, questionable model metrics/weights, potentially incorrect voting, unreliable fixtures, and potentially unsafe backtesting behavior.
+
+The final output should be detailed enough that Claude Code can take the grouped tasks, open the specified files, understand the root cause immediately, implement the fix, and run the smallest appropriate test without having to rediscover the entire architecture.
+
+Find the problems first. Group them intelligently. Give Claude the exact files, functions, root causes, fixes, and tests. Keep the implementation credit-efficient.

@@ -1,0 +1,18 @@
+{
+  "verifier_version": 4,
+  "tour": "ATP_MAIN",
+  "year": 2012,
+  "historical_matches": 2697,
+  "pbp_candidates": 2645,
+  "verified": 0,
+  "partial": 0,
+  "ambiguous": 0,
+  "conflicts": 0,
+  "no_pbp": 1321,
+  "retrieval_failures": 0,
+  "access_limitations": 1376,
+  "coverage_pct": 0.0,
+  "independent_result_source": null,
+  "independent_result_source_error": "https://www.tennis-data.co.uk/2012/2012.xlsx:URLError; https://www.tennis-data.co.uk/2012/2012.xls:URLError; https://www.tennis-data.co.uk/2012/2012.csv:URLError; https://www.tennis-data.co.uk/2012/2012.zip:URLError",
+  "generated_at_utc": "2026-08-23T22:00:43.314326+00:00"
+}

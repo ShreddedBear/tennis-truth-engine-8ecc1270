@@ -1,6 +1,10 @@
-- [Audit PBP batching](audit-pbp-batching.md) — bound concurrent candidate retrieval and skip PBP work for batches that cannot use it.
-- [Supabase migration verification](supabase-migration-verification.md) — post-merge setup does not guarantee external Supabase migrations were applied; verify schema before audits.
-- [Audit source latency](audit-source-latency.md) — select synchronous local analyzers by requested metric family and bound every async source/provider phase.
-- [GitHub workflow pushes](github-workflow-pushes.md) — Git smart-HTTP token pushes need Basic auth, and workflow-file changes need the separate workflow scope.
-- [Symmetric metric persistence](symmetric-metric-persistence.md) — persist paired research together, but still run each player’s reconstruction; evidence refreshes must be transactional.
-- [Completed audit retention](completed-audit-retention.md) — normal slate cleanup must preserve completed run snapshots and every upload still referenced by retained summaries.
+- [TanStack Start port boundary](tanstack-start-port-boundary.md) — keep the Truth Engine’s server functions with its web artifact rather than forcing an Express split.
+- [Cross-service auth probes](cross-service-auth-probes.md) — artifact health checks may hit a service directly, so same-origin auth fetches can recurse; verify shared credentials locally.
+- [LiveTennisAPI history identity](live-tennis-api-history-identity.md) — exact player searches can return duplicate IDs, and some recent tapes omit point winners; preserve strict reconstruction.
+- [PBP reconstruction provenance](pbp-reconstruction-provenance.md) — never cite the nonexistent 24-tape verifier; score-snapshot reconstruction is validated only by current captured fixtures.
+- [OCR matchup boundaries](ocr-matchup-boundaries.md) — parse tennis screenshots by explicit card/record boundaries; never globally pair nearby name-like lines.
+- [Parlay Builder provider priority](parlay-builder-provider-priority.md) — LiveTennisAPI is Tier 1 for OCR identities and completed-match evidence.
+- [Approved tennis data sources](approved-tennis-data-sources.md) — use existing DB, Sackmann archive, approved PBP, then Live Tennis API; add no other providers.
+- [Model and market boundary](model-market-boundary.md) — keep odds integrated for value, audit, ablation, and parlays without changing official tennis-model probability.
+- [OpenAPI generator version drift](openapi-generator-version-drift.md) — Orval 8.30 emits incompatible Zod 4 syntax in this Zod 3 workspace; do not trust the caret range.
+- [Calibration activation gap](calibration-activation-gap.md) — a quality-gated fitted model can remain pending while live predictions use the midpoint-shrinking fallback.

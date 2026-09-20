@@ -1,0 +1,65 @@
+Good. This resolves the mystery. Replit has now established that 5f45ef0 is not in the Tennis Truth Engine repository at all. So we should stop trying to make Replit find that implementation inside this repo.
+
+More importantly, do not let Replit create a new reconstruction algorithm yet.
+
+The current situation is:
+
+* LiveTennisAPI returns the real points / games / sets / server / is_tiebreak structure. ✅
+* The current adapter only uses explicit point_winner. ❌
+* We have evidence that a score-snapshot reconstruction was previously tested successfully, but that implementation is not in this repository.
+* Therefore the next job is locating that existing implementation, not rewriting it.
+
+Give Replit this very cheap next prompt
+
+We have confirmed the verified score-derived reconstructor is NOT in this repository and 5f45ef0 does not exist.
+
+Do not create a new reconstruction algorithm. Do not modify the Tennis Truth Engine. Do not commit or push.
+
+Search the broader current Replit workspace/filesystem for the missing implementation or verification work, including sibling directories and other repositories that may exist in the workspace.
+
+Search specifically for:
+
+reconstructPbpScoreState
+snapshot-to-point-winner
+score-derived
+player1_score
+player2_score
+16 differences
+24 tapes
+242 points
+48 games
+0 differences
+point_winner stripped
+accuracy probe
+
+Also search Git objects/reflogs across any sibling repositories found in the workspace.
+
+If you find the implementation, report:
+
+* repository/path
+* exact file
+* function name
+* commit SHA
+* whether it is the implementation that produced the reported 24-tape / 16-value / 0-difference result.
+
+If you find the verification fixture but not the implementation, report that separately.
+
+If nothing is found, say NOT FOUND.
+
+Do not reconstruct or rewrite anything based on the search.
+
+Do not use BSD as the current provider. LiveTennisAPI remains the active provider.
+
+Stop after the search.
+
+Why this is the cheapest move
+
+We shouldn’t spend another LiveTennisAPI request or another audit run until we know whether that previously verified code actually exists somewhere.
+
+If Replit finds it, we transplant/reconcile the proven implementation.
+
+If Replit says NOT FOUND, then we have a different decision: we can deliberately authorize Claude/Replit to build the score-transition adapter from scratch, but with the strict safeguards we already established.
+
+And I would want that decision made explicitly rather than accidentally having Replit invent a second algorithm because it couldn’t find the original.
+
+So for now: search, don’t code.

@@ -1,0 +1,292 @@
+I want you to begin a full end-to-end audit and repair of ALL Supabase metrics in the Tennis Matrix Audit app.
+
+The goal is NOT to make the numbers look better. The goal is to ensure every metric is real, correctly calculated, correctly sourced, correctly stored, correctly retrieved, and correctly displayed.
+
+1. AUDIT EVERY METRIC
+
+First, inventory every metric used anywhere in the application, including:
+
+* Prediction engine metrics
+* Surface-specific metrics
+* Elo metrics
+* Serve metrics
+* Return metrics
+* Recent-form metrics
+* Opponent-adjusted metrics
+* Head-to-head metrics
+* Fatigue/availability metrics
+* Travel metrics
+* Injury-related metrics
+* Data Quality metrics
+* Model Agreement metrics
+* Confidence metrics
+* Calibration metrics
+* Monte Carlo metrics
+* Historical accuracy metrics
+* Walk-Forward metrics
+* Shadow Replay metrics
+* Backtesting metrics
+* Upset Risk
+* Any specialist-model metrics
+* Any metrics shown in Prediction Cards
+* Any metrics shown in Admin/Developer pages
+* Any metrics stored in prediction records
+* Any metrics used internally but not displayed
+* Any metrics calculated from Supabase views/functions/RPCs
+
+Do not assume a metric is correct simply because it exists.
+
+2. TRACE EACH METRIC END-TO-END
+
+For EVERY metric, trace:
+
+SOURCE DATA
+→ Supabase table/view
+→ query/RPC/function
+→ backend calculation
+→ transformation/normalization
+→ prediction engine
+→ stored prediction snapshot
+→ API response
+→ frontend
+→ displayed value
+
+Identify any point where the chain is broken, stale, duplicated, hard-coded, incorrectly joined, incorrectly filtered, or using the wrong data.
+
+3. SUPABASE DATABASE AUDIT
+
+Inspect the actual Supabase schema and verify:
+
+* Tables
+* Columns
+* Foreign keys
+* Indexes
+* Views
+* Materialized views
+* RPC functions
+* Edge Functions
+* Triggers
+* RLS policies
+* Database functions
+* Cached data
+* Historical match data
+* Player data
+* Prediction records
+* Metric tables
+* Calibration tables
+* Any metric-related JSON/JSONB fields
+
+Check for:
+
+* Duplicate sources of truth
+* Dead columns
+* Deprecated tables
+* Missing indexes
+* Incorrect joins
+* Wrong player IDs
+* ATP/WTA contamination
+* Surface mismatches
+* Date/time errors
+* Tournament-level filtering errors
+* Missing historical records
+* Null handling problems
+* Silent fallback values
+* Cached/stale values
+* Incorrect aggregation windows
+
+4. VERIFY THE ACTUAL MATH
+
+For every calculated metric, verify the mathematical implementation against its intended definition.
+
+Do NOT accept:
+
+* Placeholder calculations
+* Mock values
+* Hard-coded values
+* Arbitrary defaults
+* UI-generated numbers
+* Fake completeness
+* Numbers copied from another metric
+* Values calculated from insufficient data without being flagged
+* Incorrect denominators
+* Incorrect date windows
+* Incorrect surface filters
+* Incorrect opponent filters
+
+If a metric cannot legitimately be calculated because the required evidence is missing, return NULL / unavailable / insufficient evidence according to the existing app conventions rather than inventing a value.
+
+5. VERIFY PLAYER/MATCH CONTEXT
+
+Every metric must be calculated for the correct:
+
+* Player
+* Opponent
+* Match
+* Tour
+* Tournament
+* Surface
+* Date
+* Best-of format
+* Historical time window
+
+Pay special attention to chronological integrity.
+
+A historical prediction must NEVER use information that was unavailable at the time of that prediction.
+
+6. VERIFY PREDICTION SNAPSHOTS
+
+Audit the immutable prediction snapshot system.
+
+When a prediction is generated, verify that the metric values actually used by the model are saved with that prediction.
+
+Later database changes must NOT silently rewrite the historical prediction’s original evidence.
+
+Confirm that Prediction History, Shadow Replay, Walk-Forward, and Backtesting are using the correct historical snapshot/context rather than today’s recalculated values where that would create leakage.
+
+7. VERIFY FRONTEND WIRING
+
+For every metric displayed in the UI:
+
+* Identify the exact API/database source.
+* Confirm it is the same value used by the prediction engine when appropriate.
+* Confirm formatting isn’t changing the underlying value.
+* Confirm percentages aren’t being converted incorrectly.
+* Confirm decimal values aren’t being treated as percentages.
+* Confirm confidence isn’t being confused with probability.
+* Confirm Monte Carlo probability displays the predicted winner’s actual simulated win probability.
+* Confirm missing data is clearly represented.
+
+No frontend metric should be independently re-calculating a value that should come from the backend unless that behavior is explicitly intended.
+
+8. CROSS-CHECK WITH RAW SUPABASE DATA
+
+For representative matches, manually trace several metrics back to the underlying Supabase rows.
+
+Use real records.
+
+Select a representative test set including:
+
+* ATP
+* WTA
+* Different surfaces
+* Different tournament levels
+* Recent matches
+* Older historical matches
+* Matches with strong data coverage
+* Matches with poor data coverage
+* Matches with missing statistics
+
+For each test case, demonstrate:
+
+RAW DATA
+→ CALCULATION
+→ STORED VALUE
+→ API VALUE
+→ UI VALUE
+
+They must agree.
+
+9. FIND AND FIX ALL WIRING ERRORS
+
+After the audit, fix genuine issues you find.
+
+Prioritize:
+
+1. Incorrect Supabase queries
+2. Incorrect joins
+3. Incorrect filters
+4. Incorrect calculations
+5. Data leakage
+6. Stale/cached values
+7. Duplicate sources of truth
+8. Broken API/backend wiring
+9. Incorrect frontend wiring
+10. Missing-data handling
+
+Do not rewrite working systems unnecessarily.
+
+10. DO NOT FABRICATE DATA
+
+This is critical.
+
+Do NOT manipulate, inflate, smooth, estimate, or fabricate metrics simply to increase:
+
+* Accuracy
+* Data Quality
+* Confidence
+* Model Agreement
+* Coverage
+* Historical performance
+* Any other score
+
+If the real data says a metric is unavailable, leave it unavailable and explain why.
+
+The objective is truthful metrics, not attractive metrics.
+
+11. CREATE A METRIC AUDIT REPORT
+
+Before finishing, produce a complete report containing:
+
+METRIC
+
+* Definition
+* Supabase source
+* Calculation location
+* API/backend source
+* Frontend location
+* Status: VERIFIED / FIXED / BROKEN / INCOMPLETE
+* Data coverage
+* Known limitations
+* Any changes made
+
+Also provide:
+
+* Total metrics audited
+* Total verified
+* Total fixed
+* Total still broken
+* Total unavailable because of missing source data
+* Any duplicated sources of truth
+* Any potential data leakage
+* Any remaining risks
+
+12. ADD AUTOMATED VALIDATION
+
+Where practical, create automated tests that detect future wiring failures.
+
+At minimum test:
+
+* Supabase → backend values
+* Backend → API values
+* API → frontend values
+* Player/opponent identity
+* Surface filtering
+* Date filtering
+* Tour filtering
+* Missing-data behavior
+* Prediction snapshot integrity
+* Historical/chronological integrity
+* Probability/percentage conversions
+
+The tests should fail loudly if a metric becomes disconnected or starts returning fabricated/default values.
+
+13. GIT SAFETY
+
+Before making major changes:
+
+* Inspect the current branch/status.
+* Do not overwrite unrelated work.
+* Keep changes focused.
+* Make a clear commit when the audit/fixes are complete.
+
+FINAL REQUIREMENT
+
+Do NOT tell me that the metrics are “wired correctly” merely because the application builds or the UI displays numbers.
+
+I need you to prove the wiring.
+
+For every important metric, establish:
+
+REAL SUPABASE DATA → CORRECT CALCULATION → CORRECT STORED VALUE → CORRECT API VALUE → CORRECT MODEL INPUT → CORRECT UI DISPLAY
+
+Start by auditing and mapping the entire metric system first. Then fix the issues you actually find. Do not fabricate or substitute data to make the audit pass.

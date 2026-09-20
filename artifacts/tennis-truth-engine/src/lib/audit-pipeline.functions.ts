@@ -1,0 +1,234 @@
+// Thin server-function wrapper around the audit execution pipeline.
+// Module scope must stay free of runtime helpers (server-fn splitting).
+import { createServerFn } from "@tanstack/react-start";
+import { matchResultIsFinal } from "./match-result-resolution";
+
+const BROWSER_SAFE_BUDGET_MS = 20_000;
+const BROWSER_BATCH_PIPELINE_BUDGET_MS = 7_500;
+const BROWSER_BATCH_RESPONSE_BUDGET_MS = 12_000;
+const BROWSER_BATCH_CONCURRENCY = 2;
+
+export interface PreparedAuditMatch { matchId: string; [key: string]: unknown; }
+export interface AuditBatchInput { matches: PreparedAuditMatch[]; concurrency?: number; budgetMs?: number; }
+
+export async function dispatchAuditBatch(
+  data: AuditBatchInput,
+  dispatch: (match: PreparedAuditMatch, matchIndex: number) => Promise<unknown> = async (match) => match,
+): Promise<Array<{ matchId: string; result?: unknown; error?: unknown }>> {
+  const prepared = Array.isArray(data?.matches) ? [...data.matches] : [];
+  const concurrency = Math.max(1, Number.isFinite(data?.concurrency) ? Number(data.concurrency) : 1);
+  const results: Array<{ matchId: string; result?: unknown; error?: unknown }> = [];
+  const queue = prepared.slice();
+  const active = new Set<Promise<void>>();
+  let nextIndex = 0;
+
+  const scheduleNext = () => {
+    if (queue.length === 0 || active.size >= concurrency) return;
+
+    const match = queue.shift()!;
+    let task!: Promise<void>;
+    task = Promise.resolve()
+      .then(() => dispatch(match, nextIndex++))
+      .then((result) => {
+        results.push({ matchId: String(match.matchId), result });
+      })
+      .catch((error) => {
+        results.push({ matchId: String(match.matchId), error });
+      })
+      .finally(() => {
+        active.delete(task);
+        scheduleNext();
+      });
+
+    active.add(task);
+  };
+
+  while (queue.length || active.size) {
+    while (queue.length && active.size < concurrency) {
+      scheduleNext();
+    }
+    if (active.size === 0) break;
+    await Promise.race([...active]);
+  }
+
+  return results;
+}
+
+export const runAuditPipeline = createServerFn({ method: "POST" })
+  .inputValidator((data: { matchId: string; budgetMs?: number }) => {
+    if (!data || typeof data.matchId !== "string" || data.matchId.length < 10) throw new Error("matchId is required");
+    return { matchId: data.matchId, budgetMs: data.budgetMs };
+  })
+  .handler(async ({ data }) => {
+    const [{ makeDeps }, pipeline] = await Promise.all([import("./audit-repo.server"), import("./audit-pipeline")]);
+    const { runPipeline } = pipeline; const deps = await makeDeps();
+    try {
+      // Keep each browser-triggered server invocation short enough to return
+      // before Lovable/Safari drops the transport. runPipeline persists partial
+      // stage progress, so the next invocation resumes the same run instead of
+      // restarting or creating a duplicate run.
+      const result=await runPipeline(deps,data.matchId,{budgetMs:data.budgetMs??BROWSER_SAFE_BUDGET_MS});
+      return{ok:true as const,runId:result.runId,complete:result.complete,nextStage:result.nextStage,stages:result.stages,failures:result.failures,leaseHeld:result.leaseHeld??false,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:result.report?.auditComplete??false};
+    } catch(error) {
+      return{ok:false as const,runId:null,complete:false,nextStage:null,stages:[] as Array<{stage:string;status:string;detail:string}>,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false};
+    }
+  });
+
+export interface DriveAuditBatchInput {
+  matchIds:string[];
+  budgetMs?:number;
+  concurrency?:number;
+  maxResponseWaitMs?:number;
+}
+
+function validateDriveAuditBatchInput(data: DriveAuditBatchInput) {
+  const matchIds=Array.isArray(data?.matchIds)?[...new Set(data.matchIds.filter(id=>typeof id==="string"&&id.length>=10))].slice(0,100):[];
+  if(!matchIds.length)throw new Error("At least one matchId is required");
+  const maxResponseWaitMs=Number.isFinite(data.maxResponseWaitMs)
+    ? Math.min(60_000,Math.max(1_000,Math.floor(Number(data.maxResponseWaitMs))))
+    : undefined;
+  return{matchIds,budgetMs:data.budgetMs,concurrency:Math.min(4,Math.max(1,Math.floor(data.concurrency??3))),maxResponseWaitMs};
+}
+
+// Shared core behind both the browser-triggered runAuditBatch server function
+// and any unattended caller (e.g. a scheduled driver hitting a plain HTTP
+// route -- see /api/drive-audit-batch) that needs the exact same fair
+// scheduling and meta-derived-metric reopening logic, not a second copy of
+// it that can drift out of sync with the tested one.
+export async function driveAuditBatch(rawData: DriveAuditBatchInput) {
+    const data=validateDriveAuditBatchInput(rawData);
+    const batchId=`batch-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
+    const startedAt=Date.now();
+    const[{makeDeps},pipeline,{mapBounded,waitForBoundedResult}]=await Promise.all([import("./audit-repo.server"),import("./audit-pipeline"),import("./audit-batch")]);
+    const deps=await makeDeps();
+    const applyMetaIfReady=async(matchId:string,runId:string)=>{
+      const stages=await deps.getStages(runId);
+      if(stages.find(s=>s.stage==="P1 METRIC EXECUTION")?.status!=="COMPLETE"||stages.find(s=>s.stage==="P2 METRIC EXECUTION")?.status!=="COMPLETE")return false;
+      const{applySafeMetaDerivedMetrics,applySafeStressDerivedMetrics}=await import("./meta-derived-evidence.server");
+      const metricChanged=await applySafeMetaDerivedMetrics(deps,runId);
+      let pathwayChanged=false,stressChanged=false,advancedChanged=false;
+      if(stages.find(s=>s.stage==="DANGEROUS UNDERDOG AUDIT")?.status==="COMPLETE"){
+        const match=await deps.getMatch(matchId);
+        if(match){const{applyOpponentWinPathwaysMetric}=await import("./opponent-win-pathways-meta.server");pathwayChanged=await applyOpponentWinPathwaysMetric(deps,runId,match.player1_name,match.player2_name);}
+      }
+      if(stages.find(s=>s.stage==="STRESS / REMOVAL TESTS")?.status==="COMPLETE"){
+        stressChanged=await applySafeStressDerivedMetrics(deps,runId);
+        const{applyFinalAdvancedMetric}=await import("./final-advanced-meta.server");
+        advancedChanged=await applyFinalAdvancedMetric(deps,runId,matchId);
+      }
+      const changed=metricChanged||pathwayChanged||stressChanged||advancedChanged;
+      // PREDICTION SNAPSHOT FREEZE (pre-match immutability).
+      //
+      // Reopening the closing stages is correct BEFORE the match is played: a meta-derived
+      // write can legitimately change underlying metric data, and coverage/final decision
+      // must then recompute rather than sit stale behind a COMPLETE status.
+      //
+      // It must never happen AFTER the result is known. Once a real outcome exists, a
+      // recomputation would rewrite the persisted pre-match decision -- and
+      // commitFinalDecision reads matches.actual_winner into the decision record, so the
+      // rewritten "pre-match snapshot" would carry the outcome it is supposed to predate.
+      // That is the snapshot no longer being a snapshot, and it silently contaminates every
+      // calibration observation derived from it.
+      //
+      // matchResultIsFinal is the same predicate result capture itself uses to decide a
+      // result is real (a final/retired status AND a winner resolvable to one of the two
+      // sides), so the freeze turns on at exactly the moment capture would act.
+      const resultFacts=await deps.getMatch(matchId) as unknown as {result_status?:string|null;actual_winner?:string|null;player1_name:string;player2_name:string}|null;
+      const resultKnown=resultFacts?matchResultIsFinal({result_status:resultFacts.result_status??null,actual_winner:resultFacts.actual_winner??null,player1_name:resultFacts.player1_name,player2_name:resultFacts.player2_name}):false;
+      if(changed&&resultKnown)return false;
+      // Coverage Persistence / Final Decision / Final Combination Gate are
+      // three separate canonical stages now (not one bundled stage): if a
+      // meta-derived write changed underlying metric data after any of them
+      // already ran, all three would otherwise keep stale, pre-change
+      // coverage numbers and a stale final decision sitting behind a
+      // COMPLETE status. Reopen every one of them that has already run so
+      // the next resume genuinely recomputes each in dependency order,
+      // rather than just re-checking the gate against data it never
+      // actually re-persisted.
+      const closingStages=["COVERAGE PERSISTENCE / EVIDENCE VALIDATION","FINAL DECISION","FINAL COMBINATION GATE"] as const;
+      const anyClosingStageComplete=closingStages.some(stage=>stages.find(s=>s.stage===stage)?.status==="COMPLETE");
+      if(changed&&anyClosingStageComplete){
+        for(const stage of closingStages){
+          if(stages.find(s=>s.stage===stage))await deps.setStage(runId,matchId,stage,{status:"PENDING",done_count:0,total_count:1,error_code:null,error_message:null,finished_at:null});
+        }
+        await deps.updateRun(runId,{status:"RUNNING"});
+        return true;
+      }
+      return false;
+    };
+    const prepared=await mapBounded(data.matchIds,4,async matchId=>{
+      try{return{matchId,run:await pipeline.preparePipelineRun(deps,matchId),error:null as string|null};}
+      catch(error){return{matchId,run:null,error:error instanceof Error?error.message:String(error)};}
+    });
+    // Fairness: with more matches queued than fit in one wave (concurrency),
+    // ordering must rotate across calls or the same front-of-array matches
+    // monopolize every wave forever while the rest of the batch starves.
+    // heartbeat_at is touched on every stage transition (runPipeline), so
+    // least-recently-touched-first naturally round-robins the whole backlog
+    // over successive polls -- a never-started run (heartbeat_at null) sorts
+    // first, ahead of one already mid-flight.
+    const scheduled=prepared
+      .filter(item=>item.run&&item.run.status!=="COMPLETE")
+      .sort((a,b)=>(Date.parse(String(a.run?.heartbeat_at??""))||0)-(Date.parse(String(b.run?.heartbeat_at??""))||0))
+      .slice(0,data.concurrency);
+    const completedDriven:Array<{
+      matchId:string;
+      ok:boolean;
+      runId:string|null;
+      complete:boolean;
+      nextStage:string|null;
+      leaseHeld:boolean;
+      failures:Array<{stage:string;message:string}>;
+      color:string|null;
+      completionPercent:number|null;
+      auditComplete:boolean;
+      durationMs:number;
+    }>=[];
+    const drivenWork=mapBounded(scheduled,data.concurrency,async({matchId})=>{
+        const itemStarted=Date.now();
+        let completed;
+        try{
+          const result=await pipeline.runPipeline(deps,matchId,{budgetMs:data.budgetMs??BROWSER_SAFE_BUDGET_MS});
+          let reopened=false;
+          if(!result.leaseHeld&&deps.acquireRunLease&&deps.releaseRunLease){
+            const metaOwner=`audit-meta:${batchId}:${matchId}`;
+            if(await deps.acquireRunLease(result.runId,metaOwner,600_000)){
+              try{reopened=await applyMetaIfReady(matchId,result.runId);}
+              finally{await deps.releaseRunLease(result.runId,metaOwner);}
+            }
+          }
+          completed={matchId,ok:true as const,runId:result.runId,complete:reopened?false:result.complete,nextStage:reopened?"COVERAGE PERSISTENCE / EVIDENCE VALIDATION":result.nextStage,leaseHeld:result.leaseHeld??false,failures:result.failures,color:result.report?.color??null,completionPercent:result.report?.completionPercent??null,auditComplete:reopened?false:(result.report?.auditComplete??false),durationMs:Date.now()-itemStarted};
+        }catch(error){
+          const latest=await deps.getLatestRun(matchId).catch(()=>null);
+          completed={matchId,ok:false as const,runId:latest?.id??null,complete:false,nextStage:null,leaseHeld:false,failures:[{stage:"PIPELINE",message:error instanceof Error?error.message:String(error)}],color:null,completionPercent:null,auditComplete:false,durationMs:Date.now()-itemStarted};
+        }
+        completedDriven.push(completed);
+        return completed;
+    });
+    const bounded=data.maxResponseWaitMs
+      ? await waitForBoundedResult(drivenWork,data.maxResponseWaitMs)
+      : {timedOut:false as const,value:await drivenWork};
+    // Pipeline writes are persisted stage-by-stage. If the browser response
+    // window expires, return the completed subset now; leased work continues
+    // safely and the next Slate poll resumes from persisted progress.
+    const driven=bounded.timedOut?[...completedDriven]:bounded.value;
+    const drivenByMatch=new Map(driven.map(item=>[item.matchId,item]));
+    const results=prepared.map(item=>{
+      const completed=drivenByMatch.get(item.matchId);
+      if(completed)return completed;
+      if(item.error||!item.run)return{matchId:item.matchId,ok:false as const,runId:null,complete:false,nextStage:null,leaseHeld:false,failures:[{stage:"PIPELINE",message:item.error??"Could not persist queued audit run"}],color:null,completionPercent:null,auditComplete:false,durationMs:0};
+      return{matchId:item.matchId,ok:true as const,runId:item.run.id,complete:item.run.status==="COMPLETE",nextStage:item.run.status==="COMPLETE"?null:"MATCH INGESTION / PDF EXTRACTION",leaseHeld:false,failures:[],color:null,completionPercent:null,auditComplete:item.run.status==="COMPLETE",durationMs:0};
+    });
+    const complete=results.filter(item=>item.complete).length,blocked=results.filter(item=>!item.ok||item.failures?.length).length,leased=results.filter(item=>item.leaseHeld).length;
+    console.info("[audit-batch]",{batchId,total:data.matchIds.length,complete,blocked,leased,durationMs:Date.now()-startedAt});
+    return{ok:blocked===0,batchId,total:data.matchIds.length,complete,blocked,leased,active:data.matchIds.length-complete-blocked,results,durationMs:Date.now()-startedAt};
+}
+
+export const runAuditBatch = createServerFn({ method: "POST" })
+  .inputValidator((data: DriveAuditBatchInput) => data)
+  .handler(async ({ data }) => driveAuditBatch({
+    ...data,
+    concurrency:Math.min(data.concurrency??BROWSER_BATCH_CONCURRENCY,BROWSER_BATCH_CONCURRENCY),
+    budgetMs:Math.min(data.budgetMs??BROWSER_BATCH_PIPELINE_BUDGET_MS,BROWSER_BATCH_PIPELINE_BUDGET_MS),
+    maxResponseWaitMs:BROWSER_BATCH_RESPONSE_BUDGET_MS,
+  }));

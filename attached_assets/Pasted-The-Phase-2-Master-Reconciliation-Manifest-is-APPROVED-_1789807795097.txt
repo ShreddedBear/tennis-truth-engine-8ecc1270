@@ -1,0 +1,129 @@
+The Phase 2 Master Reconciliation Manifest is APPROVED.
+
+Begin Phase 2.
+
+However, do NOT begin A1 yet.
+
+Execute ONLY Stage 0:
+
+G1 — READ-ONLY PRODUCTION CATALOG / MIGRATION LEDGER
+
+AND
+
+H1 — READ-ONLY BASELINE PRESERVATION SNAPSHOT
+
+G1
+
+Inspect the actual State C production database heliumdb read-only.
+
+Establish:
+
+* exact database identity
+* PostgreSQL version
+* schema/search path
+* complete table inventory
+* row counts
+* columns and types
+* nullability
+* primary keys
+* foreign keys
+* unique constraints
+* indexes
+* relevant check constraints
+* Drizzle schema correspondence
+* migration files present in repository
+* evidence, if any, of which migrations have actually been applied
+* tables relevant to:
+    * predictions
+    * evaluations
+    * backtests
+    * historical matches
+    * feature snapshots
+    * canonical players
+    * player aliases
+    * canonical matches
+    * match source links
+    * evidence
+    * PBP
+    * parlay outcomes
+    * builder decisions
+    * calibration
+    * audit runs
+
+Pay particular attention to:
+
+* whether a migration ledger/table exists
+* whether the database is actually managed by drizzle-kit push
+* whether any historical branch schema already exists in production
+* row counts that must be preserved
+* orphan/duplicate conditions
+* constraints that would affect future additive migrations
+
+DO NOT:
+
+* insert
+* update
+* delete
+* alter
+* truncate
+* reset
+* migrate
+* backfill
+
+anything.
+
+H1
+
+Capture the current baseline WITHOUT modifying application behavior.
+
+Record:
+
+* current Git SHA
+* current working-tree status
+* current typecheck result
+* current targeted test result
+* existing known failures
+* Prediction Engine baseline behavior for the targeted A1/A2 tests
+* current Parlay Builder boundary result
+* current identity/no-lookahead test results
+* current provider-routing test results
+* current Truth Engine evidence/refusal test results
+
+Do not create new tests yet.
+
+Distinguish clearly between:
+
+* pre-existing failures
+* failures introduced by this task (there should be none because this is read-only).
+
+REQUIRED OUTPUT
+
+Produce:
+
+1. G1 DATABASE IDENTITY
+2. G1 SCHEMA INVENTORY
+3. G1 MIGRATION / SCHEMA MANAGEMENT STATUS
+4. G1 DATA CONSERVATION BASELINE
+5. G1 ORPHAN / DUPLICATE FINDINGS
+6. H1 GIT BASELINE
+7. H1 TYPECHECK BASELINE
+8. H1 TEST BASELINE
+9. KNOWN PRE-EXISTING FAILURES
+10. DATABASE RISKS BEFORE IMPLEMENTATION
+11. APPROVED SAFE NEXT TASK
+
+The final line must be either:
+
+NEXT TASK: A1 Availability asOfDate
+
+or, if G1/H1 discovers a blocker:
+
+NEXT TASK: <specific blocker>
+
+STOP after the report.
+
+No code changes.
+No schema changes.
+No tests added.
+No commits.
+No pushes.

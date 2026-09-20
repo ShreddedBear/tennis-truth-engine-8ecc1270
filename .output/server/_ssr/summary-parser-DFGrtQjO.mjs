@@ -1,0 +1,180 @@
+//#region node_modules/.nitro/vite/services/ssr/assets/summary-parser-DFGrtQjO.js
+var VS = /([A-ZÀ-Ý][\p{L}'’.\- ]{1,55}?)\s+(?:vs\.?|v\.|versus)\s+([A-ZÀ-Ý][\p{L}'’.\- ]{1,55})/iu;
+var NOISE = /^(?:tennis|today|tomorrow|live|open|closed|volume|vol|atp|wta|itf|challenger|moneyline|spread|total|draw|market|starts?|ends?)\b/i;
+var EVENTISH = /\b(?:ATP|WTA|ITF|Challenger|Cincinnati|Cancun|US Open|Wimbledon|Roland Garros|Australian Open)\b/i;
+var UI_CHROME_PHRASES = /* @__PURE__ */ new Set([
+	"model votes",
+	"monte carlo simulation",
+	"full engine breakdown",
+	"surface elo",
+	"serve return",
+	"serve and return",
+	"recent form",
+	"head to head",
+	"head-to-head",
+	"market consensus",
+	"general model",
+	"specialist model",
+	"set score distribution",
+	"fatigue index",
+	"match load recovery",
+	"rest travel injury",
+	"style matchup",
+	"builder check",
+	"bet score",
+	"win probability",
+	"data quality",
+	"model agreement",
+	"close matchup",
+	"independent conclusion",
+	"key tech view",
+	"score history",
+	"spot odds risk"
+]);
+function isUiChromePhrase(s) {
+	return UI_CHROME_PHRASES.has(s.toLowerCase().replace(/[.,:&-]/g, " ").replace(/\s+/g, " ").trim());
+}
+var FIELD_PATTERNS = [
+	["tournament", /(?:tournament|event)\s*[:\-]\s*(.+)/i],
+	["event_level", /(?:event level|level|category)\s*[:\-]\s*(.+)/i],
+	["round", /round\s*[:\-]\s*(.+)/i],
+	["scheduled_date", /(?:date|scheduled)\s*[:\-]\s*(.+)/i],
+	["surface", /surface\s*[:\-]\s*(.+)/i],
+	["indoor_outdoor", /(indoor|outdoor)\s*[:\-]?\s*(.*)/i],
+	["best_of", /best[\s\-]?of\s*[:\-]?\s*(\d)/i],
+	["matrix_predicted_winner", /predicted winner\s*[:\-]\s*(.+)/i],
+	["matrix_wp", /(?:win probability|matrix wp|wp)\s*[:\-]\s*([\d.]+)\s*%?/i],
+	["matrix_wp_range", /\brange\s+(\d{1,3}\s*[-–]\s*\d{1,3})/i],
+	["matrix_confidence_label", /\b(extreme|very high|high confidence|low confidence|no strong signal)\b/i],
+	["matrix_agreement_label", /\b(strongly agree|high disagreement|close to a coin flip|moderate lean)\b/i],
+	["monte_carlo_winner", /monte carlo winner\s*[:\-]\s*(.+)/i],
+	["monte_carlo_prob", /monte carlo (?:win )?(?:probability|prob)\s*[:\-]\s*([\d.]+)/i],
+	["monte_carlo_expected_sets", /expected sets\s*[:\-]\s*([\d.]+)/i],
+	["monte_carlo_simulations", /simulations(?: run)?\s*[:\-]\s*([\d,]+)/i],
+	["data_quality", /(?:data quality|dq)\s*[:\-]\s*(.+)/i],
+	["upset_risk", /upset risk\s*[:\-]\s*(.+)/i],
+	["model_agreement", /(?:model )?agreement\s*[:\-]\s*(.+)/i]
+];
+function cleanLine(v) {
+	return v.replace(/[|]/g, " ").replace(/\s+/g, " ").trim();
+}
+var SCHEDULE_PREFIX = /^\S{1,10}\s*@?\s*\d{1,2}:\d{2}\s*(?:am|pm)?[\s.]*[-·:•]?\s*/i;
+function cleanTournament(v) {
+	return cleanLine(v).replace(/^\$?[\d,]+\s*(?:vol(?:ume)?)?\s*/i, "").replace(/^vol(?:ume)?\s*/i, "").replace(SCHEDULE_PREFIX, "").trim();
+}
+var ICON_NOISE_PREFIX = /^(?:[A-Za-zÀ-ÿ0-9]{1,2}\s+){1,2}(?=[\p{L}]{3,}\s+[\p{L}])/u;
+var titleCase = (v) => v.replace(/\p{L}+/gu, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+function cleanPlayer(v) {
+	return titleCase(cleanLine(v).replace(/^[^A-Za-zÀ-ÿ]{0,4}/, "").replace(ICON_NOISE_PREFIX, "").replace(/^(?:BEE|SE|s|a)\s+(?=[A-ZÀ-Ý])/i, "").replace(/\s+[+\-−]\s*\d{2,4}\s*$/, " ").replace(/\s+/g, " ").trim());
+}
+function looksLikeFullPlayerName(line) {
+	const s = cleanPlayer(line);
+	if (!s || s.length < 4 || s.length > 55 || NOISE.test(s) || EVENTISH.test(s) || isUiChromePhrase(s)) return false;
+	if (/\d|\$|@|%|\bvol\b/i.test(s)) return false;
+	const words = s.split(/\s+/).filter(Boolean);
+	return words.length >= 2 && words.length <= 6 && words.every((w) => /^[\p{L}][\p{L}'’.\-]*$/u.test(w));
+}
+function add(out, key, value, page, confidence = .9) {
+	const v = cleanLine(value);
+	if (v && !out.some((f) => f.field_key === key)) out.push({
+		field_key: key,
+		raw_value: v,
+		normalized_value: v,
+		extraction_status: "DIRECT",
+		confidence,
+		page_number: page
+	});
+}
+function fieldsFromBlock(block, page) {
+	const out = [];
+	for (const [key, re] of FIELD_PATTERNS) {
+		const m = block.match(re);
+		if (!m) continue;
+		const raw = (m[1] ?? "").trim().replace(/\s{2,}.*$/, "");
+		if (raw) add(out, key, key === "tournament" ? cleanTournament(raw) : raw, page);
+	}
+	const lines = block.split(/\n/).map(cleanLine).filter(Boolean);
+	const eventRaw = lines.find((l) => EVENTISH.test(l) && !/\bvs\b/i.test(l));
+	if (eventRaw) {
+		const event = cleanTournament(eventRaw);
+		if (event) add(out, "tournament", event, page, .85);
+		if (/challenger/i.test(event)) add(out, "event_level", "Challenger", page, .9);
+		else if (/\bATP\b/i.test(event)) add(out, "event_level", "ATP", page, .8);
+		else if (/\bWTA\b/i.test(event)) add(out, "event_level", "WTA", page, .8);
+		else if (/\bITF\b/i.test(event)) add(out, "event_level", "ITF", page, .8);
+	}
+	const when = lines.find((l) => /@?\s*\d{1,2}:\d{2}\s*(?:am|pm)\b/i.test(l));
+	if (when) add(out, "scheduled_date", when, page, .8);
+	const vol = lines.join(" ").match(/\$\s*([\d,]+)\s*vol/i);
+	if (vol) add(out, "market_volume", `$${vol[1]}`, page, .95);
+	const odds = lines.join(" ").match(/[+\-−]\s*\d{2,4}/g)?.map((x) => x.replace(/\s+/g, "")) ?? [];
+	if (odds[0]) add(out, "p1_moneyline", odds[0], page, .9);
+	if (odds[1]) add(out, "p2_moneyline", odds[1], page, .9);
+	return out;
+}
+function canonicalNamesAroundAnchor(lines, anchor, p1Hint, p2Hint) {
+	const names = lines.slice(anchor + 1, Math.min(lines.length, anchor + 12)).map(cleanLine).filter(looksLikeFullPlayerName).map(cleanPlayer);
+	if (names.length >= 2) return [names[0], names[1]];
+	const p1 = cleanPlayer(p1Hint), p2 = cleanPlayer(p2Hint);
+	if (isUiChromePhrase(p1) || isUiChromePhrase(p2)) return ["", ""];
+	return [p1, p2];
+}
+function inferPairWithoutVs(lines) {
+	const unique = lines.map(cleanLine).filter(looksLikeFullPlayerName).map(cleanPlayer).filter((n, i, a) => a.findIndex((x) => normalizeName(x) === normalizeName(n)) === i);
+	return unique.length >= 2 ? [unique[0], unique[1]] : null;
+}
+function parseSummaryText(pages) {
+	const matchups = [];
+	pages.forEach((pageText, idx) => {
+		const page = idx + 1;
+		const lines = pageText.split(/\n/).map(cleanLine).filter(Boolean);
+		const anchors = [];
+		lines.forEach((l, i) => {
+			if (VS.test(l)) anchors.push(i);
+		});
+		if (anchors.length) {
+			anchors.forEach((anchorIdx, k) => {
+				const nextAnchor = anchors[k + 1] ?? lines.length;
+				const block = lines.slice(anchorIdx, nextAnchor).join("\n");
+				const m = lines[anchorIdx].match(VS);
+				if (!m) return;
+				const [p1, p2] = canonicalNamesAroundAnchor(lines, anchorIdx, m[1] ?? "", m[2] ?? "");
+				if (!p1 || !p2) return;
+				const fields = fieldsFromBlock(block, page);
+				matchups.push({
+					player1_name: p1,
+					player2_name: p2,
+					page_number: page,
+					fields,
+					confidence: Number(Math.min(1, .72 + fields.length * .03).toFixed(2))
+				});
+			});
+			return;
+		}
+		const inferred = inferPairWithoutVs(lines);
+		if (!inferred) return;
+		const fields = fieldsFromBlock(lines.join("\n"), page);
+		matchups.push({
+			player1_name: inferred[0],
+			player2_name: inferred[1],
+			page_number: page,
+			fields,
+			confidence: Number(Math.min(.95, .75 + fields.length * .03).toFixed(2))
+		});
+	});
+	return matchups;
+}
+function normalizeName(name) {
+	return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
+}
+function canonicalKey(parts) {
+	const players = [normalizeName(parts.p1), normalizeName(parts.p2)].sort().join("|");
+	return [
+		(parts.tournament ?? "unknown").toLowerCase().trim(),
+		(parts.round ?? "unknown").toLowerCase().trim(),
+		(parts.date ?? "unknown").toLowerCase().trim(),
+		players
+	].join("::");
+}
+//#endregion
+export { normalizeName as n, parseSummaryText as r, canonicalKey as t };

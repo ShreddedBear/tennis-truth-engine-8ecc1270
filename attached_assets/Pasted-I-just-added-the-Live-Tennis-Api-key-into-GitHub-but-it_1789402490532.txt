@@ -1,0 +1,73 @@
+I just added the Live_Tennis_Api key into GitHub but it’s already in replit
+
+Yes. This is the fix I would give Claude/Replit. It is deliberately scoped to the LiveTennisAPI retrieval/integration layer and does not touch the frozen Truth Engine, metric formulas, thresholds, or decision logic.
+
+Paste this exactly:
+
+Fix the LiveTennisAPI integration exposed by run #3.
+
+Do NOT change any metric definitions, formulas, evidence rules, Truth Engine stages, thresholds, winner logic, or audit decision logic. Do NOT rerun the full audit yet. This is an integration/retrieval fix only.
+
+The current Pro LiveTennisAPI subscription is $29.99/month with 300 req/min and 10k req/day, but the application is still behaving like the old Basic configuration.
+
+Fix these specific bottlenecks:
+
+1. Replace the application’s old LiveTennisAPI client throttle of ~60 req/min / ~1.1 sec between requests with a configuration appropriate for the Pro plan: up to 300 req/min, while still respecting any actual provider response headers/rate limits.
+2. Remove the hardcoded 1,000-request daily budget. Make the client budget configurable via environment/config and set the Pro default to 10,000/day. Do not hardcode a higher value than the subscribed plan.
+3. Remove the four-match-per-player historical search restriction for the six point-derived metrics. Retrieve enough qualifying historical matches to satisfy each metric’s existing minimum sample requirement.
+4. Remove the artificial “latest 25 history rows only” limitation. Implement proper pagination/continuation through LiveTennisAPI history where the API supports it. Stop once the metric has enough qualifying observations rather than downloading unlimited history.
+5. Investigate and use the LiveTennisAPI bulk historical packages if the current Pro account/API access exposes them. Do not invent an endpoint. If bulk history is available, use it to reduce repeated per-match API calls and cache the result appropriately.
+6. Fix the seven-second source-packet timeout problem. The historical source-packet stage must no longer discard a valid LiveTennisAPI retrieval merely because the entire multi-request operation exceeded 7 seconds. Make the timeout configurable and give LiveTennisAPI enough time to complete a bounded retrieval. Preserve an overall safety bound so a request cannot hang indefinitely.
+7. Optimize the request path:
+    * cache exact player-ID resolution;
+    * cache historical match discovery;
+    * avoid requesting the same match/player data more than once in a single audit;
+    * retrieve only matches needed for the metric’s existing sample requirement;
+    * parallelize independent requests where safe under the Pro rate limit;
+    * honor 429/retry-after responses;
+    * preserve existing provider-error classification.
+8. Most importantly, preserve the distinction between:
+    * provider has no qualifying data;
+    * provider request failed;
+    * request timed out;
+    * data was returned but failed reconstruction;
+    * data was reconstructed but failed metric validation;
+    * metric genuinely lacks sufficient sample.
+
+Do NOT collapse these into HISTORICAL_DATA_UNAVAILABLE.
+
+9. Ensure successful LiveTennisAPI observations actually reach the existing metric producers for:
+    002, 003, 009, 016, 018, and 032.
+10. Add focused tests proving:
+
+* Pro throttling configuration is used;
+* pagination works;
+* 4 historical matches can be considered;
+* 25 history rows can be traversed;
+* a retrieval taking >7 seconds is not incorrectly discarded by the old hardcoded timeout;
+* valid LiveTennisAPI point data reaches the producer;
+* genuine provider absence remains genuine absence;
+* provider failure remains provider failure;
+* no post-match data leakage is introduced.
+
+11. Add a diagnostic report for ONE controlled test match/player pair showing:
+    player resolution → history discovery → qualifying matches → PBP retrieval → reconstruction → required raw fields → metric observation → validation.
+12. Do not run the entire 27-match audit after making the changes. First run the focused tests and one controlled end-to-end retrieval against a known run #3 match. Report exactly how many LiveTennisAPI observations were successfully produced for metrics 002/003/009/016/018/032.
+13. Do not commit or push until the focused tests pass and the diagnostic confirms that returned LiveTennisAPI data can reach the existing metric producers.
+
+The goal is NOT to manufacture coverage. The goal is to make the application actually consume qualifying Pro-plan LiveTennisAPI historical/point data when that data exists, while correctly preserving genuine absence when it does not.
+
+The key fix
+
+Use replit only when you genuinely need to don’t waste any credit if you can do it yourself or have GitHub do it
+The biggest mistake right now is treating a 7-second application deadline as if it were a data-availability test.
+
+We want:
+
+Pro API → retrieve enough history → reconstruct point data → validate → existing metric producer
+
+instead of:
+
+Pro API → spend ~7 seconds making requests → timeout → empty fallback → “no evidence.”
+
+And I would not let Claude simply increase the timeout to something huge and call it fixed. The caching, pagination, match-limit removal, and request deduplication are important too. Otherwise you’ll just trade a 7-second failure for a 30-second inefficient pipeline.
