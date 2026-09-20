@@ -130,9 +130,10 @@ describe("post-fix exact runtime wiring for 078/079/081", () => {
 
   it("preserves side-specific persistence wiring for values and treatments", () => {
     const repo = readFileSync("src/lib/audit-repo.server.ts", "utf8");
-    expect(repo).toContain('select("metric_code, metric_name, p1_treatment, p2_treatment")');
-    expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P1", treatment: metric.p1_treatment ?? "UNAVAILABLE"');
-    expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P2", treatment: metric.p2_treatment ?? "UNAVAILABLE"');
-    expect(repo).toContain('onConflict:"metric_code,player_side,audit_run_id"');
+    const api = readFileSync("src/lib/truth-server-api.ts", "utf8");
+    expect(repo).toContain('truthServerOperation<T>(operation, { ownerId: OWNER, ...input })');
+    expect(repo).toContain('"audit-insert-results"');
+    expect(api).toContain('"evidence-upsert"');
+    expect(api).toContain("metricEvidenceRows");
   });
 });

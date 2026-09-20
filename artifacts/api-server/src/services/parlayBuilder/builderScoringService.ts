@@ -29,8 +29,10 @@ import { researchPlayerMatchup } from "./webResearchService.js";
 import { scrapeMatchstatPlayer, type MatchstatPlayerData } from "./matchstatScraper.js";
 import type { MatchRecord, Surface } from "../tennisData/types.js";
 import type { CalibrationKnot } from "../evaluation/types.js";
-import { computeSurfaceEloModule } from "../predictionEngine/surfaceElo.js";
-import { computeServeReturnModule } from "../predictionEngine/serveReturn.js";
+import {
+  computeSurfaceEloModule,
+  computeServeReturnModule,
+} from "../shared/predictionCalculations.js";
 import { applyCalibrationOriented } from "../evaluation/calibration.js";
 import { getActiveCalibration } from "../evaluation/calibrationCache.js";
 

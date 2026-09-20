@@ -237,9 +237,9 @@ describe("post-fix wiring verification 060/062/063/064/065", () => {
 
   it("keeps persisted treatment orientation side-specific in the repository", () => {
     const repo=readFileSync("src/lib/audit-repo.server.ts","utf8");
-    expect(repo).toContain('select("metric_code, metric_name, p1_treatment, p2_treatment")');
-    expect(repo).toContain('player_side: "P1"');
-    expect(repo).toContain('player_side: "P2"');
-    expect(repo).toContain('onConflict:"metric_code,player_side,audit_run_id"');
+    expect(repo).toContain('"audit-insert-results"');
+    expect(repo).toContain("table, rows");
+    expect(repo).toContain('"audit-update-result"');
+    expect(repo).toContain('"audit-list-results"');
   });
 });

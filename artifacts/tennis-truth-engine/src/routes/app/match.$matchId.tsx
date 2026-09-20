@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { truthApi } from "@/lib/truth-api-client";
 import { useServerFn } from "@tanstack/react-start";
 import { log } from "@/lib/audit-runs";
 import { runAuditBatch } from "@/lib/audit-pipeline.functions";
@@ -147,14 +147,9 @@ function Workspace() {
     queryKey: ["match", matchId],
     refetchInterval: 3000,
     queryFn: async () => {
-      const { data: match, error: matchError } = await supabase.from("matches").select("*").eq("id", matchId).single();
-      if (matchError) throw new Error(`Could not load match: ${matchError.message}`);
-      const { data: runs, error: runsError } = await supabase
-        .from("audit_runs")
-        .select("*")
-        .eq("match_id", matchId)
-        .order("run_number", { ascending: false });
-      if (runsError) throw new Error(`Could not load audit runs: ${runsError.message}`);
+      const view = await truthApi.getMatchView(matchId);
+      const match = view.match as any;
+      const runs = view.runs as any[];
       // resolveActiveRun resolves straight through an INVALIDATED (Clear
       // Slate, or a rule-version change) run to null -- exactly as if no run
       // existed yet -- rather than falling through to the "No audit run yet"
@@ -162,32 +157,23 @@ function Workspace() {
       // still attached. That branch's own zero-state is what makes this a
       // true clean slate: no report, no stage rows, no counts, until a
       // genuinely new audit_run_id exists.
-      const run = resolveActiveRun(runs ?? []);
-      const wasInvalidated = !run && !!runs?.length;
+      const run = view.run as any;
+      const wasInvalidated = Boolean(view.wasInvalidated);
       if (!run) return { match, run: null, wasInvalidated };
-      const calibrationVersionQuery = run.calibration_version_id
-        ? supabase.from("calibration_versions").select("*").eq("id", run.calibration_version_id).maybeSingle()
-        : supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle();
-      const [metrics, verification, disagreement, underdog, stress, conflicts, reconstructions, decision, coverage, coverageRates, buckets, version, sv] =
-        await Promise.all([
-          supabase.from("metric_results").select("*").eq("audit_run_id", run.id).order("metric_code"),
-          supabase.from("verification_results").select("*").eq("audit_run_id", run.id).order("rule_code"),
-          supabase.from("disagreement_results").select("*").eq("audit_run_id", run.id).order("rule_code"),
-          supabase.from("underdog_results").select("*").eq("audit_run_id", run.id).order("pathway_code"),
-          supabase.from("stress_results").select("*").eq("audit_run_id", run.id).order("test_code"),
-          supabase.from("source_conflicts").select("*").eq("audit_run_id", run.id),
-          supabase.from("reconstruction_results").select("*").eq("audit_run_id", run.id),
-          supabase.from("final_decisions").select("*").eq("audit_run_id", run.id).maybeSingle(),
-          supabase.from("audit_coverage").select("*").eq("audit_run_id", run.id).order("player_side"),
-          supabase.from("metric_coverage_rates").select("*").eq("audit_run_id", run.id),
-          supabase.from("calibration_buckets").select("*").order("wp_min"),
-          calibrationVersionQuery,
-          supabase.from("summary_versions").select("id").eq("match_id", matchId).eq("is_active", true).maybeSingle(),
-        ]);
-      const fields = sv.data
-        ? (await supabase.from("parsed_summary_fields").select("*").eq("summary_version_id", sv.data.id)).data ?? []
-        : [];
+      const metrics = { data: (view.metrics ?? []) as any[] };
+      const verification = { data: (view.verification ?? []) as any[] };
+      const disagreement = { data: (view.disagreement ?? []) as any[] };
+      const underdog = { data: (view.underdog ?? []) as any[] };
+      const stress = { data: (view.stress ?? []) as any[] };
+      const conflicts = { data: (view.conflicts ?? []) as any[] };
+      const reconstructions = { data: (view.reconstructions ?? []) as any[] };
+      const decision = { data: view.decision as any };
+      const coverage = { data: (view.coverage ?? []) as any[] };
+      const coverageRates = { data: (view.coverageRates ?? []) as any[] };
+      const buckets = { data: (view.buckets ?? []) as any[] };
+      const version = { data: view.version as any };
       const activeVersion = version.data;
+      const fields = (view.fields ?? []) as any[];
       return {
         match,
         run,
@@ -227,12 +213,16 @@ function Workspace() {
     refetchInterval: 3000,
     enabled: !!currentRunId,
     queryFn: async () => {
-      const { data: rows } = await supabase
-        .from("audit_stage_runs")
-        .select("*")
-        .eq("audit_run_id", currentRunId as string)
-        .order("stage_order");
-      return rows ?? [];
+      return (await truthApi.getStages(currentRunId as string)).map((row: any) => ({
+        ...row,
+        audit_run_id: row.audit_run_id ?? row.auditRunId,
+        stage_order: row.stage_order ?? row.stageOrder,
+        done_count: row.done_count ?? row.doneCount,
+        total_count: row.total_count ?? row.totalCount,
+        started_at: row.started_at ?? row.startedAt,
+        finished_at: row.finished_at ?? row.finishedAt,
+        heartbeat_at: row.heartbeat_at ?? row.heartbeatAt,
+      }));
     },
   });
 
@@ -326,9 +316,10 @@ function Workspace() {
 
   const patch = async (table: "metric_results" | "verification_results" | "disagreement_results" | "underdog_results" | "stress_results", id: string, values: Record<string, unknown>, stage: string) => {
     if(run.status==="RUNNING"||run.status==="COMPLETE"){toast.error("Persisted audit evidence cannot be edited while an audit is running or after its final decision is complete.");return;}
-    const { error } = await supabase.from(table).update(values as never).eq("id", id);
-    if (error) {
-      toast.error(`Could not update ${table}: ${error.message}`);
+    try {
+      await truthApi.updateResult(run.id, table.replace("_results", ""), id, values);
+    } catch (error) {
+      toast.error(`Could not update ${table}: ${(error as Error).message}`);
       return;
     }
     await log({ audit_run_id: run.id, match_id: matchId, stage, status: "COMPLETE", output: values, matrix_visible: !!run.matrix_revealed_at });
@@ -406,7 +397,7 @@ function Workspace() {
                 value={s.value}
                 options={["UNVERIFIED", "VERIFIED", "CONFLICT"]}
                 onChange={async (v) => {
-                  await supabase.from("matches").update({ [s.field]: v } as never).eq("id", matchId);
+                  await truthApi.updateMatch(matchId, { [s.field]: v });
                   await log({ audit_run_id: run.id, match_id: matchId, stage: "MATCH IDENTITY VERIFICATION", status: v });
                   refresh();
                 }}

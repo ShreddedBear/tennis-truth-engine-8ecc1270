@@ -643,6 +643,12 @@ importers:
 
   artifacts/tennis-truth-engine:
     dependencies:
+      '@clerk/react':
+        specifier: ^6.16.1
+        version: 6.16.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@clerk/themes':
+        specifier: ^2.4.57
+        version: 2.4.57(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.9.1(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.87.0(react@19.3.0))(zod@3.25.76)
@@ -724,9 +730,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.16(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@supabase/supabase-js':
-        specifier: ^2.112.3
-        version: 2.116.0
       '@tailwindcss/vite':
         specifier: ^4.2.1
         version: 4.3.3(vite@8.3.0(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
@@ -2637,38 +2640,6 @@ packages:
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
-  '@supabase/auth-js@2.116.0':
-    resolution: {integrity: sha512-Cmosty12gyKGK9N3bQb+lMmuAFev5nmUzaR1AsmZHqKOAGzqX1VQzmp49CNPwOx/pw0H9Qqk4rs9yhwTlKpfDg==}
-    engines: {node: '>=22.0.0'}
-
-  '@supabase/functions-js@2.116.0':
-    resolution: {integrity: sha512-E+VOc2QDcni/fySqkBFiZhnoB3SGydEdZgFI6/dEAGAHx6yEhB46TN9qb2wXs+E+RSzOBV0R6dasiSlw4xlZAA==}
-    engines: {node: '>=22.0.0'}
-
-  '@supabase/phoenix@0.4.5':
-    resolution: {integrity: sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==}
-
-  '@supabase/postgrest-js@2.116.0':
-    resolution: {integrity: sha512-kGpVZTDHxFTJS3tu+rU0iTAZ+4U0bcLVjxwCk8f3gRhjw3qdCZjTBlgYvc4kGH2XccmAzbkKwXL/mrNHMGSc+A==}
-    engines: {node: '>=22.0.0'}
-
-  '@supabase/realtime-js@2.116.0':
-    resolution: {integrity: sha512-MHAnlXxi2s6yiJsZsQMfs2B3RFxeVfQWxerqYhIMqcCQV/FuY3LIeouPEkXw/ah7wUWMLYwempF9MOCUScyddg==}
-    engines: {node: '>=22.0.0'}
-
-  '@supabase/storage-js@2.116.0':
-    resolution: {integrity: sha512-6/3hR6vccBP6oGM5B6RfbwZcTCKmQOodd/ZWQdsw8yJsU5zO/a//oBL6yLnmgxcjnHSrelW8rsO7hL5DPybyUQ==}
-    engines: {node: '>=22.0.0'}
-
-  '@supabase/supabase-js@2.116.0':
-    resolution: {integrity: sha512-YyWmKXt2NspV9iO8FPnlswUFJIRnrLd3oTCb+3ZyYRuKZtBH0xCUDgnUqoyA0fGUxpM/UhfwDjYf/dht/9bp7g==}
-    engines: {node: '>=22.0.0'}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.0.0'
-    peerDependenciesMeta:
-      '@opentelemetry/api':
-        optional: true
-
   '@tabby_ai/hijri-converter@1.0.5':
     resolution: {integrity: sha512-r5bClKrcIusDoo049dSL8CawnHR6mRdDwhlQuIgZRNty68q0x8k3Lf1BtPAMxRf/GgnHBnIO4ujd3+GQdLWzxQ==}
     engines: {node: '>=16.0.0'}
@@ -4031,10 +4002,6 @@ packages:
   human-signals@8.0.1:
     resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
     engines: {node: '>=18.18.0'}
-
-  iceberg-js@0.8.1:
-    resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
-    engines: {node: '>=20.0.0'}
 
   iconv-lite@0.7.3:
     resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
@@ -5736,6 +5703,13 @@ snapshots:
       react-dom: 19.1.0(react@19.1.0)
       tslib: 2.8.1
 
+  '@clerk/react@6.16.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@clerk/shared': 4.33.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      tslib: 2.8.1
+
   '@clerk/shared@3.48.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       csstype: 3.1.3
@@ -5747,6 +5721,18 @@ snapshots:
     optionalDependencies:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
+
+  '@clerk/shared@3.48.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      csstype: 3.1.3
+      dequal: 2.0.3
+      glob-to-regexp: 0.4.1
+      js-cookie: 3.0.7
+      std-env: 3.10.0
+      swr: 2.3.4(react@19.3.0)
+    optionalDependencies:
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@clerk/shared@4.33.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
@@ -5771,6 +5757,14 @@ snapshots:
   '@clerk/themes@2.4.57(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@clerk/shared': 3.48.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - react
+      - react-dom
+
+  '@clerk/themes@2.4.57(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@clerk/shared': 3.48.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       tslib: 2.8.1
     transitivePeerDependencies:
       - react
@@ -7813,38 +7807,6 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
-  '@supabase/auth-js@2.116.0':
-    dependencies:
-      tslib: 2.8.1
-
-  '@supabase/functions-js@2.116.0':
-    dependencies:
-      tslib: 2.8.1
-
-  '@supabase/phoenix@0.4.5': {}
-
-  '@supabase/postgrest-js@2.116.0':
-    dependencies:
-      tslib: 2.8.1
-
-  '@supabase/realtime-js@2.116.0':
-    dependencies:
-      '@supabase/phoenix': 0.4.5
-      tslib: 2.8.1
-
-  '@supabase/storage-js@2.116.0':
-    dependencies:
-      iceberg-js: 0.8.1
-      tslib: 2.8.1
-
-  '@supabase/supabase-js@2.116.0':
-    dependencies:
-      '@supabase/auth-js': 2.116.0
-      '@supabase/functions-js': 2.116.0
-      '@supabase/postgrest-js': 2.116.0
-      '@supabase/realtime-js': 2.116.0
-      '@supabase/storage-js': 2.116.0
-
   '@tabby_ai/hijri-converter@1.0.5': {}
 
   '@tailwindcss/node@4.3.3':
@@ -9284,8 +9246,6 @@ snapshots:
 
   human-signals@8.0.1: {}
 
-  iceberg-js@0.8.1: {}
-
   iconv-lite@0.7.3:
     dependencies:
       safer-buffer: 2.1.2
@@ -10369,6 +10329,12 @@ snapshots:
       dequal: 2.0.3
       react: 19.1.0
       use-sync-external-store: 1.7.0(react@19.1.0)
+
+  swr@2.3.4(react@19.3.0):
+    dependencies:
+      dequal: 2.0.3
+      react: 19.3.0
+      use-sync-external-store: 1.7.0(react@19.3.0)
 
   synckit@0.11.13:
     dependencies:

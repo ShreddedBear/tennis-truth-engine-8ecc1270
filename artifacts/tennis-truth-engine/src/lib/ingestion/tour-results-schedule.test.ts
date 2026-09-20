@@ -55,8 +55,8 @@ describe("ATP/WTA/ATP Challenger ingestion wiring", () => {
 
   it("confirms persistence after upsert before reporting writes", () => {
     const adapter = readFileSync("src/lib/ingestion/tour-results-schedule.server.ts", "utf8");
-    expect(adapter).toContain('.select("source_record_key")');
-    expect(adapter).toContain('.in("source_record_key",keys)');
+    expect(adapter).toContain("ingestionConfirmObservations");
+    expect(adapter).toContain("keys=confirmChunk.map((row)=>row.source_record_key)");
     expect(adapter).toContain("persisted +=");
   });
 });

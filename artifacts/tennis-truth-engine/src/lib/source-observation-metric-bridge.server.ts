@@ -1,5 +1,5 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
+import { observationContextRows, resultCaptureMatches } from "./truth-server-api";
 import { metricAllowsObservation, observationFamily, policyForMetric } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
 import { inferRepositoryMatchContext } from "./repository-results-history.server";
@@ -7,8 +7,6 @@ import { buildBsdAtpMainPbpContext } from "./bsd-atp-main-pbp.server";
 import { buildBsdWtaMainPbpContext } from "./bsd-wta-main-pbp.server";
 import { buildBsdAtpChallengerPbpContext } from "./bsd-atp-challenger-pbp.server";
 import { buildBsdWtaChallengerPbpContext } from "./bsd-wta-challenger-pbp.server";
-
-const db = supabaseAdmin as any;
 
 type MetricLike = { code: string; name: string };
 type ObservationRow = {
@@ -42,30 +40,14 @@ async function loadCandidateRows(player: string, opponent: string, asOfDate: str
   const start = new Date(`${asOfDate}T00:00:00Z`);
   start.setUTCFullYear(start.getUTCFullYear() - 5);
   const aliases = unique([...safeEvidenceAliases(player, opponent), ...safeEvidenceAliases(opponent, player)]);
-  const select = "source_id,source_name,source_url,player_name,opponent_name,tournament,event_date,surface,observation_type,observation_key,text_value,numeric_value,sample_label,window_start,window_end";
-  const datedBase = () => db.from("source_observations").select(select)
-    .gte("event_date", start.toISOString().slice(0, 10)).lte("event_date", asOfDate)
-    .order("event_date", { ascending: false });
-  const marketBase = () => db.from("source_observations").select(select)
-    .eq("event_date", asOfDate).eq("observation_type", "MARKET")
-    .order("event_date", { ascending: false });
-  const nullDateBase = () => db.from("source_observations").select(select).is("event_date", null);
-
   // PBP is intentionally excluded from the generic warehouse lane. Evidence Coverage
   // receives PBP only through the tour-scoped BSD bridges below, so quarantined or
   // ambiguous records cannot become evidence merely because they exist in a table.
   // Market evidence is match-scoped: exact match date plus canonical/reversed pair.
   // NULL-date rows are accepted only when attached to one of the matchup aliases;
   // a shared row with neither player identity nor date cannot be safely joined.
-  const [otherResult, marketResult, sharedResult, nullDatePlayerResult] = await Promise.all([
-    datedBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    marketBase().in("player_name", aliases).limit(1000),
-    datedBase().is("player_name", null).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-    nullDateBase().in("player_name", aliases).not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)").limit(1000),
-  ]);
-  const results = [otherResult, marketResult, sharedResult, nullDatePlayerResult];
-  if (results.some((result) => result.error)) return [] as ObservationRow[];
-  const rows = results.flatMap((result) => (result.data ?? []) as ObservationRow[]);
+  const { rows: loaded } = await observationContextRows(aliases, asOfDate, start.toISOString().slice(0, 10));
+  const rows = loaded as ObservationRow[];
   const seen = new Set<string>();
   return rows.filter((row) => {
     if (row.observation_type === "MARKET" && !(
@@ -96,13 +78,11 @@ async function inferCanonicalMatchContext(args: { p1: string; p2: string; asOfDa
   if (fromRows) return fromRows;
   const fromRepository = inferRepositoryMatchContext(args);
   if (fromRepository) return fromRepository;
-  const { data, error } = await db.from("matches")
-    .select("player1_name,player2_name,tournament_name,event_level,scheduled_date,surface,round")
-    .eq("scheduled_date", args.asOfDate).limit(250);
-  if (error) return null;
-  const matches = (data ?? []).filter((row: any) =>
-    evidencePairMatches(row.player1_name, row.player2_name, args.p1, args.p2) ||
-    evidencePairMatches(row.player1_name, row.player2_name, args.p2, args.p1));
+  const matches = (await resultCaptureMatches()).matches.filter((row: any) =>
+    row.scheduled_date === args.asOfDate && (
+      evidencePairMatches(row.player1_name, row.player2_name, args.p1, args.p2) ||
+      evidencePairMatches(row.player1_name, row.player2_name, args.p2, args.p1)
+    ));
   const classified = matches.map((row: any) => ({ row, tour: classifyEvidenceTourFamily(row.event_level, row.tournament_name) })).filter((entry: { row: { tournament_name: string | null; event_level: string | null; surface: string | null; round: string | null }; tour: ReturnType<typeof classifyEvidenceTourFamily> }) => entry.tour !== null) as Array<{ row: { tournament_name: string | null; event_level: string | null; surface: string | null; round: string | null }; tour: NonNullable<ReturnType<typeof classifyEvidenceTourFamily>> }>;
   const tours = unique(classified.map((entry) => entry.tour));
   if (classified.length !== 1 || tours.length !== 1) return null;

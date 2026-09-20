@@ -2,6 +2,7 @@ import type { Fixture, PlayerSummary, TennisDataProvider } from "./types";
 import { searchHistoricalPlayersByExactNames, searchKnownPlayers } from "./playerIdentity";
 import { inferSurfaceAndLevel, resolveLocalTournamentMetadata } from "./surfaceMap";
 import type { RawScreenshotRecognition, RawMatchupEntry } from "./screenshotRecognition";
+import { resolveCanonicalScreenshotPlayer } from "./canonicalScreenshotIdentity";
 
 /**
  * Resolves raw names/event read off a screenshot against real trusted sources --
@@ -105,6 +106,26 @@ interface FixtureCandidate {
   score: number;
   nameScore: number;
   orientation: "direct" | "swapped";
+}
+
+interface CandidateGatherResult {
+  candidates: PlayerSummary[];
+  canonicalAmbiguous: boolean;
+  /** Canonical misses must be validated by the external provider before resolving. */
+  requiresProviderResolution: boolean;
+  providerConfidentCount: number;
+}
+
+/** Counts only confident provider identities; historical rows cannot satisfy a canonical miss. */
+export function countConfidentProviderCandidates(
+  normalizedOcrName: string,
+  candidates: PlayerSummary[],
+): number {
+  return candidates.filter(
+    (candidate) =>
+      candidate.source !== "historical-match"
+      && isConfidentMatch(normalizedOcrName, normalizeName(candidate.name)),
+  ).length;
 }
 
 interface SingleSideInference {
@@ -826,26 +847,43 @@ async function gatherCandidates(
   provider: TennisDataProvider,
   searchName: string,
   preloadedHistoricalExact: PlayerSummary[] = [],
-): Promise<PlayerSummary[]> {
+): Promise<CandidateGatherResult> {
   const norm = normalizeName(searchName);
+  const canonical = await resolveCanonicalScreenshotPlayer(searchName);
+  if (canonical.status === "resolved") {
+    return {
+      candidates: [canonical.player],
+      canonicalAmbiguous: false,
+      requiresProviderResolution: false,
+      providerConfidentCount: 1,
+    };
+  }
+  const canonicalCandidates = canonical.status === "ambiguous" ? canonical.candidates : [];
+  const canonicalAmbiguous = canonicalCandidates.length > 1;
+  if (canonicalAmbiguous) {
+    return {
+      candidates: canonicalCandidates,
+      canonicalAmbiguous: true,
+      requiresProviderResolution: false,
+      providerConfidentCount: 0,
+    };
+  }
 
-  const preloadedConfident = preloadedHistoricalExact.filter(
-    (candidate) => isConfidentMatch(norm, normalizeName(candidate.name)),
-  );
-  if (preloadedConfident.length > 0) return preloadedHistoricalExact;
+  // Historical rows are useful context, but a canonical miss must still reach
+  // the external provider before any identity is accepted.
 
   // Screenshot imports usually contain full names and our historical store already carries
   // canonical identities for them. Resolve that trusted local evidence first so a slow or
   // circuit-open live provider cannot turn successful OCR into an item-level timeout.
   const historical = await searchKnownPlayers(provider, searchName, { historicalOnly: true });
-  const historicalConfident = historical.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
-  if (historicalConfident.length > 0) return historical;
 
   // A full-name LIKE query can hit the 25-row cap before the exact record when a common first or
   // last name has many historical entries. Repeat the existing surname-first fallback locally
   // before touching the network.
   const words = searchName.trim().split(/\s+/).filter((w) => w.length >= 2).reverse();
-  const historicalAccumulated = new Map(historical.map((player) => [player.id, player]));
+  const historicalAccumulated = new Map(
+    [...preloadedHistoricalExact, ...historical].map((player) => [player.id, player]),
+  );
   for (const word of words) {
     const wordResults = await searchKnownPlayers(provider, word, {
       historicalOnly: true,
@@ -854,15 +892,11 @@ async function gatherCandidates(
     for (const candidate of wordResults) {
       if (!historicalAccumulated.has(candidate.id)) historicalAccumulated.set(candidate.id, candidate);
     }
-    const localCandidates = Array.from(historicalAccumulated.values());
-    if (localCandidates.some((candidate) => isConfidentMatch(norm, normalizeName(candidate.name)))) {
-      return localCandidates;
-    }
   }
 
   if (!isWeakOcrIdentityKey(norm)) {
     const localFuzzy = await ocrFuzzyFallback(provider, searchName, true);
-    if (localFuzzy) return [localFuzzy];
+    if (localFuzzy) historicalAccumulated.set(localFuzzy.id, localFuzzy);
   }
 
   // Only the live-provider phase is deadline-bound. Local historical scans above remain allowed
@@ -871,7 +905,6 @@ async function gatherCandidates(
     // Primary search
     const primary = await searchKnownPlayers(provider, searchName);
     const primaryConfident = primary.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
-    if (primaryConfident.length > 0) return primary;
 
     // Word-by-word fallback (surname first — most distinctive, fewest false positives)
     // Min length of 2 catches very short surnames (e.g. "Lea Ma" → "Ma" is 2 chars).
@@ -883,12 +916,20 @@ async function gatherCandidates(
       for (const c of wordResults) {
         if (!accumulated.has(c.id)) accumulated.set(c.id, c);
       }
-      // Stop as soon as at least one confident match exists in the accumulated set
-      const hasConfident = Array.from(accumulated.values()).some((c) => isConfidentMatch(norm, normalizeName(c.name)));
-      if (hasConfident) break;
+      // Keep collecting provider candidates. A second confident result must
+      // remain ambiguous rather than being hidden by an early unique hit.
     }
 
-    return Array.from(accumulated.values());
+    const providerCandidates = Array.from(accumulated.values());
+    const providerConfidentCount = countConfidentProviderCandidates(norm, providerCandidates);
+    return {
+      candidates: [...canonicalCandidates, ...providerCandidates, ...Array.from(historicalAccumulated.values())].filter(
+        (candidate, index, all) => all.findIndex((other) => other.id === candidate.id) === index,
+      ),
+      canonicalAmbiguous,
+      requiresProviderResolution: canonical.status === "not-found",
+      providerConfidentCount,
+    };
   })());
 }
 
@@ -930,8 +971,15 @@ async function resolvePlayerMatch(
   const norm = normalizeName(searchName);
 
   let candidates: PlayerSummary[];
+  let canonicalAmbiguous = false;
+  let requiresProviderResolution = false;
+  let providerConfidentCount = 0;
   try {
-    candidates = await gatherCandidates(provider, searchName, preloadedHistoricalExact);
+    const gathered = await gatherCandidates(provider, searchName, preloadedHistoricalExact);
+    candidates = gathered.candidates;
+    canonicalAmbiguous = gathered.canonicalAmbiguous;
+    requiresProviderResolution = gathered.requiresProviderResolution;
+    providerConfidentCount = gathered.providerConfidentCount;
   } catch (error) {
     if (error instanceof PlayerLookupTimeoutError) {
       return {
@@ -942,6 +990,38 @@ async function resolvePlayerMatch(
     throw error;
   }
   const confident = candidates.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
+
+  // A collision in the verified canonical registry is authoritative evidence
+  // of ambiguity. Neither a unique provider hit nor fixture/fuzzy heuristics
+  // may silently choose one of those canonical identities.
+  if (canonicalAmbiguous) {
+    return {
+      match: { recognizedName, player: null },
+      status: "ambiguous",
+      candidates: candidates.filter((candidate) => isConfidentMatch(norm, normalizeName(candidate.name))),
+    };
+  }
+
+  // When the canonical registry has no exact identity, only one confident
+  // result from the provider fallback is safe to resolve. Historical/fuzzy
+  // candidates are context, not an identity assertion.
+  if (requiresProviderResolution && providerConfidentCount !== 1) {
+    return {
+      match: { recognizedName, player: null },
+      status: providerConfidentCount > 1 ? "ambiguous" : "not-found",
+      ...(providerConfidentCount > 1 ? { candidates: confident } : {}),
+    };
+  }
+  if (requiresProviderResolution && providerConfidentCount === 1) {
+    const providerMatch = candidates.find(
+      (candidate) =>
+        candidate.source !== "historical-match"
+        && isConfidentMatch(norm, normalizeName(candidate.name)),
+    );
+    if (providerMatch) {
+      return { match: { recognizedName, player: providerMatch }, status: "resolved" };
+    }
+  }
 
   // A single confident candidate is unambiguous by definition — resolve it even when the OCR
   // name is in an abbreviated "X. Surname" or "X. Y. Surname" form.  The weak-key guard below
@@ -1020,6 +1100,13 @@ async function resolvePlayerMatch(
         return 0;
       })[0]!;
       return { match: { recognizedName, player: best }, status: "resolved" };
+    }
+
+    // Canonical heliumdb contained more than one verified identity for this
+    // normalized OCR name. Provider ranking/recency must not silently choose
+    // one of them; expose the candidates for manual disambiguation.
+    if (canonicalAmbiguous) {
+      return { match: { recognizedName, player: null }, status: "ambiguous", candidates: confident };
     }
 
     // Fixture-context tie-break: when multiple genuinely distinct players share the

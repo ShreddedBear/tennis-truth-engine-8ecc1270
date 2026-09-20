@@ -4,6 +4,7 @@
 dist
 .output
 .wrangler
+.reaudit-manifests
 tmp
 out-tsc
 *.tsbuildinfo
@@ -34,10 +35,14 @@ node_modules
 /connect.lock
 /coverage
 /libpeerconnection.log
+*.log
 npm-debug.log
 yarn-error.log
 testem.log
 /typings
+
+# generated screenshots and runtime captures
+/screenshots/
 
 # System Files
 .DS_Store

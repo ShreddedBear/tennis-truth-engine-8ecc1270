@@ -110,11 +110,15 @@ describe("no browser-bundled module may reach the evidence warehouse", () => {
     const libFiles = sourceFilesUnder("src/lib");
     const offenders = libFiles.filter((file) => {
       const text = readFileSync(file, "utf8");
-      const queriesWarehouse = WAREHOUSE_TABLES.some((table) => text.includes(`from("${table}")`));
+      const queriesWarehouse = WAREHOUSE_TABLES.some((table) =>
+        text.includes(`from("${table}")`) ||
+        text.includes(`from(\`${table}\`)`) ||
+        text.includes(`from('${table}')`),
+      );
       if (!queriesWarehouse) return false;
-      // client.server.ts exports supabaseAdmin (SUPABASE_SERVICE_ROLE_KEY); the plain
-      // client module is the browser's anon-key client and must never appear here.
-      return !text.includes("integrations/supabase/client.server");
+      // Truth now reaches the warehouse through named authenticated API operations.
+      // No browser/client-side module may hold a database client or direct query.
+      return !text.includes("truth-server-api") && !text.includes("truthApi");
     });
     expect(offenders.map((file) => file.replace(`${repoRoot}/`, ""))).toEqual([]);
   });

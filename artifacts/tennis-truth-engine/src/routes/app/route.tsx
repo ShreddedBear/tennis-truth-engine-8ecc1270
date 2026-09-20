@@ -1,8 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ensureBootstrapped } from "@/lib/bootstrap";
-import { LOCAL_WORKSPACE_ID } from "@/lib/constants";
 
 export const Route = createFileRoute("/app")({
   ssr: false,
@@ -13,7 +11,7 @@ function AppLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    ensureBootstrapped(LOCAL_WORKSPACE_ID).finally(() => setReady(true));
+    setReady(true);
   }, []);
 
   return (

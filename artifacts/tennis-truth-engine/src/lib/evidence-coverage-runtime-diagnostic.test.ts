@@ -149,9 +149,12 @@ describe("runtime evidence coverage diagnostic", () => {
   });
 
   it("prevents dense market/PBP rows from crowding other evidence families", () => {
-    expect(bridge).toContain('eq("observation_type", "MARKET")');
-    expect(bridge).toContain('not("observation_type", "in", "(POINT_BY_POINT,PBP,MARKET)")');
-    expect(bridge).not.toContain('in("observation_type", ["POINT_BY_POINT", "PBP"])');
+    const serverApi = readFileSync("src/lib/truth-server-api.ts", "utf8");
+    const apiRoutes = readFileSync("../api-server/src/services/truthFinalizationOperations.ts", "utf8");
+    expect(bridge).toContain("observationContextRows");
+    expect(apiRoutes).toContain("observation_type not in ('POINT_BY_POINT','PBP')");
+    expect(bridge).toContain('row.observation_type === "MARKET"');
+    expect(serverApi).toContain('"observation-context-rows"');
     expect(bridge).toContain("approvedPbpPacket");
     expect(bridge).toContain("buildBsdAtpMainPbpContext");
     expect(bridge).toContain("buildBsdWtaMainPbpContext");

@@ -1,12 +1,12 @@
 import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { truthServerDb } from "./truth-server-api";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { evidenceNameMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, type EvidenceTourFamily } from "./evidence-match-identity";
 import { computeHistoryMetric, type HistoryLane, type HistoryMetricCode } from "./task18c-rank-form-workload";
 
-const db = supabaseAdmin as any;
+const db = truthServerDb as any;
 // Task 20 reconciliation: "005"/"007"/"021"/"061" removed from this file's history-code
 // ownership -- see the header comment on HistoryMetricCode in
 // task18c-rank-form-workload.ts for the full rationale (005/061 are PROCESS_META; 007's

@@ -18,6 +18,7 @@ import supportRouter from "./support";
 import adminUsersRouter from "./adminUsers";
 import adminParlayRouter from "./adminParlay";
 import savedCardsRouter from "./savedCards";
+import truthEngineRouter from "./truthEngine";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(supportRouter);
 router.use(adminUsersRouter);
 router.use(adminParlayRouter);
 router.use(savedCardsRouter);
+router.use(truthEngineRouter);
 
 export default router;

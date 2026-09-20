@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { truthServerDb } from "./truth-server-api";
 import { buildMetricObservationContext } from "./source-observation-metric-bridge.server";
 import { resolveCanonicalEvidencePair } from "./evidence-canonical-identity.server";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
@@ -16,7 +16,7 @@ import { certifyMetricFinding } from "./metric-certification";
 import { classifyMetric, playerEvidenceDenominatorCodes } from "./metric-classification";
 import { loadRuntimeIndex } from "./runtime-tennis-index-data.server";
 
-const db = supabaseAdmin as any;
+const db = truthServerDb as any;
 const USABLE = new Set(["DIRECT", "RECONSTRUCTED", "PARTIAL"]);
 const DIAGNOSTIC_QUERY_CONCURRENCY = 6;
 

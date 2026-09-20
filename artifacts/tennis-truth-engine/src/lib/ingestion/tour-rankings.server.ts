@@ -1,7 +1,5 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertObservationFamily } from "../metric-source-family-policy";
-
-const db = supabaseAdmin as any;
+import { ingestionConfirmObservations, ingestionTargets, ingestionTouchTarget, ingestionUpsertObservations } from "../truth-server-api";
 export type RankingSource = "atp_rankings" | "wta_rankings";
 export type OfficialRankingSnapshot = { source:"atp_rankings"; url:string; html:string };
 
@@ -151,20 +149,21 @@ async function fetchRows(source:RankingSource,url:string,target:Target,snapshots
 async function persistRows(rows:Row[]) {
   let persisted=0;
   for(let i=0;i<rows.length;i+=500){
-    const chunk=rows.slice(i,i+500); const {error}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:true}); if(error)throw error;
+    const chunk = rows.slice(i, i + 500);
     const sourceId=chunk[0]?.source_id; const keys=chunk.map(r=>r.source_record_key); if(!sourceId||!keys.length)continue;
-    const {data,error:confirmError}=await db.from("source_observations").select("source_record_key").eq("source_id",sourceId).in("source_record_key",keys); if(confirmError)throw confirmError;
+    await ingestionUpsertObservations(chunk,true);
+    const {data}=await ingestionConfirmObservations(sourceId,keys);
     persisted += new Set((data??[]).map((r:any)=>r.source_record_key)).size;
   }
   return persisted;
 }
 
 export async function ingestTourRankings(source:RankingSource,snapshots:OfficialRankingSnapshot[]=[]){
-  const {data:targets,error}=await db.from("ingestion_targets").select("id,source_id,target_key,pullback_start,pullback_end,config").eq("source_id",source).eq("enabled",true); if(error)throw error;
+  const {targets}=await ingestionTargets(source);
   let observations_written=0,pages_read=0,objects_seen=0;
   for(const target of (targets??[]) as Target[]){
     const cfg=target.config??{}; const url=typeof cfg.url==="string"&&cfg.url?cfg.url:DEFAULT_URLS[source]; const sourceSnapshots=snapshots.filter(s=>s.source===source); const fetched=await fetchRows(source,url,target,sourceSnapshots); pages_read+=fetched.pages; objects_seen+=fetched.objects_seen;
-    observations_written+=await persistRows(fetched.rows); await db.from("ingestion_targets").update({last_ingested_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",target.id);
+    observations_written+=await persistRows(fetched.rows); await ingestionTouchTarget(target.id);
   }
   return {source,source_name:SOURCE_NAMES[source],targets:targets?.length??0,pages_read,objects_seen,observations_written};
 }

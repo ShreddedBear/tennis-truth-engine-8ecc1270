@@ -13,8 +13,8 @@
 // exactly one purpose -- grading a prediction after the fact -- and for no other. It must
 // never be reachable from an evidence, metric or research path; that is enforced by a test.
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LOCAL_WORKSPACE_ID } from "./constants";
+import { resultCaptureLog, resultCaptureMatches, resultCaptureSaveGrade, resultCaptureState, resultCaptureUpdateMatch } from "./truth-server-api";
 import { repositoryResultsRows } from "./repository-results-history.server";
 import { evidencePairMatches } from "./evidence-player-alias";
 import type { EvidenceTourFamily } from "./evidence-match-identity";
@@ -99,56 +99,33 @@ export function repositoryFinalResult(match: Pick<CaptureMatchRow, "player1_name
   };
 }
 
-export function makeResultCaptureDeps(db = supabaseAdmin): ResultCaptureDeps {
+export function makeResultCaptureDeps(): ResultCaptureDeps {
   const user_id = LOCAL_WORKSPACE_ID;
   return {
     now: () => new Date(),
     async listMatches() {
-      const { data, error } = await db.from("matches").select("id, player1_name, player2_name, tournament_name, scheduled_date, surface, actual_winner, result_status, final_score");
-      if (error) throw new Error(`Database read failed (matches): ${error.message}`);
-      return (data ?? []) as CaptureMatchRow[];
+      return (await resultCaptureMatches()).matches as CaptureMatchRow[];
     },
     async updateMatch(matchId, patch) {
-      const { error } = await db.from("matches").update(patch as never).eq("id", matchId);
-      if (error) throw new Error(`Database update failed (matches): ${error.message}`);
+      await resultCaptureUpdateMatch(matchId, patch as Record<string, unknown>);
     },
     async lookupResult(match) { return repositoryFinalResult(match); },
     async listDecidedRuns() {
-      const { data: decided, error: decidedError } = await db.from("final_decisions").select("audit_run_id");
-      if (decidedError) throw new Error(`Database read failed (final_decisions): ${decidedError.message}`);
-      const ids = [...new Set((decided ?? []).map((row) => String(row.audit_run_id)).filter(Boolean))];
-      if (!ids.length) return [];
-      const out = [];
-      for (let i = 0; i < ids.length; i += 200) {
-        const { data, error } = await db.from("audit_runs").select("id, match_id, run_number, independent_winner").in("id", ids.slice(i, i + 200));
-        if (error) throw new Error(`Database read failed (audit_runs): ${error.message}`);
-        out.push(...(data ?? []));
-      }
-      return out as never;
+      return (await resultCaptureState()).runs as never;
     },
     async listDecisions() {
-      const { data, error } = await db.from("final_decisions").select("audit_run_id, gate_report");
-      if (error) throw new Error(`Database read failed (final_decisions): ${error.message}`);
-      return (data ?? []) as never;
+      return (await resultCaptureState()).decisions as never;
     },
     async listGrades() {
-      const { data, error } = await db.from("result_grades").select("id, match_id, audit_run_id");
-      if (error) throw new Error(`Database read failed (result_grades): ${error.message}`);
-      return (data ?? []) as never;
+      return (await resultCaptureState()).grades as never;
     },
     async saveGrade(existingId, row) {
-      if (existingId) {
-        const { error } = await db.from("result_grades").update(row as never).eq("id", existingId);
-        if (error) throw new Error(`Database update failed (result_grades): ${error.message}`);
-        return;
-      }
-      const { error } = await db.from("result_grades").insert({ ...row, user_id } as never);
-      if (error) throw new Error(`Database insert failed (result_grades): ${error.message}`);
+      await resultCaptureSaveGrade(existingId, { ...row, user_id });
     },
-    async log(entry) { await db.from("execution_logs").insert({ ...entry, user_id } as never); },
+    async log(entry) { await resultCaptureLog({ ...entry, user_id }); },
   };
 }
 
-export async function runResultCapture(db = supabaseAdmin): Promise<ResultCaptureSummary> {
-  return captureAndResolveResults(makeResultCaptureDeps(db));
+export async function runResultCapture(): Promise<ResultCaptureSummary> {
+  return captureAndResolveResults(makeResultCaptureDeps());
 }

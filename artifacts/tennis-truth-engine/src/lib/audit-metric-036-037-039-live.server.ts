@@ -12,12 +12,12 @@
 // Metric 036 continues to use audit-metric-036-loss-autopsy.ts and the static
 // four-tour history; this file owns only the audit-DB-dependent 037/039 path.
 //
-// Follows the same supabaseAdmin/ownerId/LOCAL_WORKSPACE_ID convention as
+// Follows the same truthServerDb/ownerId/LOCAL_WORKSPACE_ID convention as
 // audit-repo.server.ts, and the same summary_versions(match_id, is_active)
 // -> parsed_summary_fields(summary_version_id) join it already uses for
 // getParsedFields (not matches.active_summary_version_id, which
 // calibration-matrix-autofill.ts uses for a different, single-match UI path).
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { truthServerDb } from "./truth-server-api";
 import { LOCAL_WORKSPACE_ID } from "./constants";
 import {
   computeLossWinAutopsy,
@@ -106,7 +106,7 @@ export async function loadAuditDbScoredMatches(): Promise<ScoredMatchRow[]> {
 }
 
 async function fetchAuditDbScoredMatches(): Promise<ScoredMatchRow[]> {
-  const db = supabaseAdmin as any;
+  const db = truthServerDb as any;
   type MatchRow = Pick<ScoredMatchRow, "id" | "final_score" | "best_of" | "actual_winner" | "player1_name" | "player2_name" | "result_recorded_at">;
   type VersionRow = { id: string; match_id: string };
   type FieldRow = { id: string; summary_version_id: string; field_key: string; normalized_value: string | null; created_at: string };

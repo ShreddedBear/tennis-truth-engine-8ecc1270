@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { truthApi } from "@/lib/truth-api-client";
 import { AuditColorBadge, BucketBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { buildBoardPdf } from "@/lib/report-pdf";
@@ -43,26 +43,12 @@ export function useBoardRows() {
   return useQuery({
     queryKey: ["board"],
     queryFn: async (): Promise<BoardRow[]> => {
-      const [decisionResult, runResult, matchResult, fieldResult, versionResult] = await Promise.all([
-        supabase.from("final_decisions").select("*"),
-        supabase.from("audit_runs").select("*"),
-        supabase.from("matches").select("*"),
-        supabase.from("parsed_summary_fields").select("summary_version_id, field_key, normalized_value"),
-        supabase.from("summary_versions").select("id, match_id, is_active"),
-      ]);
-      const failed = [
-        ["final decisions", decisionResult.error],
-        ["audit runs", runResult.error],
-        ["matches", matchResult.error],
-        ["summary fields", fieldResult.error],
-        ["summary versions", versionResult.error],
-      ].find(([, error]) => error);
-      if (failed) throw new Error(`Could not load ${failed[0]}: ${(failed[1] as { message: string }).message}`);
-      const decisions = decisionResult.data ?? [];
-      const runs = runResult.data ?? [];
-      const matches = matchResult.data ?? [];
-      const fields = fieldResult.data ?? [];
-      const versions = versionResult.data ?? [];
+      const response = await truthApi.getBoard();
+      const decisions = response.decisions as any[];
+      const runs = response.runs as any[];
+      const matches = response.matches as any[];
+      const fields = response.fields as any[];
+      const versions = response.versions as any[];
 
       const matrixFor = (matchId: string, key: string) => {
         const sv = versions?.find((v) => v.match_id === matchId && v.is_active);

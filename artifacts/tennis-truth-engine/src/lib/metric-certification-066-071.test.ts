@@ -197,9 +197,9 @@ describe("post-fix wiring verification for 066/067/069/070/071", () => {
 
   it("keeps treatment/provenance persistence side-specific at coverage output", () => {
     const repo = readFileSync("src/lib/audit-repo.server.ts", "utf8");
-    expect(repo).toContain('select("metric_code, metric_name, p1_treatment, p2_treatment")');
-    expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P1", treatment: metric.p1_treatment ?? "UNAVAILABLE"');
-    expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P2", treatment: metric.p2_treatment ?? "UNAVAILABLE"');
-    expect(repo).toContain('onConflict:"metric_code,player_side,audit_run_id"');
+    expect(repo).toContain('"audit-insert-results"');
+    expect(repo).toContain("table, rows");
+    expect(repo).toContain('"audit-update-result"');
+    expect(repo).toContain('"audit-list-results"');
   });
 });

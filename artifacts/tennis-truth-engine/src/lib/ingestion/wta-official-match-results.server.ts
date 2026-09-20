@@ -1,7 +1,6 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { ingestionConfirmObservations, ingestionTargets, ingestionUpsertObservations } from "../truth-server-api";
 import { assertObservationFamily } from "../metric-source-family-policy";
 
-const db = supabaseAdmin as any;
 const WTA_TOURNAMENT_API = "https://api.wtatennis.com/tennis/tournaments";
 const SOURCE_NAME = "WTA Official";
 
@@ -231,12 +230,10 @@ async function persistRows(rows: Observation[]) {
   let persisted = 0;
   for (let offset = 0; offset < rows.length; offset += 500) {
     const chunk = rows.slice(offset, offset + 500);
-    const { error } = await db.from("source_observations").upsert(chunk, { onConflict: "source_id,source_record_key", ignoreDuplicates: true });
-    if (error) throw error;
+    await ingestionUpsertObservations(chunk, true);
     for (let confirmOffset = 0; confirmOffset < chunk.length; confirmOffset += 50) {
       const keys = chunk.slice(confirmOffset, confirmOffset + 50).map((row) => row.source_record_key);
-      const { data, error: confirmError } = await db.from("source_observations").select("source_record_key").eq("source_id", "wta").in("source_record_key", keys);
-      if (confirmError) throw confirmError;
+      const { data } = await ingestionConfirmObservations("wta", keys);
       persisted += new Set((data ?? []).map((row: any) => row.source_record_key)).size;
     }
   }
@@ -244,8 +241,7 @@ async function persistRows(rows: Observation[]) {
 }
 
 export async function ingestWtaOfficialMatchResults() {
-  const { data: targets, error } = await db.from("ingestion_targets").select("id,target_key,pullback_start,pullback_end").eq("source_id", "wta").eq("enabled", true);
-  if (error) throw error;
+  const { targets } = await ingestionTargets("wta");
 
   let pagesRead = 0;
   let structuredObjectsSeen = 0;

@@ -11,7 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/app/route'
-import { Route as ApiAdminRepublishMetricsDocumentRouteImport } from './routes/api/admin-republish-metrics-document'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as ApiDriveAuditBatchRouteImport } from './routes/api/drive-audit-batch'
 import { Route as ApiEvidenceCoverageDiagnosticRouteImport } from './routes/api/evidence-coverage-diagnostic'
 import { Route as ApiWarehouseIngestRouteImport } from './routes/api/warehouse-ingest'
@@ -37,12 +38,16 @@ const AppRouteRoute = AppRouteRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminRepublishMetricsDocumentRoute =
-  ApiAdminRepublishMetricsDocumentRouteImport.update({
-    id: '/api/admin-republish-metrics-document',
-    path: '/api/admin-republish-metrics-document',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDriveAuditBatchRoute = ApiDriveAuditBatchRouteImport.update({
   id: '/api/drive-audit-batch',
   path: '/api/drive-audit-batch',
@@ -118,7 +123,8 @@ const AppMatchMatchIdRoute = AppMatchMatchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
-  '/api/admin-republish-metrics-document': typeof ApiAdminRepublishMetricsDocumentRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/api/drive-audit-batch': typeof ApiDriveAuditBatchRoute
   '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
@@ -137,7 +143,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
-  '/api/admin-republish-metrics-document': typeof ApiAdminRepublishMetricsDocumentRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/api/drive-audit-batch': typeof ApiDriveAuditBatchRoute
   '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
@@ -157,7 +164,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
-  '/api/admin-republish-metrics-document': typeof ApiAdminRepublishMetricsDocumentRoute
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/api/drive-audit-batch': typeof ApiDriveAuditBatchRoute
   '/api/evidence-coverage-diagnostic': typeof ApiEvidenceCoverageDiagnosticRoute
   '/api/warehouse-ingest': typeof ApiWarehouseIngestRoute
@@ -178,7 +186,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
-    | '/api/admin-republish-metrics-document'
+    | '/sign-in'
+    | '/sign-up'
     | '/api/drive-audit-batch'
     | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
@@ -197,7 +206,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
-    | '/api/admin-republish-metrics-document'
+    | '/sign-in'
+    | '/sign-up'
     | '/api/drive-audit-batch'
     | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
@@ -216,7 +226,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
-    | '/api/admin-republish-metrics-document'
+    | '/sign-in'
+    | '/sign-up'
     | '/api/drive-audit-batch'
     | '/api/evidence-coverage-diagnostic'
     | '/api/warehouse-ingest'
@@ -236,7 +247,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
-  ApiAdminRepublishMetricsDocumentRoute: typeof ApiAdminRepublishMetricsDocumentRoute
+  SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
   ApiDriveAuditBatchRoute: typeof ApiDriveAuditBatchRoute
   ApiEvidenceCoverageDiagnosticRoute: typeof ApiEvidenceCoverageDiagnosticRoute
   ApiWarehouseIngestRoute: typeof ApiWarehouseIngestRoute
@@ -258,11 +270,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin-republish-metrics-document': {
-      id: '/api/admin-republish-metrics-document'
-      path: '/api/admin-republish-metrics-document'
-      fullPath: '/api/admin-republish-metrics-document'
-      preLoaderRoute: typeof ApiAdminRepublishMetricsDocumentRouteImport
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/drive-audit-batch': {
@@ -401,7 +420,8 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
-  ApiAdminRepublishMetricsDocumentRoute: ApiAdminRepublishMetricsDocumentRoute,
+  SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
   ApiDriveAuditBatchRoute: ApiDriveAuditBatchRoute,
   ApiEvidenceCoverageDiagnosticRoute: ApiEvidenceCoverageDiagnosticRoute,
   ApiWarehouseIngestRoute: ApiWarehouseIngestRoute,

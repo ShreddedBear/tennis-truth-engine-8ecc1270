@@ -1,11 +1,11 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { truthServerDb } from "./truth-server-api";
 import {
   isSurnameOnlyEvidenceIdentity,
   normalizeEvidenceIdentity,
   uniqueCanonicalWarehouseIdentity,
 } from "./evidence-player-alias";
 
-const db = supabaseAdmin as any;
+const db = truthServerDb as any;
 const PAGE_SIZE = 1000;
 const MAX_PAGES_PER_LANE = 20;
 const MAX_PLAYER_PAGES = 50;

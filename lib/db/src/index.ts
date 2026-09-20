@@ -34,3 +34,11 @@ pool.on("error", (err) => {
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
+export * from "./truthEngine";
+export * from "./truthEngine/audit";
+export * from "./truthEngine/calibration";
+export * from "./truthEngine/evidenceSource";
+export * from "./truthEngine/ingestion";
+export * from "./truthEngine/matchSummary";
+export * from "./truthEngine/metricsResults";
+export * from "./truthEngine/rulesPublication";

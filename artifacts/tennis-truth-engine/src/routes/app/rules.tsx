@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { truthApi } from "@/lib/truth-api-client";
 import { StateText } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/app/rules")({
@@ -22,10 +22,8 @@ function Rules() {
   const { data } = useQuery({
     queryKey: ["rules"],
     queryFn: async () => {
-      const { data: docs } = await supabase.from("rule_documents").select("*").order("doc_type");
-      const { data: versions } = await supabase.from("rule_document_versions").select("*").order("version_number");
-      const { data: rules } = await supabase.from("rules").select("*").order("rule_code");
-      return { docs: docs ?? [], versions: versions ?? [], rules: rules ?? [] };
+      const response = await truthApi.getRulesScreen();
+      return { docs: response.documents as any[], versions: response.versions as any[], rules: response.rules as any[] };
     },
   });
 

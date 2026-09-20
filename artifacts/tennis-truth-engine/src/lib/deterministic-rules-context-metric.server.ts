@@ -1,8 +1,8 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { truthServerDb } from "./truth-server-api";
 import type { MetricFinding, SourceRef } from "./audit-pipeline";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 
-const db=supabaseAdmin as any;
+const db=truthServerDb as any;
 
 type Row={source_id:string|null;source_name:string|null;source_url:string|null;observation_type:string|null;observation_key:string|null;text_value:string|null;event_date:string|null;};
 

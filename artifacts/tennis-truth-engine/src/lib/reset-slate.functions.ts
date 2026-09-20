@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { LOCAL_WORKSPACE_ID } from "./constants";
+import { clearTruthSlate } from "./truth-api-client";
 
 // CLEAR SLATE MEANS PHYSICAL DELETION -- never retirement, archival, an is_active flag,
 // or "preserve for auditing". The previous implementation only flipped
@@ -29,19 +29,20 @@ export interface ClearSlateResult {
 interface ClearOperationalSlateRpcRow {
   before: Record<string, number>;
   after: Record<string, number>;
-  deleted_matches: number;
-  deleted_uploads: number;
-  deleted_slates: number;
-  deleted_calibration_observations: number;
+  deletedMatches: number;
+  deletedUploads: number;
+  deletedSlates: number;
+  deletedCalibrationObservations: number;
 }
 
-export async function clearOperationalSlate(db: {
-  rpc(fn: "clear_operational_slate", args: { p_user_id: string }): PromiseLike<{ data: unknown; error: { message: string } | null }>;
-}): Promise<ClearSlateResult> {
-  const { data: raw, error } = await db.rpc("clear_operational_slate", { p_user_id: LOCAL_WORKSPACE_ID });
-  if (error) throw new Error(`Clear Slate failed: ${error.message}`);
-  if (!raw || typeof raw !== "object") throw new Error("Clear Slate failed: the database returned no result.");
-  const data = raw as ClearOperationalSlateRpcRow;
+export type ClearSlateApi = {
+  clearTruthSlate: () => Promise<unknown>;
+};
+
+export async function clearOperationalSlate(
+  api: ClearSlateApi = { clearTruthSlate },
+): Promise<ClearSlateResult> {
+  const data = (await api.clearTruthSlate()) as ClearOperationalSlateRpcRow;
 
   // AFTER must independently prove the delete actually happened, not just that the RPC
   // returned without error -- every count here comes from the function re-querying the
@@ -52,12 +53,12 @@ export async function clearOperationalSlate(db: {
   }
 
   return {
-    matches: data.deleted_matches,
+    matches: data.deletedMatches,
     auditRuns: data.before["audit_runs"] ?? 0,
     summaryVersions: data.before["summary_versions"] ?? 0,
-    uploads: data.deleted_uploads,
-    slates: data.deleted_slates,
-    calibrationObservations: data.deleted_calibration_observations,
+    uploads: data.deletedUploads,
+    slates: data.deletedSlates,
+    calibrationObservations: data.deletedCalibrationObservations,
     before: data.before,
     after: data.after,
   };
@@ -80,8 +81,7 @@ export const resetOperationalSlate = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async () => {
-    const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
-    const deleted = await clearOperationalSlate(db);
+    const deleted = await clearOperationalSlate();
 
     return {
       ok: true as const,

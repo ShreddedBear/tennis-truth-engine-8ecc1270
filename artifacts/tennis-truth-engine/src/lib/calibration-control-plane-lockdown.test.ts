@@ -57,37 +57,16 @@ describe("no browser code writes the calibration control plane", () => {
     { cwd: repoRoot, encoding: "utf8" },
   ).trim();
 
-  // The two legacy browser writers, pinned explicitly. Both are duplicates of the scheduled
-  // server-side path (capture-match-results workflow -> truth-engine-calibration.ts) and are
-  // now non-functional against the database:
-  //
-  //   calibration.ts  gradeResult()        -- the calibration page's manual grade button.
-  //                                          Fails on its FIRST write (calibration_versions),
-  //                                          so it cannot leave a half-applied version.
-  //   bootstrap.ts    ensureCalibration()  -- first-run seeder. Already short-circuits when a
-  //                                          calibration_versions row exists, and production
-  //                                          holds one, so it never fires there.
-  //
-  // They are listed rather than deleted because removing them changes UI behaviour that
-  // cannot be verified from this environment. The point of the test is that NO NEW call site
-  // appears: once the lockdown is live a browser write fails at runtime, not at build time.
-  const KNOWN_LEGACY_WRITERS = [
-    'src/lib/calibration.ts:from("calibration_versions").update',
-    'src/lib/calibration.ts:from("calibration_buckets").insert',
-    'src/lib/calibration.ts:from("calibration_ledger").insert',
-    'src/lib/bootstrap.ts:from("calibration_buckets").insert',
-  ];
-
   it("introduces no NEW client-side writer against a calibration table", () => {
     const found = (clientWrites ? clientWrites.split("\n") : [])
       .map((line) => line.replace(/:(\d+):/, ":"))
       .sort();
-    expect(found).toEqual([...KNOWN_LEGACY_WRITERS].sort());
+    expect(found).toEqual([]);
   });
 
-  it("the legacy writers are confined to the two known files", () => {
+  it("all calibration writes are confined to authenticated server operations", () => {
     const files = new Set((clientWrites ? clientWrites.split("\n") : []).map((line) => line.split(":")[0]));
-    expect([...files].sort()).toEqual(["src/lib/bootstrap.ts", "src/lib/calibration.ts"]);
+    expect([...files].sort()).toEqual([]);
   });
 });
 

@@ -8,6 +8,9 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { ClerkProvider } from "@clerk/react";
+import { publishableKeyFromHost } from "@clerk/react/internal";
+import { shadcn } from "@clerk/themes";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -116,12 +119,41 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const publishableKey = publishableKeyFromHost(
+    typeof window === "undefined" ? "" : window.location.hostname,
+    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+  );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <Toaster />
-    </QueryClientProvider>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      appearance={{
+        theme: shadcn,
+        options: {
+          logoPlacement: "inside",
+          logoLinkUrl: import.meta.env.BASE_URL,
+          logoImageUrl: `${typeof window === "undefined" ? "" : window.location.origin}${import.meta.env.BASE_URL}logo.svg`,
+        },
+        variables: {
+          colorPrimary: "hsl(var(--primary))",
+          colorForeground: "hsl(var(--foreground))",
+          colorBackground: "hsl(var(--background))",
+          colorInput: "hsl(var(--background))",
+          colorInputForeground: "hsl(var(--foreground))",
+          colorNeutral: "hsl(var(--border))",
+          fontFamily: "IBM Plex Sans, sans-serif",
+        },
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <Toaster />
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }

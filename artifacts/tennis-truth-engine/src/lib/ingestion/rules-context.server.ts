@@ -1,7 +1,5 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertObservationFamily } from "../metric-source-family-policy";
-
-const db = supabaseAdmin as any;
+import { ingestionTargets, ingestionTouchTarget, ingestionUpsertObservations } from "../truth-server-api";
 export type RulesSource = "itf_rules" | "atp_rules" | "wta_rules";
 
 type Target={id:string;source_id:RulesSource;target_key:string;pullback_start:string|null;pullback_end:string|null;config:Record<string,unknown>|null};
@@ -41,7 +39,7 @@ function extractRuleFacts(text:string){
 }
 
 export async function ingestRulesContext(source:RulesSource){
-  const {data:targets,error}=await db.from("ingestion_targets").select("id,source_id,target_key,pullback_start,pullback_end,config").eq("source_id",source).eq("enabled",true); if(error)throw error;
+  const {targets}=await ingestionTargets(source);
   let pages_read=0,observations_written=0;
   for(const target of (targets??[]) as Target[]){
     const cfg=target.config??{}; const url=typeof cfg.url==="string"&&cfg.url?cfg.url:DEFAULT_URLS[source];
@@ -52,8 +50,8 @@ export async function ingestRulesContext(source:RulesSource){
       const row:Observation={source_id:source,source_name:SOURCE_NAMES[source],source_url:url,source_record_key:`${target.target_key}:${fact.key}`,player_name:null,opponent_name:null,tournament:null,event_date:target.pullback_end??new Date().toISOString().slice(0,10),surface:null,observation_type:"RULES_CONTEXT",observation_key:fact.key,text_value:JSON.stringify({count:fact.count,matches:fact.matches}),numeric_value:null,unit:null,sample_label:`objective rules text matches=${fact.count}`,window_start:target.pullback_start,window_end:target.pullback_end,raw_payload:{excerpt:text.slice(0,12000)},provenance:{target_key:target.target_key,extraction:"official_rules_page_text",objective_only:true}};
       assertObservationFamily(row,"RULES_CONTEXT"); rows.push(row);
     }
-    for(let i=0;i<rows.length;i+=250){const chunk=rows.slice(i,i+250);const {error:e}=await db.from("source_observations").upsert(chunk,{onConflict:"source_id,source_record_key",ignoreDuplicates:false});if(e)throw e;observations_written+=chunk.length;}
-    await db.from("ingestion_targets").update({last_ingested_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",target.id);
+    for(let i=0;i<rows.length;i+=250){const chunk=rows.slice(i,i+250);await ingestionUpsertObservations(chunk,false);observations_written+=chunk.length;}
+    await ingestionTouchTarget(target.id);
   }
   return {source,targets:targets?.length??0,pages_read,observations_written};
 }

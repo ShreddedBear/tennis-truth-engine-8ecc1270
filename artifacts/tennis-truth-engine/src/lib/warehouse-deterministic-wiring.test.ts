@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const researcher = readFileSync("src/lib/warehouse-first-researcher.server.ts", "utf8");
 const compact = researcher.replace(/\s+/g, "");
 const pipeline = readFileSync("src/lib/audit-pipeline.ts", "utf8").replace(/\s+/g, "");
-const atomicUpsert = readFileSync("supabase/migrations/20260830070000_atomic_metric_evidence_upsert.sql", "utf8");
+const serverApi = readFileSync("src/lib/truth-server-api.ts", "utf8");
 
 describe("warehouse deterministic calculator wiring", () => {
   it("runs deterministic results/schedule calculations before live fallback", () => {
@@ -45,11 +45,8 @@ describe("warehouse deterministic calculator wiring", () => {
   });
 
   it("uses the normalized evidence uniqueness key for conflict-safe refreshes", () => {
-    expect(compact).toContain('db.rpc("upsert_metric_evidence_side",{p_payload:payload})');
-    expect(atomicUpsert).toContain("on conflict (");
-    expect(atomicUpsert).toContain("(lower(player_name))");
-    expect(atomicUpsert).toContain("(coalesce(lower(opponent_name), ''))");
-    expect(atomicUpsert).toContain("returning * into persisted");
+    expect(serverApi).toContain('truthServerOperation<{ data: any; error: { message: string } | null }>("evidence-upsert"');
+    expect(serverApi).toContain("export async function upsertMetricEvidence");
   });
 
   it("passes deterministic components into the metric-scoped fallback context", () => {

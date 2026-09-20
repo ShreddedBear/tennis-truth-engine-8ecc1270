@@ -24,7 +24,369 @@ tags:
     description: Owner-only login gate protecting data-changing and job-triggering endpoints
   - name: payments
     description: Stripe-backed workspace billing, checkout, and webhook flows
+  - name: truth-engine
+    description: Authenticated Truth Engine operations backed by PostgreSQL/Drizzle
 paths:
+  /truth-engine/matches/{matchId}:
+    get:
+      operationId: getTruthMatch
+      tags: [truth-engine]
+      summary: Get a Truth Engine match and its active parsed summary fields
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Match context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthMatchResponse" }
+        "404":
+          description: Match not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderError" }
+
+  /truth-engine/uploads:
+    post:
+      operationId: createTruthUpload
+      tags: [truth-engine]
+      summary: Atomically persist a parsed Truth Engine summary upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TruthUploadInput" }
+      responses:
+        "201":
+          description: Persisted upload, match, active version, and parsed fields
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/matches/{matchId}/audit:
+    get:
+      operationId: getTruthMatchAudit
+      tags: [truth-engine]
+      summary: Get the latest audit run and ordered stage state for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Audit state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthAuditResponse" }
+        "404":
+          description: Match or audit not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderError" }
+
+  /truth-engine/audits/{runId}/stages:
+    get:
+      operationId: getTruthAuditStages
+      tags: [truth-engine]
+      summary: Get ordered stages for an owned audit run
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Ordered audit stages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecordList" }
+
+  /truth-engine/audits/{runId}/lease/claim:
+    post:
+      operationId: claimTruthAuditLease
+      tags: [truth-engine]
+      summary: Atomically claim an eligible audit lease
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TruthLeaseInput" }
+      responses:
+        "200":
+          description: Lease result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthMutationResult" }
+
+  /truth-engine/audits/{runId}/lease/renew:
+    post:
+      operationId: renewTruthAuditLease
+      tags: [truth-engine]
+      summary: Renew an owned audit lease
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TruthLeaseInput" }
+      responses:
+        "200":
+          description: Lease result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthMutationResult" }
+
+  /truth-engine/audits/{runId}/lease/release:
+    post:
+      operationId: releaseTruthAuditLease
+      tags: [truth-engine]
+      summary: Release an owned audit lease
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TruthLeaseInput" }
+      responses:
+        "200":
+          description: Lease result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthMutationResult" }
+
+  /truth-engine/audits/{runId}/results:
+    get:
+      operationId: getTruthAuditResults
+      tags: [truth-engine]
+      summary: Get the owned audit result graph
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Audit result graph
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/audits/{runId}/sources:
+    get:
+      operationId: getTruthAuditSources
+      tags: [truth-engine]
+      summary: Get source snapshots and conflicts for an owned audit
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Source graph
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/audits/{runId}/metrics:
+    get:
+      operationId: getTruthAuditMetrics
+      tags: [truth-engine]
+      summary: Get metric results and coverage for an owned audit
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Metric graph
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/evidence:
+    get:
+      operationId: listTruthEvidence
+      tags: [truth-engine]
+      summary: List metric evidence by metric and optional as-of date
+      parameters:
+        - name: metricCode
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: asOfDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Evidence rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecordList" }
+
+  /truth-engine/calibration:
+    get:
+      operationId: getTruthCalibration
+      tags: [truth-engine]
+      summary: Get the active or requested calibration version and buckets
+      parameters:
+        - name: versionId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Calibration state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/matches/{matchId}/calibration-observations:
+    get:
+      operationId: listTruthCalibrationObservations
+      tags: [truth-engine]
+      summary: List calibration observations for an owned match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Calibration observations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecordList" }
+
+  /truth-engine/rules/{docType}:
+    get:
+      operationId: getTruthRules
+      tags: [truth-engine]
+      summary: Get the active published rules for a document type
+      parameters:
+        - name: docType
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Published rules
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecordList" }
+
+  /truth-engine/admin/rules/{docType}/publish:
+    post:
+      operationId: publishTruthRules
+      tags: [truth-engine]
+      summary: Publish a versioned Truth Engine rule document
+      parameters:
+        - name: docType
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TruthRulesPublicationInput" }
+      responses:
+        "201":
+          description: Published rule document and rules
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/matches/{matchId}/grades:
+    get:
+      operationId: listTruthGrades
+      tags: [truth-engine]
+      summary: List result grades for an owned match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Result grades
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecordList" }
+    post:
+      operationId: createTruthGrade
+      tags: [truth-engine]
+      summary: Record an explicitly authorized result grade
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TruthGradeInput" }
+      responses:
+        "201":
+          description: Result grade
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+
+  /truth-engine/ingestion/{sourceId}/targets:
+    get:
+      operationId: listTruthIngestionTargets
+      tags: [truth-engine]
+      summary: List enabled ingestion targets for a source
+      parameters:
+        - name: sourceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Enabled ingestion targets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecordList" }
+
+  /truth-engine/admin/clear-slate:
+    post:
+      operationId: clearTruthOperationalSlate
+      tags: [truth-engine]
+      summary: Explicitly authorized operational Truth Engine slate reset
+      responses:
+        "200":
+          description: Slate reset summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TruthRecord" }
+        "403":
+          description: Administrative authorization required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderError" }
+
   /auth/status:
     get:
       operationId: getAdminAuthStatus
@@ -1083,6 +1445,123 @@ paths:
 
 components:
   schemas:
+    TruthRecord:
+      type: object
+      additionalProperties: true
+
+    TruthRecordList:
+      type: array
+      items:
+        $ref: "#/components/schemas/TruthRecord"
+
+    TruthMutationResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    TruthLeaseInput:
+      type: object
+      required: [owner]
+      properties:
+        owner:
+          type: string
+          minLength: 1
+        leaseMs:
+          type: integer
+          minimum: 10000
+          default: 60000
+
+    TruthUploadInput:
+      type: object
+      required: [filename, rawText, match]
+      properties:
+        filename:
+          type: string
+          minLength: 1
+        pageCount:
+          type: integer
+          minimum: 1
+          nullable: true
+        rawText:
+          type: string
+        match:
+          type: object
+          required: [canonicalKey, player1Name, player2Name]
+          additionalProperties: true
+          properties:
+            canonicalKey: { type: string, minLength: 1 }
+            player1Name: { type: string, minLength: 1 }
+            player2Name: { type: string, minLength: 1 }
+            tournamentName: { type: string, nullable: true }
+            eventLevel: { type: string, nullable: true }
+            round: { type: string, nullable: true }
+            scheduledDate: { type: string, format: date, nullable: true }
+            surface: { type: string, nullable: true }
+            bestOf: { type: integer, nullable: true }
+        fields:
+          type: array
+          items:
+            type: object
+            required: [fieldKey]
+            additionalProperties: true
+            properties:
+              fieldKey: { type: string, minLength: 1 }
+              rawValue: { type: string, nullable: true }
+              normalizedValue: { type: string, nullable: true }
+              fieldType: { type: string, nullable: true }
+
+    TruthGradeInput:
+      type: object
+      required: [auditRunId, grade]
+      properties:
+        auditRunId:
+          type: string
+          format: uuid
+        grade:
+          type: string
+          minLength: 1
+        result:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    TruthRulesPublicationInput:
+      type: object
+      required: [content, rules]
+      properties:
+        content:
+          type: string
+        rules:
+          type: array
+          items:
+            type: object
+            required: [ruleCode, ruleName]
+            additionalProperties: true
+            properties:
+              ruleCode: { type: string, minLength: 1 }
+              ruleName: { type: string, minLength: 1 }
+
+    TruthMatchResponse:
+      type: object
+      required: [match, fields]
+      properties:
+        match:
+          $ref: "#/components/schemas/TruthRecord"
+        fields:
+          type: object
+          additionalProperties: true
+
+    TruthAuditResponse:
+      type: object
+      required: [run, stages]
+      properties:
+        run:
+          $ref: "#/components/schemas/TruthRecord"
+        stages:
+          $ref: "#/components/schemas/TruthRecordList"
+
     HealthStatus:
       type: object
       properties:

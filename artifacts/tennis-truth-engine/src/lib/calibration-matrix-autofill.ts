@@ -8,7 +8,7 @@
 // a genuine, separate, human-entered fact -- calibration exists specifically to check the
 // prediction against reality, so autofilling the outcome from the same report that made
 // the prediction would make every graded result vacuously "correct."
-import { supabase } from "@/integrations/supabase/client";
+import { truthApi } from "./truth-api-client";
 import type { GradeInput } from "./calibration";
 
 export type MatrixAutofill = Pick<GradeInput, "matchLabel" | "tournament" | "surface" | "matchDate" | "matrixPredictedWinner" | "matrixWp">;
@@ -37,17 +37,13 @@ export function matrixInputsFromParsedFields(fields: ParsedFieldLike[], match: M
 }
 
 export async function loadMatrixCalibrationInputs(matchId: string): Promise<MatrixAutofill | null> {
-  const { data: match, error: matchError } = await supabase
-    .from("matches")
-    .select("id, player1_name, player2_name, tournament_name, surface, scheduled_date, active_summary_version_id")
-    .eq("id", matchId)
-    .maybeSingle();
-  if (matchError || !match) return null;
-  if (!match.active_summary_version_id) return matrixInputsFromParsedFields([], match);
-  const { data: fields, error: fieldsError } = await supabase
-    .from("parsed_summary_fields")
-    .select("field_key, normalized_value")
-    .eq("summary_version_id", match.active_summary_version_id);
-  if (fieldsError) return matrixInputsFromParsedFields([], match);
-  return matrixInputsFromParsedFields(fields ?? [], match);
+  try {
+    const response = await truthApi.getMatch(matchId);
+    const match = response.match as unknown as MatchMetaLike;
+    const fields = Object.entries((response.fields ?? {}) as Record<string, unknown>)
+      .map(([field_key, normalized_value]) => ({ field_key, normalized_value: normalized_value == null ? null : String(normalized_value) }));
+    return matrixInputsFromParsedFields(fields, match);
+  } catch {
+    return null;
+  }
 }

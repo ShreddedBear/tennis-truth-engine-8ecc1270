@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { truthApi } from "@/lib/truth-api-client";
 import { BucketBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { winRate } from "@/lib/audit-engine";
@@ -28,19 +28,16 @@ function Dashboard() {
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
-      const [matches, runs, decisions, version, uploads, slateVersions] = await Promise.all([
-        supabase.from("matches").select("id, match_status, identity_status, surface_status"),
-        supabase.from("audit_runs").select("id, match_id, run_number, status"),
-        supabase.from("final_decisions").select("audit_run_id, final_audit_color, audit_complete"),
-        supabase.from("calibration_versions").select("*").eq("is_active", true).maybeSingle(),
-        supabase.from("summary_uploads").select("id"),
-        supabase.from("summary_versions").select("match_id, upload_id, is_active"),
-      ]);
-      const buckets = version.data
-        ? (await supabase.from("calibration_buckets").select("*").eq("calibration_version_id", version.data.id).order("wp_min")).data ?? []
-        : [];
-      const slateMatchIds = activeSlateMatchIds(slateVersions.data ?? []);
-      const slateUploadIds = new Set((slateVersions.data ?? []).filter((row) => row.is_active === true).map((row) => row.upload_id));
+      const response = await truthApi.getDashboard();
+      const matches = { data: response.matches as any[] };
+      const runs = { data: response.runs as any[] };
+      const decisions = { data: response.decisions as any[] };
+      const version = { data: response.version as any };
+      const uploads = { data: response.uploads as any[] };
+      const slateVersions = { data: response.versions as any[] };
+      const buckets = response.buckets as any[];
+      const slateMatchIds = activeSlateMatchIds(slateVersions.data);
+      const slateUploadIds = new Set(slateVersions.data.filter((row) => row.is_active === true).map((row) => row.upload_id));
       const currentRows = currentAuditRows(
         (matches.data ?? []).filter((match) => slateMatchIds.has(match.id)),
         runs.data ?? [],

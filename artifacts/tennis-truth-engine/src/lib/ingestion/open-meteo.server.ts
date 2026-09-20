@@ -1,6 +1,5 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { ingestionTargets, ingestionTouchTarget, ingestionUpsertObservations } from "../truth-server-api";
 
-const db = supabaseAdmin as any;
 const HOURLY = [
   "temperature_2m",
   "relative_humidity_2m",
@@ -15,10 +14,8 @@ const HOURLY = [
 type Target = {
   id: string;
   target_key: string;
-  latitude: number;
-  longitude: number;
-  timezone: string | null;
-  tournament: string | null;
+  timezone?: string | null;
+  tournament?: string | null;
   pullback_start: string | null;
   pullback_end: string | null;
 };
@@ -30,22 +27,19 @@ function fiveYearsAgo() {
 }
 
 export async function ingestOpenMeteoHistorical() {
-  const { data: targets, error } = await db
-    .from("ingestion_targets")
-    .select("id,target_key,latitude,longitude,timezone,tournament,pullback_start,pullback_end")
-    .eq("source_id", "open_meteo")
-    .eq("enabled", true)
-    .not("latitude", "is", null)
-    .not("longitude", "is", null);
-  if (error) throw error;
+  const { targets } = await ingestionTargets("open_meteo");
 
   let written = 0;
   for (const target of (targets ?? []) as Target[]) {
+    const targetConfig = (target as Target & { config?: Record<string, unknown> }).config ?? {};
+    const latitude = Number(targetConfig.latitude);
+    const longitude = Number(targetConfig.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
     const start = target.pullback_start ?? fiveYearsAgo();
     const end = target.pullback_end ?? new Date().toISOString().slice(0, 10);
     const qs = new URLSearchParams({
-      latitude: String(target.latitude),
-      longitude: String(target.longitude),
+      latitude: String(latitude),
+      longitude: String(longitude),
       start_date: start,
       end_date: end,
       hourly: HOURLY,
@@ -76,17 +70,16 @@ export async function ingestOpenMeteoHistorical() {
           window_start: start,
           window_end: end,
           raw_payload: { time: times[i], value, unit: json?.hourly_units?.[key] ?? null },
-          provenance: { target_key: target.target_key, latitude: target.latitude, longitude: target.longitude, timezone: json?.timezone ?? target.timezone },
+           provenance: { target_key: target.target_key, latitude, longitude, timezone: json?.timezone ?? target.timezone },
         });
       }
     }
     for (let i = 0; i < rows.length; i += 1000) {
       const chunk = rows.slice(i, i + 1000);
-      const { error: insertError } = await db.from("source_observations").upsert(chunk, { onConflict: "source_id,source_record_key" });
-      if (insertError) throw insertError;
+      await ingestionUpsertObservations(chunk);
       written += chunk.length;
     }
-    await db.from("ingestion_targets").update({ last_ingested_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", target.id);
+    await ingestionTouchTarget(target.id);
   }
   return { targets: targets?.length ?? 0, observations_written: written };
 }

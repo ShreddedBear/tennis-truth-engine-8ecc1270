@@ -1,11 +1,11 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { truthServerDb } from "./truth-server-api";
 import type { MetricFinding } from "./audit-pipeline";
 import { evidencePairMatches, safeEvidenceAliases } from "./evidence-player-alias";
 import { metricAllowsObservation } from "./metric-source-family-policy";
 import { classifyEvidenceTourFamily, evidenceTourCompatible, normalizeEvidenceTournament, type EvidenceTourFamily } from "./evidence-match-identity";
 import { certifyMetricFinding } from "./metric-certification";
 
-const db = supabaseAdmin as any;
+const db = truthServerDb as any;
 const MARKET_CODES = new Set(["015", "019", "043", "044"]);
 const from = "2020-06-06";
 

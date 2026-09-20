@@ -2,3 +2,4 @@
 - [OCR failure boundaries](ocr-failure-boundaries.md) — screenshot imports must bound both vision and player resolution, preserve OCR names on degradation, and reject UI text as players.
 - [Operational history resets](operational-history-resets.md) — paginate Supabase exports and verify provider availability before clearing cross-system prediction history.
 - [Truth data cutover](truth-data-cutover.md) — legacy Supabase match/audit history is intentionally excluded; convert runtime calls to preserve heliumdb as sole authority.
+- [Truth audit persistence contracts](truth-audit-persistence-contracts.md) — validate audit row mappings and retry keys against live heliumdb, not legacy Supabase types.

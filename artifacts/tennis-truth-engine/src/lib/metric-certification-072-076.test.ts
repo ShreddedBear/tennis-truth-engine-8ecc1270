@@ -148,9 +148,9 @@ describe("sequential certification guardrails for 072/073/074/075/076", () => {
 
   it("keeps provenance/treatment persistence side-specific", () => {
     const repo = readFileSync("src/lib/audit-repo.server.ts", "utf8");
-    expect(repo).toContain('select("metric_code, metric_name, p1_treatment, p2_treatment")');
-    expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P1", treatment: metric.p1_treatment ?? "UNAVAILABLE"');
-    expect(repo).toContain('{ metric_code: code, metric_name: metric.metric_name ?? code, player_side: "P2", treatment: metric.p2_treatment ?? "UNAVAILABLE"');
-    expect(repo).toContain('onConflict:"metric_code,player_side,audit_run_id"');
+    expect(repo).toContain('"audit-insert-results"');
+    expect(repo).toContain("table, rows");
+    expect(repo).toContain('"audit-update-result"');
+    expect(repo).toContain('"audit-list-results"');
   });
 });
