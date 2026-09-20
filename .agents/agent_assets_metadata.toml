@@ -84,3 +84,45 @@ mtime_ms = 1789864578272
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/00c6efdf-5735-4129-a7a5-da60f9587ef4/4b84ded1-668a-493f-b6ef-cfa4c2edfe09"
 storage_version_token = "1789864676396461"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "zAjWAho5GTpBSHe-yJlV-"
+uri = "file://.local/candidate-d/evaluation-artifacts/candidate-d-stop.md"
+type = "text"
+title = "Candidate D Stop Report"
+description = "Controlled-ablation report documenting the reproducibility stop, exact failure, and required prerequisite."
+logical_id = "ce824b7e-565e-408e-937c-92a66943abee"
+content_hash = "sha256:0edae8f6ce6d43f9e9c467261b852ff0f2a513f9db5180dff103f5190a6799e1"
+size = 2822
+mtime_ms = 1789865487608
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/ce824b7e-565e-408e-937c-92a66943abee/7eceaa1d-81b4-4f32-aa21-92283dfe54e9"
+storage_version_token = "1789865503721337"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "IyeyldDfhsBwrbxE2XhKo"
+uri = "file://.local/candidate-d/evaluation-artifacts/candidate-d-stop.json"
+type = "unspecified"
+title = "Candidate D Reproducibility Differences"
+description = "Machine-readable hashes and all 29 mathematically differing duplicate rows; no performance metrics are reported."
+logical_id = "7a586cae-d166-4982-ba09-a4efbcc6c1d7"
+content_hash = "sha256:2f7a03bd29ee57b2a7ea90ace51b267ea6aec59bd87535e60f72956fac1b909d"
+size = 38088
+mtime_ms = 1789865487608
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/7a586cae-d166-4982-ba09-a4efbcc6c1d7/c2c2dfe9-b703-4af5-9963-713293b57551"
+storage_version_token = "1789865504463525"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "8hEZObZn0BJCjqtu0ooIS"
+uri = "file://.local/candidate-d/evaluation-artifacts/candidate-d-source.diff"
+type = "unspecified"
+title = "Candidate D Exact Source Diff"
+description = "The isolated ensemble-only Surface Elo reliability change."
+logical_id = "6a0c06b4-17e1-4535-9d60-c28edda5d944"
+content_hash = "sha256:0d8ba9f98a480bfb878dcd4eb09e17143be9dc4bd77ce6add041e272604f3193"
+size = 1116
+mtime_ms = 1789865467300
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/6a0c06b4-17e1-4535-9d60-c28edda5d944/74c16be4-8475-4647-9a71-8e385065f4ea"
+storage_version_token = "1789865505336777"
+content_type = "application/octet-stream"
