@@ -14,7 +14,7 @@ Every finding below is classified **PROVEN** (verified against current source, o
 - **PROVEN** — Removal, Grade, parlayGrade, and Decision are deterministic re-expressions of Validation + Risk (+ Coverage). They contribute zero independent information; the card presents one underlying signal as if it were five.
 - **PROVEN** — Market odds reaches the final Decision through **3 uncoordinated additive channels** (a Validation factor, a Risk bonus/penalty, and Closeness→Risk-floor), all computed from the same un-devigged, single-sided `1/marketOdds` — the least rigorous of three separate odds-conversion implementations that coexist in this codebase.
 - **LIKELY, NOT PROVEN** — No *obvious* temporal-leakage path was found at the schema level: `evaluation_predictions` stores odds as a one-time snapshot with no "current odds" column to substitute in later. This rules out the single most common leakage mechanism (a join to "latest odds"), but does **not** prove leakage is impossible — timestamped odds tables, provider snapshots, cached records, aggregated consensus fields under a different name, persisted API responses, or a reconstructed-historical-odds path could still leak information and were not individually tested against real historical timestamps. Corrected classification per user review: **"structurally no obvious leakage found," not "leakage proven impossible."**
-- **LIKELY** — Market odds adds real, non-redundant predictive value to the Prediction Engine: a committed ablation report shows +3.45pp accuracy / −0.0519 log-loss with odds included (n=174, below the script's own n≥200 bar, activated via documented override). Not independently re-run.
+- **UNVERIFIED (downgraded from LIKELY on 2026-09-20)** — A prior committed audit reported an apparent market-related accuracy improvement (+3.45pp accuracy / −0.0519 log-loss, n=174, activated via documented override despite falling below the script's own n≥200 bar). The underlying historical market corpus that report describes (paper_trade rows in `evaluation_predictions` with real odds locked at cutoff time) is **not present in the current canonical database** — a live inventory found 0 of 447 current paper_trade rows have any odds populated. The result is therefore **currently unverifiable, not false** — see §13c for the full provenance investigation and evidence-chain break.
 - **PROVEN** — The market-consensus Validation weight (4%) and its agreement-vote weight (5.0) were never empirically validated — explicitly commented "0 live rows in backfill."
 - **UNVERIFIED / BLOCKED (at time of writing)** — The four-arm ablation (Full / No-Market / Market-Only / Market+Independent), fresh Closeness/Risk/Removal/KEEP-BORDERLINE-REMOVE calibration tables on current code, and the market-shuffle placebo test all require live walk-forward queries against the production Postgres DB. This is the single largest gap in this audit and blocks Phases 3, 5 (quantitative part), and 8 (quantitative part) — to be closed by running the missing scripts inside the canonical Replit app's own authorized DB connection (see "Where this lives").
 - **PROVEN** — Prediction Engine and Parlay Builder are architecturally independent: the Builder never calls the Prediction Engine and independently re-derives its own (cruder) market number from raw odds. This is intentional per the repo's own `.agents/memory/model-market-boundary.md`, not accidental duplication of the *prediction*, but it does mean the Builder's own market signal is uncoordinated with the Engine's more careful one.
@@ -103,7 +103,7 @@ into any scoring path)                                         Risk via closenes
 | C. Market only | **Not yet run** — no script or output exists |
 | D. Market + non-market independent | **Not yet run** — no script or output exists |
 
-**What does exist (LIKELY, not re-run):** `artifacts/api-server/docs/audit-market-consensus-ablation.md`, backed by `scripts/auditMarketConsensusAblation.ts` (796 lines). Methodology: real `paper_trade` rows with non-null odds, `calibrated_probability` as the "with odds" arm, `runPredictionEngine` re-run with `excludedModels={"marketOdds"}` for the "without odds" arm, plus a corroborating historical-corpus arm. Result: **+3.45pp accuracy / −0.0519 log-loss** at n=174 — below the script's own stated n≥200 threshold, activated via a documented explicit override. Confirmed current: `dataQuality.ts:181`'s `EXCLUDED_FROM_ENSEMBLE` set still omits `marketOdds` (i.e., still active), checked for drift against a Sept-19 touch of that file — no drift found on this specific point.
+**What does exist (UNVERIFIED as of 2026-09-20, downgraded from LIKELY — see §13c):** `artifacts/api-server/docs/audit-market-consensus-ablation.md`, backed by `scripts/auditMarketConsensusAblation.ts` (796 lines). Methodology: real `paper_trade` rows with non-null odds, `calibrated_probability` as the "with odds" arm, `runPredictionEngine` re-run with `excludedModels={"marketOdds"}` for the "without odds" arm, plus a corroborating historical-corpus arm. Reported result: **+3.45pp accuracy / −0.0519 log-loss** at n=174 — below the script's own stated n≥200 threshold, activated via a documented explicit override. `dataQuality.ts:181`'s `EXCLUDED_FROM_ENSEMBLE` set still omits `marketOdds` (i.e., the activation decision is still live in code) — but the historical corpus that produced these numbers is no longer present in the canonical DB (§13c), so **this result cannot currently be reproduced or independently corroborated**. Treat the +3.45pp figure as a historical claim under active provenance investigation, not as current evidence market odds helps.
 
 **This only answers "A vs B," and only for the Prediction Engine** — it does not test market-only (C) or market+independent (D), and it says nothing about the Parlay Builder's own triple-counted, non-de-vigged usage, which is a structurally different question (double-counting, not raw predictive value).
 
@@ -236,7 +236,7 @@ No forcing of a target KEEP/BORDERLINE/REMOVE distribution was done or recommend
 |---|---|---|---|---|
 | `backtestScoringDimensions_report.md` | self-dated 2026-08-01; git-added 2026-09-14 | n=9,999 | time-ordered 70/30 | **STALE** — parlayGrade taxonomy (5 buckets) contradicts current code (4 buckets); merge-justification numbers cited in code don't appear in this report |
 | `analyzeClosenessFloors.ts` docstring table | ~July 2026 (undated commit) | n=1,500 | not specified as walk-forward split, but graded-outcome based | **CURRENT** — ramp constants in code match table's qualitative bands, no contradiction found |
-| `audit-market-consensus-ablation.md` | 2026-08-08 (final run cited) | n=174 (below own n≥200 bar) | paired-arm, not detailed as time-ordered in what was read | **CURRENT** — `EXCLUDED_FROM_ENSEMBLE` set in `dataQuality.ts` (touched 9/19) still consistent with this report's conclusion |
+| `audit-market-consensus-ablation.md` | 2026-08-08 (final run cited) | n=174 (below own n≥200 bar) | paired-arm, not detailed as time-ordered in what was read | **UNVERIFIABLE** — underlying corpus not present in current canonical DB (§13c) |
 | `analyzeParlayFactorCorrelations.ts` (factor-correlation/ablation) | script exists, added 2026-09-14 | — | — | **NEVER RUN** — no committed output anywhere, not cited by any other file |
 | `analyzeParlayCalibration.ts` | script exists | — | — | **NEVER RUN** — no committed output |
 | Market-shuffle placebo test | — | — | — | **DOES NOT EXIST** — no script, not merely unrun |
@@ -248,14 +248,14 @@ No old report is used above to justify a current threshold without stating this 
 
 ## 15. Sample Sizes
 
-All sample sizes actually available are cited inline above (n=9,999 for the main backtest; n=1,500 for closeness floors; n=174 for market ablation — explicitly below its own required n≥200; n≈4,000 cited in code comments but not traceable to any committed report). Fresh sample sizes pending the empirical runs in Phases 3/5/6/8.
+All sample sizes actually available are cited inline above (n=9,999 for the main backtest; n=1,500 for closeness floors; n=174 for market ablation — explicitly below its own required n≥200, and now unverifiable against current data per §13c; n≈4,000 cited in code comments but not traceable to any committed report). Fresh sample sizes pending the empirical runs in Phases 3/5/6/8.
 
 ---
 
 ## 16. Failure Cases
 
 - REMOVE tier (n=363, 55.6%) is barely distinguishable from BORDERLINE (56.4%) in the one report available — the hard threshold the code draws between them is not obviously supported by this data.
-- The market-consensus ablation's headline number (n=174) falls below the project's own declared statistical floor (n≥200) and was activated via an explicit override rather than by meeting the bar — a real, documented risk acknowledged by the codebase's own authors, not newly discovered here.
+- The market-consensus ablation's headline number (n=174) falls below the project's own declared statistical floor (n≥200) and was activated via an explicit override rather than by meeting the bar — a real, documented risk acknowledged by the codebase's own authors, not newly discovered here. Its underlying corpus is now also unverifiable against the current DB (§13c).
 - Every multi-dimension KEEP combination (the exact kind of compound condition displayed on the app's prediction cards — KEEP + Elite + Grade B, etc.) failed holdout confirmation in the one available walk-forward test.
 
 ---
@@ -267,11 +267,12 @@ All sample sizes actually available are cited inline above (n=9,999 for the main
 | Stop displaying `validationScore` as a separately-labeled "Overall Score" — it is the same number as "Validation" | PROVEN PROBLEM |
 | Do not display Removal with a "%" suffix implying a calibrated probability of a defined event — no such event is defined in code or spec | PROVEN PROBLEM |
 | Route the Parlay Builder's market-odds usage through the same de-vigged `impliedProbability.ts` function the Prediction Engine and analytics path already use, instead of 3 separate inline single-sided computations | LIKELY PROBLEM |
-| Re-derive the `marketConsensus` Validation weight (0.040) and agreement weight (5.0) now that live odds rows presumably exist post-backfill, since both were explicitly placeholders | LIKELY PROBLEM |
-| Run the four-arm ablation (Full/No-Market/Market-Only/Market+Independent) against current code with a fresh time-ordered split, since the one committed ablation only covers arms A/B for the Engine, not the Builder's card metrics | Needed to even evaluate |
+| Re-derive the `marketConsensus` Validation weight (0.040) and agreement weight (5.0) once genuine timestamped odds data exists, since both were explicitly placeholders | LIKELY PROBLEM |
+| Run the four-arm ablation (Full/No-Market/Market-Only/Market+Independent) against current code with a fresh time-ordered split, since the one committed ablation only covers arms A/B for the Engine, not the Builder's card metrics, and its corpus is now unverifiable | Needed to even evaluate |
 | Build and run the market-shuffle placebo test — does not exist today | Needed to even evaluate |
 | Run `analyzeParlayFactorCorrelations.ts` (exists, never run) to get the real ablation/independence answer for all 17 Validation factors, not just market-consensus | Needed to even evaluate |
 | Regenerate `backtestScoringDimensions_report.md` against current code before citing it for anything — its parlayGrade taxonomy no longer matches | PROVEN PROBLEM (staleness), fix pending re-run |
+| Design a forward-looking, genuinely timestamped market-capture pipeline for `paper_trade` odds — the current pipeline has captured 0 odds across its first 4 days of operation | Needed before any market experiment can run |
 
 No thresholds, formulas, or market inputs were changed. No systems were merged. No output distribution was optimized.
 
@@ -381,3 +382,87 @@ captures pre-floor risk or its reconstructable inputs.
 - Experiments #1–3: `parlay_leg_outcomes` needs graded rows (via `scripts/resolveParlayLegOutcomes.ts` running against real settled matches over time) — a volume/time problem, not a design problem, *except* Experiment #1, which additionally needs a schema/export change (see above).
 - Experiments #4–5: `evaluation_predictions` needs rows with `odds_fetched_at` populated — the odds-fetch pipeline needs to actually run and persist timestamped snapshots against graded predictions, which today it is not doing (0 of 518,209 graded rows have this field populated despite the column existing).
 - Experiments #6–7: needs both of the above, plus a one-time data-export/join step (not implemented in this task — explicitly out of scope per the preparation-only brief) to join `parlay_leg_outcomes` to `evaluation_predictions` and, for #7, to reconstruct `computePlayerStats`-derived closeness inputs.
+
+---
+
+## 13c. Market Data Source Classification and Provenance Investigation (2026-09-20)
+
+A follow-up read-only live audit (via the canonical app's own authorized DB connection, no
+credentials exposed, no rows or schema changed) tested each candidate market-data source against
+three separate questions — existence, joinability, and temporal defensibility — rather than
+treating a nonzero row count as sufficient on its own.
+
+### Source classification
+
+| Source | Live finding | Classification | Why |
+|---|---|---|---|
+| `evaluation_predictions` dedicated odds fields (`oddsPlayer1Decimal`/`oddsPlayer2Decimal`/`oddsFetchedAt`) | 516,565 `historical_test` rows; 0 with usable odds | **Irrecoverable — current DB** | The historical corpus does not contain the required market evidence |
+| `evaluation_predictions.featureSnapshot` (JSON) | Exhaustive scan of all 516,565 snapshots: 0 embedded marketOdds/impliedProbability/odds fields, 0 `moduleWeights` entries keyed `marketOdds` | **Irrecoverable — current DB** | Exhaustive scan found nothing to reconstruct |
+| `historical_matches.raw_source._marketOdds` (tennis-data.co.uk, cited in code comments as an "up to 11k rows" corroborating corpus) | 530,097 `historical_matches` rows total; **0** contain `_marketOdds` at all | **Irrecoverable — current DB** | Code and a prior committed report describe this corpus as populated; the live DB contains none of it |
+| `paper_trade` / `live` rows | 447 total (all `paper_trade`, 0 `live`), `locked_at` range 2026-09-16 08:36 → 2026-09-20 15:26; 0 have odds + `odds_fetched_at`, including the most recent rows | **Capture pipeline currently unproven, not historical evidence** | Only ~4 days of rows exist and none has captured market data yet — too young to judge whether the pipeline works, and irrelevant to any pre-2026-09-16 claim |
+| `parlay_leg_outcomes.market_odds` | Column exists (single NUMERIC, selected-side only); 0 graded rows; **no timestamp column at all** | **Insufficient for temporal experiment** | Even fully populated and graded, this field cannot establish that a value was available before the prediction was made |
+| All other schema tables (`source_snapshots`: 232 rows, identity/context only; `match_feature_snapshots`: 2,578,706 rows, 0 market fields; `paper_trade_predictions`: 0 rows; `backtest_predictions`: 0 rows; `predictions.snapshot_captured_at`: no two-sided odds archive) | Exhaustively checked, none found | **Irrecoverable — current DB** | No alternative timestamped market/provider-snapshot table exists anywhere in the active schema |
+
+**"Irrecoverable — current DB" is deliberately scoped, not absolute.** It means the canonical
+database, as it exists today, does not contain this evidence — not that the evidence can never be
+recovered from anywhere. An external historical archive, a prior database backup, a provider
+export, or another legitimately preserved dataset could still recover it. The provenance
+investigation below tested exactly that possibility for the one source with the strongest paper
+trail (the n=174 ablation).
+
+### Provenance investigation: where did the n=174 ablation's data actually come from?
+
+`docs/audit-market-consensus-ablation.md` states its own data source explicitly: **not**
+`historical_matches._marketOdds` (that table is cited in code only as a separate, larger
+corroborating corpus for a different, never-run "Section C" comparison) — the n=174 result comes
+from real `paper_trade` rows in `evaluation_predictions` with odds genuinely locked at prediction
+cutoff time. The report records: 201 total graded paper_trade rows with real market odds → 184
+accuracy-eligible → 180 successfully paired for engine re-run → 174 in the corrected,
+cross-validated final run (2026-08-08). No dataset hash, export path, or snapshot identifier is
+recorded anywhere in the report.
+
+**Git history check:** both `docs/audit-market-consensus-ablation.md` and
+`scripts/auditMarketConsensusAblation.ts` were introduced whole, already-written, in a single
+commit (`82e37235`, 2026-09-14, "Integrate the complete Truth Engine under the Stats Engine
+navigation"). This repository's tracked git history begins at that same commit — there is no
+earlier commit in this repo where the underlying July/August paper_trade rows, or the work that
+produced them, could be inspected. The report's self-dated runs (2026-07-31 through 2026-08-08)
+predate this repository's own history entirely.
+
+**Deleted-file search:** `git log --all --diff-filter=D` across the full tracked history returned
+no deleted files matching odds/market patterns — expected, since nothing predating 2026-09-14 is
+in this repo's history to have been deleted from it.
+
+**`.migration-backup/` search:** contains only unrelated legacy files from the prior simple-schema
+app (`deterministic-market-metrics.server.ts`, `ingestion/odds-api.server.ts`, an old
+`metric-audit-019-market-calibration.md`) — a different application's market-metrics code, not an
+export of this app's paper_trade odds data.
+
+**No exported CSV/JSON/parquet dataset**, database dump, or dataset-identifier reference was found
+anywhere in the repository, `reports/`, or `.agents/memory/` notes.
+
+**Best-supported inference (correlational, not proven by a single explicit log entry):** the
+earliest `paper_trade` row in the live DB (`locked_at` 2026-09-16 08:36) and the active
+calibration model's fit timestamp (`fitted_at` 2026-09-16 03:02:57) both cluster tightly around
+2026-09-16 — two days after the 2026-09-14 mega-merge that introduced this consolidated monorepo
+into the canonical app. This is consistent with the canonical database having been reset or
+re-seeded during that integration, which would explain why no `paper_trade` row predates
+2026-09-16 and why the July/August corpus described in the ablation report no longer exists. This
+is an inference from date correlation, not a confirmed cause — no explicit reset/migration log
+entry naming `evaluation_predictions` or `paper_trade` was found to confirm it directly.
+
+### Conclusion of the provenance investigation
+
+No legitimate, accessible backup or export of the n=174 corpus was found. The recovery
+investigation is formally closed on this data source: **the historical market-value question
+("does market information improve the Tennis Matrix system?") is currently unanswered**, not
+answered negatively and not answered positively. The +3.45pp/−0.0519 result remains a real,
+historically-committed claim — it is not being deleted or called false — but it cannot presently
+be reproduced, corroborated, or acted on from the current data inventory.
+
+**No Prediction Engine or Parlay Builder change is justified by this finding.** This is a
+missing-evidence problem, not a demonstrated model problem. The next legitimate step is designing
+a forward-looking, genuinely timestamped market-capture pipeline (for both `paper_trade` odds
+capture and, if desired, a `historical_matches._marketOdds`-style backfill actually run against
+real historical odds data) rather than attempting to retrofit or infer historical timestamps onto
+data that no longer has them.
