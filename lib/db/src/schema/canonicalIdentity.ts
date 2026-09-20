@@ -42,6 +42,28 @@ export const playerAliasesTable = pgTable("player_aliases", {
   index("player_aliases_canonical_player_idx").on(table.canonicalPlayerId),
 ]);
 
+export const tournamentCrosswalksTable = pgTable("provider_tournament_crosswalks", {
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull(),
+  externalTournamentId: text("external_tournament_id").notNull(),
+  externalTournamentName: text("external_tournament_name").notNull(),
+  canonicalTournamentId: text("canonical_tournament_id").notNull(),
+  canonicalTournamentName: text("canonical_tournament_name").notNull(),
+  tour: text("tour").notNull(),
+  competitionLevel: text("competition_level").notNull(),
+  verificationStatus: text("verification_status").notNull().default("verified"),
+  resolutionMethod: text("resolution_method").notNull(),
+  evidenceSource: text("evidence_source").notNull(),
+  evidenceId: text("evidence_id").notNull(),
+  metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("provider_tournament_crosswalk_provider_external_idx")
+    .on(table.provider, table.externalTournamentId),
+  index("provider_tournament_crosswalk_canonical_idx").on(table.canonicalTournamentId),
+]);
+
 export const canonicalMatchesTable = pgTable("canonical_matches", {
   id: text("id").primaryKey(),
   matchKey: text("match_key").notNull(),
@@ -69,6 +91,66 @@ export const matchSourceLinksTable = pgTable("match_source_links", {
 }, (table) => [
   uniqueIndex("match_source_links_provider_external_id_idx").on(table.provider, table.externalMatchId),
   index("match_source_links_canonical_match_idx").on(table.canonicalMatchId),
+]);
+
+/** Independently verified result links; date semantics are explicit and never implied. */
+export const matchCrosswalksTable = pgTable("provider_match_crosswalks", {
+  id: text("id").primaryKey(),
+  liveProvider: text("live_provider").notNull(),
+  liveExternalMatchId: text("live_external_match_id").notNull(),
+  independentProvider: text("independent_provider").notNull(),
+  independentExternalMatchId: text("independent_external_match_id").notNull(),
+  canonicalMatchId: text("canonical_match_id").notNull(),
+  player1CanonicalId: text("player1_canonical_id").notNull().references(() => canonicalPlayersTable.id),
+  player2CanonicalId: text("player2_canonical_id").notNull().references(() => canonicalPlayersTable.id),
+  canonicalTournamentId: text("canonical_tournament_id").notNull(),
+  round: text("round").notNull(),
+  score: text("score").notNull(),
+  winnerCanonicalId: text("winner_canonical_id").notNull().references(() => canonicalPlayersTable.id),
+  linkageMethod: text("linkage_method").notNull(),
+  dateSemantics: text("date_semantics").notNull(),
+  evidenceId: text("evidence_id").notNull(),
+  provenance: jsonb("provenance").notNull().default({}),
+  metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("provider_match_crosswalk_live_match_idx")
+    .on(table.liveProvider, table.liveExternalMatchId),
+  uniqueIndex("provider_match_crosswalk_independent_match_idx")
+    .on(table.independentProvider, table.independentExternalMatchId),
+  uniqueIndex("provider_match_crosswalk_canonical_match_idx")
+    .on(table.canonicalMatchId),
+]);
+
+export const evaluationHoldoutPopulationsTable = pgTable("evaluation_holdout_populations", {
+  id: text("id").primaryKey(),
+  windowFrom: text("window_from").notNull(),
+  windowTo: text("window_to").notNull(),
+  candidateFingerprint: text("candidate_fingerprint").notNull(),
+  eligibleFingerprint: text("eligible_fingerprint").notNull(),
+  candidateCount: integer("candidate_count").notNull(),
+  eligibleCount: integer("eligible_count").notNull(),
+  finalized: boolean("finalized").notNull().default(false),
+  provenance: jsonb("provenance").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("evaluation_holdout_populations_eligible_fingerprint_idx")
+    .on(table.eligibleFingerprint),
+  uniqueIndex("evaluation_holdout_populations_window_idx")
+    .on(table.windowFrom, table.windowTo),
+]);
+
+export const evaluationHoldoutMembersTable = pgTable("evaluation_holdout_members", {
+  populationId: text("population_id").notNull()
+    .references(() => evaluationHoldoutPopulationsTable.id),
+  fixtureId: text("fixture_id").notNull(),
+  fixture: jsonb("fixture").notNull(),
+  admission: jsonb("admission").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("evaluation_holdout_members_population_fixture_idx")
+    .on(table.populationId, table.fixtureId),
 ]);
 
 export const playerResolutionReviewsTable = pgTable("player_resolution_reviews", {
@@ -109,15 +191,23 @@ export const historicalFeatureDiagnosticsTable = pgTable("historical_feature_dia
 
 export const insertCanonicalPlayerSchema = createInsertSchema(canonicalPlayersTable).omit({ createdAt: true, updatedAt: true });
 export const insertPlayerAliasSchema = createInsertSchema(playerAliasesTable).omit({ createdAt: true, updatedAt: true });
+export const insertTournamentCrosswalkSchema = createInsertSchema(tournamentCrosswalksTable).omit({ createdAt: true, updatedAt: true });
 export const insertCanonicalMatchSchema = createInsertSchema(canonicalMatchesTable).omit({ createdAt: true });
 export const insertMatchSourceLinkSchema = createInsertSchema(matchSourceLinksTable).omit({ createdAt: true });
+export const insertMatchCrosswalkSchema = createInsertSchema(matchCrosswalksTable).omit({ createdAt: true, updatedAt: true });
+export const insertEvaluationHoldoutPopulationSchema = createInsertSchema(evaluationHoldoutPopulationsTable).omit({ createdAt: true });
+export const insertEvaluationHoldoutMemberSchema = createInsertSchema(evaluationHoldoutMembersTable).omit({ createdAt: true });
 export const insertPlayerResolutionReviewSchema = createInsertSchema(playerResolutionReviewsTable).omit({ createdAt: true, reviewedAt: true });
 export const insertHistoricalFeatureDiagnosticsSchema = createInsertSchema(historicalFeatureDiagnosticsTable).omit({ requestedAt: true });
 
 export type CanonicalPlayer = typeof canonicalPlayersTable.$inferSelect;
 export type PlayerAlias = typeof playerAliasesTable.$inferSelect;
+export type TournamentCrosswalk = typeof tournamentCrosswalksTable.$inferSelect;
 export type CanonicalMatch = typeof canonicalMatchesTable.$inferSelect;
 export type MatchSourceLink = typeof matchSourceLinksTable.$inferSelect;
+export type MatchCrosswalk = typeof matchCrosswalksTable.$inferSelect;
+export type EvaluationHoldoutPopulation = typeof evaluationHoldoutPopulationsTable.$inferSelect;
+export type EvaluationHoldoutMember = typeof evaluationHoldoutMembersTable.$inferSelect;
 export type PlayerResolutionReview = typeof playerResolutionReviewsTable.$inferSelect;
 export type HistoricalFeatureDiagnostics = typeof historicalFeatureDiagnosticsTable.$inferSelect;
 export type InsertCanonicalPlayer = z.infer<typeof insertCanonicalPlayerSchema>;

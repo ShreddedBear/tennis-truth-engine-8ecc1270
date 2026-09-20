@@ -163,6 +163,8 @@ export interface HistoricalFixture {
   provider: string;
   date: string; // YYYY-MM-DD, as reported by the provider
   time: string | null; // HH:MM local-to-provider, when known
+  /** Provider tournament identity, when the source supplies one. */
+  tournamentId?: string | null;
   tour: string | null;
   tournamentName: string | null;
   tournamentLevel: TournamentLevel | null;
@@ -195,6 +197,19 @@ export interface HistoricalFixture {
   player2Rank: number | null;
   /** Raw provider payload, kept for audit trails in the historical store. */
   raw: unknown;
+  /**
+   * Optional ingestion provenance and identity fields. These are populated by the approved
+   * Aneeshers archive importer; other providers continue to use the legacy fields above.
+   */
+  sourcePlayer1Id?: string;
+  sourcePlayer2Id?: string;
+  canonicalPlayer1Id?: string;
+  canonicalPlayer2Id?: string;
+  requiresCanonicalResolution?: boolean;
+  sourceFile?: string;
+  sourceUrl?: string;
+  sourceLicense?: string;
+  importProvenance?: Record<string, unknown>;
 }
 
 export interface ProviderStatusInfo {
