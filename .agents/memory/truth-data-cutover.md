@@ -3,8 +3,8 @@ name: Truth data cutover
 description: Evidence and safety rule for retiring the legacy Supabase Truth Engine runtime in favor of heliumdb.
 ---
 
-Treat a Truth Engine database cutover as a data migration, not a connection-string switch. Supabase and heliumdb have matching Truth table structures, primary-key coverage, and critical foreign-key chains, but their audit populations use different IDs. Shared ingestion reference data may already be identical while operational matches, audits, decisions, snapshots, and grades are not.
+Do not migrate the legacy Supabase Truth Engine match/audit population into heliumdb. Heliumdb is the authoritative dataset for the consolidated application; the Supabase history is intentionally excluded.
 
-**Why:** Read-only reconciliation found active grading records in Supabase that were absent from heliumdb, while heliumdb contained a separate newer audit and upload population. A simple cutover would lose or orphan historical Truth records.
+**Why:** The owner explicitly decided that the independent Supabase matches, audits, stages, decisions, grades, snapshots, and dependent evidence/results are legacy and are not required in the consolidated application.
 
-**How to apply:** Before retiring Supabase, export a relationship-preserving Supabase snapshot, classify exact duplicates versus Supabase-only rows, resolve any semantic duplicates without remapping UUIDs blindly, import parent tables before children, and verify row counts, keys, foreign keys, and per-table fingerprints.
+**How to apply:** Remove active Truth Engine Supabase runtime calls by replacing their table and RPC behavior with PostgreSQL/Drizzle over existing heliumdb rows. Do not create UUID mapping, semantic matching, or history-import work unless a specific application dependency is discovered.

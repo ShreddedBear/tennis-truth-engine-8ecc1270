@@ -1,0 +1,369 @@
+We have confirmed the final architecture:
+
+* Canonical repository: ShreddedBear/tennis-truth-engine-8ecc1270
+* Target database: PostgreSQL heliumdb
+* ORM/runtime: Drizzle + DATABASE_URL
+* Supabase is legacy and must eventually be retired.
+* Prediction Engine and Parlay Builder already exist on claude/tennis-engine-audit-32-razn75.
+* The Truth Engine schema already exists in heliumdb.
+* The Truth Engine DATA does not yet exist there as a complete replacement for the active Supabase population.
+
+The latest reconciliation proves this is Scenario B: code consolidation + required Truth Engine data migration/reconciliation.
+
+DO NOT MERGE OR RETIRE SUPABASE YET
+
+Before any cutover, perform the following as a read-only migration preparation task.
+
+Do NOT:
+
+* modify Supabase;
+* modify heliumdb;
+* insert rows;
+* update rows;
+* delete rows;
+* run migrations;
+* change production runtime;
+* merge branches;
+* push commits.
+
+⸻
+
+1. Freeze the migration source conceptually
+
+Use the current Supabase database as the legacy Truth Engine source.
+
+Use heliumdb as the target.
+
+Do not treat matching table names or larger row counts as evidence that records are duplicates.
+
+We already established:
+
+* matches: 60 Supabase / 132 heliumdb / 0 shared IDs
+* audit_runs: 60 / 133 / 0 shared IDs
+* final_decisions: 60 / 133 / 0 shared IDs
+* result_grades: 60 / 0 / 0 shared IDs
+* source_snapshots: 119 / 232 / 0 shared IDs
+
+Therefore this must be handled as a graph-preserving reconciliation, not a simple INSERT SELECT.
+
+⸻
+
+2. Build the dependency graph
+
+Produce the complete foreign-key dependency graph for all 50 Truth Engine tables.
+
+Identify:
+
+* parent tables
+* child tables
+* reference tables
+* tables with no dependencies
+* tables that depend on migrated UUIDs
+* tables that contain external/provider identifiers
+
+Give the exact safe insertion order.
+
+At minimum verify the chains involving:
+
+matches
+  ↓
+audit_runs
+  ↓
+audit_stage_runs
+final_decisions
+result_grades
+source_snapshots
+metric_results
+verification_results
+reconstruction_results
+stress_results
+underdog_results
+disagreement_results
+metric_coverage_rates
+match_identity_records
+
+Also include:
+
+summary_uploads
+  ↓
+summary_versions
+  ↓
+parsed_summary_fields
+
+⸻
+
+3. Determine exact vs semantic duplicates
+
+This is critical.
+
+For each table that has independent UUID populations, determine whether records can be matched using stable business keys.
+
+For matches, investigate available identifiers such as:
+
+* player identities
+* tournament
+* date
+* round
+* surface
+* score
+* provider/source identifiers
+
+Do NOT assume two matches are duplicates merely because their players and date look similar.
+
+Produce:
+
+table
+source row
+candidate target row
+matching key
+match confidence
+reason
+
+Use:
+
+* EXACT
+* HIGH_CONFIDENCE
+* AMBIGUOUS
+* NO_MATCH
+
+Do not resolve ambiguous matches automatically.
+
+⸻
+
+4. Preserve source UUIDs
+
+For Supabase-only Truth Engine records that need to be migrated:
+
+Preserve their existing primary keys wherever the schema permits it.
+
+Do NOT generate new UUIDs merely because the target already contains other records.
+
+This is necessary to preserve:
+
+* audit relationships
+* result relationships
+* evidence relationships
+* historical provenance
+* reproducibility
+
+If a primary-key collision exists, stop and report it rather than silently remapping.
+
+⸻
+
+5. Identify the complete Supabase-only graph
+
+Starting from the 60 Supabase matches, recursively identify every dependent record that is not already present in heliumdb.
+
+Produce exact counts for:
+
+* matches
+* audit_runs
+* audit_stage_runs
+* final_decisions
+* result_grades
+* source_snapshots
+* metric_results
+* verification_results
+* reconstruction_results
+* stress_results
+* underdog_results
+* disagreement_results
+* metric_coverage_rates
+* match_identity_records
+* evidence records
+* any other dependent Truth Engine tables
+
+The goal is to know exactly how many rows would be migrated.
+
+⸻
+
+6. Separate exact duplicates
+
+We already know:
+
+* source_ingestion_runs = 42 on both
+* source_observations = 887 on both
+
+Verify their actual primary-key/content fingerprints.
+
+Classify each as:
+
+SAFE_TO_SKIP_AS_DUPLICATE
+
+or
+
+MUST_MIGRATE
+
+Do this for all tables, not just those two.
+
+Do NOT create duplicate ingestion/source records.
+
+⸻
+
+7. Protect heliumdb data
+
+The migration must be additive.
+
+Existing heliumdb records must not be overwritten merely because the Supabase records are newer/older.
+
+Especially preserve:
+
+* Prediction Engine data
+* evaluation data
+* Parlay Builder data
+* canonical player identities
+* existing Truth Engine uploads
+* existing Truth Engine audits
+
+The migration must not reset any of these populations.
+
+⸻
+
+8. Produce a migration manifest
+
+Create a read-only migration manifest containing:
+
+source database
+target database
+source snapshot/cutoff concept
+table
+source row count
+target row count
+exact duplicates
+semantic duplicates
+source-only rows
+target-only rows
+ambiguous rows
+migration action
+dependency order
+primary-key strategy
+foreign-key strategy
+validation strategy
+
+Also provide a final total:
+
+TOTAL SOURCE ROWS TO MIGRATE
+TOTAL SAFE DUPLICATES TO SKIP
+TOTAL AMBIGUOUS ROWS
+TOTAL TARGET ROWS PRESERVED
+
+⸻
+
+9. Moving target problem
+
+The Supabase database is still receiving operational updates.
+
+The latest audit showed result_grades activity on September 20, 2026.
+
+Therefore document a cutover strategy that prevents a race condition.
+
+Propose:
+
+Option A
+
+Temporary application write freeze during final export.
+
+Option B
+
+Final timestamp/watermark followed by a delta export.
+
+Option C
+
+Another technically safer mechanism if available.
+
+Recommend the mechanism based on the actual application architecture.
+
+Do NOT implement it yet.
+
+⸻
+
+10. Build a dry-run migration validator
+
+Create a read-only/dry-run validation tool or script that can answer:
+
+“If we migrated the Supabase Truth Engine population into heliumdb right now, exactly which rows would be inserted, skipped, or flagged?”
+
+The dry run must NOT write anything.
+
+It must detect:
+
+* PK collisions
+* FK violations
+* orphan risks
+* duplicate business keys
+* ambiguous matches
+* missing parent records
+* schema incompatibilities
+* timestamp anomalies
+
+⸻
+
+11. Truth Engine runtime conversion
+
+Separately inventory every remaining active Supabase runtime call in the consolidated branch.
+
+Do not remove them yet.
+
+Produce:
+
+file
+Supabase operation
+table
+operation type
+Drizzle replacement
+migration dependency
+risk
+
+The eventual goal is:
+
+Truth Engine ──────┐
+Prediction Engine ─┼──► PostgreSQL / Drizzle
+Parlay Builder ────┘
+
+No competing application database.
+
+⸻
+
+12. Completion criteria for THIS task
+
+Do not claim migration complete.
+
+The only acceptable final statuses are:
+
+READY FOR MIGRATION
+
+Exact graph, mapping, row counts, dependencies, dry-run validator, and cutover strategy are established.
+
+BLOCKED
+
+A specific unresolved ambiguity or technical issue prevents safe migration.
+
+NOT READY
+
+Required information is missing.
+
+Do NOT say “complete” simply because the schemas match.
+
+⸻
+
+Final report
+
+Return:
+
+1. Exact migration row count
+2. Exact duplicate count
+3. Exact ambiguous count
+4. Exact source-only count
+5. Dependency graph
+6. Safe migration order
+7. PK strategy
+8. FK strategy
+9. Business-key matching strategy
+10. Cutover strategy
+11. Dry-run validation result
+12. Remaining Supabase runtime calls
+13. Required Drizzle replacements
+14. Any blocker
+15. Final status: READY FOR MIGRATION / BLOCKED / NOT READY
+
+No writes of any kind.

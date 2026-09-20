@@ -1,0 +1,176 @@
+Correction to the previous migration task:
+
+We do NOT need to migrate the Supabase Truth Engine match population into heliumdb.
+
+The Supabase Truth Engine data is legacy and is NOT required to be carried forward into the new PostgreSQL/Drizzle application.
+
+Therefore:
+
+DO NOT MIGRATE
+
+Do not migrate:
+
+* the 60 Supabase matches
+* the 60 Supabase audit_runs
+* the Supabase audit_stage_runs
+* Supabase final_decisions
+* Supabase result_grades
+* Supabase source_snapshots
+* their dependent audit/evidence/result graph
+
+Do not attempt semantic matching or UUID reconciliation for those records.
+
+Do not import the Supabase match population into heliumdb.
+
+Do not overwrite or merge it with the existing heliumdb population.
+
+The existing heliumdb data is authoritative for the consolidated application.
+
+⸻
+
+New objective
+
+Treat Supabase as a legacy data source that is no longer required for the application.
+
+The goal is:
+
+                    CANONICAL APPLICATION
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+        Truth Engine   Prediction     Parlay Builder
+             │          Engine             │
+             └────────────┬────────────────┘
+                          ▼
+                    heliumdb
+                 PostgreSQL/Drizzle
+
+There should be one authoritative application database.
+
+⸻
+
+1. Preserve heliumdb
+
+Do not modify or replace the existing heliumdb data.
+
+In particular preserve:
+
+* historical_matches
+* evaluation_predictions
+* predictions
+* calibration data
+* Parlay Builder data
+* canonical_players
+* player_aliases
+* existing Truth Engine records
+* existing summary uploads/versions/parsed fields
+* all other existing operational data
+
+⸻
+
+2. Supabase runtime removal
+
+Now focus on the actual remaining problem:
+
+The consolidated Truth Engine branch still contains active Supabase runtime calls.
+
+Inventory them all.
+
+For each call identify:
+
+file
+Supabase table
+operation
+purpose
+PostgreSQL/Drizzle equivalent
+replacement status
+
+The objective is to remove the application’s runtime dependency on Supabase.
+
+Do NOT migrate the old Supabase match population first.
+
+⸻
+
+3. Truth Engine data model
+
+The existing Truth Engine tables already present in heliumdb are the data model the consolidated application should use.
+
+Confirm that the following existing PostgreSQL data remains usable:
+
+* matches
+* summary_uploads
+* summary_versions
+* parsed_summary_fields
+* audit_runs
+* metric_evidence_store
+* verification_results
+* metric_results
+* source_observations
+* source_snapshots
+* Truth Engine calibration tables
+* related Truth Engine tables
+
+Do not replace existing rows simply because Supabase has different rows.
+
+⸻
+
+4. No Supabase→PostgreSQL match migration
+
+Explicitly record:
+
+Supabase match/audit history is intentionally NOT part of the consolidated application’s data migration.
+
+This is a deliberate architectural decision, not a migration failure.
+
+⸻
+
+5. Do not create unnecessary migration work
+
+Do NOT spend time on:
+
+* UUID mapping between Supabase matches and heliumdb matches
+* semantic duplicate detection for Supabase matches
+* migrating Supabase audit graphs
+* importing Supabase result grades
+* preserving the old Supabase audit population
+
+unless a specific application dependency is discovered that makes one of these records necessary.
+
+If a dependency is discovered, stop and report it instead of automatically migrating anything.
+
+⸻
+
+6. Continue consolidation
+
+After confirming the existing heliumdb Truth Engine tables are sufficient:
+
+1. Convert remaining active Truth Engine Supabase calls to PostgreSQL/Drizzle.
+2. Preserve the existing Truth Engine functionality.
+3. Preserve the Prediction Engine.
+4. Preserve the Parlay Builder.
+5. Preserve the shared PostgreSQL database.
+6. Fix OCR identity resolution to use canonical_players / player_aliases.
+7. Clean repository cruft.
+8. Build/typecheck/test all three engines.
+
+Do NOT merge to main yet unless explicitly authorized.
+
+⸻
+
+Final report
+
+Return:
+
+1. Remaining active Supabase runtime calls
+2. PostgreSQL/Drizzle replacement for each
+3. Any actual dependency on legacy Supabase data
+4. Confirmation that no Supabase match migration is required
+5. Files/code that must change
+6. Tests required
+7. Whether the feature branch is now READY TO MERGE
+
+The final status should NOT be blocked merely because Supabase contains historical matches that we intentionally do not want.
+
+Supabase is legacy. heliumdb is authoritative.
+
+No database writes, migrations, merges, commits, pushes, or deployments during this task.
