@@ -201,3 +201,37 @@ test("buildValidateLegPayload throws rather than silently defaulting to Player 1
     "a leg with no resolved prediction must never be scored as if Player 1 had been picked",
   );
 });
+
+// ── flipLegsByKey — never silently invents a Player 1 pick ─────────────────
+test("flipLegsByKey throws rather than silently defaulting a null selectedSide to Player 1", () => {
+  const leg = makeLeg({ key: "unresolved-leg", selectedSide: null });
+  assert.throws(
+    () => flipLegsByKey([leg], new Set([leg.key])),
+    /Cannot flip a leg without a selected side/,
+    "a leg with no resolved prediction must never be silently switched as if Player 1 had been picked",
+  );
+});
+
+test("flipLegsByKey flips '1' to '2'", () => {
+  const leg = makeLeg({ key: "leg-a", selectedSide: "1" });
+  const [flipped] = flipLegsByKey([leg], new Set([leg.key]));
+  assert.equal(flipped.selectedSide, "2");
+});
+
+test("flipLegsByKey flips '2' to '1'", () => {
+  const leg = makeLeg({ key: "leg-b", selectedSide: "2" });
+  const [flipped] = flipLegsByKey([leg], new Set([leg.key]));
+  assert.equal(flipped.selectedSide, "1");
+});
+
+test("flipLegsByKey leaves legs not in the key set completely unchanged, even when one of them has a null side", () => {
+  const targeted = makeLeg({ key: "leg-target", selectedSide: "1" });
+  const untouchedValid = makeLeg({ key: "leg-untouched", selectedSide: "2" });
+  const untouchedNull = makeLeg({ key: "leg-untouched-null", selectedSide: null });
+
+  const flipped = flipLegsByKey([targeted, untouchedValid, untouchedNull], new Set([targeted.key]));
+
+  assert.equal(flipped[0].selectedSide, "2", "the targeted leg must flip");
+  assert.equal(flipped[1], untouchedValid, "an untouched leg must be the exact same object");
+  assert.equal(flipped[2], untouchedNull, "an untouched null-side leg must not throw or change — only targeted legs are validated");
+});
