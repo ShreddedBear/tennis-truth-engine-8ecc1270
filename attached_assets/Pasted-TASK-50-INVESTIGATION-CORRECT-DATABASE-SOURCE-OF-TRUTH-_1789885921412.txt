@@ -1,0 +1,238 @@
+TASK: 50% INVESTIGATION — CORRECT DATABASE/SOURCE-OF-TRUTH AND RECOVER THE TEMPORAL HOLDOUT
+
+IMPORTANT ARCHITECTURE CORRECTION
+
+The current canonical application does NOT use Supabase as its active database.
+
+Do not treat Supabase as the current application database.
+Do not impose Supabase-specific row limits, export limitations, retention rules, or recovery requirements on the current system.
+
+If a previous recovery/export was capped at 1,000 rows because of Supabase, that is a limitation of that OLD export/recovery method — not a limitation of the current application database.
+
+Do NOT attempt to restore the current application by reconstructing it from a capped Supabase export.
+
+==================================================
+STEP 1 — VERIFY THE CURRENT DATABASE
+==================================================
+
+Inspect the CURRENT canonical application and determine:
+
+- current database technology
+- current connection/configuration
+- current Prediction API database
+- current Truth Engine database
+- current database schema
+- current tables
+- current row counts
+
+Use the actual current runtime/database configuration as the source of truth.
+
+Do not infer this from old migration documents.
+
+Do not assume Supabase is active.
+
+Report the exact current database boundary before proceeding.
+
+==================================================
+STEP 2 — VERIFY THE ACTUAL EVALUATION DATA
+==================================================
+
+The previous report stated:
+
+- Evaluation predictions: 518,636
+- Evaluation rows in requested window: 427
+
+Verify those numbers directly against the CURRENT database.
+
+Determine whether the full evaluation data is actually present in the current database.
+
+If the current database contains the complete records, use them directly.
+
+Do NOT rely on the old Supabase export.
+
+==================================================
+STEP 3 — TEMPORAL HOLDOUT
+==================================================
+
+The original authoritative experiment ends:
+
+2026-06-02
+
+We need a genuinely new post-2026-06-02 holdout.
+
+The 427 paper-trade rows must NOT be used unless they independently satisfy every point-in-time requirement.
+
+Specifically, do not use rows that:
+
+- were locked after match start
+- lack frozen feature snapshots
+- lack verified outcomes
+- contain post-match information
+- contain outcome-derived information
+
+==================================================
+STEP 4 — DATA SOURCE
+==================================================
+
+Use the currently available authorized data sources.
+
+Priority:
+
+1. Current Live Tennis API integration
+2. Current local historical database
+3. Other already-authorized completed-match source available to the application
+
+Do NOT reactivate MatchStat/API-Tennis.
+
+Do NOT fabricate missing matches.
+
+Do NOT substitute paper-trade records for actual completed historical matches.
+
+==================================================
+STEP 5 — CURRENT LIVE TENNIS DATA
+==================================================
+
+Determine whether Live Tennis API currently provides sufficient completed post-2026-06-02 matches for the holdout.
+
+If yes:
+
+- retrieve the required completed-match records
+- normalize them through the existing provider layer
+- resolve player identities
+- resolve tournament
+- resolve surface
+- resolve round
+- resolve match format
+- obtain the required historical inputs
+- reconstruct features at the historical cutoff
+
+Do not use information that became available after the simulated prediction time.
+
+==================================================
+STEP 6 — POINT-IN-TIME SAFETY
+==================================================
+
+The Availability wall-clock issue has already been fixed.
+
+Historical replay must use:
+
+input.asOfDate
+
+with the simulated match cutoff.
+
+Verify that the same cutoff discipline applies to every other time-sensitive feature.
+
+Do not use:
+
+- future rankings
+- post-match form
+- post-match statistics
+- future injuries/availability
+- future tournament results
+- outcome information
+
+==================================================
+STEP 7 — FREEZE THE HOLDOUT
+==================================================
+
+Before any Candidate B/D scoring:
+
+1. Determine exact start date.
+2. Determine exact end date.
+3. Freeze the eligible population.
+4. Record total population.
+5. Record gradeable population.
+6. Record exclusions.
+7. Record exclusion reasons.
+8. Generate a deterministic population fingerprint/hash.
+
+The population must be frozen BEFORE model performance is calculated.
+
+==================================================
+STEP 8 — NO MODEL CHANGES
+==================================================
+
+Do NOT:
+
+- modify Candidate B
+- modify Candidate D
+- tune model weights
+- tune calibration
+- change priors
+- change scoring
+- change orientation
+- change gradeability
+- change Prediction Engine logic
+
+This assignment is data construction only.
+
+==================================================
+STEP 9 — STOP CONDITIONS
+==================================================
+
+If a valid post-2026-06-02 holdout cannot be constructed from the CURRENT database and currently authorized data sources:
+
+STOP.
+
+Do not manufacture a holdout.
+
+Do not use the 427 paper-trade rows as a substitute.
+
+Do not run B/D.
+
+Report exactly what is missing.
+
+==================================================
+ARTIFACTS
+==================================================
+
+Create/update:
+
+docs/data-source-discovery/live-tennis-temporal-holdout-20260920.md
+
+docs/data-source-discovery/live-tennis-temporal-holdout-20260920.json
+
+The report must identify:
+
+- current database
+- current data source
+- current row counts
+- exact holdout dates
+- population size
+- gradeable size
+- exclusions
+- data provenance
+- point-in-time controls
+- population fingerprint
+
+Do NOT mention Supabase as an active database unless direct inspection proves it is currently active.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. What the CURRENT database actually is.
+2. Whether Supabase is currently used anywhere in the active application.
+3. Current evaluation row counts.
+4. Whether the 427 rows are valid or invalid for the holdout.
+5. Whether a valid post-June-2 population was constructed.
+6. Exact holdout dates.
+7. Population size.
+8. Gradeable size.
+9. Population fingerprint.
+10. Data source/provenance.
+11. Whether the population is frozen.
+12. Whether it is ready for B1/B2/D1/D2.
+
+DO NOT RUN B/D PERFORMANCE YET.
+
+NO CODE CHANGES TO MODEL LOGIC.
+NO DATABASE MIGRATION.
+NO DATA FABRICATION.
+NO PUSH.
+NO MERGE.
+NO DEPLOYMENT.
+
+STOP after the holdout population is verified and frozen.
