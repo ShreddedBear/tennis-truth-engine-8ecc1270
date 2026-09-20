@@ -23,7 +23,7 @@ const MAX_FILES = 150
 // Keep OCR batches below provider burst limits. The API also serializes the
 // actual vision calls globally so concurrent browser sessions remain safe.
 const RESOLVE_CONCURRENCY = 2
-const VALIDATION_BATCH_SIZE = 12
+const VALIDATION_BATCH_SIZE = 6
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1878,22 +1878,35 @@ export default function AdminParlayBuilder() {
 
   // ── Analyze Parlay ─────────────────────────────────────────────────────────
 
-  const analyzeParlay = async (overrideLegs?: ParlayLeg[]) => {
-    // All legs with names — selectedSide defaults to "1" so no manual click needed
-    const sourcLegs = overrideLegs ?? legs
-    const ready = sourcLegs.filter(l =>
+  const analyzeParlay = async (
+    overrideLegs?: ParlayLeg[],
+    revalidateKeys?: Set<string>,
+  ) => {
+    const isReanalysis = !!overrideLegs;
+    const sourceLegs = overrideLegs ?? legs;
+    const allReady = sourceLegs.filter(l =>
       l.status !== "resolving" && l.status !== "error" &&
       (l.player1Name || l.player2Name)
-    )
-    if (ready.length === 0) { toast({ title: "Upload at least one match before analyzing" }); return }
-    // Record the key order so switchBorderlineLegs can map result[i] → leg key
-    setResultLegKeys(ready.map(l => l.key))
+    );
+    const ready = revalidateKeys
+      ? allReady.filter(l => revalidateKeys.has(l.key))
+      : allReady;
 
-    setEvaluating(true)
-    setResult(null)
+    if (ready.length === 0) {
+      toast({ title: "No eligible matches to re-analyze" });
+      return;
+    }
+
+    // The result key order is stable for the lifetime of the analysis. Switch actions
+    // revalidate only their affected keys and merge those results back into this order.
+    if (!isReanalysis) {
+      setResultLegKeys(allReady.map(l => l.key));
+    }
+
+    setEvaluating(true);
+    if (!isReanalysis) setResult(null);
+
     try {
-      // ── Phase 1: Run fresh predictions, auto-determine which side to back ─────
-      setAnalyzePhase("predicting")
       type InlineSignals = {
         calibratedProbabilityP1: number
         dataQuality: number
@@ -1901,52 +1914,66 @@ export default function AdminParlayBuilder() {
         upsetRisk: string
         modelAgreement: string
         closenessTo50: number | null
-        /** Auto-determined from calibratedProbabilityP1: back the predicted winner */
         predictedWinnerSide: "1" | "2"
       }
+
+      // Initial analysis is the only phase that calls the Prediction Engine.
+      // A Switch action must NOT run 149 fresh predictions again: it should flip the
+      // selected side and send only the affected legs through independent validation.
       const legSignals: Record<string, InlineSignals | null> = {}
 
-      await runWithConcurrency(ready, RESOLVE_CONCURRENCY, async (l) => {
-        if (!l.player1Id || !l.player2Id) { legSignals[l.key] = null; return }
-        try {
-          const r = await fetch(api("/api/predictions"), {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              player1Id: l.player1Id,
-              player2Id: l.player2Id,
-              surface: l.surface ?? "Hard",
-              matchFormat: "best-of-3",
-              tournamentName: l.tournamentName ?? null,
-            }),
-          })
-          if (!r.ok) { legSignals[l.key] = null; return }
-          const pred = await r.json()
-          const calibP1 = Number(pred.calibratedProbability)
-          legSignals[l.key] = {
-            calibratedProbabilityP1: calibP1,
-            dataQuality: Number(pred.dataQuality),
-            dataQualityLabel: pred.dataQualityLabel ?? "Unknown",
-            upsetRisk: pred.upsetRisk ?? "UNKNOWN",
-            modelAgreement: pred.engine?.modelAgreement ?? "Unknown",
-            closenessTo50: typeof pred.engine?.closenessTo50 === "number" ? pred.engine.closenessTo50 : null,
-            predictedWinnerSide: calibP1 >= 50 ? "1" : "2",
+      if (!isReanalysis) {
+        setAnalyzePhase("predicting")
+
+        await runWithConcurrency(allReady, RESOLVE_CONCURRENCY, async (l) => {
+          if (!l.player1Id || !l.player2Id) {
+            legSignals[l.key] = null
+            return
           }
-        } catch {
-          legSignals[l.key] = null
-        }
-      })
+          try {
+            const r = await fetch(api("/api/predictions"), {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                player1Id: l.player1Id,
+                player2Id: l.player2Id,
+                surface: l.surface ?? "Hard",
+                matchFormat: "best-of-3",
+                tournamentName: l.tournamentName ?? null,
+              }),
+            })
+            if (!r.ok) {
+              legSignals[l.key] = null
+              return
+            }
+            const pred = await r.json()
+            const calibP1 = Number(pred.calibratedProbability)
+            legSignals[l.key] = {
+              calibratedProbabilityP1: calibP1,
+              dataQuality: Number(pred.dataQuality),
+              dataQualityLabel: pred.dataQualityLabel ?? "Unknown",
+              upsetRisk: pred.upsetRisk ?? "UNKNOWN",
+              modelAgreement: pred.engine?.modelAgreement ?? "Unknown",
+              closenessTo50: typeof pred.engine?.closenessTo50 === "number"
+                ? pred.engine.closenessTo50
+                : null,
+              predictedWinnerSide: calibP1 >= 50 ? "1" : "2",
+            }
+          } catch {
+            legSignals[l.key] = null
+          }
+        })
 
-      // Persist signals so Best of Best can flip all legs to the predicted winner
-      // even after the user has manually toggled some legs post-analysis.
-      legSignalsRef.current = Object.fromEntries(
-        Object.entries(legSignals).map(([k, v]) => [k, v ? { predictedWinnerSide: v.predictedWinnerSide } : null])
-      )
+        // Persist the Prediction Engine's original picks for Best of Best and diagnostics.
+        legSignalsRef.current = Object.fromEntries(
+          Object.entries(legSignals).map(([k, v]) => [
+            k,
+            v ? { predictedWinnerSide: v.predictedWinnerSide } : null,
+          ])
+        )
 
-      // Update selectedSide in state to reflect the auto-picked predicted winner
-      // (skip if we were called with overrideLegs — those already have the right side)
-      if (!overrideLegs) {
+        // Initial upload: automatically select the Prediction Engine's predicted winner.
         setLegs(prev => prev.map(l => {
           const sig = legSignals[l.key]
           if (!sig) return l
@@ -1954,13 +1981,16 @@ export default function AdminParlayBuilder() {
         }))
       }
 
-      // ── Phase 2: Independent Builder Validation (Task 105) ───────────────────
-      // Reads historical_matches directly — NEVER uses engine scores or predictions table.
+      // Independent Builder Validation.
+      // On a switch/re-analysis, the selectedSide already contains the user's explicit
+      // flipped choice. Never overwrite it with a newly-run Prediction Engine pick.
       setAnalyzePhase("evaluating")
       const validateBody = {
         legs: ready.map(l => {
-          const sig = legSignals[l.key]
-          const selectedSide: "1" | "2" = sig?.predictedWinnerSide ?? l.selectedSide ?? "1"
+          const selectedSide: "1" | "2" = isReanalysis
+            ? (l.selectedSide ?? "1")
+            : (legSignals[l.key]?.predictedWinnerSide ?? l.selectedSide ?? "1")
+
           return {
             selectedPlayerId: selectedSide === "1"
               ? (l.player1Id ?? `unresolved-${l.key}-p1`)
@@ -1976,13 +2006,15 @@ export default function AdminParlayBuilder() {
               : (l.player1Name ?? "Unknown"),
             surface: l.surface ?? null,
             tournamentName: l.tournamentName ?? null,
-            marketOdds: l.marketOdds && !isNaN(parseFloat(l.marketOdds)) ? parseFloat(l.marketOdds) : null,
+            marketOdds: l.marketOdds && !isNaN(parseFloat(l.marketOdds))
+              ? parseFloat(l.marketOdds)
+              : null,
           }
         }),
       }
-      // Large screenshot imports can contain 100+ legs. Sending all of them in one
-      // request can outlive the mobile proxy window and return an HTML timeout page.
-      // Validate bounded batches so each request completes independently.
+
+      // Large screenshot imports can contain 100+ legs. Keep each request small and
+      // let the server cap expensive provider work as well.
       const validatedLegs: BuilderLegResult[] = []
       const validationBatches = Array.from(
         { length: Math.ceil(validateBody.legs.length / VALIDATION_BATCH_SIZE) },
@@ -1994,13 +2026,30 @@ export default function AdminParlayBuilder() {
 
       for (let batchIndex = 0; batchIndex < validationBatches.length; batchIndex++) {
         const batch = validationBatches[batchIndex]
-        const response = await fetch(api("/api/admin/parlay/validate"), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ legs: batch }),
-        })
-        const rawText = await response.text()
+        let response: Response | null = null
+        let rawText = ""
+
+        // A transient 429 should not kill a 100+ leg run. Honor Retry-After when
+        // supplied, otherwise use bounded exponential backoff.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          response = await fetch(api("/api/admin/parlay/validate"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ legs: batch }),
+          })
+          rawText = await response.text()
+          if (response.status !== 429) break
+
+          const retryAfter = Number(response.headers.get("Retry-After"))
+          const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+            ? Math.min(retryAfter * 1000, 30_000)
+            : Math.min(1000 * (2 ** attempt), 8_000)
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+
+        if (!response) throw new Error("Validation request did not return a response")
+
         let payload: BuilderSession | { error?: string }
         try {
           payload = JSON.parse(rawText) as BuilderSession | { error?: string }
@@ -2011,6 +2060,7 @@ export default function AdminParlayBuilder() {
             + `a non-JSON response (HTTP ${response.status})${detail ? `: ${detail}` : ""}`,
           )
         }
+
         if (!response.ok) {
           throw new Error(
             ("error" in payload && payload.error)
@@ -2024,10 +2074,31 @@ export default function AdminParlayBuilder() {
         validatedLegs.push(...payload.legs)
       }
 
-      setResult({
-        legs: validatedLegs,
-        summary: summarizeBuilderLegs(validatedLegs),
-      })
+      if (isReanalysis && result && revalidateKeys) {
+        // Replace only the switched legs. Everything else keeps its original validation
+        // result, so switching 115 Borderlines no longer recomputes the other 34 legs.
+        const replacements = new Map<string, BuilderLegResult>()
+        ready.forEach((leg, index) => {
+          const replacement = validatedLegs[index]
+          if (replacement) replacements.set(leg.key, replacement)
+        })
+
+        const mergedLegs = result.legs.map((oldLeg, index) => {
+          const key = resultLegKeys[index]
+          return key ? (replacements.get(key) ?? oldLeg) : oldLeg
+        })
+
+        setResult({
+          legs: mergedLegs,
+          summary: summarizeBuilderLegs(mergedLegs),
+        })
+      } else {
+        setResult({
+          legs: validatedLegs,
+          summary: summarizeBuilderLegs(validatedLegs),
+        })
+      }
+
       setAutoSelected(new Set())
     } catch (e) {
       toast({ title: "Validation failed", description: String(e), variant: "destructive" })
@@ -2036,7 +2107,6 @@ export default function AdminParlayBuilder() {
       setAnalyzePhase(null)
     }
   }
-
   // Auto-scroll to results on mobile when analysis completes
   useEffect(() => {
     if (result) {
@@ -2146,11 +2216,11 @@ export default function AdminParlayBuilder() {
     setLegs(flipped)
     // Re-run analysis immediately with the flipped legs (pass directly so we
     // don't wait for the React state update to propagate)
-    analyzeParlay(flipped)
+    analyzeParlay(flipped, borderlineKeySet)
 
     toast({
       title: `Switched ${borderlineKeySet.size} BORDERLINE leg${borderlineKeySet.size === 1 ? "" : "s"}`,
-      description: "Re-running analysis with the opposing players selected.",
+      description: "Re-validating only the switched legs with the opposing players selected.",
     })
   }
 
@@ -2171,8 +2241,8 @@ export default function AdminParlayBuilder() {
     if (keys.size === 0) return
     const flipped = legs.map(leg => keys.has(leg.key) ? { ...leg, selectedSide: (leg.selectedSide === "1" ? "2" : "1") as "1" | "2" } : leg)
     setLegs(flipped)
-    analyzeParlay(flipped)
-    toast({ title: `Switched ${keys.size} REMOVE leg${keys.size === 1 ? "" : "s"}`, description: "Re-running analysis with the opposing players selected." })
+    analyzeParlay(flipped, keys)
+    toast({ title: `Switched ${keys.size} REMOVE leg${keys.size === 1 ? "" : "s"}`, description: "Re-validating only the switched legs with the opposing players selected." })
   }
 
   // ── Best of Best ────────────────────────────────────────────────────────────
