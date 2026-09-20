@@ -47,7 +47,23 @@ function samePair(a1:string,a2:string,b1:string,b2:string){return(samePlayer(a1,
 function compatible(a:string|null|undefined,b:string|null|undefined){const x=clean(a),y=clean(b);return !x||!y||x===y||x.includes(y)||y.includes(x);}
 function richness(m:ParsedMatchup){return REVIEW_FIELDS.filter(k=>m.fields.some(f=>f.field_key===k&&f.normalized_value)).length+m.fields.length*.01+m.player1_name.split(" ").length*.001+m.player2_name.split(" ").length*.001;}
 function mergeParsed(a:ParsedMatchup,b:ParsedMatchup){const primary=richness(b)>richness(a)?b:a,secondary=primary===a?b:a;const fields=[...primary.fields];for(const f of secondary.fields)if(!fields.some(x=>x.field_key===f.field_key&&x.normalized_value))fields.push(f);const longer=(x:string,y:string)=>nameTokens(y).length>nameTokens(x).length?y:x;return{...primary,player1_name:longer(primary.player1_name,secondary.player1_name),player2_name:longer(primary.player2_name,secondary.player2_name),fields};}
-function dedupeMatchups(matchups:ParsedMatchup[]){const out:ParsedMatchup[]=[];for(const m of matchups){const i=out.findIndex(x=>samePair(x.player1_name,x.player2_name,m.player1_name,m.player2_name));if(i<0)out.push(m);else out[i]=mergeParsed(out[i],m);}return out;}
+const matchupFieldValue=(m:ParsedMatchup,key:string)=>m.fields.find((f)=>f.field_key===key)?.normalized_value??null;
+// `samePair`'s player-name matching is deliberately loose (last-name + partial
+// token overlap, to absorb OCR noise on the SAME match seen twice) which
+// means it is not safe as the only signal across a whole multi-tournament
+// upload: two genuinely different matches at two different events can share
+// a common surname (e.g. two unrelated "Sharma"s, or a Challenger and a
+// WTA draw both featuring a "J. Martin"). Requiring the tournament (when
+// either side actually has one parsed) to also be `compatible` closes that
+// cross-event false-merge risk while still collapsing the real intended
+// case -- the same match's full-name and shortened-name OCR variants from
+// the SAME event/page. `compatible` already tolerates one side being blank
+// (an unresolved tournament never blocks a legitimate same-page merge).
+function samePairSameEvent(a:ParsedMatchup,b:ParsedMatchup){
+  if(!samePair(a.player1_name,a.player2_name,b.player1_name,b.player2_name))return false;
+  return compatible(matchupFieldValue(a,"tournament"),matchupFieldValue(b,"tournament"));
+}
+function dedupeMatchups(matchups:ParsedMatchup[]){const out:ParsedMatchup[]=[];for(const m of matchups){const i=out.findIndex(x=>samePairSameEvent(x,m));if(i<0)out.push(m);else out[i]=mergeParsed(out[i],m);}return out;}
 function setResolvedField(m:ParsedMatchup,key:string,value:string){const i=m.fields.findIndex(f=>f.field_key===key);const next={field_key:key,raw_value:i>=0?m.fields[i].raw_value:null,normalized_value:value,extraction_status:"RECONSTRUCTED" as const,confidence:.9,page_number:m.page_number};if(i>=0)m.fields[i]={...m.fields[i],...next};else m.fields.push(next);}
 
 function UploadPage(){
