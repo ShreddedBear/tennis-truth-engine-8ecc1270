@@ -75,6 +75,19 @@ function winnerCode(code){const raw=String(code??'').trim();const numeric=Number
 const out={generatedAt:new Date().toISOString(),ATP:{},WTA:{},matchHistory};
 for(const [tour,rel] of sources){const path=join(root,rel);if(!existsSync(path)){console.warn('runtime index source missing',rel);continue;}const rows=parseCsv(readFileSync(path,'utf8'));if(tour==='ATP'){const q=attachExactOpponentElo(rows);console.log(`ATP exact-match opponent Elo joins: ${q.joined}; ambiguous rejected: ${q.ambiguous}`);}for(const row of rows){const p=touch(out[tour],row.player);if(!p)continue;addBucket(p.overall,row);const s=String(row.surface??'').toLowerCase();if(s){p.surface[s]??=blank();addBucket(p.surface[s],row);}const opponent=row.opponent??row.opponent_name??'';if(opponent&&row.date){addHistory(tour==='ATP'?'ATP_MAIN':'WTA_MAIN',row.player,opponent,row.date,row.tournament??row.tourney_name,row.surface,String(row.won??'')==='1'?true:String(row.won??'')==='0'?false:null,row.round,`runtime:${tour.toLowerCase()}_main`,compactDetails(row,'PLAYER'));}}console.log(`${tour}: ${Object.keys(out[tour]).length} players indexed from ${rows.length} rows`);}
 
+// ATP Main historical gap-fill, Sackmann-local (CC BY-NC-SA 4.0, non-commercial-use-only --
+// see data/public/sackmann-local-atp-main/SOURCE.md and NON_COMMERCIAL_USE_CLASSIFICATION.md).
+// This is a validated production-history CSV (scripts/integrate-sackmann-local-history-production.ts),
+// not the raw Sackmann files directly: every row already passed src/lib/historical-source-
+// canonicalization.ts against the full four-lane runtime population, so only genuinely NEW
+// matches are here -- duplicates of the existing PredixSport-sourced ATP_MAIN coverage and
+// ambiguous cross-source collisions were excluded upstream (see
+// data/audit/sackmann-local-history-quarantine/atp_main.jsonl for the excluded records).
+// Additive to the existing PredixSport block above -- that block's own row-count assertion is
+// untouched.
+const atpMainSackmannPath=join(root,'data/public/production-history/atp_main_sackmann/matches_2012_2023.csv');
+if(existsSync(atpMainSackmannPath)){const rows=parseCsv(readFileSync(atpMainSackmannPath,'utf8'));let accepted=0;for(const row of rows){const winner=row.winner_name??'',loser=row.loser_name??'',date=row.date??'';if(!winner||!loser||!date)continue;addSymmetric('ATP_MAIN',winner,loser,date,row.tournament,row.surface,true,row.round,'Sackmann-local ATP Main production history (CC BY-NC-SA 4.0, non-commercial)',compactDetails(row,'WINNER'));accepted++;}if(accepted!==20308)throw new Error(`ATP_MAIN_SACKMANN_ROW_COUNT_MISMATCH:${accepted}`);console.log(`ATP_MAIN: ${accepted} Sackmann-local supplemental matches indexed`);}
+
 const challengerDir=join(root,'data/public/tennismylife-challenger/normalized');
 if(existsSync(challengerDir)){const currentYear=new Date().getUTCFullYear();let accepted=0;for(const file of readdirSync(challengerDir).filter(x=>/^\d{4}_challenger_normalized\.csv$/.test(x)).sort()){const year=Number(file.slice(0,4));if(year<currentYear-5)continue;for(const row of parseCsv(readFileSync(join(challengerDir,file),'utf8'))){if(row._dedup_status&&row._dedup_status!=='NEW_MATCH')continue;const winner=row.winner_name??'',loser=row.loser_name??'',date=row.tourney_date??'';if(!winner||!loser||!date)continue;addSymmetric('ATP_CHALLENGER',winner,loser,date,row.tourney_name,row.surface,true,row.round,'TennisMyLife ATP Challenger',compactDetails(row,'WINNER'));accepted++;}}console.log(`ATP_CHALLENGER: ${accepted} repository matches indexed`);}
 
@@ -122,6 +135,15 @@ if(existsSync(wtaMainDir)){
   if(accepted!==23027)throw new Error(`WTA_MAIN_ROW_COUNT_MISMATCH:${accepted}`);
   console.log(`WTA_MAIN: ${accepted} TennisData.app WTA Tour matches indexed`);
 }
+
+// WTA Main historical gap-fill, Sackmann-local (CC BY-NC-SA 4.0, non-commercial-use-only --
+// see data/public/sackmann-local-wta-main/SOURCE.md and NON_COMMERCIAL_USE_CLASSIFICATION.md).
+// Same validated production-history pattern as the ATP Main supplement above: every row already
+// passed canonicalization against the full four-lane runtime population. WTA Main had zero
+// existing TennisData.app coverage before 2021, so every accepted row here is genuinely new
+// history, not a duplicate of anything already indexed.
+const wtaMainSackmannPath=join(root,'data/public/production-history/wta_main_sackmann/matches_2013_2020.csv');
+if(existsSync(wtaMainSackmannPath)){const rows=parseCsv(readFileSync(wtaMainSackmannPath,'utf8'));let accepted=0;for(const row of rows){const winner=row.winner_name??'',loser=row.loser_name??'',date=row.date??'';if(!winner||!loser||!date)continue;addSymmetric('WTA_MAIN',winner,loser,date,row.tournament,row.surface,true,row.round,'Sackmann-local WTA Main production history (CC BY-NC-SA 4.0, non-commercial)',compactDetails(row,'WINNER'));accepted++;}if(accepted!==20679)throw new Error(`WTA_MAIN_SACKMANN_ROW_COUNT_MISMATCH:${accepted}`);console.log(`WTA_MAIN: ${accepted} Sackmann-local supplemental matches indexed`);}
 
 for(const lane of Object.values(matchHistory))for(const rows of Object.values(lane))rows.sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
 mkdirSync(dirname(outputPath),{recursive:true});const json=JSON.stringify(out);writeFileSync(outputPath,json);console.log(`Runtime tennis index written to ${outputPath}`);

@@ -1,0 +1,26 @@
+{
+  "state": "SUCCESS",
+  "scope": "WTA MAIN ONLY (Sackmann-local supplement, 2013-2020)",
+  "source": "data/public/sackmann-local-wta-main/raw/*.csv",
+  "output": "data/public/production-history/wta_main_sackmann/matches_2013_2020.csv",
+  "license": "CC BY-NC-SA 4.0 -- see data/public/sackmann-local-wta-main/SOURCE.md and NON_COMMERCIAL_USE_CLASSIFICATION.md",
+  "canonicalization_baseline": "Full 4-lane runtime population (ATP_MAIN, WTA_MAIN, ATP_CHALLENGER, WTA_CHALLENGER) via src/lib/historical-source-canonicalization.ts, unmodified",
+  "years": {
+    "2013": 2714,
+    "2014": 2785,
+    "2015": 2651,
+    "2016": 2923,
+    "2017": 2831,
+    "2018": 2756,
+    "2019": 2743,
+    "2020": 1276
+  },
+  "rows_source_total": 20679,
+  "rows_integrated_new": 20679,
+  "rows_duplicate": 0,
+  "rows_ambiguous_quarantined": 0,
+  "rows_conflict": 0,
+  "contamination_firewall": "PASS",
+  "production_tour_family": "WTA_MAIN",
+  "generated_at_utc": "2026-09-19T23:59:58.311Z"
+}
