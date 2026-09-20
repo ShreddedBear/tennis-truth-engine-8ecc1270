@@ -1,0 +1,299 @@
+NEXT EXPERIMENT — CANDIDATE D
+ACTIVE SURFACE ELO ENSEMBLE-WEIGHT ABLATION
+
+Candidate C is conclusively classified as a NULL-PATH experiment.
+
+Do NOT merge Candidate C.
+Do NOT push anything.
+Do NOT modify canonical production HEAD.
+Do NOT change the database.
+Do NOT change the historical population, cutoff, orientation, calibration, or any other prediction module.
+
+VERIFIED FINDING
+
+Candidate C changed the diagnostic Surface Elo probability:
+
+998 diagnostic rows changed.
+
+However:
+
+0 final predictions changed.
+
+Therefore the diagnostic probability:
+
+surfaceElo.eloWinProbabilityPlayer1
+
+is NOT consumed by the executable ensemble.
+
+The active ensemble instead constructs Surface Elo independently from:
+
+- edge = eloDifference / 8
+- probability = edgeToProbability(edge)
+- weight = max(1, reliability) × Surface Elo prior
+
+Therefore the active mechanism to test is the ESS-derived RELIABILITY USED AS THE SURFACE ELO ENSEMBLE WEIGHT.
+
+OBJECTIVE
+
+Determine whether Surface Elo's ESS-derived reliability weighting is responsible for meaningful probability compression toward 50 and whether removing that weighting improves or worsens predictive/calibration performance.
+
+CANDIDATE D DEFINITION
+
+Start from the VERIFIED Candidate B implementation.
+
+Create Candidate D such that:
+
+- Surface Elo rating calculation remains unchanged.
+- Surface Elo Elo difference remains unchanged.
+- Surface Elo raw probability remains unchanged.
+- Surface Elo probability conversion remains unchanged.
+- Surface Elo ESS calculation remains unchanged.
+- Surface Elo reliability remains available for diagnostics/Data Quality.
+- Data Quality logic remains unchanged.
+- Calibration remains unchanged.
+- Other ensemble module weights remain unchanged.
+- Surface Elo's ensemble input uses a neutral reliability value of 100 ONLY for its ensemble weighting.
+
+In other words:
+
+CURRENT ACTIVE PATH:
+
+surfaceElo reliability
+→ ensemble Surface Elo weight
+
+CANDIDATE D:
+
+surfaceElo reliability
+→ preserved for diagnostics/Data Quality
+
+but:
+
+ensemble Surface Elo weight
+→ reliability = 100
+
+Do NOT globally overwrite the reliability value.
+
+Do NOT change the diagnostic probability.
+
+Do NOT remove ESS calculations.
+
+Do NOT alter Data Quality.
+
+Create a separate local ensemble-only value/copy.
+
+FIRST: SOURCE INSPECTION
+
+Before modifying anything, identify the exact active code path where:
+
+Surface Elo reliability
+
+becomes:
+
+ensemble Surface Elo weight.
+
+Show the exact current expression.
+
+Confirm that changing the ensemble-only reliability will affect final predictions.
+
+Do not modify code until this is proven.
+
+MINIMAL CHANGE
+
+Candidate D must make the smallest possible source change.
+
+Prefer something conceptually equivalent to:
+
+const surfaceEloEnsembleReliability = 100;
+
+while preserving the original:
+
+surfaceElo.reliability
+
+for every other purpose.
+
+Do not refactor unrelated code.
+
+PRE-FLIGHT
+
+Prove:
+
+1. Candidate D boots.
+2. Prediction Engine imports.
+3. Candidate D differs from Candidate B only at the active Surface Elo ensemble-weight input.
+4. Same helium/heliumdb database.
+5. Same protected 1,644-match population.
+6. Same 1,604 gradeable matches.
+7. Same temporal cutoff.
+8. Same canonical-ID neutral orientation.
+9. No market odds or sentiment.
+10. Single-match replay succeeds.
+11. Database writes = 0.
+12. Current canonical production worktree remains untouched.
+
+Run the source-level diff and explicitly demonstrate that:
+
+- Surface Elo rating is unchanged.
+- Surface Elo edge is unchanged.
+- Surface Elo diagnostic probability is unchanged.
+- Surface Elo ESS is unchanged.
+- Data Quality is unchanged.
+- Only the ensemble weighting input is changed.
+
+STOP if the diff affects anything else.
+
+REPLAY
+
+Run:
+
+Candidate B
+vs
+Candidate D
+
+using the exact same authoritative 1,644-match population.
+
+Grade the same 1,604 matches.
+
+Run BOTH versions twice.
+
+Do not substitute prior results for an actual paired replay.
+
+MEASURE
+
+For both versions calculate:
+
+- Accuracy
+- Brier score
+- Log loss
+- ECE, 10 bins
+- Exact 50%
+- 49–51%
+- 47–53%
+- 45–55%
+- 40–60%
+- Mean distance from 50
+- Median distance from 50
+
+PAIRED MOVEMENT
+
+Calculate:
+
+- moved away from 50
+- moved toward 50
+- unchanged
+- mean signed probability change
+- mean absolute probability change
+- median absolute probability change
+- maximum absolute probability change
+- winner selections changed
+- B correct / D wrong
+- D correct / B wrong
+
+SURFACE-ELO EFFECT
+
+For every changed prediction record:
+
+- Surface Elo reliability
+- effective sample size
+- Surface Elo ensemble weight under B
+- Surface Elo ensemble weight under D
+- Surface Elo probability under B
+- Surface Elo probability under D
+- final probability under B
+- final probability under D
+- whether prediction moved toward or away from 50
+
+Partition by:
+
+- low surface sample
+- moderate surface sample
+- high surface sample
+
+Also determine whether the effect is monotonic with ESS.
+
+CRITICAL QUESTION
+
+We are NOT looking merely for predictions farther from 50.
+
+Determine whether neutralizing the Surface Elo ensemble reliability:
+
+1. reduces compression;
+2. improves Brier;
+3. improves log loss;
+4. improves ECE;
+5. changes accuracy;
+6. changes actual winner selections;
+7. produces excessive confidence;
+8. disproportionately affects low-sample players;
+9. produces improvements only in probability separation without improving predictive performance.
+
+Do not declare Candidate D successful based solely on increased distance from 50.
+
+REPRODUCIBILITY
+
+Run B twice and D twice.
+
+Duplicate outputs must be byte-identical or mathematically identical.
+
+Record SHA-256 hashes.
+
+If they differ, STOP.
+
+ARTIFACTS
+
+Produce:
+
+1. Markdown report
+2. Machine-readable JSON
+3. Exact Candidate D source diff
+4. Exact model commit SHA
+5. Population fingerprint
+6. Database identity without secrets
+7. Duplicate-run hashes
+
+Commit only to an isolated evaluation branch.
+
+DO NOT PUSH.
+DO NOT MERGE.
+
+FINAL REPORT
+
+Use exactly:
+
+1. ACTIVE SURFACE ELO WEIGHT IDENTIFIED
+2. EXACT CODE PATH
+3. CANDIDATE D CHANGE
+4. PRE-FLIGHT
+5. B VS D RESULTS
+6. COMPRESSION RESULTS
+7. PREDICTIVE PERFORMANCE
+8. CALIBRATION
+9. SURFACE-SAMPLE PARTITION
+10. REPRODUCIBILITY
+11. ARTIFACTS
+12. CONCLUSION
+13. NEXT CONTROLLED EXPERIMENT
+
+The conclusion must distinguish:
+
+- probability compression effect
+from
+- predictive-performance effect.
+
+Do not recommend merging Candidate D.
+
+STOP CONDITIONS
+
+Stop if:
+
+- the active ensemble weight cannot be isolated;
+- the change affects Data Quality;
+- the change affects diagnostic Surface Elo probability;
+- the change affects Surface Elo rating calculation;
+- unrelated modules change;
+- population changes;
+- cutoff changes;
+- orientation changes;
+- database writes occur;
+- duplicate runs differ.
+
+This is a controlled ablation, not an optimization pass.

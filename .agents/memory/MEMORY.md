@@ -1,6 +1,5 @@
-- [Audit PBP batching](audit-pbp-batching.md) — bound concurrent candidate retrieval and skip PBP work for batches that cannot use it.
-- [Supabase migration verification](supabase-migration-verification.md) — post-merge setup does not guarantee external Supabase migrations were applied; verify schema before audits.
-- [Audit source latency](audit-source-latency.md) — select synchronous local analyzers by requested metric family and bound every async source/provider phase.
-- [GitHub workflow pushes](github-workflow-pushes.md) — Git smart-HTTP token pushes need Basic auth, and workflow-file changes need the separate workflow scope.
-- [Symmetric metric persistence](symmetric-metric-persistence.md) — persist paired research together, but still run each player’s reconstruction; evidence refreshes must be transactional.
-- [Completed audit retention](completed-audit-retention.md) — normal slate cleanup must preserve completed run snapshots and every upload still referenced by retained summaries.
+- [Truth Engine preservation](truth-engine-preservation.md) — product-shell recovery must preserve the current Truth Engine and never restore it from prediction-era history.
+- [OCR failure boundaries](ocr-failure-boundaries.md) — screenshot imports must bound both vision and player resolution, preserve OCR names on degradation, and reject UI text as players.
+- [Operational history resets](operational-history-resets.md) — paginate Supabase exports and verify provider availability before clearing cross-system prediction history.
+- [Truth data cutover](truth-data-cutover.md) — legacy Supabase match/audit history is intentionally excluded; convert runtime calls to preserve heliumdb as sole authority.
+- [Truth audit persistence contracts](truth-audit-persistence-contracts.md) — validate audit row mappings and retry keys against live heliumdb, not legacy Supabase types.

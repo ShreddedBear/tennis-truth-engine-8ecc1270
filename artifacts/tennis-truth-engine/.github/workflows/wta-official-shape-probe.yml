@@ -1,0 +1,48 @@
+name: WTA Official Shape Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - wta-shape-probe.flag
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect WTA tournament pagination semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          for PAGE in 0 1 2 5 9 20 30 37; do
+            URL="https://api.wtatennis.com/tennis/tournaments?page=${PAGE}&pageSize=500"
+            FILE="$(mktemp)"
+            STATUS="$(curl -sS -L -o "$FILE" -w '%{http_code}' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' "$URL")"
+            echo "=== page=$PAGE status=$STATUS bytes=$(wc -c < "$FILE" | xargs) ==="
+            jq -r '
+              "pageInfo=" + (.pageInfo|tojson),
+              "content_length=" + ((.content|length)|tostring),
+              "first=" + ((.content[0] // {}) | {year,title,level:(.tournamentGroup.level // .level),groupId:(.tournamentGroup.id // .tournamentGroupId),startDate}|tojson),
+              "last=" + ((.content[-1] // {}) | {year,title,level:(.tournamentGroup.level // .level),groupId:(.tournamentGroup.id // .tournamentGroupId),startDate}|tojson),
+              "years=" + ([.content[]?.year] | unique | sort | tojson),
+              "levels=" + ([.content[]? | (.tournamentGroup.level // .level // "NULL")] | unique | sort | tojson)
+            ' "$FILE"
+            rm -f "$FILE"
+          done
+
+          echo "=== query-filter probes ==="
+          for URL in \
+            'https://api.wtatennis.com/tennis/tournaments?year=2025&page=0&pageSize=500' \
+            'https://api.wtatennis.com/tennis/tournaments?year=2026&page=0&pageSize=500' \
+            'https://api.wtatennis.com/tennis/tournaments?startYear=2025&endYear=2026&page=0&pageSize=500'
+          do
+            FILE="$(mktemp)"
+            STATUS="$(curl -sS -L -o "$FILE" -w '%{http_code}' -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0' "$URL")"
+            echo "url=$URL status=$STATUS"
+            jq -r '"pageInfo=" + (.pageInfo|tojson), "content_length=" + ((.content|length)|tostring), "years=" + ([.content[]?.year] | unique | sort | tojson), "sample=" + ((.content[0] // {})|{year,title,level:(.tournamentGroup.level // .level),startDate}|tojson)' "$FILE"
+            rm -f "$FILE"
+          done

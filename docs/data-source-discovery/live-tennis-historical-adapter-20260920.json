@@ -1,0 +1,301 @@
+{
+  "auditDate": "2026-09-20",
+  "status": "PREFLIGHT_FAILED_NO_RESET",
+  "provider": "Live Tennis API",
+  "baseUrl": "https://api.livetennisapi.com/api/public/v1",
+  "authentication": "X-API-Key header from Live_Tennis_Api or LIVE_TENNIS_API_KEY",
+  "productionProviderWiring": false,
+  "persistentIngestion": false,
+  "candidateScoring": false,
+  "adapter": {
+    "class": "LiveTennisHistoricalProvider",
+    "contract": "TennisDataProvider.getCompletedMatchesByDateRange",
+    "endpoint": "/history/matches",
+    "filters": {
+      "from": "inclusive YYYY-MM-DD",
+      "to": "inclusive YYYY-MM-DD",
+      "draw": "singles"
+    },
+    "pagination": {
+      "limit": 200,
+      "offset": true,
+      "maxPagesGuard": true,
+      "explicitMaxPages250Supported": true,
+      "dedupeKey": "provider match id"
+    },
+    "ordering": "scheduled UTC timestamp, then provider match id",
+    "terminalStatuses": [
+      "completed",
+      "cancelled",
+      "canceled",
+      "retired",
+      "walkover"
+    ]
+  },
+  "tournamentCatalogue": {
+    "endpoint": "/tournaments",
+    "pagination": {
+      "limit": 200,
+      "offset": true,
+      "maxPagesGuard": true,
+      "duplicateIds": "first occurrence wins"
+    },
+    "auditPathUsesAutomatically": true,
+    "categoryRule": "Only match.tournament.category or catalogue.category is accepted; explicit null remains null.",
+    "verifiedSample": {
+      "id": "2360",
+      "name": "Tiburon",
+      "category": "challenger",
+      "surface": "hard",
+      "tour": "challenger",
+      "indoor": false,
+      "normalizedLevel": "Challenger"
+    }
+  },
+  "verifiedReadOnlySample": {
+    "range": {
+      "from": "2026-09-19",
+      "to": "2026-09-19"
+    },
+    "query": "draw=singles&limit=200&offset=0",
+    "httpStatus": 200,
+    "responseShape": "{data,meta}",
+    "rowsReturned": 124,
+    "providerMeta": {
+      "count": 124,
+      "has_more": false,
+      "limit": 200,
+      "offset": 0,
+      "total": null
+    },
+    "representativeFieldsVerified": [
+      "id",
+      "draw",
+      "event_status",
+      "format",
+      "indoor",
+      "outcome",
+      "players.p1/p2.id",
+      "players.p1/p2.name",
+      "players.p1/p2.ranking",
+      "round",
+      "round_code",
+      "scheduled_time",
+      "score.games",
+      "status",
+      "surface",
+      "tour",
+      "tournament",
+      "tournament_id",
+      "winner"
+    ],
+    "representativeValues": {
+      "providerMatchId": "192070",
+      "draw": "singles",
+      "status": "completed",
+      "format": "BO3",
+      "surface": "hard",
+      "tour": "challenger",
+      "roundCode": "SF",
+      "scoreGames": [
+        [
+          6,
+          6
+        ],
+        [
+          2,
+          2
+        ]
+      ],
+      "winner": 1
+    }
+  },
+  "normalizationRules": {
+    "playerIdentity": "Preserve Live Tennis numeric IDs and names with source provenance; the separate audit resolves only against the existing read-only PlayerIdentityIndex and never writes aliases.",
+    "tournamentCategory": "Use match.tournament.category or an explicitly supplied catalogue map only; missing category remains null.",
+    "surface": "Map hard, clay, grass, and indoor hard when explicitly reported; carpet and unknown values remain null because the provider-neutral contract has no Carpet member.",
+    "format": "Map only BO3 and BO5; other values remain null.",
+    "round": "Prefer round_code, then round.",
+    "score": "Orient score.games as player-major per provider documentation and retain per-set game margins.",
+    "sourceTimestamp": "Use scheduled_time for date/time and retain updated_at only inside the raw payload; no future ranking or post-match evidence is introduced."
+  },
+  "validationScript": {
+    "path": "artifacts/api-server/src/scripts/auditLiveTennisHistoricalAdapter.ts",
+    "invocation": "pnpm exec tsx src/scripts/auditLiveTennisHistoricalAdapter.ts --from YYYY-MM-DD --to YYYY-MM-DD [--max-pages N] [--output path]",
+    "behavior": [
+      "Calls the real API only when explicitly invoked.",
+      "Never prints or persists the API key.",
+      "Keeps raw responses in memory only.",
+      "Writes aggregate JSON only when --output is explicitly supplied.",
+      "Does not write to the database; identity auditing reads the existing identity index only.",
+      "Reports field coverage and exclusion reasons with a max-page guard.",
+      "Reports resolved, ambiguous, and unresolved identity counts and resolution methods against the existing read-only identity index."
+    ]
+  },
+  "latestThreeWeekPreflight": {
+    "range": {
+      "from": "2026-08-30",
+      "to": "2026-09-20"
+    },
+    "independentRuns": 2,
+    "byteIdenticalAggregateOutputs": true,
+    "aggregateAuditOutputSha256": "72b2ff0f5be76751bb4dc0a8acbf3abcd16827b9936384e960d35dc5710cebbd",
+    "aggregateAuditOutputFingerprintNotPopulationFingerprint": true,
+    "catalogueRequests": 52,
+    "historyRequests": 25,
+    "totalRequests": 77,
+    "rawRowsReturned": 4929,
+    "normalizedTerminalSingles": 4929,
+    "terminalRowsWithExplicitWinner": 4864,
+    "fieldCoverage": {
+      "provider": 4929,
+      "date": 4929,
+      "time": 4929,
+      "player": 4929,
+      "name": 4929,
+      "tournament": 4929,
+      "tour": 4929,
+      "format": 4929,
+      "provenance": 4929,
+      "winner": 4864,
+      "tournamentId": 4815,
+      "tournamentLevel": 4662,
+      "surface": 4499,
+      "round": 4834,
+      "finalSetGames": 4872
+    },
+    "matchEligibility": {
+      "reasonCountsAreNonExclusive": true,
+      "missingWinner": 65,
+      "unresolvedOrAmbiguousPlayerIdentity": 1995,
+      "missingTournamentLevel": 267,
+      "missingSurface": 430,
+      "missingRound": 95,
+      "missingFormat": 0,
+      "missingFinalSetGames": 57,
+      "allRequiredFieldsPresent": 2687
+    },
+    "deterministicOrdering": true,
+    "duplicateProviderIds": 0,
+    "uniqueProviderPlayers": 3266,
+    "identity": {
+      "resolvedExactNormalized": 2149,
+      "ambiguous": 0,
+      "unresolved": 1117
+    },
+    "populationFingerprint": null,
+    "populationFrozen": false,
+    "status": "PREFLIGHT_FAILED_NO_RESET",
+    "stopReason": "Replacement population is not point-in-time safe: canonical identities remain unresolved and provider ranking fields are current/listing values, not proven as-of-match records.",
+    "stateSafety": {
+      "backupResetReplayProceeded": false,
+      "predictionEngineStateModified": false,
+      "parlayBuilderStateModified": false,
+      "truthEngineStateModified": false,
+      "candidateBDOrReplayRan": false,
+      "performanceMetricsProduced": false
+    },
+    "rankingWarning": "Current player ranking fields in match rows are not proven as-of-match rankings and must not be used as historical ranking snapshots."
+  },
+  "broaderPostJuneObservation": {
+    "range": {
+      "from": "2026-06-03",
+      "to": "2026-09-20"
+    },
+    "rawRowsReturned": 23982,
+    "normalizedTerminalSingles": 23982,
+    "historyRequests": 120,
+    "populationFingerprint": null,
+    "populationFrozen": false,
+    "contextOnly": true
+  },
+  "matchEligibilityAudit": {
+    "availableFromScript": true,
+    "reasonCountsAreNonExclusive": true,
+    "changesGradeability": false,
+    "freezesPopulation": false,
+    "pointInTimeGate": {
+      "implementation": "artifacts/api-server/src/services/tennisData/liveTennisEligibilityAudit.ts",
+      "canonicalStatuses": [
+        "MATCH_ELIGIBLE_FOR_BACKTEST",
+        "MATCH_INELIGIBLE_IDENTITY",
+        "MATCH_INELIGIBLE_OUTCOME",
+        "MATCH_INELIGIBLE_METADATA",
+        "MATCH_INELIGIBLE_TEMPORAL_DATA",
+        "MATCH_INELIGIBLE_FEATURE_SOURCE"
+      ],
+      "precedence": [
+        "identity",
+        "outcome",
+        "metadata",
+        "temporal",
+        "featureSource",
+        "eligible"
+      ],
+      "manifest": "in-memory per normalized fixture; not persisted and not emitted by default",
+      "truthEngineEvidenceIndependent": true,
+      "defaultAuditFeatureEvidence": "unproven; no rows are certified eligible from metadata alone",
+      "exactThreeWeekStatusCounts": {
+        "range": {
+          "from": "2026-08-30",
+          "to": "2026-09-20"
+        },
+        "totalMatches": 4929,
+        "MATCH_ELIGIBLE_FOR_BACKTEST": 0,
+        "MATCH_INELIGIBLE_IDENTITY": 1995,
+        "MATCH_INELIGIBLE_OUTCOME": 138,
+        "MATCH_INELIGIBLE_METADATA": 224,
+        "MATCH_INELIGIBLE_TEMPORAL_DATA": 2572,
+        "MATCH_INELIGIBLE_FEATURE_SOURCE": 0,
+        "reasonCountsAreNonExclusive": true,
+        "reasonCounts": {
+          "identity_unresolved_or_ambiguous": 1995,
+          "missing_cutoff": 4929,
+          "feature_source_unproven": 4929,
+          "retired_match": 183,
+          "missing_winner": 65,
+          "missing_final_set_games": 57,
+          "missing_surface": 430,
+          "missing_round": 95,
+          "missing_tournament_level": 267
+        },
+        "aggregateAuditOutputSha256": "eb25e9980b815ce85fbd440dd46d3e2466cdbe05627804e909b7cdb4113d505a",
+        "zeroEligibleExpectedBecauseTemporalEvidenceOmitted": true,
+        "notPopulationFingerprint": true,
+        "persistence": "none",
+        "reset": false,
+        "replay": false
+      },
+      "preGateAggregateAuditOutputSha256": "72b2ff0f5be76751bb4dc0a8acbf3abcd16827b9936384e960d35dc5710cebbd",
+      "preGateHashIsPopulationFingerprint": false,
+      "postGateHashIsPopulationFingerprint": false
+    }
+  },
+  "identityAudit": {
+    "implementation": "artifacts/api-server/src/services/tennisData/liveTennisIdentityAudit.ts",
+    "writesAliases": false,
+    "writesDatabaseRows": false,
+    "priority": [
+      "existing canonical provider mapping",
+      "exact normalized identity",
+      "deterministic metadata disambiguation",
+      "explicit unresolved or ambiguous"
+    ],
+    "fuzzyMatching": false,
+    "limitation": "Live Tennis IDs absent from the existing PlayerIdentityIndex cannot become canonical without a separate authorized alias-ingestion step."
+  },
+  "holdout": {
+    "postJunePopulationConstructed": false,
+    "populationFrozen": false,
+    "fingerprint": null,
+      "reason": "Preflight failed with no reset. No holdout population fingerprint, freeze, or performance metrics were produced; canonical identity and point-in-time ranking gates remain unmet."
+  },
+  "fullRangeCounts": {
+    "rawRowsReturned": 4929,
+    "normalizedTerminalSingles": 4929,
+    "catalogueRequests": 52,
+    "historyRequests": 25,
+    "totalRequests": 77
+  },
+  "fullRangeStatus": "PREFLIGHT_FAILED_NO_RESET"
+}

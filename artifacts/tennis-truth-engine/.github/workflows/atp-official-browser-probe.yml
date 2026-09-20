@@ -1,0 +1,55 @@
+name: ATP Official Browser Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - atp-browser-probe.flag
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe ATP official archive and rankings with installed Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "No Chrome/Chromium found on runner" >&2
+            exit 1
+          fi
+          echo "Browser: $CHROME"
+          for URL in \
+            'https://www.atptour.com/en/scores/results-archive?year=2025' \
+            'https://www.atptour.com/en/scores/results-archive?year=2025&tournamentType=ch' \
+            'https://www.atptour.com/en/rankings/singles'
+          do
+            OUT="$(mktemp)"
+            echo "PROBE_URL=$URL"
+            timeout 90 "$CHROME" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --disable-gpu \
+              --disable-background-networking \
+              --virtual-time-budget=12000 \
+              --dump-dom "$URL" > "$OUT" 2>/tmp/chrome-probe.err || true
+            BYTES="$(wc -c < "$OUT" | xargs)"
+            echo "DOM_BYTES=$BYTES"
+            grep -Eo '<title>[^<]+' "$OUT" | head -1 || true
+            grep -Eo '/en/scores/archive/[^"<> ]+/[^"<> ]+/2025/results' "$OUT" | head -3 || true
+            grep -Eo 'Results Archive|PIF ATP Rankings|Singles Winner|Challenger' "$OUT" | sort -u | tr '\n' ' '; echo
+            if [ "$BYTES" -lt 5000 ]; then
+              echo "Chrome stderr:"
+              tail -40 /tmp/chrome-probe.err || true
+              echo "DOM preview:"
+              head -c 1000 "$OUT" || true
+              echo
+            fi
+            rm -f "$OUT"
+          done

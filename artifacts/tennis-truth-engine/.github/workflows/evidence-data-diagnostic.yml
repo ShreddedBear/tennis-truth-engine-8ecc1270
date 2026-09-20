@@ -1,0 +1,66 @@
+name: Evidence Data Diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/evidence-data-diagnostic.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Run provider-independent production metric diagnostic
+        run: |
+          cat > scripts/_provider_independent_metric_diagnostic.ts <<'TS'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { parseRuleDocument } from "../src/lib/rule-parser";
+          import { finalMetricWiringResearcher } from "../src/lib/metric-wiring-078-081.server";
+
+          for (const k of ["LOVABLE_API_KEY","RESEARCH_FALLBACK_API_KEY","OPENAI_API_KEY","RESEARCH_FALLBACK_URL","OPENAI_BASE_URL"]) delete process.env[k];
+
+          const text = readFileSync("public/seed/metrics.txt", "utf8");
+          const parsed = parseRuleDocument(text);
+          const metrics = parsed.rules.filter(r => Number(r.rule_code) >= 1 && Number(r.rule_code) <= 81).map(r => ({ code:r.rule_code, name:r.rule_name, body:r.body }));
+          const matches = [
+            ["Arthur Fils","Flavio Cobolli","Tournament: Cincinnati Open; Level: ATP Masters 1000; Surface: hard; Date: 2026-08-22"],
+            ["Brandon Nakashima","Frances Tiafoe","Tournament: Cincinnati Open; Level: ATP Masters 1000; Surface: hard; Date: 2026-08-22"],
+            ["Sara Bejlek","Coco Gauff","Tournament: Cincinnati Open; Level: WTA 1000; Surface: hard; Date: 2026-08-22"],
+            ["Iga Swiatek","Jessica Pegula","Tournament: Cincinnati Open; Level: WTA 1000; Surface: hard; Date: 2026-08-22"],
+          ] as const;
+          const supported = (v:string|null,t:string) => v !== null && !["UNAVAILABLE","EXCLUDED"].includes(t);
+          const lines:string[]=[];
+          lines.push(`PARSED_METRICS ${metrics.length}`);
+          for (const [p1,p2,context] of matches) {
+            const out = await finalMetricWiringResearcher.metrics({ p1,p2,context,dossier:"",metrics });
+            const p1ok=out.filter(x=>supported(x.p1_value,x.p1_treatment));
+            const p2ok=out.filter(x=>supported(x.p2_value,x.p2_treatment));
+            lines.push(`\n=== ${p1} vs ${p2} ===`);
+            lines.push(`P1_SUPPORTED ${p1ok.length}/81 ${(100*p1ok.length/81).toFixed(1)}%`);
+            lines.push(`P2_SUPPORTED ${p2ok.length}/81 ${(100*p2ok.length/81).toFixed(1)}%`);
+            lines.push(`P1_CODES ${p1ok.map(x=>`${String(x.metric_code).padStart(3,"0")}:${x.p1_treatment}`).join(",")}`);
+            lines.push(`P2_CODES ${p2ok.map(x=>`${String(x.metric_code).padStart(3,"0")}:${x.p2_treatment}`).join(",")}`);
+            for (const x of out) {
+              const code=String(x.metric_code).padStart(3,"0");
+              lines.push(`ROW ${code} P1=${x.p1_treatment} P2=${x.p2_treatment} FAMILY=${x.evidence_family??"-"} SAMPLE=${x.sample??"-"} SOURCES=${(x.sources??[]).map(s=>s.source_name).join("|")||"-"} MISSING=${(x.missing_inputs??[]).join("|")||"-"} REASON=${x.unavailable_reason??"-"}`);
+            }
+          }
+          writeFileSync("evidence-provider-independent-diagnostic.txt",lines.join("\n"));
+          console.log(lines.slice(0,30).join("\n"));
+          TS
+          bun scripts/_provider_independent_metric_diagnostic.ts
+          rm scripts/_provider_independent_metric_diagnostic.ts
+      - name: Commit diagnostic report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence-provider-independent-diagnostic.txt
+          git commit -m "Persist provider-independent evidence diagnostic [skip ci]"
+          git push

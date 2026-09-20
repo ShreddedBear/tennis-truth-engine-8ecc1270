@@ -1,0 +1,10 @@
+---
+name: OCR failure boundaries
+description: Reliability rules for screenshot imports when vision or tennis-data providers stall or fail.
+---
+
+Screenshot import must have separate bounded failure boundaries for vision recognition, each live identity lookup, and the whole document. If recognition succeeds, preserve every exact local resolution even when another row times out; never replace the whole document with unresolved rows. Resolve exact OCR names against historical identities as one batch before attempting live-provider validation. Near-name recovery may accept only a unique best full-name match under a strict edit-distance ceiling; ties stay unresolved. Doubles names must be preserved and labeled unsupported by the singles engine rather than sent through singles identity lookup. Plain-text fallback must reject app navigation, diagnostics, URLs, and timestamps before pairing lines as players.
+
+**Why:** A tennis-provider outage allowed player resolution to hold an otherwise successful OCR request for more than two minutes. A later four-page import showed that one missing player could trip the whole-document deadline and discard 19 exact local matches; item-level provider bounds plus a catastrophic-only document guard preserved the valid rows. Broad surname prefixes also produced too many candidates, so full-name uniqueness is required. The plain-text fallback once interpreted an empty-fixtures app screen and its Replit hostname as nine fake matchups.
+
+**How to apply:** Any OCR provider, resolver, cache, or parser change must preserve batch exact lookup, per-item partial success, strict no-guess ambiguity handling, explicit doubles classification, and non-caching of transient lookup timeouts. Test multi-row images containing exact, near-spelling, unknown, and doubles names as well as a non-matchup UI screen.

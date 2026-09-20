@@ -1,0 +1,46 @@
+name: Build Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # package.json can move ahead of the checked-in Bun lockfile during active audit work.
+      # Resolve declared dependencies so CI reaches the regression suite and application build.
+      - name: Install dependencies
+        run: bun install
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Run regression tests
+        run: bunx vitest run
+
+      - name: Build app
+        run: bun run build
+
+      - name: Check Worker bundle size
+        run: node scripts/check-worker-bundle-size.mjs

@@ -4,29 +4,68 @@ modules = ["nodejs-22", "python-3.12", "web", "postgresql-16"]
 channel = "stable-25_05"
 
 [agent]
+stack = "PNPM_WORKSPACE"
 expertMode = true
-
-run = "bun run dev"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
 localPort = 8080
 externalPort = 8080
 
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 19024
+externalPort = 3001
+
+[[ports]]
+localPort = 20235
+externalPort = 3000
+
 [workflows]
-runButton = "Start"
+runButton = "artifacts/tennis-predictor: web"
 
 [[workflows.workflow]]
-name = "Start"
-mode = "sequential"
-author = 64742427
+name = "prediction-worker: paper trading"
+author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bun run dev"
+args = "pnpm --filter @workspace/prediction-worker run paper-trading"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "prediction-worker: calibration refit"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/prediction-worker run calibration-refit"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "prediction-worker: historical backfill"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/prediction-worker run historical-backfill"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow]]
 name = "typecheck"
@@ -34,15 +73,19 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bun run typecheck"
+args = "pnpm run typecheck"
 
 [workflows.workflow.metadata]
 isValidation = true
+outputType = "console"
 
 [deployment]
+router = "application"
 deploymentTarget = "autoscale"
-run = ["npx", "wrangler", "dev", "--config", ".output/server/wrangler.json", "--local", "--ip", "0.0.0.0", "--port", "5000"]
-build = ["bun", "run", "build"]
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
 
 [postMerge]
 path = "scripts/post-merge.sh"

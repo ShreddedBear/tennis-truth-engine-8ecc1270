@@ -1,0 +1,265 @@
+TASK 55 — FINISH RESTORATION VERIFICATION BLOCKERS
+
+The Task 53/54 restoration is structurally present, but final verification identified specific blockers.
+
+DO NOT restart Task 53.
+DO NOT restart Task 54.
+DO NOT redesign the architecture.
+DO NOT migrate databases.
+DO NOT migrate authentication.
+DO NOT remove Supabase from the existing Truth Engine.
+DO NOT modify prediction algorithms, calibration, or Truth Engine audit logic.
+DO NOT begin the 50% Candidate D holdout.
+
+Fix ONLY the verified restoration blockers below.
+
+CURRENT VERIFIED COMMITS
+
+Task 53:
+a974f83deaef155c8d0998767390062665cd114b
+
+Intervening:
+c73ef384
+
+Task 54:
+8cce4002b64235daf2c17907ff4ea91984886fc8
+
+CURRENT PRODUCT STRUCTURE
+
+The root `/` now opens Tennis Matrix AI / Prediction Engine.
+
+Navigation exists for:
+
+- Prediction Engine
+- Parlay Builder
+- Truth Engine
+
+Do not remove or redesign that structure.
+
+BLOCKER 1 — PREDICTOR PRODUCTION BUILD
+
+Current failure:
+
+pnpm --filter @workspace/tennis-predictor run build
+
+fails because vite.config.ts requires PORT during production build.
+
+Fix the build configuration so the Predictor production build works in its intended deployment environment.
+
+Do NOT hard-code an arbitrary runtime port into application behavior.
+
+Determine why the build requires PORT and make the smallest appropriate configuration change.
+
+Then verify:
+
+pnpm --filter @workspace/tennis-predictor run build
+
+passes.
+
+BLOCKER 2 — PREDICTOR/API 502
+
+The Predictor browser is receiving repeated:
+
+502 Bad Gateway
+
+from the Prediction API.
+
+Determine whether this is:
+
+- API workflow configuration
+- service startup
+- port binding
+- artifact routing
+- proxy configuration
+- environment configuration
+- API health/startup failure
+
+Do NOT change prediction logic.
+
+Do NOT change database architecture.
+
+Do NOT change Clerk authentication.
+
+Fix only the service/runtime wiring necessary for the Predictor frontend to communicate with the existing Prediction API.
+
+Verify with:
+
+1. API starts successfully.
+2. API health endpoint responds.
+3. Predictor can reach the API.
+4. Browser no longer produces the observed 502 errors.
+
+If the API requires unavailable production secrets or credentials, STOP and report exactly which ones are missing rather than inventing them.
+
+BLOCKER 3 — TRUTH ENGINE 404
+
+The Truth Engine configured preview path currently renders blank and returns 404.
+
+Determine whether this is:
+
+- incorrect artifact mount path
+- incorrect base path
+- incorrect Worker route
+- incorrect preview configuration
+- missing route
+- deployment configuration issue
+
+Preserve the existing Truth Engine routes and behavior.
+
+Do NOT rewrite Truth Engine.
+
+Do NOT remove its existing authentication or database boundary.
+
+Do NOT migrate Supabase.
+
+Fix only the routing/artifact configuration necessary to make the existing Truth Engine accessible at its intended configured route.
+
+Verify:
+
+- root Truth Engine route responds
+- existing Truth Engine route(s) load
+- browser is not blank
+- no unexpected 404
+
+BLOCKER 4 — PARLAY BUILDER FUNCTIONALITY
+
+Parlay Builder is visible and routes to:
+
+/admin/parlay-builder
+
+But it is admin-gated and its API behavior cannot currently be certified because the API is failing.
+
+First fix the underlying API issue.
+
+Then perform a minimal end-to-end verification of the existing Parlay Builder route.
+
+Do NOT rebuild Parlay Builder.
+
+Do NOT change its business logic.
+
+Do NOT change payment/entitlement behavior.
+
+If admin credentials are required and unavailable, report that limitation explicitly rather than bypassing authorization.
+
+BLOCKER 5 — MODEL-LOGIC PRESERVATION
+
+The restoration commits are large enough that behavioral identity has not yet been proven.
+
+Do NOT perform a broad model audit.
+
+Perform a targeted provenance comparison only.
+
+Compare the restored Prediction Engine source against the selected pre-existing integrated historical source:
+
+82e372353c527f248fba95e11375bf1802262a7e
+
+Determine whether the restoration introduced changes to:
+
+- Surface Elo
+- Serve & Return
+- Recent Form
+- Ensemble
+- Calibration
+- Data Quality
+- Simulator
+- Recommendation logic
+- Prediction probability generation
+
+If differences exist, classify each as:
+
+A. required workspace/integration adaptation
+B. unrelated behavioral/model change
+C. unknown
+
+Do not automatically modify model code.
+
+If you find an unrelated model change, report it and STOP before changing it.
+
+IMPORTANT ARCHITECTURE BOUNDARIES
+
+Preserve:
+
+- Truth Engine runtime and existing database/auth boundary
+- Predictor Vite frontend
+- Prediction API Node runtime
+- Prediction worker Node runtime
+- Clerk boundary for Predictor/Prediction/Parlay
+- Existing Truth Engine authentication/database behavior
+
+Do NOT:
+
+- move Node services into Workers
+- move Prediction Engine into Workers
+- merge databases
+- migrate authentication
+- introduce a new Supabase database
+- remove the existing Truth Engine Supabase boundary
+- alter model calculations
+- alter calibration
+- alter audit behavior
+
+DATABASE SAFETY
+
+No database migration.
+
+No schema changes.
+
+No synchronization.
+
+No backfill.
+
+No production writes beyond whatever the existing application's normal startup requires.
+
+If a proposed fix requires database modification, STOP and report it.
+
+GIT
+
+Create a focused restoration-fix commit on a dedicated branch.
+
+Do NOT push.
+Do NOT merge.
+Do NOT deploy.
+
+Do not modify unrelated files.
+
+FINAL VERIFICATION
+
+After fixes, verify independently:
+
+1. Predictor production build
+2. Prediction API build
+3. Prediction API startup/health
+4. Predictor → API connectivity
+5. Root `/` opens Tennis Matrix AI
+6. Prediction Engine visible
+7. Parlay Builder visible
+8. Parlay Builder route
+9. Truth Engine route
+10. Truth Engine visible
+11. Browser console
+12. No observed 502s
+13. No observed Truth Engine 404
+14. Model-source provenance comparison
+15. Git status
+16. Exact commit SHA
+
+FINAL REPORT
+
+Use exactly:
+
+1. BLOCKER 1 — PREDICTOR BUILD
+2. BLOCKER 2 — API/502
+3. BLOCKER 3 — TRUTH ENGINE 404
+4. BLOCKER 4 — PARLAY BUILDER
+5. BLOCKER 5 — MODEL PROVENANCE
+6. FILES CHANGED
+7. TEST/BUILD RESULTS
+8. BROWSER RESULTS
+9. DATABASE SAFETY
+10. EXACT COMMIT SHA
+11. REMAINING BLOCKERS
+12. READY FOR 50% HOLDOUT: YES/NO
+
+Do not claim "ready for 50% holdout" unless the required restoration checks actually pass.
+
+STOP after this remediation.

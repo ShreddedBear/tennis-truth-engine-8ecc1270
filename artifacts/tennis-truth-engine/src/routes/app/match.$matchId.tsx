@@ -1,0 +1,871 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { truthApi } from "@/lib/truth-api-client";
+import { useServerFn } from "@tanstack/react-start";
+import { log } from "@/lib/audit-runs";
+import { runAuditBatch } from "@/lib/audit-pipeline.functions";
+import { bucketFor, evaluate, type EngineInput } from "@/lib/audit-engine";
+import { activeMetricReadiness } from "@/lib/truth-engine-active-metrics";
+import { canonicalizeStageRows, resolveActiveRun } from "@/lib/audit-stages";
+import { buildCalibrationSnapshot } from "@/lib/calibration-snapshot";
+import { MATRIX_FIELDS } from "@/lib/constants";
+import { isPreviewForceReloadError, isRecoverablePipelineTransportError, safePipelineErrorMessage } from "@/lib/pipeline-client-error";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AuditColorBadge, BucketBadge, StateText } from "@/components/StatusBadge";
+import { EvidenceGapReport } from "@/components/EvidenceGapReport";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+export const Route = createFileRoute("/app/match/$matchId")({
+  head: () => ({
+    meta: [
+      { title: "Match Audit Workspace — Tennis Matrix Audit System" },
+      { name: "description", content: "Execute the full pipeline for one matchup: symmetric metrics, verification, trap audit, underdog pathways, stress tests and the Final Combination Gate." },
+      { property: "og:title", content: "Match Audit Workspace — Tennis Matrix Audit System" },
+      { property: "og:description", content: "Every stage persists an execution record. No record, no completion." },
+    ],
+  }),
+  component: Workspace,
+});
+
+const STATUS_OPTIONS = ["NOT STARTED", "RUNNING", "COMPLETE", "BLOCKED", "UNAVAILABLE", "FAILED", "REQUIRES HUMAN REVIEW"];
+
+function Select({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <select
+      className="h-8 rounded-md border border-input bg-card px-2 text-xs"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+type ResultRow = any;
+
+function textValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function sourcesValue(value: unknown): Array<Record<string, any>> {
+  return Array.isArray(value) ? (value as Array<Record<string, any>>) : [];
+}
+
+function Provenance({ row }: { row: ResultRow }) {
+  const sources = sourcesValue(row.sources ?? row.source_attempts);
+  const missing = row.missing_inputs ?? row.inputs?.missing;
+  return (
+    <details className="mt-2 rounded-md bg-muted p-2 text-xs">
+      <summary className="cursor-pointer font-semibold">Evidence and provenance</summary>
+      <dl className="mt-2 grid gap-1 md:grid-cols-2">
+        <div><dt className="text-muted-foreground">Exact reason</dt><dd>{textValue(row.unavailable_reason ?? row.reconstruction_reason)}</dd></div>
+        <div><dt className="text-muted-foreground">Provider/API error</dt><dd>{textValue(row.provider_error)}</dd></div>
+        <div><dt className="text-muted-foreground">Missing inputs</dt><dd>{textValue(missing)}</dd></div>
+        <div><dt className="text-muted-foreground">Reconstruction</dt><dd>{row.reconstruction_attempted ? `YES · ${textValue(row.reconstruction_reason)}` : "NO"}</dd></div>
+        <div><dt className="text-muted-foreground">Formula / method</dt><dd>{textValue(row.formula)}</dd></div>
+        <div><dt className="text-muted-foreground">Calculation</dt><dd>{textValue(row.calculation)}</dd></div>
+        <div><dt className="text-muted-foreground">Confidence / quality</dt><dd>{textValue(row.reliability ?? row.confidence)}</dd></div>
+        <div><dt className="text-muted-foreground">Retrieved</dt><dd>{row.retrieved_at ? new Date(row.retrieved_at).toLocaleString() : "—"}</dd></div>
+      </dl>
+      <div className="mt-2">
+        <p className="text-muted-foreground">Sources/providers</p>
+        {sources.length ? sources.map((source, index) => (
+          // `sources` is one shared column on a two-sided row. An entry stamped with
+          // player_side was contributed by a side-specific write and describes only that
+          // player; an unstamped entry came from the paired researcher pass and genuinely
+          // covers both. Showing the stamp is what makes a merged array attributable.
+          <p key={index}>{source["player_side"] ? `${source["player_side"]} · ` : ""}{textValue(source["source_name"] ?? source["provider"])}{source["url"] ? ` · ${source["url"]}` : ""}{source["retrieved_at"] ? ` · ${source["retrieved_at"]}` : ""}</p>
+        )) : <p>—</p>}
+      </div>
+    </details>
+  );
+}
+
+function ResultCard({ title, subtitle, row }: { title: string; subtitle?: string; row: ResultRow }) {
+  const status = textValue(row.treatment ?? row.status);
+  return (
+    <article className="rounded-md border border-border p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div><h4 className="font-semibold">{title}</h4>{subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}</div>
+        <span className={status === "UNAVAILABLE" || status === "PARTIAL" || status === "RECONSTRUCTION_FAILED" ? "text-warn" : "text-ok"}>{status}</span>
+      </div>
+      <dl className="mt-2 grid gap-1 text-xs md:grid-cols-3">
+        <div><dt className="text-muted-foreground">Result/value</dt><dd>{textValue(row.value ?? row.output ?? row.outcome ?? row.final_effect)}</dd></div>
+        <div><dt className="text-muted-foreground">Evidence</dt><dd>{textValue(row.evidence ?? row.p1_finding ?? row.p1_risk ?? row.supporting_evidence)}</dd></div>
+        <div><dt className="text-muted-foreground">Player/affected side</dt><dd>{textValue(row.player_side ?? `${row.p1_finding ? "P1 and P2" : "—"}`)}</dd></div>
+      </dl>
+      <Provenance row={row} />
+    </article>
+  );
+}
+
+/**
+ * Readiness of the graded set, next to raw processor throughput.
+ *
+ * The denominator comes from ACTIVE_METRIC_CODES (derived from COMPARISON_SPECS), so
+ * promoting a metric moves it automatically -- there is no literal count in this component.
+ */
+function ActiveEvidenceSummary({ rows, processingTotal }: { rows: ResultRow[]; processingTotal: number }) {
+  const readiness = activeMetricReadiness(rows as never);
+  const cell = (label: string, value: string, tone?: string) => (
+    <div className="rounded-md border border-border px-2 py-1">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`mono-num text-sm ${tone ?? ""}`}>{value}</div>
+    </div>
+  );
+  return (
+    <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2 lg:grid-cols-4">
+      {cell("Processing progress", `${rows.length}/${processingTotal} treated`)}
+      {cell("Active Truth Engine evidence", `${readiness.usable}/${readiness.expected} usable · ${readiness.percent}%`)}
+      {cell("One-sided (no lean)", String(readiness.oneSided))}
+      {cell("Unavailable / not executed", `${readiness.unavailable} / ${readiness.notExecuted}`)}
+    </div>
+  );
+}
+
+function Workspace() {
+  const { matchId } = Route.useParams();
+  const qc = useQueryClient();
+  const [showMatrix, setShowMatrix] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["match", matchId],
+    refetchInterval: 3000,
+    queryFn: async () => {
+      const view = await truthApi.getMatchView(matchId);
+      const match = view.match as any;
+      const runs = view.runs as any[];
+      // resolveActiveRun resolves straight through an INVALIDATED (Clear
+      // Slate, or a rule-version change) run to null -- exactly as if no run
+      // existed yet -- rather than falling through to the "No audit run yet"
+      // branch below with a dead run's stale diagnostics/report/progress
+      // still attached. That branch's own zero-state is what makes this a
+      // true clean slate: no report, no stage rows, no counts, until a
+      // genuinely new audit_run_id exists.
+      const run = view.run as any;
+      const wasInvalidated = Boolean(view.wasInvalidated);
+      if (!run) return { match, run: null, wasInvalidated };
+      const metrics = { data: (view.metrics ?? []) as any[] };
+      const verification = { data: (view.verification ?? []) as any[] };
+      const disagreement = { data: (view.disagreement ?? []) as any[] };
+      const underdog = { data: (view.underdog ?? []) as any[] };
+      const stress = { data: (view.stress ?? []) as any[] };
+      const conflicts = { data: (view.conflicts ?? []) as any[] };
+      const reconstructions = { data: (view.reconstructions ?? []) as any[] };
+      const decision = { data: view.decision as any };
+      const coverage = { data: (view.coverage ?? []) as any[] };
+      const coverageRates = { data: (view.coverageRates ?? []) as any[] };
+      const buckets = { data: (view.buckets ?? []) as any[] };
+      const version = { data: view.version as any };
+      const activeVersion = version.data;
+      const fields = (view.fields ?? []) as any[];
+      return {
+        match,
+        run,
+        wasInvalidated: false,
+        metrics: metrics.data ?? [],
+        verification: verification.data ?? [],
+        disagreement: disagreement.data ?? [],
+        underdog: underdog.data ?? [],
+        stress: stress.data ?? [],
+        conflicts: conflicts.data ?? [],
+        reconstructions: reconstructions.data ?? [],
+        decision: decision.data,
+        coverage: coverage.data ?? [],
+        coverageRates: coverageRates.data ?? [],
+        buckets: (buckets.data ?? []).filter((b) => b.calibration_version_id === activeVersion?.id),
+        version: activeVersion,
+        fields,
+      };
+    },
+  });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["match", matchId] });
+    qc.invalidateQueries({ queryKey: ["stages", matchId] });
+  };
+
+  // Scoped by the CURRENT run's id, not just match_id: audit_stage_runs keeps
+  // one full set of 13 stage rows per run_number (a match can accumulate rows
+  // from several past runs -- a reset, a forced re-audit). Filtering by
+  // match_id alone would mix a prior run's stale COMPLETE rows in with the
+  // current run's in-progress ones, which is exactly how this panel could
+  // show a downstream stage (or even the Final Combination Gate) as COMPLETE
+  // next to upstream stages still executing.
+  const currentRunId = data?.run?.id;
+  const { data: stages } = useQuery({
+    queryKey: ["stages", matchId, currentRunId],
+    refetchInterval: 3000,
+    enabled: !!currentRunId,
+    queryFn: async () => {
+      return (await truthApi.getStages(currentRunId as string)).map((row: any) => ({
+        ...row,
+        audit_run_id: row.audit_run_id ?? row.auditRunId,
+        stage_order: row.stage_order ?? row.stageOrder,
+        done_count: row.done_count ?? row.doneCount,
+        total_count: row.total_count ?? row.totalCount,
+        started_at: row.started_at ?? row.startedAt,
+        finished_at: row.finished_at ?? row.finishedAt,
+        heartbeat_at: row.heartbeat_at ?? row.heartbeatAt,
+      }));
+    },
+  });
+
+  const executeBatch = useServerFn(runAuditBatch);
+
+  const runAudit = async () => {
+    setRunning(true);
+    setPipelineError(null);
+    try {
+      const batch = await executeBatch({ data: { matchIds: [matchId], concurrency: 1 } });
+      const res=batch.results[0];
+      refresh();
+      if (!res?.ok) {
+        const message = safePipelineErrorMessage(res?.failures?.[0]?.message ?? "Pipeline failed");
+        setPipelineError(message);
+        toast.error(message);
+        return;
+      }
+      if (res.complete) toast.success(`Audit executed — ${res.color ?? "gate run"} · ${Math.round(res.completionPercent ?? 0)}%`);
+    } catch (e) {
+      const message = safePipelineErrorMessage(e);
+      setPipelineError(message);
+      if (isPreviewForceReloadError(e)) {
+        toast.info("The preview updated while the audit was running. Reloading the workspace; persisted progress is safe.");
+        window.setTimeout(() => window.location.reload(), 350);
+        return;
+      }
+      if (!isRecoverablePipelineTransportError(e)) toast.error(message);
+    } finally {
+      setRunning(false);
+      refresh();
+    }
+  };
+
+  useEffect(() => {
+    if(data?.run?.status!=="RUNNING"||running)return;
+    const timer=window.setTimeout(()=>void runAudit(),500);
+    return()=>window.clearTimeout(timer);
+  },[data?.run?.status,data?.run?.heartbeat_at,running]);
+
+  if (isLoading || !data?.match) return <div className="panel p-6 text-sm">Loading match…</div>;
+  const { match, run } = data;
+
+  if (!run)
+    return (
+      <div className="panel space-y-3 p-6 text-sm">
+        <p>
+          {data.wasInvalidated
+            ? `The slate was cleared for ${match.player1_name} vs ${match.player2_name} — no active audit run yet.`
+            : `No audit run yet for ${match.player1_name} vs ${match.player2_name}.`}
+        </p>
+        <Button onClick={runAudit} disabled={running}>
+          {running ? "Running audit…" : "Run Audit"}
+        </Button>
+        {pipelineError && <p className="text-blocked text-xs">{pipelineError}</p>}
+      </div>
+    );
+
+  const matrixWpRaw = data.fields?.find((f) => f.field_key === "matrix_wp")?.normalized_value ?? null;
+  const matrixWp = matrixWpRaw ? Number(String(matrixWpRaw).replace(/[^\d.]/g, "")) : null;
+
+  const engineInput: EngineInput = {
+    match: {
+      identity_status: match.identity_status,
+      surface_status: match.surface_status,
+      player1_name: match.player1_name,
+      player2_name: match.player2_name,
+    },
+    run: {
+      research_lock_at: run.research_lock_at,
+      independent_decision_committed_at: run.independent_decision_committed_at,
+      matrix_revealed_at: run.matrix_revealed_at,
+      independent_winner: run.independent_winner,
+      independent_low: run.independent_low,
+      independent_high: run.independent_high,
+      calibration_version_id: run.calibration_version_id,
+      effective_evidence_count: run.effective_evidence_count,
+    },
+    metrics: data.metrics ?? [],
+    verification: data.verification ?? [],
+    disagreement: data.disagreement ?? [],
+    underdog: data.underdog ?? [],
+    stress: data.stress ?? [],
+    reconstructions: data.reconstructions ?? [],
+    conflicts: data.conflicts ?? [],
+    matrixWp,
+    stages: (stages ?? []).map((st) => ({ stage: String(st.stage), status: String(st.status) })),
+  };
+  const report = evaluate(engineInput);
+  const committed = !!run.independent_decision_committed_at;
+
+  const patch = async (table: "metric_results" | "verification_results" | "disagreement_results" | "underdog_results" | "stress_results", id: string, values: Record<string, unknown>, stage: string) => {
+    if(run.status==="RUNNING"||run.status==="COMPLETE"){toast.error("Persisted audit evidence cannot be edited while an audit is running or after its final decision is complete.");return;}
+    try {
+      await truthApi.updateResult(run.id, table.replace("_results", ""), id, values);
+    } catch (error) {
+      toast.error(`Could not update ${table}: ${(error as Error).message}`);
+      return;
+    }
+    await log({ audit_run_id: run.id, match_id: matchId, stage, status: "COMPLETE", output: values, matrix_visible: !!run.matrix_revealed_at });
+    refresh();
+  };
+
+  const commitIndependent = async () => {
+    await runAudit();
+  };
+
+  const revealMatrix = async () => {
+    await runAudit();
+  };
+
+  const applyCalibration = async () => {
+    await runAudit();
+  };
+
+  const runGate = async () => {
+    await runAudit();
+  };
+
+  const counts = report.counts;
+  const metricRows = (data.metrics ?? []) as ResultRow[];
+  const verificationRows = (data.verification ?? []) as ResultRow[];
+  const disagreementRows = (data.disagreement ?? []) as ResultRow[];
+  const underdogRows = (data.underdog ?? []) as ResultRow[];
+  const stressRows = (data.stress ?? []) as ResultRow[];
+  const reconstructionRows = (data.reconstructions ?? []) as ResultRow[];
+  const unavailableItems: ResultRow[] = [
+    ...metricRows.flatMap((row) => [
+      { ...row, itemName: `${row.metric_name} · ${match.player1_name}`, treatment: row.p1_treatment ?? row.p1_status, unavailable_reason: row.p1_unavailable_reason ?? row.unavailable_reason, provider_error: row.p1_provider_error ?? row.provider_error, retrieved_at: row.p1_retrieved_at ?? row.retrieved_at },
+      { ...row, itemName: `${row.metric_name} · ${match.player2_name}`, treatment: row.p2_treatment ?? row.p2_status, unavailable_reason: row.p2_unavailable_reason ?? row.unavailable_reason, provider_error: row.p2_provider_error ?? row.provider_error, retrieved_at: row.p2_retrieved_at ?? row.retrieved_at },
+    ]),
+    ...verificationRows.map((row) => ({ ...row, itemName: row.rule_name, treatment: row.status })),
+    ...disagreementRows.map((row) => ({ ...row, itemName: row.rule_name, treatment: row.status })),
+    ...underdogRows.map((row) => ({ ...row, itemName: `${row.pathway_name} · ${row.player_side}`, treatment: row.status })),
+    ...stressRows.map((row) => ({ ...row, itemName: row.test_name, treatment: row.status })),
+    ...reconstructionRows.map((row) => ({ ...row, itemName: `${row.metric_code} · ${row.player_side}`, treatment: row.status === "UNAVAILABLE" ? "RECONSTRUCTION_FAILED" : row.status })),
+  ].filter((row) => row.treatment === "UNAVAILABLE" || row.treatment === "PARTIAL" || row.treatment === "RECONSTRUCTION_FAILED");
+
+  return (
+    <div className="space-y-4">
+      <div className="panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold">
+              {match.player1_name} <span className="text-muted-foreground">vs</span> {match.player2_name}
+            </h1>
+            <p className="mono-num text-xs text-muted-foreground">
+              {match.tournament_name ?? "tournament unverified"} · {match.round ?? "round unverified"} ·{" "}
+              {match.surface ?? "surface unverified"} · {match.event_level ?? "level unverified"} · {match.best_of ? `BO${match.best_of}` : "format unverified"} · RUN {run.run_number} · lock{" "}
+              {run.research_lock_at ? new Date(run.research_lock_at).toLocaleString() : "—"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <AuditColorBadge color={data.decision?.final_audit_color ?? report.color} />
+            <Button onClick={runAudit} disabled={running}>
+              {running ? "Running audit…" : "Run Audit"}
+            </Button>
+            <Button variant="secondary" onClick={runGate}>
+              Run Final Combination Gate
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { label: "Identity", value: match.identity_status, field: "identity_status" },
+            { label: "Surface", value: match.surface_status, field: "surface_status" },
+          ].map((s) => (
+            <div key={s.field} className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5">
+              <span className="text-xs text-muted-foreground">{s.label}</span>
+              <Select
+                value={s.value}
+                options={["UNVERIFIED", "VERIFIED", "CONFLICT"]}
+                onChange={async (v) => {
+                  await truthApi.updateMatch(matchId, { [s.field]: v });
+                  await log({ audit_run_id: run.id, match_id: matchId, stage: "MATCH IDENTITY VERIFICATION", status: v });
+                  refresh();
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        <details className="mt-3 rounded-md border border-border p-3 text-xs">
+          <summary className="cursor-pointer font-semibold">Match metadata provenance</summary>
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            {["tournament","event_level","round","scheduled_date","surface","best_of"].map((key)=>{
+              const evidence=(match.metadata_provenance as Record<string,{source?:string;method?:string;status?:string;direct?:boolean}>|null)?.[key];
+              return <div key={key} className="rounded border border-border p-2"><div className="font-medium">{key}</div><div>{evidence?.status??"UNRESOLVED"} · {evidence?.direct?"direct":"derived/unknown"}</div><div className="text-muted-foreground">{evidence?.source??"No evidence source"}{evidence?.method?` · ${evidence.method}`:""}</div></div>;
+            })}
+          </div>
+        </details>
+      </div>
+
+      <div className="panel p-4">
+        <h2 className="font-semibold">Execution diagnostics</h2>
+        {pipelineError && <p className="mt-1 text-xs text-blocked">{pipelineError}</p>}
+        {!stages?.length && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            No stage has executed yet. Press Run Audit to execute the pipeline end to end.
+          </p>
+        )}
+        {/*
+          Exactly one canonical row per stage, always in the fixed 1-16
+          dependency order (audit-stages.ts's STAGES) -- never database
+          insertion order, updated_at, attempt number, or whichever row
+          happened to load first. A stage with no audit_stage_runs row yet
+          (row === null) still renders, as PENDING, so the panel always shows
+          all 16 canonical stages for the current run, never fewer.
+        */}
+        {/*
+          Two different denominators, kept visibly apart.
+
+          PROCESSING PROGRESS (x/81) is what the stage rows below report: how many of the
+          run's metric_results rows the processor has TREATED for that side. Every one of
+          the 81 defined codes is still instantiated and still executed, and a row counts as
+          treated even when it honestly ends UNAVAILABLE. It is throughput, not readiness --
+          which is exactly why "P1 METRIC EXECUTION 51/81" read as though the engine were
+          two-thirds of the way to a graded answer when it was not.
+
+          ACTIVE TRUTH ENGINE EVIDENCE (x/25) is readiness: of the codes that actually grade
+          a match (the COMPARISON_SPECS registry), how many produced usable evidence for
+          BOTH players. One-sided and UNAVAILABLE are shown separately and never folded into
+          the usable count -- a metric present for one player cannot create a lean.
+        */}
+        <ActiveEvidenceSummary rows={metricRows} processingTotal={(data.metrics ?? []).length} />
+        <div className="mt-2 grid gap-1 text-xs md:grid-cols-2">
+          {canonicalizeStageRows(stages ?? []).map(({ stage, row }) => (
+            <div key={stage} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1">
+              <span className="truncate">{stage}</span>
+              <span className="mono-num flex shrink-0 items-center gap-2">
+                <span>
+                  {row ? `${row.done_count}/${row.total_count} · attempt ${row.attempts}` : "not started"}
+                </span>
+                <StateText state={row?.status ?? "PENDING"} />
+              </span>
+              {row?.error_message && <span className="text-blocked">{row.error_message}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel p-4">
+        <h2 className="font-semibold">Completion proof</h2>
+        <div className="mono-num mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-4 xl:grid-cols-5">
+          {[
+            ["Metrics", counts.metrics],
+            ["P1 metric treatment", counts.p1],
+            ["P2 metric treatment", counts.p2],
+            ["Verification", counts.verification],
+            ["Disagreement", counts.disagreement],
+            ["Underdog pathways", counts.underdog],
+            ["Stress tests", counts.stress],
+            ["Reconstructions", counts.reconstructions],
+            ["Critical conflicts resolved", counts.criticalConflicts],
+            ["Coverage records", { done: data.coverage?.length ?? 0, total: 2 }],
+            ["Metric coverage records", { done: data.coverageRates?.length ?? 0, total: (data.metrics?.length ?? 0) * 2 }],
+            ["Final decision", { done: data.decision ? 1 : 0, total: 1 }],
+          ].map(([label, c]) => {
+            const pair = c as { done: number; total: number };
+            return (
+              <div key={label as string} className="rounded-md border border-border p-2">
+                <p className="text-muted-foreground">{label as string}</p>
+                <p className={pair.total > 0 && pair.done === pair.total ? "text-ok" : "text-warn"}>
+                  {pair.done} / {pair.total}
+                </p>
+              </div>
+            );
+          })}
+          <div className="rounded-md border border-border p-2">
+            <p className="text-muted-foreground">Matrix firewall</p>
+            <p className={report.matrixFirewallValid ? "text-ok" : "text-blocked"}>
+              {report.matrixFirewallValid ? "VALID" : "VIOLATED"}
+            </p>
+          </div>
+          <div className="rounded-md border border-border p-2">
+            <p className="text-muted-foreground">Effective independent evidence</p>
+            <p>{report.effectiveEvidenceCount}</p>
+          </div>
+        </div>
+        <p className={`mt-3 text-sm font-semibold ${report.auditComplete && report.stagesComplete ? "text-ok" : "text-warn"}`}>
+          {report.auditComplete && report.stagesComplete
+            ? "AUDIT COMPLETE — NO REQUIRED STEPS MISSING · NO SHORTCUTS"
+            : !report.stagesComplete
+              ? `AUDIT INCOMPLETE — pipeline still executing: ${report.stageGaps.join(", ")}`
+              : "AUDIT INCOMPLETE"}
+        </p>
+        <div className="mt-3 rounded-md border border-border p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold">Evidence coverage</h3>
+            <span className={report.coverage.usablePercent >= report.coverage.thresholdPercent ? "text-ok" : "text-warn"}>
+              {report.coverage.usablePercent}% usable · execution {report.completionPercent}%
+            </span>
+          </div>
+          <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
+            {[
+              [match.player1_name, report.coverage.p1],
+              [match.player2_name, report.coverage.p2],
+            ].map(([player, coverage]) => {
+              const c = coverage as typeof report.coverage.p1;
+              return (
+                <div key={player as string} className="rounded-md bg-muted p-2">
+                  <div className="flex justify-between font-semibold">
+                    <span>{player as string}</span>
+                    <span>{c.usablePercent}% usable</span>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    DIRECT {c.direct} · RECONSTRUCTED {c.reconstructed} · PARTIAL {c.partial} · UNAVAILABLE {c.unavailable} · EXCLUDED {c.excluded}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          {report.coverage.usablePercent < report.coverage.thresholdPercent && (
+            <p className="mt-2 text-xs text-warn">Low coverage changes the gate to INSUFFICIENT EVIDENCE; it is reported separately from execution completion.</p>
+          )}
+        </div>
+        <ul className="mt-2 grid gap-1 text-xs md:grid-cols-2">
+          {report.checks.map((c) => (
+            <li key={c.key} className={c.pass ? "text-muted-foreground" : "text-blocked"}>
+              {c.pass ? "✓" : "✗"} {c.label} — {c.detail}
+            </li>
+          ))}
+        </ul>
+        {report.greenLockReasons.length > 0 && (
+          <div className="mt-3 rounded-md border border-border bg-muted p-3 text-xs">
+            <p className="font-semibold">GREEN LOCKED</p>
+            <ul className="mt-1 list-disc pl-4">
+              {report.greenLockReasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <EvidenceGapReport metrics={metricRows} player1={match.player1_name} player2={match.player2_name} />
+
+      <section className="panel space-y-4 p-4">
+        <div>
+          <h2 className="font-semibold">Detailed audit results · current run {run.run_number}</h2>
+          <p className="text-xs text-muted-foreground">Every persisted metric, rule, pathway, stress test, and reconstruction is shown below. Expand a row for source, timestamp, missing inputs, provider errors, and method.</p>
+        </div>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Player 1 metrics · {metricRows.length}</summary>
+          <div className="mt-2 grid gap-2">{metricRows.map((row) => <ResultCard key={`${row.id}-p1`} title={textValue(row.metric_name)} subtitle={`${match.player1_name} · ${textValue(row.metric_code)}`} row={{ ...row, value: row.p1_value, treatment: row.p1_treatment ?? row.p1_status, unavailable_reason: row.p1_unavailable_reason ?? row.unavailable_reason, provider_error: row.p1_provider_error ?? row.provider_error, retrieved_at: row.p1_retrieved_at ?? row.retrieved_at }} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Player 2 metrics · {metricRows.length}</summary>
+          <div className="mt-2 grid gap-2">{metricRows.map((row) => <ResultCard key={`${row.id}-p2`} title={textValue(row.metric_name)} subtitle={`${match.player2_name} · ${textValue(row.metric_code)}`} row={{ ...row, value: row.p2_value, treatment: row.p2_treatment ?? row.p2_status, unavailable_reason: row.p2_unavailable_reason ?? row.unavailable_reason, provider_error: row.p2_provider_error ?? row.p2_provider_error, retrieved_at: row.p2_retrieved_at ?? row.retrieved_at }} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Verification Audit · {verificationRows.length} rules</summary>
+          <div className="mt-2 grid gap-2">{verificationRows.map((row) => <ResultCard key={row.id} title={textValue(row.rule_name)} subtitle={`${textValue(row.rule_code)} · outcome ${textValue(row.outcome)} · severity ${textValue(row.severity)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Disagreement / Trap Audit · {disagreementRows.length} rules</summary>
+          <div className="mt-2 grid gap-2">{disagreementRows.map((row) => <ResultCard key={row.id} title={textValue(row.rule_name)} subtitle={`${textValue(row.rule_code)} · contradiction ${textValue(row.contradiction_severity)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Dangerous Underdog Audit · {underdogRows.length} pathways</summary>
+          <div className="mt-2 grid gap-2">{underdogRows.map((row) => <ResultCard key={row.id} title={textValue(row.pathway_name)} subtitle={`${textValue(row.pathway_code)} · ${textValue(row.player_side)} · classification ${textValue(row.classification)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Stress / Removal Tests · {stressRows.length}</summary>
+          <div className="mt-2 grid gap-2">{stressRows.map((row) => <ResultCard key={row.id} title={textValue(row.test_name)} subtitle={`${textValue(row.test_code)} · before ${textValue(row.winner_before)} · after ${textValue(row.winner_after)}`} row={row} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">Reconstructions · {reconstructionRows.length} attempts</summary>
+          <div className="mt-2 grid gap-2">{reconstructionRows.map((row) => <ResultCard key={row.id} title={textValue(row.metric_code)} subtitle={`${textValue(row.player_side)} · ${textValue(row.status)}`} row={{ ...row, value: row.output, missing_inputs: row.missing_inputs ?? row.inputs?.missing }} />)}</div>
+        </details>
+        <details open>
+          <summary className="cursor-pointer font-semibold">UNAVAILABLE DATA · {unavailableItems.length} items</summary>
+          <div className="mt-2 grid gap-2">{unavailableItems.length ? unavailableItems.map((row, index) => <ResultCard key={`${row.id ?? row.itemName}-${index}`} title={textValue(row.itemName)} subtitle={textValue(row.treatment)} row={row} />) : <p className="text-sm text-ok">No unavailable or partial items recorded for this run.</p>}</div>
+        </details>
+        <details>
+          <summary className="cursor-pointer font-semibold">Source conflicts · {data.conflicts?.length ?? 0}</summary>
+          <div className="mt-2 grid gap-2">{(data.conflicts ?? []).map((row: any) => <ResultCard key={row.id} title={textValue(row.data_key)} subtitle={`${textValue(row.resolution_status)} · critical ${textValue(row.critical)}`} row={row} />)}</div>
+        </details>
+      </section>
+
+      <Tabs defaultValue="metrics">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="metrics">P1 vs P2 Metrics</TabsTrigger>
+          <TabsTrigger value="verification">Verification</TabsTrigger>
+          <TabsTrigger value="disagreement">Disagreement / Trap</TabsTrigger>
+          <TabsTrigger value="underdog">Dangerous Underdog</TabsTrigger>
+          <TabsTrigger value="stress">Stress / Removal</TabsTrigger>
+          <TabsTrigger value="conclusion">Conclusion & Matrix</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="metrics" className="panel mt-3 p-3">
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-header text-header-foreground">
+                <tr className="text-left">
+                  {["#", "Metric", `P1 · ${match.player1_name}`, "P1 status", `P2 · ${match.player2_name}`, "P2 status", "Metric status"].map((h) => (
+                    <th key={h} className="px-2 py-2 text-xs font-semibold uppercase">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {metricRows.map((m) => (
+                  <tr key={m.id} className="border-t border-border">
+                    <td className="mono-num px-2 py-1 text-xs">{m.metric_code}</td>
+                    <td className="px-2 py-1">{m.metric_name}</td>
+                    <td className="px-2 py-1">
+                      <Input
+                        className="h-8"
+                        defaultValue={m.p1_value ?? ""}
+                        onBlur={(e) => patch("metric_results", m.id, { p1_value: e.target.value }, "P1 VS P2 FULL METRICS")}
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={m.p1_status} options={STATUS_OPTIONS} onChange={(v) => patch("metric_results", m.id, { p1_status: v }, "P1 VS P2 FULL METRICS")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input
+                        className="h-8"
+                        defaultValue={m.p2_value ?? ""}
+                        onBlur={(e) => patch("metric_results", m.id, { p2_value: e.target.value }, "P1 VS P2 FULL METRICS")}
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={m.p2_status} options={STATUS_OPTIONS} onChange={(v) => patch("metric_results", m.id, { p2_status: v }, "P1 VS P2 FULL METRICS")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={m.status} options={STATUS_OPTIONS} onChange={(v) => patch("metric_results", m.id, { status: v }, "P1 VS P2 FULL METRICS")} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="verification" className="panel mt-3 p-3">
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-header text-header-foreground">
+                <tr className="text-left">
+                  {["#", "Rule", "P1 finding", "P2 finding", "Outcome", "Severity", "Status"].map((h) => (
+                    <th key={h} className="px-2 py-2 text-xs font-semibold uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {verificationRows.map((r) => (
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="mono-num px-2 py-1 text-xs">{r.rule_code}</td>
+                    <td className="px-2 py-1">{r.rule_name}</td>
+                    <td className="px-2 py-1">
+                      <Input className="h-8" defaultValue={r.p1_finding ?? ""} onBlur={(e) => patch("verification_results", r.id, { p1_finding: e.target.value }, "VERIFICATION AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input className="h-8" defaultValue={r.p2_finding ?? ""} onBlur={(e) => patch("verification_results", r.id, { p2_finding: e.target.value }, "VERIFICATION AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.outcome} options={["NOT STARTED", "PASS", "WARN", "FAIL"]} onChange={(v) => patch("verification_results", r.id, { outcome: v }, "VERIFICATION AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.severity ?? "STANDARD"} options={["STANDARD", "CRITICAL"]} onChange={(v) => patch("verification_results", r.id, { severity: v }, "VERIFICATION AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.status} options={STATUS_OPTIONS} onChange={(v) => patch("verification_results", r.id, { status: v }, "VERIFICATION AUDIT")} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="disagreement" className="panel mt-3 p-3">
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-header text-header-foreground">
+                <tr className="text-left">
+                  {["#", "Rule", "P1 risk", "P2 risk", "Contradiction severity", "Status"].map((h) => (
+                    <th key={h} className="px-2 py-2 text-xs font-semibold uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {disagreementRows.map((r) => (
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="mono-num px-2 py-1 text-xs">{r.rule_code}</td>
+                    <td className="px-2 py-1">{r.rule_name}</td>
+                    <td className="px-2 py-1">
+                      <Input className="h-8" defaultValue={r.p1_risk ?? ""} onBlur={(e) => patch("disagreement_results", r.id, { p1_risk: e.target.value }, "DISAGREEMENT / TRAP AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input className="h-8" defaultValue={r.p2_risk ?? ""} onBlur={(e) => patch("disagreement_results", r.id, { p2_risk: e.target.value }, "DISAGREEMENT / TRAP AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.contradiction_severity ?? "NONE"} options={["NONE", "MINOR", "MATERIAL", "CRITICAL"]} onChange={(v) => patch("disagreement_results", r.id, { contradiction_severity: v }, "DISAGREEMENT / TRAP AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.status} options={STATUS_OPTIONS} onChange={(v) => patch("disagreement_results", r.id, { status: v }, "DISAGREEMENT / TRAP AUDIT")} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="underdog" className="panel mt-3 p-3">
+          <p className="mb-2 text-xs text-muted-foreground">
+            Both players get every pathway. "Underdog" is the lower-confidence side of the independent audit, not the
+            Matrix underdog.
+          </p>
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-header text-header-foreground">
+                <tr className="text-left">
+                  {["Player", "Pathway", "Evidence", "Classification", "Status"].map((h) => (
+                    <th key={h} className="px-2 py-2 text-xs font-semibold uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {underdogRows.map((r) => (
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="px-2 py-1">{r.player_side}</td>
+                    <td className="px-2 py-1">{r.pathway_name}</td>
+                    <td className="px-2 py-1">
+                      <Input className="h-8" defaultValue={r.evidence ?? ""} onBlur={(e) => patch("underdog_results", r.id, { evidence: e.target.value }, "DANGEROUS UNDERDOG AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.classification} options={["UNRESOLVED", "WEAK", "REALISTIC", "STRONG"]} onChange={(v) => patch("underdog_results", r.id, { classification: v }, "DANGEROUS UNDERDOG AUDIT")} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select value={r.status} options={STATUS_OPTIONS} onChange={(v) => patch("underdog_results", r.id, { status: v }, "DANGEROUS UNDERDOG AUDIT")} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="stress" className="panel mt-3 p-3">
+          <table className="w-full text-sm">
+            <thead className="bg-header text-header-foreground">
+              <tr className="text-left">
+                {["#", "Test", "Winner before", "Winner after", "Outcome", "Status"].map((h) => (
+                  <th key={h} className="px-2 py-2 text-xs font-semibold uppercase">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {stressRows.map((s) => (
+                <tr key={s.id} className="border-t border-border">
+                  <td className="mono-num px-2 py-1 text-xs">{s.test_code}</td>
+                  <td className="px-2 py-1">{s.test_name}</td>
+                  <td className="px-2 py-1">
+                    <Input className="h-8" defaultValue={s.winner_before ?? ""} onBlur={(e) => patch("stress_results", s.id, { winner_before: e.target.value }, "STRESS / REMOVAL TESTS")} />
+                  </td>
+                  <td className="px-2 py-1">
+                    <Input className="h-8" defaultValue={s.winner_after ?? ""} onBlur={(e) => patch("stress_results", s.id, { winner_after: e.target.value }, "STRESS / REMOVAL TESTS")} />
+                  </td>
+                  <td className="px-2 py-1">
+                    <Select value={s.outcome} options={["NOT STARTED", "NOT EVALUATED", "STABLE", "MOSTLY STABLE", "UNSTABLE", "FAILS"]} onChange={(v) => patch("stress_results", s.id, { outcome: v }, "STRESS / REMOVAL TESTS")} />
+                  </td>
+                  <td className="px-2 py-1">
+                    <Select value={s.status} options={STATUS_OPTIONS} onChange={(v) => patch("stress_results", s.id, { status: v }, "STRESS / REMOVAL TESTS")} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TabsContent>
+
+        <TabsContent value="conclusion" className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div className="panel p-4">
+            <h3 className="font-semibold">Branch B — independent conclusion</h3>
+            <p className="text-xs text-muted-foreground">Committed before any Matrix output is visible.</p>
+            <div className="mt-3 space-y-2">
+              {/* The winner and range are computed deterministically by the Truth Engine
+                  (truth-engine-decision.ts) from validated evidence -- there is no manual
+                  override here, by design (see the master correction spec: Independent
+                  Conclusion is the only stage authorized to select a winner, and it must
+                  not be an editable input). This is a read-only display of that result. */}
+              <p className="mono-num text-sm">
+                {run.independent_winner ?? (committed ? "INSUFFICIENT EVIDENCE" : "not committed yet")}
+                {run.independent_low !== null && run.independent_high !== null ? ` · ${run.independent_low}–${run.independent_high}%` : ""}
+              </p>
+              <Button size="sm" onClick={commitIndependent} disabled={committed}>
+                {committed ? "Committed" : "Commit independent conclusion"}
+              </Button>
+              {committed && (
+                <p className="mono-num text-xs text-muted-foreground">
+                  {run.independent_winner ?? "INSUFFICIENT EVIDENCE"} · committed {new Date(run.independent_decision_committed_at!).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="panel p-4">
+            <h3 className="font-semibold">Branch A — Matrix (firewalled)</h3>
+            {!run.matrix_revealed_at ? (
+              <>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Matrix outputs are hidden. Reveal is only possible after the independent conclusion is committed.
+                </p>
+                <Button size="sm" className="mt-3" onClick={revealMatrix} disabled={!committed}>
+                  Reveal Matrix & compare
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="mono-num mt-1 text-xs text-muted-foreground">
+                  revealed {new Date(run.matrix_revealed_at).toLocaleString()}
+                </p>
+                <dl className="mono-num mt-2 grid grid-cols-2 gap-1 text-xs">
+                  {MATRIX_FIELDS.map((k) => {
+                    const v = data.fields?.find((f) => f.field_key === k)?.normalized_value;
+                    if (!v && !showMatrix) return null;
+                    return (
+                      <div key={k} className="rounded border border-border p-1.5">
+                        <dt className="text-muted-foreground">{k}</dt>
+                        <dd>{v ?? "UNAVAILABLE"}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Matrix-derived signals never count toward independent evidence.
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <Button size="sm" variant="secondary" onClick={applyCalibration}>
+                    Apply current calibration
+                  </Button>
+                  <BucketBadge code={bucketFor(matrixWp, data.buckets ?? [])?.bucket_code ?? null} />
+                  <StateText state={run.calibration_version_id ? "COMPLETE" : "NOT STARTED"} />
+                </div>
+              </>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

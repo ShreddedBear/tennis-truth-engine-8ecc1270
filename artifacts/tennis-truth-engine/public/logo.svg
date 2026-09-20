@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Tennis Matrix Audit">
+  <rect width="128" height="128" rx="24" fill="#173b5f"/>
+  <path d="M35 25c20 4 37 16 47 35 8 15 9 29 7 43" fill="none" stroke="#f7c948" stroke-width="9" stroke-linecap="round"/>
+  <path d="M24 96c20-4 36-14 47-31 9-15 12-29 10-42" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+</svg>

@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-bun install --frozen-lockfile
-node scripts/build-runtime-tennis-index.mjs
+#!/bin/bash
+set -e
+pnpm install --frozen-lockfile
+pnpm run verify:restoration
+pnpm --filter db push

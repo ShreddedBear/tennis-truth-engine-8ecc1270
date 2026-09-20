@@ -1,0 +1,43 @@
+name: Phase 23 local coverage audit
+on:
+  push:
+    branches: [repair/evidence-coverage-phase23-local-coverage-audit]
+    paths: ['.github/workflows/phase23-local-coverage-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Quantify certified local evidence on production representative pairs
+        shell: bash
+        run: |
+          cat > src/lib/phase23-local-coverage-audit.test.ts <<'TS'
+          import { describe, it } from "vitest";
+          import { localMetricRows } from "./hybrid-audit-research.server";
+          import { enforceFiveMetricWiring } from "./completion-sweep-research.server";
+          import { certifyMetricFinding } from "./metric-certification";
+          const metrics = Array.from({length:81},(_,i)=>({code:String(i+1).padStart(3,"0"),name:`Metric ${String(i+1).padStart(3,"0")}`,body:null}));
+          const usable=new Set(["DIRECT","RECONSTRUCTED","PARTIAL"]);
+          const storedCodes=new Set(["001","005","012","014","021","028","062","069"]);
+          const pairs=[
+            {label:"WTA_MAIN",p1:"Jessica Pegula",p2:"Iga Swiatek",context:"Tournament: WTA MAIN persisted evidence pair | Level: WTA MAIN | Tour: WTA MAIN | Date: 2026-08-25"},
+            {label:"ATP_MAIN",p1:"Flavio Cobolli",p2:"Arthur Fils",context:"Tournament: ATP MAIN persisted evidence pair | Level: ATP MAIN | Tour: ATP MAIN | Date: 2026-08-25"},
+          ];
+          describe("phase23 certified local coverage",()=>{for(const pair of pairs)it(pair.label,()=>{
+            const rows=localMetricRows(pair.p1,pair.p2,pair.context,metrics).map((r,i)=>certifyMetricFinding(enforceFiveMetricWiring(metrics[i],r)));
+            const pairUsable=rows.filter(r=>usable.has(String(r.p1_treatment))&&usable.has(String(r.p2_treatment))&&r.p1_value!=null&&String(r.p1_value).trim()!==""&&r.p2_value!=null&&String(r.p2_value).trim()!=="");
+            const oneSided=rows.filter(r=>{
+              const a=usable.has(String(r.p1_treatment))&&r.p1_value!=null&&String(r.p1_value).trim()!=="";
+              const b=usable.has(String(r.p2_treatment))&&r.p2_value!=null&&String(r.p2_value).trim()!=="";
+              return a!==b;
+            });
+            const union=new Set([...storedCodes,...pairUsable.map(r=>String(r.metric_code).padStart(3,"0"))]);
+            console.log(`PHASE23|${pair.label}|LOCAL_PAIR=${pairUsable.length}|LOCAL_PERCENT=${(100*pairUsable.length/81).toFixed(2)}|EXPECTED_STORED_PLUS_LOCAL=${union.size}|EXPECTED_PERCENT=${(100*union.size/81).toFixed(2)}|ONE_SIDED=${oneSided.length}|CODES=${pairUsable.map(r=>String(r.metric_code).padStart(3,"0")).join(",")}`);
+            console.log(`PHASE23_FAMILIES|${pair.label}|${pairUsable.map(r=>`${String(r.metric_code).padStart(3,"0")}:${r.evidence_family}`).join("|")}`);
+          },30000)});
+          TS
+          bunx vitest run src/lib/phase23-local-coverage-audit.test.ts --reporter=verbose

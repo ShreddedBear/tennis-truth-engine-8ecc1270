@@ -1,0 +1,53 @@
+This is good enough to stop debugging the app itself.
+
+The only remaining item is an authorization-dependent verification, not a restoration failure:
+
+* Parlay route works.
+* Clerk protection works.
+* Unauthenticated API correctly returns 401.
+* API itself is healthy.
+* No bypass was appropriate.
+* The actual owner/admin workflow simply wasn’t testable without authorized access.
+
+So I would not make Claude touch the code again just to satisfy that checkbox.
+
+I would mark the restoration status:
+
+APP RESTORATION: FUNCTIONALLY COMPLETE
+AUTHENTICATED PARLAY E2E: NOT VERIFIED
+
+The important part is that the remaining limitation is clearly documented rather than falsely marked as passed.
+
+And importantly, the model provenance check passed:
+
+all targeted Prediction Engine files are identical to the historical source.
+
+So we have no reason to suspect that this restoration altered the model we are about to test.
+
+Now let’s get back to the 50% investigation
+
+We left off at the exact next experiment:
+
+Candidate B vs Candidate D on a fresh, non-overlapping temporal holdout.
+
+We should not spend more time trying to obtain the Parlay owner key unless you specifically want the final E2E certification.
+
+The 50% experiment can proceed independently because:
+
+* Prediction Engine builds.
+* Prediction API is healthy.
+* Prediction Engine loads.
+* Model provenance is verified.
+* Deterministic replay infrastructure was verified.
+* Candidate B reproducibility was verified.
+* Candidate D’s original experiment was reproducible.
+* Database replay infrastructure is available.
+* No production model changes are required.
+
+So next prompt = temporal holdout replication. We already have the prompt from the previous step; use that one unchanged.
+
+The goal is now very specific:
+
+Does the +0.748 pp accuracy / −0.001176 Brier / −0.002501 log-loss result from Candidate D replicate on data outside the original 1,644-match evaluation population?
+
+If yes, then we investigate partial-strength ESS weighting. If no, we don’t tune the model based on the original sample.

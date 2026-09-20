@@ -1,0 +1,33 @@
+name: WTA Official API Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - wta-official-api-probe.flag
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe WTA public tournament and rankings shapes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for URL in \
+            'https://api.wtatennis.com/tennis/tournaments?page=0&pageSize=5' \
+            'https://api.wtatennis.com/tennis/players/ranked?type=rankSingles&metric=singles&page=0&pageSize=5'
+          do
+            echo "PROBE_URL=$URL"
+            BODY="$(mktemp)"
+            STATUS="$(curl --silent --show-error --location -o "$BODY" -w '%{http_code}' "$URL")"
+            echo "HTTP_STATUS=$STATUS"
+            echo "TOP_LEVEL_TYPE=$(jq -r 'type' "$BODY" 2>/dev/null || echo non-json)"
+            jq -c 'if type=="object" then {keys:(keys),pageInfo:(.pageInfo // null),contentType:(.content|type? // null),contentCount:(.content|length? // null),first:(.content[0] // null)} elif type=="array" then {count:length,first:(.[0] // null)} else . end' "$BODY" 2>/dev/null | head -c 12000 || true
+            echo
+            rm -f "$BODY"
+          done

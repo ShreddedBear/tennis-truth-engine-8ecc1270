@@ -1,0 +1,80 @@
+50% INVESTIGATION — REAL DATABASE ACCESS PROOF
+
+STOP. Do not run the 50% evaluation yet.
+
+We need to establish whether this actual Tennis Stats Engine environment has access to the real Tennis Stats Engine PostgreSQL database.
+
+This is an ACCESS VERIFICATION task only.
+
+DO NOT:
+- fabricate results
+- assume DATABASE_URL exists
+- use the Truth Engine/Supabase database
+- use a different repository's database
+- create fake evaluation artifacts
+- create commits
+- push anything
+- modify production code
+- claim an evaluation was run
+
+Perform these checks directly in the actual Tennis Stats Engine environment:
+
+1. Identify the repository and current commit:
+   - repository
+   - branch
+   - HEAD SHA
+   - git status
+
+2. Determine whether DATABASE_URL is actually available to the running process/environment.
+   - Do not print credentials.
+   - Report only whether it is present and whether it points to the Tennis Stats Engine database.
+
+3. Identify the actual PostgreSQL host/database name safely, with credentials redacted.
+
+4. Establish an actual database connection.
+
+5. Execute only harmless READ-ONLY queries.
+
+6. Prove this is the Tennis Stats Engine DB by querying known Tennis Stats Engine tables and reporting row counts.
+
+At minimum establish counts for the historical/evaluation data needed by the 50% replay.
+
+7. Verify the database contains the expected historical match population and date coverage.
+
+8. Verify that the database is NOT the Tennis Matrix Truth Engine / audit Supabase database.
+
+9. Verify that the current code checkout contains:
+   Candidate B:
+   d5f0f198ff05cf2643cb39269a593762198ea5aa
+
+   Baseline:
+   1394afb13b921efb96d1a160e9be26478717bc19
+
+10. Do not modify anything.
+
+RETURN ONLY:
+
+REPOSITORY
+- repo:
+- branch:
+- HEAD:
+- clean:
+
+DATABASE ACCESS
+- DATABASE_URL present: YES/NO
+- connection established: YES/NO
+- host/database (credentials redacted):
+- confirmed Tennis Stats Engine DB: YES/NO
+- confirmed NOT Truth Engine DB: YES/NO
+
+READ-ONLY DB PROOF
+- relevant table names:
+- row counts:
+- historical date coverage:
+- any other evidence needed for the replay:
+
+50% REPLAY READY: YES/NO
+
+If database access is NO, STOP THERE.
+
+Do not proceed to the evaluation until actual DB access is proven.

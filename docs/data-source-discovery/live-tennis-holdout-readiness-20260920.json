@@ -1,0 +1,32 @@
+{
+  "auditDate": "2026-09-20",
+  "decision": "BLOCKED_PENDING_BOTH",
+  "candidateDFrozen": true,
+  "holdoutRunPermitted": false,
+  "gates": {
+    "serveReturnRegime": {"status": "PASS", "reason": "Original 1,644 rows used score/game proxy for 100% of rows"},
+    "availabilityCutoff": {"status": "FAIL", "reason": "Historical replay uses wall-clock time inside Availability"},
+    "tournamentLevel": {"status": "PARTIAL", "reason": "Nullable catalogue category leaves material ATP/WTA residue"},
+    "playerIdentity": {"status": "FAIL", "reason": "No exact namespace matches and only 31.78% deterministic name resolution in the observational population"},
+    "postJunePopulation": {"status": "OBSERVED_NOT_FROZEN", "totalRows": 33357, "reason": "Population includes non-singles and endpoint remained live during measurement"},
+    "licensing": {"status": "UNCONFIRMED", "reason": "Persistent storage/backtesting rights require written provider confirmation"}
+  },
+  "prohibitedUntilReady": [
+    "Candidate B execution",
+    "Candidate D execution",
+    "model tuning",
+    "calibration changes",
+    "historical ingestion",
+    "database backfill",
+    "production modification",
+    "provider deletion",
+    "subscription upgrade"
+  ],
+  "nextRequiredEvidence": [
+    "Written storage and evaluation authorization",
+    "Availability cutoff remediation and invariance tests",
+    "Deterministic Live Tennis provider-alias map for eligible singles",
+    "Predeclared treatment of null/ambiguous tournament categories",
+    "Frozen singles-only post-June population and fingerprint"
+  ]
+}

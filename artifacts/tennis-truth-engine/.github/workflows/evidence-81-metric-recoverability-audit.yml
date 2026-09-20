@@ -1,0 +1,47 @@
+name: Evidence Coverage 81-Metric Recoverability Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - repair/evidence-coverage-phase2
+    paths:
+      - 'src/lib/metric-recoverability-map.ts'
+      - 'src/lib/metric-recoverability-map.test.ts'
+      - 'src/lib/metric-source-family-policy.ts'
+      - 'src/lib/repository-results-history.server.ts'
+      - 'src/lib/deterministic-pbp-metrics.server.ts'
+      - 'src/lib/deterministic-ranking-metrics.server.ts'
+      - 'src/lib/deterministic-results-schedule-metrics.server.ts'
+      - 'src/lib/bsd-atp-main-pbp.server.ts'
+      - 'src/lib/bsd-wta-main-pbp.server.ts'
+      - 'src/lib/bsd-atp-challenger-pbp.server.ts'
+      - 'src/lib/bsd-wta-challenger-pbp.server.ts'
+      - '.github/workflows/evidence-81-metric-recoverability-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-81-metric-recoverability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build four-tour repository evidence index
+        run: node scripts/build-runtime-tennis-index.mjs
+      - name: Validate all 81 recoverability rows and 12.04-to-70 math
+        run: bunx vitest run src/lib/metric-recoverability-map.test.ts
+      - name: Revalidate identity, rankings and results foundations
+        run: bunx vitest run src/lib/evidence-player-alias.test.ts src/lib/evidence-match-identity.test.ts src/lib/deterministic-ranking-metrics.test.ts src/lib/deterministic-results-schedule-metrics.test.ts

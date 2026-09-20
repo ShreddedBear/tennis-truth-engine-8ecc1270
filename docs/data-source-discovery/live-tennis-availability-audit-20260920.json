@@ -1,0 +1,36 @@
+{
+  "auditDate": "2026-09-20",
+  "pointInTimeSafe": false,
+  "status": "BLOCKED",
+  "inputs": [
+    "prior match dates",
+    "recent retirement",
+    "recent walkover",
+    "travel/rest context",
+    "optional current web research"
+  ],
+  "confirmedDefects": [
+    {
+      "issue": "Historical replay Availability uses wall-clock current time",
+      "effect": "Rest days and the 21-day retirement/walkover window change with replay execution date",
+      "requiredRemediation": "Pass the prediction asOfDate/match cutoff into Availability"
+    },
+    {
+      "issue": "Current web research is not historical evidence",
+      "effect": "Potential look-ahead during replay",
+      "requiredRemediation": "Suppress it for replay or require archived point-in-time evidence"
+    }
+  ],
+  "liveTennisSupport": {
+    "retiredOutcome": "DIRECT",
+    "walkoverOutcome": "DIRECT",
+    "withdrawer": "DIRECT_WHEN_EVIDENCED",
+    "historicalPreMatchInjuryState": "UNAVAILABLE_NOT_PROVEN"
+  },
+  "requiredTests": [
+    "Replay output invariant under wall-clock changes",
+    "Exact-cutoff events excluded",
+    "Live predictions may still use current time",
+    "Historical replay cannot consume current web research"
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "auditDate": "2026-09-20",
+  "observedAt": "2026-09-20T06:36:06Z",
+  "status": "BLOCKED_NOT_CONSTRUCTED",
+  "candidateScoringRun": false,
+  "modelLogicChanged": false,
+  "databaseMigrationRun": false,
+  "persistentIngestionRun": false,
+  "currentDatabaseBoundary": {
+    "predictionApi": {
+      "technology": "PostgreSQL 16.10",
+      "database": "heliumdb",
+      "access": "node-postgres and Drizzle through DATABASE_URL",
+      "supabase": false
+    },
+    "truthEngine": {
+      "technology": "Supabase-hosted PostgreSQL 17.6 with PostgREST",
+      "database": "postgres",
+      "access": "@supabase/supabase-js through VITE_SUPABASE_URL/SUPABASE_URL",
+      "supabase": true,
+      "currentCounts": {
+        "matches": 60,
+        "auditRuns": 60,
+        "finalDecisions": 60
+      }
+    }
+  },
+  "currentPredictionDatabaseCounts": {
+    "evaluationPredictions": 518636,
+    "historicalMatches": 530097,
+    "predictions": 188,
+    "evaluationRowsAfter2026-06-02": 427,
+    "historicalMatchesAfter2026-06-02": 0
+  },
+  "existingPostJuneEvaluationRows": {
+    "dateRange": {
+      "from": "2026-09-16T06:10:00.000Z",
+      "to": "2026-09-20T05:40:00.000Z"
+    },
+    "total": 427,
+    "runKind": "paper_trade",
+    "status": "missed",
+    "lockedBeforeStart": 62,
+    "lockedAtOrAfterStart": 365,
+    "missingFeatureSnapshot": 427,
+    "missingVerifiedOutcome": 427,
+    "invalidCutoff": 0,
+    "meetsMinimumTemporalFields": 0,
+    "holdoutEligible": false
+  },
+  "liveTennisObservation": {
+    "source": "Live Tennis API Pro observational read-only audit",
+    "observationalRange": {
+      "from": "2026-06-03",
+      "to": "2026-09-20"
+    },
+    "observedRows": 33357,
+    "persistedAsHoldout": false,
+    "notes": [
+      "The observation includes non-singles rows.",
+      "The endpoint was still updating during the observation.",
+      "No normalized bulk Live Tennis historical adapter is active in the canonical provider layer."
+    ]
+  },
+  "preflightGates": {
+    "writtenStorageAndEvaluationRights": {
+      "status": "FAIL_UNCONFIRMED",
+      "reason": "No written authorization was found for persistent raw historical storage, private backups, internal backtesting, point-in-time feature reconstruction, and long-term provenance retention."
+    },
+    "liveTennisNormalizedBulkFetch": {
+      "status": "FAIL_NOT_IMPLEMENTED",
+      "reason": "The current normalized bulk historical path is API-Tennis-only; reactivating API-Tennis or MatchStat is prohibited for this task."
+    },
+    "availabilityReplayCutoff": {
+      "status": "PASS_WITH_GUARD",
+      "reason": "Historical scoring passes cutoffAt through asOfDate; current web research is now suppressed whenever asOfDate is supplied."
+    },
+    "playerIdentity": {
+      "status": "FAIL_NOT_DETERMINISTIC",
+      "observedUniqueLiveTennisIds": 11714,
+      "deterministicNameMatches": 3723,
+      "deterministicNamePercent": 31.78,
+      "ambiguous": 1,
+      "unmapped": 7990
+    },
+    "tournamentCategory": {
+      "status": "FAIL_MATERIAL_RESIDUE",
+      "reason": "ATP/WTA category coverage remains incomplete and null/ambiguous categories cannot be guessed."
+    },
+    "pointInTimeInputs": {
+      "status": "PARTIAL",
+      "reason": "Availability cutoff behavior is safe, but no frozen Live Tennis population with cutoff-bounded rankings and histories exists."
+    },
+    "sufficientGradeablePopulation": {
+      "status": "FAIL_NOT_ESTABLISHED",
+      "reason": "No population may be ingested or frozen while authorization, adapter, identity, and category gates remain unresolved."
+    }
+  },
+  "holdout": {
+    "predeclaredEarliestAllowedDate": "2026-06-03",
+    "startDate": null,
+    "endDate": null,
+    "candidatePopulation": 0,
+    "eligiblePopulation": 0,
+    "gradeablePopulation": 0,
+    "excludedPopulation": 0,
+    "exclusionReasons": {},
+    "orderingRule": null,
+    "orientationRule": null,
+    "overlapWithOriginal1644": null,
+    "frozen": false,
+    "frozenAt": null,
+    "populationFingerprintAlgorithm": "SHA-256",
+    "populationFingerprint": null
+  },
+  "readiness": {
+    "readyForB1B2D1D2": false,
+    "stopConditionApplied": true,
+    "missing": [
+      "Written Live Tennis storage and evaluation authorization",
+      "Normalized Live Tennis completed-singles bulk adapter",
+      "Deterministic provider alias coverage for the eligible singles population",
+      "Predeclared exclusion or deterministic mapping for ambiguous tournament categories",
+      "Cutoff-bounded rankings and historical inputs for a frozen population"
+    ]
+  }
+}

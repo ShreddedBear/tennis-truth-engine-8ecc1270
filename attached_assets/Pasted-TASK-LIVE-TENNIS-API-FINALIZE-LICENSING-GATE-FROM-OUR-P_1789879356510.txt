@@ -1,0 +1,239 @@
+TASK: LIVE TENNIS API — FINALIZE LICENSING GATE FROM OUR PAID PRO SERVICE
+
+We are the authorized customer and project owner.
+
+Do NOT contact Live Tennis API.
+Do NOT request permission from Live Tennis API.
+Do NOT send emails.
+Do NOT configure Gmail, Outlook, AgentMail, Resend, SendGrid, or any other communication service.
+
+Use the existing Live Tennis API Pro service and its official documentation/terms to establish what our paid service supports.
+
+CURRENT STATUS
+
+The existing licensing gate is:
+
+LICENSING_BLOCKED_PENDING_PROVIDER_CONFIRMATION
+
+Existing documentation:
+
+docs/data-source-discovery/live-tennis-licensing-gate-20260920.md
+docs/data-source-discovery/live-tennis-licensing-evidence-20260920.json
+
+Existing commit:
+
+93111cb8
+
+The objective is to finish this gate based on the rights and usage provisions applicable to our paid Pro service.
+
+==================================================
+REQUIRED DETERMINATIONS
+==================================================
+
+Determine the applicable permissions/usage rules for:
+
+1. Persistent raw historical storage
+2. Persistent PBP storage
+3. Database backups
+4. Disaster-recovery copies
+5. Derived statistics
+6. Derived model features
+7. Historical backtesting
+8. Model training
+9. Model validation
+10. Temporal holdouts
+11. Walk-forward validation
+12. Calibration/evaluation
+13. Commercial use of our own predictions
+14. User-facing display of our predictions
+15. Provider player IDs
+16. Attribution
+17. Raw-data redistribution
+18. User access to raw historical provider data
+19. Post-cancellation retention
+20. Post-cancellation deletion requirements
+
+==================================================
+SOURCE REQUIREMENT
+==================================================
+
+Use the official Live Tennis API documentation and applicable Pro service terms as the source of truth.
+
+Review the relevant official:
+
+- Terms
+- Pro pricing/service information
+- Historical Tennis Data API documentation
+- API documentation
+- Data-use/license provisions
+- Storage/caching provisions
+- Retention/deletion provisions
+- Commercial-use provisions
+
+Record the specific source supporting each determination.
+
+Do not ask the provider for individualized approval.
+
+==================================================
+IMPORTANT DISTINCTIONS
+==================================================
+
+Treat these separately:
+
+A. API access
+B. Internal use of API data
+C. Persistent raw-data storage
+D. PBP retention
+E. Derived/aggregated data
+F. Model features
+G. Model training
+H. Model validation
+I. Commercial predictions
+J. User-facing predictions
+K. Raw-data redistribution
+L. Post-cancellation retention
+
+Do not automatically transfer a permission from one category to another.
+
+==================================================
+COMMERCIAL PRODUCT
+==================================================
+
+Our intended application is a commercial Tennis Matrix AI product.
+
+Determine the applicable rules for using Live Tennis API data internally to produce:
+
+- predictions
+- analytics
+- model features
+- historical evaluations
+- calibration
+- validation
+- temporal holdouts
+- Prediction Engine outputs
+- Parlay Builder analysis
+
+Distinguish these from redistribution of raw Live Tennis API data.
+
+==================================================
+STORAGE
+==================================================
+
+Determine the applicable rules for retaining:
+
+- historical match records
+- player information
+- tournament information
+- rankings
+- completed-match data
+- PBP
+- derived statistics
+- model features
+- validation datasets
+- backups
+- disaster-recovery copies
+
+==================================================
+POST-CANCELLATION
+==================================================
+
+Determine the applicable rules for what happens to data, derived information, models, validation results, and backups if the Pro subscription is later cancelled.
+
+Document the applicable retention/deletion requirements.
+
+==================================================
+FINAL LICENSING TABLE
+==================================================
+
+Update:
+
+docs/data-source-discovery/live-tennis-licensing-gate-20260920.md
+
+and:
+
+docs/data-source-discovery/live-tennis-licensing-evidence-20260920.json
+
+Produce:
+
+| Requirement | Status | Official Evidence | Conditions |
+|---|---|---|---|
+| Raw historical storage | | | |
+| PBP retention | | | |
+| Backups | | | |
+| Derived features | | | |
+| Backtesting | | | |
+| Temporal holdouts | | | |
+| Model validation | | | |
+| Commercial predictions | | | |
+| Prediction display | | | |
+| Provider IDs | | | |
+| Attribution | | | |
+| Raw redistribution | | | |
+| Post-cancellation retention | | | |
+
+Use only:
+
+VERIFIED_ALLOWED
+VERIFIED_PROHIBITED
+EXPLICITLY_LIMITED
+UNKNOWN
+
+Do not fabricate evidence or permissions.
+
+==================================================
+FINAL GATE
+==================================================
+
+Set the final status based on the documented Pro-service terms:
+
+LICENSING_READY
+
+if the documented service terms support the intended architecture.
+
+Otherwise retain the appropriate documented status.
+
+Do not create a provider-contact dependency.
+
+==================================================
+ENGINEERING BOUNDARY
+==================================================
+
+This task is documentation/licensing only.
+
+DO NOT:
+
+- modify Prediction Engine logic
+- modify Parlay Builder
+- modify Truth Engine
+- modify database schemas
+- ingest historical data
+- perform a historical backfill
+- run Candidate B
+- run Candidate D
+- run the temporal holdout
+- change calibration
+- change model weights
+- change provider routing
+- reactivate MatchStat/API-Tennis
+- delete existing provider adapters
+- deploy production
+- push
+- merge
+
+Documentation-only commit is permitted.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. Final licensing status.
+2. Status of every individual licensing requirement.
+3. Official evidence supporting each determination.
+4. Any conditions that apply.
+5. Files changed.
+6. Commit SHA.
+7. Confirmation that no code, database, model, ingestion, backfill, holdout, provider-routing, production, push, or merge changes occurred.
+
+STOP after the licensing gate is completed.

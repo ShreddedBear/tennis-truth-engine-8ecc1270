@@ -1,0 +1,62 @@
+That report is directionally correct, but there is a hard stop before implementation:
+
+Live_Tennis_Api is only a secret name right now. It is not yet a verified provider.
+
+The safest move is not to retire MatchStat/API-Tennis yet.
+
+What I would do next
+
+Have the agent perform a read-only code/config discovery specifically for Live_Tennis_Api:
+
+1. Search the entire canonical repo for:
+    * Live_Tennis_Api
+    * LIVE_TENNIS
+    * TENNIS_API
+    * likely provider/environment variable references
+    * process.env / secret access patterns
+    * provider factories
+    * Replit secret/environment documentation
+2. Determine whether the secret is actually referenced anywhere.
+3. Determine whether the runtime can expose the secret’s metadata/name only without reading or printing its value.
+4. Identify the API hostname, authentication scheme, product name, endpoint structure, and documentation only if the repository/config already establishes them.
+5. If the secret is completely orphaned, report that fact.
+6. Do not inspect, print, copy, transmit, or expose the secret value.
+7. Do not make any API calls using it yet.
+8. Do not modify provider code.
+
+Then we can decide whether Live_Tennis_Api is actually capable of replacing the current providers.
+
+And there’s an architectural point I’d change
+
+I would not make Live_Tennis_Api the sole historical provider automatically, even if it turns out to have excellent live coverage.
+
+The requirements are different:
+
+LIVE / UPCOMING
+Live_Tennis_Api → ESPN fallback
+HISTORICAL / VALIDATION
+Verified historical source(s)
+        ↓
+point-in-time reconstruction
+        ↓
+temporal holdout
+
+The temporal-holdout source has substantially higher requirements than the live fixture source.
+
+Most important
+
+The proposed retirement list is premature.
+
+Don’t delete:
+
+* matchStatProvider.ts
+* apiTennisProvider.ts
+* their tests
+* diagnostics
+* parlay integrations
+
+until Live_Tennis_Api passes a capability/parity audit.
+
+And do not change Candidate D or the Prediction Engine while doing this.
+
+The next task should therefore be “identify what Live_Tennis_Api actually is”, not “replace the providers.”

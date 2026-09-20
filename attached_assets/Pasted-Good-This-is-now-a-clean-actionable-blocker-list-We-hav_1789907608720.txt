@@ -1,0 +1,494 @@
+Good. This is now a clean, actionable blocker list. We have eliminated the unnecessary Supabase data migration entirely.
+
+The remaining work is code migration only:
+
+* Add Truth Engine’s existing PostgreSQL tables to the shared Drizzle layer.
+* Replace the 39 active Supabase modules.
+* Recreate the 5 RPC behaviors safely in PostgreSQL/Drizzle.
+* Move browser access through authenticated APIs.
+* Remove Supabase auth/runtime dependencies.
+* Fix OCR to use the existing canonical identity tables.
+* Test all three engines.
+* Then merge to main.
+
+And importantly, nothing needs to be rebuilt from the Stats Engine.
+
+I would now give Replit an execution prompt—not another audit. It has enough information to start implementing.
+
+We have completed the read-only investigation.
+
+Stop auditing. Begin implementation.
+
+The architecture is now fixed:
+
+AUTHORITATIVE DATABASE
+
+PostgreSQL:
+
+heliumdb
+
+ORM:
+
+drizzle-orm/node-postgres
+
+Runtime connection:
+
+DATABASE_URL
+
+LEGACY
+
+Supabase is legacy and must be removed as an application runtime dependency.
+
+Do NOT migrate any Supabase matches, audits, grades, or historical Truth Engine records.
+
+The existing heliumdb data is authoritative and must remain unchanged.
+
+CANONICAL APPLICATION
+
+The target repository is:
+
+ShreddedBear/tennis-truth-engine-8ecc1270
+
+The final application contains three separate engines:
+
+1. Truth Engine
+2. Prediction Engine
+3. Parlay Builder
+
+The Prediction Engine and Parlay Builder already exist on:
+
+claude/tennis-engine-audit-32-razn75
+
+Do NOT rebuild them.
+
+⸻
+
+EXECUTION TASK
+
+Make the feature branch genuinely READY TO MERGE.
+
+Do not merge to main yet.
+
+Do not push to main.
+
+Work on the existing feature branch.
+
+⸻
+
+1. Add Truth Engine Drizzle schema
+
+Add live-schema-matched Drizzle definitions for the Truth Engine tables currently missing from the shared @workspace/db package.
+
+At minimum cover every table referenced by the active runtime.
+
+Validate every definition against the actual PostgreSQL schema before using it.
+
+Pay particular attention to:
+
+* UUIDs
+* timestamps
+* JSON/JSONB
+* nullable fields
+* enums/text fields
+* foreign keys
+* unique constraints
+* indexes
+
+Do NOT run destructive migrations.
+
+Do NOT change existing PostgreSQL tables simply to make Drizzle happy.
+
+The database already exists and is authoritative.
+
+⸻
+
+2. Build Truth Engine repositories
+
+Create focused PostgreSQL/Drizzle repositories for:
+
+Match and summary
+
+* matches
+* summary_uploads
+* summary_versions
+* parsed_summary_fields
+
+Audit
+
+* audit_runs
+* audit_stage_runs
+* final_decisions
+* result_grades
+* execution_logs
+
+Evidence/source
+
+* metric_evidence_store
+* source_observations
+* source_snapshots
+* source_conflicts
+
+Metrics/results
+
+* metric_results
+* metric_coverage_rates
+* verification_results
+* reconstruction_results
+* stress_results
+* underdog_results
+* disagreement_results
+* match_identity_records
+
+Rules/publication
+
+* rules
+* rule_documents
+* rule_document_versions
+
+Calibration
+
+* calibration_buckets
+* calibration_ledger
+* calibration_versions
+* truth_engine_calibration_observations
+
+Ingestion
+
+* ingestion_targets
+* source_ingestion_runs
+
+Use transactions where the existing Supabase implementation relied on atomic multi-table behavior.
+
+⸻
+
+3. Recreate the five RPC behaviors
+
+Implement safe PostgreSQL/Drizzle equivalents for:
+
+claim_audit_run
+
+Must atomically claim a pending/expired run.
+
+renew_audit_run_lease
+
+Must require the current lease owner.
+
+release_audit_run_lease
+
+Must require the current lease owner.
+
+upsert_metric_evidence_side
+
+Must preserve the existing uniqueness/upsert semantics.
+
+clear_operational_slate
+
+Must remain an explicitly authorized administrative operation.
+
+Do NOT implement it as an unrestricted generic delete helper.
+
+Add tests for concurrency/ownership behavior.
+
+⸻
+
+4. Remove server-side Supabase database calls
+
+Replace active server-side calls in the 39 identified modules with the new Drizzle repositories.
+
+Preserve behavior.
+
+Do not perform broad mechanical replacements.
+
+For every converted operation verify:
+
+* same filtering behavior
+* same ordering
+* same null behavior
+* same conflict behavior
+* same transaction semantics
+* same error handling
+
+⸻
+
+5. Replace browser Supabase access
+
+Browser routes/components must NOT connect directly to PostgreSQL.
+
+Replace direct Supabase usage with authenticated application API calls.
+
+Prioritize:
+
+* dashboard
+* board
+* logs
+* match detail
+* rules
+* slate
+* sources
+* calibration
+* calibration history
+* upload
+
+The browser should communicate with the application API.
+
+⸻
+
+6. Authentication
+
+Remove the runtime dependency on Supabase authentication.
+
+Use the existing canonical API authentication/authorization mechanism already present on the feature branch.
+
+Do NOT weaken authorization when replacing the Supabase service-role client.
+
+Explicitly preserve authorization for:
+
+* normal users
+* admin operations
+* metric publication
+* operational slate reset
+* other privileged actions
+
+Add regression tests.
+
+⸻
+
+7. Upload transaction
+
+Preserve the existing upload semantics exactly:
+
+upload
+ ↓
+match resolution/reuse
+ ↓
+summary upload
+ ↓
+summary version
+ ↓
+parsed fields
+ ↓
+audit-stage linkage
+
+Requirements:
+
+* canonical-key match reuse
+* contextual match reuse
+* monotonic versioning
+* exactly one active summary version
+* parsed-field linkage
+* atomic rollback
+
+Add integration tests against a safe test database/schema.
+
+⸻
+
+8. OCR identity resolution
+
+Fix the existing resolver so the lookup order becomes:
+
+OCR normalization
+        ↓
+canonical_players / verified player_aliases
+        ↓
+local PostgreSQL identity resolution
+        ↓
+external provider fallback
+        ↓
+bounded timeout
+
+Do not remove external provider enrichment.
+
+Do not fabricate identities.
+
+Known canonical players should not unnecessarily wait for an external provider timeout.
+
+⸻
+
+9. Preserve the three-engine boundary
+
+Do not move Prediction Engine logic into Truth Engine.
+
+Do not move Parlay Builder logic into Prediction Engine.
+
+Do not make Parlay Builder a wrapper around Prediction Engine probabilities.
+
+Keep:
+
+Truth Engine
+Prediction Engine
+Parlay Builder
+
+as distinct service boundaries.
+
+They may share PostgreSQL and common infrastructure.
+
+⸻
+
+10. Remove Supabase completely from runtime
+
+After conversion:
+
+Search the actual source tree for:
+
+* @supabase/supabase-js
+* supabase.from(
+* supabase.rpc(
+* supabase.auth
+* Supabase client imports
+* service-role keys
+* runtime Supabase environment variables
+
+Classify every remaining hit.
+
+Documentation and archived historical material are acceptable if clearly non-runtime.
+
+The application runtime must have zero active Supabase dependency.
+
+⸻
+
+11. Clean committed repository cruft
+
+Before declaring ready:
+
+Remove generated/non-source material from the feature branch where appropriate:
+
+* .output
+* .wrangler
+* generated screenshots
+* .reaudit-manifests
+* backup artifacts
+* other generated build output
+
+Review .migration-backup carefully.
+
+Do not delete useful source/provenance documentation blindly.
+
+Review attached_assets individually for actual application dependencies before removing anything.
+
+Add .gitignore rules preventing regenerated artifacts from returning.
+
+⸻
+
+12. Testing
+
+Run:
+
+Database
+
+* Drizzle schema/type validation
+* repository tests
+* FK behavior
+* transaction tests
+* upsert tests
+* lease/concurrency tests
+
+Truth Engine
+
+* build
+* typecheck
+* audit execution
+* upload workflow
+* evidence workflow
+* calibration
+* source ingestion
+* authorization
+* representative end-to-end audit
+
+Prediction Engine
+
+Run its existing regression/typecheck/build tests.
+
+Parlay Builder
+
+Run its existing regression/typecheck/build/boundary tests.
+
+OCR
+
+Verify known canonical players resolve locally without unnecessary provider timeout.
+
+⸻
+
+13. Critical data-safety rule
+
+Do NOT:
+
+* migrate Supabase data;
+* copy Supabase rows;
+* modify existing heliumdb rows;
+* drop tables;
+* reset the database;
+* change existing Truth Engine records;
+* run destructive migrations.
+
+The task is to make the application code use the existing PostgreSQL data correctly.
+
+⸻
+
+14. Completion gate
+
+Do not report “complete” until all of these are true:
+
+Code
+
+* Truth Engine uses PostgreSQL/Drizzle.
+* Prediction Engine uses PostgreSQL/Drizzle.
+* Parlay Builder uses PostgreSQL/Drizzle.
+* No active Supabase runtime dependency remains.
+* Three-engine boundaries remain intact.
+
+Database
+
+* Existing heliumdb data remains intact.
+* No destructive database operation occurred.
+* Drizzle mappings match the live schema.
+
+OCR
+
+* canonical identity lookup works before external provider fallback.
+
+Tests
+
+* all three engines build/typecheck.
+* critical regression tests pass.
+
+Repository
+
+* generated cruft is removed.
+* branch is clean.
+* branch is ready for GitHub merge.
+
+⸻
+
+FINAL OUTPUT
+
+Return:
+
+1. Files changed
+2. Files removed
+3. Truth Engine Drizzle schema added
+4. Repositories added
+5. RPC replacements
+6. Supabase runtime calls removed
+7. Authentication changes
+8. OCR changes
+9. Tests run/results
+10. Database writes performed — this MUST say NONE
+11. Supabase dependencies remaining — exact list, if any
+12. Branch HEAD SHA
+13. Final status:
+
+READY TO MERGE
+
+or
+
+BLOCKED — [exact blocker]
+
+Do not merge to main during this task.
+
+Then the final step is very simple
+
+Once Replit returns READY TO MERGE, we hand the exact branch/commit to Claude and tell it:
+
+Merge this verified branch into main. Do not reinterpret the architecture. Do not rebuild anything. Then prove the resulting main contains all three engines.
+
+That’s the point where we finally turn this from “implemented on a branch” into “actually completed.”

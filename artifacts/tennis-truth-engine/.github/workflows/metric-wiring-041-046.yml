@@ -1,0 +1,22 @@
+name: Metric Wiring 041 043 044 045 046
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  wiring-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Five-metric certification and wiring tests
+        run: bunx vitest run src/lib/metric-certification-041-046.test.ts src/lib/protected-metric-wiring.test.ts
+      - name: Build app
+        run: bun run build

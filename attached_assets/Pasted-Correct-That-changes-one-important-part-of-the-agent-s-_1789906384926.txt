@@ -1,0 +1,290 @@
+Correct. That changes one important part of the agent’s conclusion, but it does not change the merger verdict.
+
+The critical finding is still:
+
+Prediction Engine + Parlay Builder are on claude/tennis-engine-audit-32-razn75, but they are not on main.
+
+And we should not tell the agent to resolve the merger by preserving Supabase, because your current architecture uses the PostgreSQL/Drizzle database instead.
+
+The next step should therefore be a migration-aware merge, not “merge PR #85 as-is.”
+
+What I would tell the agent
+
+The forensic verification is correct that the canonical main branch is NOT yet consolidated.
+
+However, one part of the proposed next step is outdated:
+
+Supabase is NOT the current application database.
+
+The canonical application must use the current PostgreSQL/Drizzle data layer and the existing operational PostgreSQL database. Do NOT restore or preserve Supabase as the application database merely because the current main branch still contains Supabase migrations/client code.
+
+Correct objective
+
+We need to land the existing Prediction Engine + Parlay Builder implementation into:
+
+ShreddedBear/tennis-truth-engine-8ecc1270
+
+while preserving the existing Truth Engine and making the resulting repository a single canonical application containing:
+
+1. Tennis Truth Engine
+2. Prediction Engine
+3. Parlay Builder
+
+These remain three separate engines with separate responsibilities and boundaries.
+
+IMPORTANT
+
+Do NOT start a new rewrite.
+
+Do NOT recreate the Prediction Engine.
+
+Do NOT recreate the Parlay Builder.
+
+Do NOT throw away the existing claude/tennis-engine-audit-32-razn75 implementation.
+
+That branch already contains the substantial ported code. The task is to determine exactly what is needed to land that work into main while reconciling it with the current PostgreSQL/Drizzle architecture.
+
+⸻
+
+Phase 1 — Read-only reconciliation first
+
+Before changing anything, verify:
+
+A. Canonical current architecture
+
+Determine the actual current production architecture:
+
+* PostgreSQL database currently in use
+* Drizzle schema/configuration
+* database connection configuration
+* API/server runtime
+* frontend runtime
+* authentication
+* background jobs
+* prediction/evaluation tables
+* parlay tables
+
+Do NOT assume Supabase is authoritative.
+
+B. Feature branch
+
+Inspect:
+
+claude/tennis-engine-audit-32-razn75
+
+Inventory the actual implementation already present there:
+
+* Prediction Engine
+* Parlay Builder
+* Tennis Predictor UI
+* API routes
+* database schema
+* evaluation/replay infrastructure
+* provider/data infrastructure
+* Truth Engine integration
+* runtime configuration
+
+C. Current PostgreSQL schema
+
+Read-only inspect the actual PostgreSQL/Drizzle schema and determine which existing tables belong to:
+
+* Truth Engine
+* Prediction Engine
+* evaluation/replay
+* calibration
+* Parlay Builder
+* shared tennis data
+
+Do not modify the database.
+
+⸻
+
+Phase 2 — Determine the correct merge strategy
+
+Produce a concrete plan for landing:
+
+claude/tennis-engine-audit-32-razn75
+
+into main.
+
+The plan must preserve:
+
+Truth Engine
+
+Existing Truth Engine functionality must remain intact.
+
+Prediction Engine
+
+The existing Prediction Engine implementation must be retained.
+
+Parlay Builder
+
+The existing Parlay Builder must remain an independent system.
+
+PostgreSQL/Drizzle
+
+The current PostgreSQL/Drizzle architecture is authoritative.
+
+Do NOT migrate the application back to Supabase.
+
+Do NOT create a second competing database architecture.
+
+Do NOT create duplicate schemas for the same functionality.
+
+⸻
+
+Phase 3 — Resolve the branch architecture
+
+Determine whether the existing feature branch contains:
+
+1. code that can be merged directly;
+2. code requiring path/package reconciliation;
+3. database/schema changes requiring reconciliation;
+4. runtime changes;
+5. authentication changes;
+6. frontend route integration;
+7. background-job integration.
+
+For each conflict, classify it:
+
+KEEP MAIN
+
+KEEP FEATURE BRANCH
+
+MERGE BOTH
+
+REWRITE REQUIRED
+
+REMOVE AS OBSOLETE
+
+Explain why.
+
+⸻
+
+Phase 4 — Database rule
+
+This is critical.
+
+The resulting application must have one authoritative PostgreSQL data layer.
+
+Do not introduce Supabase as a runtime dependency merely because Truth Engine main historically used Supabase.
+
+Instead determine how the existing Truth Engine data model should coexist with the existing PostgreSQL/Drizzle schema.
+
+If Truth Engine tables currently exist in the operational PostgreSQL database, preserve them.
+
+If Truth Engine schema definitions need to be represented in Drizzle, identify exactly what must be migrated.
+
+Do NOT execute migrations yet.
+
+Do NOT alter production data.
+
+⸻
+
+Phase 5 — Three-engine boundary verification
+
+Before any merge, explicitly prove that the final architecture will remain:
+
+                    CANONICAL APPLICATION
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+       TRUTH ENGINE   PREDICTION ENGINE   PARLAY BUILDER
+             │              │              │
+             └──────────────┼──────────────┘
+                            │
+                 Shared PostgreSQL/Data
+                    + shared infrastructure
+
+But the engines must NOT be collapsed into one giant prediction service.
+
+Verify:
+
+* Truth Engine remains evidence/verification/provenance authority.
+* Prediction Engine remains prediction/modeling authority.
+* Parlay Builder remains independent scoring/parlay authority.
+* Parlay Builder does not simply become a wrapper around Prediction Engine.
+* Truth Engine does not become dependent on Prediction Engine logic.
+* Existing engine boundaries/tests are preserved.
+
+⸻
+
+Phase 6 — Do NOT merge yet
+
+For this pass:
+
+READ-ONLY ONLY.
+
+Do NOT:
+
+* merge
+* commit
+* push
+* reset
+* delete
+* modify database
+* run migrations
+* deploy
+* rewrite source
+* change authentication
+* change runtime
+
+Produce the reconciliation plan first.
+
+⸻
+
+Required final report
+
+Give me:
+
+1. Current truth
+
+Exactly what is currently on main.
+
+2. Feature branch contents
+
+Exactly what is already implemented on claude/tennis-engine-audit-32-razn75.
+
+3. Database truth
+
+Identify the actual PostgreSQL database and schema currently being used.
+
+Explicitly state:
+
+Supabase is NOT the authoritative application database.
+
+4. Merge blockers
+
+List every actual blocker preventing the feature branch from safely landing in main.
+
+5. Required changes
+
+List only the changes actually necessary.
+
+6. What can be preserved unchanged
+
+Identify the Prediction Engine, Parlay Builder, Truth Engine, and infrastructure that can be retained as-is.
+
+7. Proposed final repository structure
+
+Show the exact target structure.
+
+8. Proposed merge sequence
+
+Give the smallest safe sequence of operations to consolidate the application.
+
+9. Data safety
+
+Explain how existing PostgreSQL data will be preserved.
+
+10. Final answer
+
+Answer these explicitly:
+
+Can we consolidate the existing feature branch into the canonical repository without rebuilding the Prediction Engine and Parlay Builder from scratch?
+
+What specifically has to happen before Tennis-Stats-Engine can become legacy/reference-only?
+
+Again: do not execute the merge yet.
+
+The key distinction is that the Git merger is still incomplete, while the database architecture has already moved beyond the old Supabase design. So we should merge the existing PE/Parlay work into the canonical repo around the current PostgreSQL/Drizzle architecture, rather than trying to make Supabase the common denominator.

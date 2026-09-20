@@ -1,0 +1,32 @@
+{
+  "auditDate": "2026-09-20",
+  "candidateDFrozen": true,
+  "population": {
+    "total": 1644,
+    "gradeable": 1604
+  },
+  "actualReplayRegime": {
+    "directStatistics": {"rows": 0, "percent": 0, "gradeableRows": 0, "gradeablePercent": 0},
+    "pbpDerived": {"rows": 0, "percent": 0, "gradeableRows": 0, "gradeablePercent": 0},
+    "scoreGameProxy": {"rows": 1644, "percent": 100, "gradeableRows": 1604, "gradeablePercent": 100},
+    "fallbackDefault": {"rows": 0, "percent": 0, "gradeableRows": 0, "gradeablePercent": 0}
+  },
+  "sourceEvidence": {
+    "relevantPriorRows": 232603,
+    "priorRowsWithConsumedStatisticsObject": 0,
+    "priorRowsWithGameMargins": 231343,
+    "targetProvider": "sackmann"
+  },
+  "liveTennisPro": {
+    "directStatistics": "UNAVAILABLE",
+    "pbpServiceReturn": "DERIVABLE_BUT_NOT_REQUIRED_FOR_REGIME_PARITY",
+    "finalSetGames": "SUPPORTED_BY_SCORE_PROXY",
+    "existingDatabase": "AVAILABLE_FOR_PRE_BOUNDARY_HISTORY"
+  },
+  "parityConclusion": "PASS_FOR_SCORE_PROXY_REGIME",
+  "limitations": [
+    "Final-set games must preserve super-tiebreak semantics.",
+    "Score-derived values must not be labelled direct statistics.",
+    "The holdout must use the same bilateral proxy rule as the authoritative replay."
+  ]
+}

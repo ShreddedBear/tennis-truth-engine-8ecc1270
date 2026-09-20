@@ -1,0 +1,284 @@
+NEXT EXPERIMENT — CANDIDATE C
+SURFACE ELO INTERNAL SAMPLE-SIZE SHRINKAGE ABLATION
+
+We have now completed and independently reproducibly verified the authoritative Baseline vs Candidate B replay.
+
+DO NOT merge anything.
+DO NOT push anything.
+DO NOT modify canonical production HEAD.
+DO NOT modify Candidate B.
+DO NOT change the database.
+DO NOT change the population, cutoff, player orientation, calibration, ensemble, or any unrelated prediction logic.
+
+CURRENT VERIFIED FINDING
+
+Baseline:
+1394afb13b921efb96d1a160e9be26478717bc19
+
+Candidate B:
+d5f0f198ff05cf2643cb39269a593762198ea5aa
+
+Authoritative replay:
+- Population: 1,644
+- Gradeable: 1,604
+- Candidate B changed 216 predictions
+- 0 moved toward 50
+- 1,428 unchanged
+- Maximum change: 4.1 pp
+- Overall mean distance from 50: 5.245 → 5.388 pp
+- All 1,424 non-low-surface rows were identical
+- Low-surface rows: 220
+- Low-surface mean distance: 3.216 → 4.284 pp
+- Candidate B improved Brier, log loss, and ECE on the low-surface subset
+- Accuracy and winner selections did not change
+
+IMPORTANT:
+Candidate B confirmed that the dedicated LOW_SURFACE_SAMPLE_DISCOUNT was a genuine compression contributor.
+
+However, the replay also identified a larger remaining mechanism:
+
+Surface Elo's INTERNAL sample-size handling moved 998 of 1,644 predictions toward 50 and reduced probability distance from 50 by approximately 1.947 percentage points.
+
+This is now the next mechanism to isolate.
+
+OBJECTIVE
+
+Determine whether Surface Elo's internal sample-size probability shrinkage is:
+
+A. beneficial and appropriately calibrated,
+B. overly aggressive and responsible for excessive compression,
+or
+C. directionally useful but requiring a different shrinkage strength/form.
+
+Do NOT assume the answer.
+
+FIRST — SOURCE INSPECTION
+
+Locate the exact historical Surface Elo implementation in the executable Prediction Engine lineage.
+
+Identify the exact code responsible for:
+
+- effective sample size
+- sample-size confidence/reliability
+- conversion of Surface Elo strength into probability
+- shrinkage toward 50
+- any minimum/maximum sample thresholds
+- any other Surface Elo-specific probability compression
+
+Document the exact mathematical transformation.
+
+Do not modify code yet.
+
+IMPORTANT:
+Distinguish:
+
+1. Surface Elo rating shrinkage
+from
+2. Surface Elo probability shrinkage.
+
+We are specifically testing the probability impact attributable to internal sample-size handling.
+
+CANDIDATE C
+
+Create an isolated experimental variant based on the VERIFIED Candidate B lineage.
+
+Candidate C must change ONLY the Surface Elo internal sample-size probability shrinkage mechanism under investigation.
+
+Everything else must remain byte-for-byte/functionally identical where possible.
+
+Do NOT:
+
+- remove Surface Elo entirely
+- remove Surface Elo from the ensemble
+- alter Serve & Return
+- alter Recent Form
+- alter General Ensemble
+- alter Specialist
+- alter calibration
+- alter Data Quality
+- alter ATP reliability
+- alter low-surface handling
+- alter recommendation rules
+- alter player orientation
+- alter historical cutoff
+- alter database queries
+
+If there are multiple reasonable ways to disable or reduce the Surface Elo shrinkage, DO NOT choose one silently.
+
+First identify the exact mechanism and report the alternatives.
+
+Then implement the MINIMAL controlled ablation that makes the mechanism's probability effect neutral while preserving the underlying Surface Elo rating/data calculation.
+
+The preferred first experiment is:
+
+Candidate C = Candidate B + neutralized Surface Elo internal probability shrinkage.
+
+Do not invent a new shrinkage formula yet.
+
+PRE-FLIGHT
+
+Before running the replay, prove:
+
+1. Candidate C boots successfully.
+2. Prediction Engine imports successfully.
+3. Candidate C differs from Candidate B only in the targeted Surface Elo probability-shrinkage path.
+4. Same helium/heliumdb database.
+5. Same protected 1,644-match population.
+6. Same temporal cutoff.
+7. Same canonical-ID neutral orientation.
+8. No market odds or sentiment.
+9. Single-match replay succeeds.
+10. Database writes = 0.
+11. Current canonical worktree remains untouched.
+
+If Candidate C cannot be cleanly isolated, STOP.
+
+Do not substitute a broader modification.
+
+REPLAY
+
+Run:
+
+Candidate B
+vs
+Candidate C
+
+using EXACTLY the same authoritative 1,644-match population.
+
+Grade the same 1,604 matches.
+
+Run each version twice.
+
+Do not use the previous Candidate B numbers as a substitute for executing Candidate B in the paired experiment if the harness requires fresh paired artifacts.
+
+COLLECT
+
+For both B and C:
+
+- Accuracy
+- Brier score
+- Log loss
+- ECE, 10 bins
+- Exact 50%
+- 49–51%
+- 47–53%
+- 45–55%
+- 40–60%
+- Mean distance from 50
+- Median distance from 50
+
+PAIRED MOVEMENT
+
+Calculate:
+
+- moved away from 50
+- moved toward 50
+- unchanged
+- mean signed probability change
+- mean absolute probability change
+- median absolute probability change
+- maximum absolute probability change
+- winner selections changed
+- changed selections where B was correct
+- changed selections where C was correct
+
+SURFACE-ELO-SPECIFIC ANALYSIS
+
+For every changed prediction determine:
+
+- Surface Elo probability before internal sample-size shrinkage
+- Surface Elo probability after shrinkage
+- effective sample size
+- relevant sample-size/confidence factor
+- final ensemble contribution
+- final probability under B
+- final probability under C
+
+Partition results by:
+
+- low surface sample
+- medium surface sample
+- high surface sample
+
+Also report the number of predictions affected in each group.
+
+CRITICAL ANALYSIS
+
+Determine whether neutralizing the Surface Elo internal shrinkage:
+
+1. materially reduces the remaining 50% compression;
+2. improves or worsens Brier;
+3. improves or worsens log loss;
+4. improves or worsens ECE;
+5. changes actual winner selections;
+6. improves probability separation without improving predictive performance;
+7. disproportionately affects low-data players;
+8. causes excessive confidence.
+
+Do NOT call Candidate C "better" merely because probabilities move farther from 50.
+
+The decision must be based on predictive and calibration metrics as well as compression.
+
+REPRODUCIBILITY
+
+Run Candidate B twice and Candidate C twice.
+
+The duplicate artifacts for each version must be byte-identical or mathematically identical.
+
+Record SHA-256 hashes.
+
+If duplicate runs differ, STOP and investigate determinism.
+
+ARTIFACTS
+
+Produce:
+
+1. Machine-readable JSON
+2. Markdown report
+3. Exact source diff for Candidate C
+4. Exact commit SHA for Candidate C
+5. Replay population fingerprint
+6. Database identity without secrets
+7. Duplicate-run hashes
+
+Do not push.
+
+Do not merge.
+
+Do not alter canonical production.
+
+FINAL REPORT
+
+Use exactly this structure:
+
+1. SURFACE ELO MECHANISM IDENTIFIED
+2. EXACT CODE PATH
+3. CANDIDATE C CHANGE
+4. PRE-FLIGHT
+5. B VS C RESULTS
+6. COMPRESSION RESULTS
+7. PREDICTIVE PERFORMANCE
+8. CALIBRATION
+9. SURFACE-SAMPLE PARTITION
+10. REPRODUCIBILITY
+11. ARTIFACTS
+12. RECOMMENDATION FOR NEXT EXPERIMENT
+
+The final section must NOT recommend merging Candidate C.
+
+It should only state what the evidence says the next controlled experiment should be.
+
+STOP CONDITIONS
+
+Stop immediately if:
+
+- the exact Surface Elo shrinkage mechanism cannot be isolated;
+- Candidate C changes unrelated prediction logic;
+- the protected population changes;
+- the database changes;
+- the temporal cutoff changes;
+- player orientation changes;
+- duplicate runs differ;
+- Candidate C cannot be distinguished from Candidate B at the source-code level.
+
+We are doing controlled scientific ablation, not general optimization.

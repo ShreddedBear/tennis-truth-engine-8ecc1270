@@ -1,0 +1,310 @@
+AUTHORITATIVE CANDIDATE D REPLAY — ACTIVE SURFACE ELO WEIGHT
+
+The deterministic replay prerequisite has now passed.
+
+DO NOT modify the Candidate D model definition.
+DO NOT modify the deterministic ordering fix during this experiment.
+DO NOT merge.
+DO NOT push.
+DO NOT modify canonical production HEAD.
+
+VERIFIED PREREQUISITE
+
+Deterministic historical ordering commit:
+
+570c4f2e61c1a26de952a891f3d0700158ebdb69
+
+Verified:
+
+- Same-date ordering deterministic
+- All input permutations produce identical ordering
+- Elo state invariant to input permutation
+- Historical reconstruction invariant to input ordering
+- 14/14 focused tests passed
+- Protected population fingerprint unchanged
+- Candidate B full replay is byte-identical across duplicate runs
+
+Protected population:
+
+- Total: 1,644
+- Gradeable: 1,604
+- Match-ID MD5:
+  b1cce027e68cc689b43922ca9a0ffd19
+
+Candidate B:
+
+d5f0f198ff05cf2643cb39269a593762198ea5aa
+
+Candidate D:
+
+5a8a3f0b743fa7b74c1355c09e60c909eabbf148
+
+IMPORTANT
+
+Candidate D must be tested fresh.
+
+DO NOT reuse any previous Candidate D output.
+
+The previous Candidate D replay is invalid because the historical replay was nondeterministic at that time.
+
+CANDIDATE D DEFINITION
+
+Candidate D changes ONLY the Surface Elo reliability supplied to the ACTIVE ENSEMBLE.
+
+Candidate B:
+
+Surface Elo ensemble reliability =
+original ESS-derived reliability
+
+Candidate D:
+
+Surface Elo ensemble reliability =
+100
+
+The original Surface Elo reliability must remain unchanged everywhere else, including:
+
+- Data Quality
+- diagnostics
+- ESS reporting
+- Surface Elo diagnostic probability
+- Surface Elo rating
+- Surface Elo edge
+- sample-depth reporting
+
+Other ensemble modules remain unchanged.
+
+REPLAY SETUP
+
+Run Candidate B and Candidate D using:
+
+- identical database
+- identical protected population
+- identical cutoff
+- identical canonical player orientation
+- identical historical reconstruction
+- identical deterministic ordering
+- identical calibration
+- identical simulator settings
+- identical ensemble priors
+- identical all other model logic
+
+Database writes MUST remain zero.
+
+Run each version twice.
+
+REPRODUCIBILITY GATE
+
+Before calculating any comparative metric:
+
+1. Candidate B run 1 == Candidate B run 2
+2. Candidate D run 1 == Candidate D run 2
+
+Require mathematical/byte identity according to the established replay artifact format.
+
+If either pair differs:
+
+STOP.
+
+Do not calculate comparative performance.
+
+Do not interpret the results.
+
+Report the nondeterminism and stop.
+
+ONLY if BOTH pairs are identical should the paired analysis proceed.
+
+PRIMARY METRICS
+
+For B and D calculate:
+
+- Accuracy
+- Brier score
+- Log loss
+- ECE, 10 bins
+- Exact 50%
+- 49–51%
+- 47–53%
+- 45–55%
+- 40–60%
+- Mean distance from 50
+- Median distance from 50
+
+PAIRED DELTAS
+
+Calculate:
+
+Candidate D − Candidate B
+
+for every metric.
+
+PROBABILITY MOVEMENT
+
+Calculate:
+
+- moved away from 50
+- moved toward 50
+- unchanged
+- mean signed probability change
+- mean absolute probability change
+- median absolute probability change
+- maximum absolute probability change
+
+SELECTION CHANGES
+
+Calculate:
+
+- total winner-selection changes
+- B correct / D wrong
+- D correct / B wrong
+- both correct
+- both wrong
+
+Do not use selection changes alone to evaluate the experiment.
+
+SURFACE ELO ANALYSIS
+
+For every changed prediction record:
+
+- Surface Elo ESS
+- original Surface Elo reliability
+- Candidate B Surface Elo ensemble weight
+- Candidate D Surface Elo ensemble weight
+- Surface Elo raw edge
+- Surface Elo probability
+- final B probability
+- final D probability
+- probability movement
+
+Partition changed predictions by:
+
+1. Low surface sample
+2. Moderate surface sample
+3. High surface sample
+
+Report counts and aggregate probability movement for each.
+
+COMPRESSION ANALYSIS
+
+Determine whether Candidate D actually reduces the remaining compression.
+
+Calculate:
+
+- percentage of predictions in each probability band
+- change in mean distance from 50
+- change in median distance from 50
+- distribution of absolute probability changes
+
+Do NOT declare success merely because predictions move away from 50.
+
+PERFORMANCE ANALYSIS
+
+Determine whether the probability expansion corresponds to improved:
+
+- Brier
+- log loss
+- ECE
+- accuracy
+
+Also identify whether Candidate D causes:
+
+- excessive confidence
+- degradation in calibration
+- degradation in Brier/log loss
+- concentration of errors among low-ESS players
+
+IMPORTANT INTERPRETATION RULE
+
+There are three possible outcomes:
+
+A. Candidate D reduces compression AND improves predictive/calibration metrics.
+
+B. Candidate D reduces compression BUT does not improve predictive/calibration metrics.
+
+C. Candidate D reduces compression BUT worsens predictive/calibration metrics.
+
+Do not choose between these categories until the actual replay results are calculated.
+
+LOW-SAMPLE ANALYSIS
+
+Specifically test whether the effect is strongest among low-ESS Surface Elo cases.
+
+Report:
+
+- low ESS
+- medium ESS
+- high ESS
+
+using the actual observed ESS distribution rather than invented thresholds.
+
+REPRODUCIBILITY
+
+Run:
+
+B #1
+B #2
+D #1
+D #2
+
+Record SHA-256 for every artifact.
+
+Expected:
+
+B1 == B2
+D1 == D2
+
+Then independently calculate B-vs-D metrics from the verified identical outputs.
+
+ARTIFACTS
+
+Create:
+
+1. Authoritative Markdown report
+2. Machine-readable JSON
+3. Candidate D exact source diff
+4. Replay population fingerprint
+5. Database identity without secrets
+6. Four run hashes
+7. Paired row-level comparison artifact
+
+Do not overwrite the previous Candidate D artifacts.
+
+Use a new uniquely named experiment artifact.
+
+GIT
+
+Commit only the replay artifacts/infrastructure if required.
+
+Do NOT merge.
+Do NOT push.
+
+Do not modify the canonical production branch.
+
+FINAL REPORT
+
+Use exactly:
+
+1. REPRODUCIBILITY GATE
+2. B VS D OVERALL RESULTS
+3. COMPRESSION RESULTS
+4. PROBABILITY MOVEMENT
+5. PREDICTIVE PERFORMANCE
+6. CALIBRATION
+7. WINNER-SELECTION CHANGES
+8. SURFACE-ESS PARTITION
+9. ROW-LEVEL EFFECT
+10. ARTIFACT HASHES
+11. DATABASE WRITE CHECK
+12. EXACT COMMITS
+13. CONCLUSION
+14. NEXT CONTROLLED EXPERIMENT
+
+The conclusion must explicitly distinguish:
+
+- whether Surface Elo ESS weighting causes compression
+- whether removing that weighting improves/worsens calibration
+- whether predictive performance changes
+- whether the evidence justifies another experiment
+
+Do NOT recommend merging Candidate D automatically.
+
+This is an ablation experiment, not an optimization exercise.

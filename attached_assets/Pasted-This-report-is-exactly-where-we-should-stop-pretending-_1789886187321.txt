@@ -1,0 +1,194 @@
+This report is exactly where we should stop pretending the remaining questions are answered. The audit has done its job. The next phase should be empirical, not another code-reading audit.
+
+There are also two important corrections I would make before accepting the report as final.
+
+1. “No current odds column” does NOT prove no temporal leakage
+
+That is only evidence that one obvious leakage path doesn’t exist.
+
+Odds could still leak through:
+
+* timestamped odds tables
+* provider snapshots
+* cached records
+* aggregated consensus
+* closing-line fields under another name
+* API responses persisted elsewhere
+* reconstructed historical odds
+* prediction-time vs match-time joins
+
+So label Phase 2 “structurally no obvious leakage found”, not “temporal leakage proven impossible,” until the actual historical odds timestamps are tested.
+
+2. Don’t give Claude your raw database credentials
+
+The correct next step is:
+
+Find the existing authorized DB connection used by the canonical application.
+
+If there isn’t one available to Claude/Replit, then you connect the project properly. Don’t paste DATABASE_URL or passwords into the chat.
+
+⸻
+
+What I would do next
+
+The current audit should be committed as an audit-only artifact to:
+
+ShreddedBear/tennis-truth-engine-8ecc1270
+
+on:
+
+claude/tennis-engine-audit-32-razn75
+
+No application changes.
+
+Then the next task is DB access + six empirical experiments.
+
+The most important ones are:
+
+A. Market ablation
+
+FULL
+NO MARKET
+MARKET ONLY
+MARKET + INDEPENDENT
+
+This tells us whether your model is actually adding information beyond the market.
+
+B. Closeness controlled for market
+
+This tells us whether Closeness is genuinely measuring matchup competitiveness or is mostly a repackaged market signal.
+
+C. Risk floor ON vs OFF
+
+This tells us whether:
+
+Closeness → Risk floor
+
+actually improves calibration or merely pushes Risk upward.
+
+D. Fresh KEEP / BORDERLINE / REMOVE
+
+This is the one that answers your original concern about having 80 of 100 matches stuck in Borderline.
+
+We need to determine whether that’s:
+
+threshold problem
+or
+actual lack of model separation.
+
+E. Market placebo
+
+Shuffle market information while preserving its distribution.
+
+If the supposed market contribution doesn’t disappear, something is wrong.
+
+F. Market-weight sensitivity
+
+Determine whether small changes in market weighting dramatically change:
+
+Prediction
+Closeness
+Risk
+Removal
+KEEP/BORDERLINE/REMOVE
+
+⸻
+
+And there is a major thing we now know
+
+Your original screenshot question has evolved.
+
+You originally asked:
+
+“Are these numbers real?”
+
+We now know:
+
+They are real calculations.
+
+But:
+
+Not every calculated number represents independent evidence.
+
+That’s a much more important discovery.
+
+The architecture currently looks approximately like:
+
+                    DATA
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+      NON-MARKET                MARKET
+       SIGNALS                   ODDS
+          │                       │
+          ├──────────┬────────────┤
+          │          │            │
+          ▼          ▼            ▼
+      VALIDATION  CLOSENESS      RISK
+          │          │            │
+          │          └──────► Risk Floor
+          │                       │
+          └──────────────┬────────┘
+                         ▼
+                      REMOVAL
+                         │
+                         ▼
+                 KEEP/BORDERLINE/
+                     REMOVE
+
+So Removal cannot be treated as another piece of evidence.
+
+And your big score:
+
+75 / 100
+
+is currently:
+
+Validation = 75
+Overall Score = 75
+
+It isn’t an additional score.
+
+That’s something I would eventually change in the UI, but not until calibration is finished.
+
+⸻
+
+One more thing I want Claude to do
+
+Before asking you for DB credentials, give Claude this exact instruction:
+
+Do not ask me for database credentials yet. First inspect the canonical repository’s existing database configuration, application DB adapter, environment configuration, Replit secrets/configuration, Drizzle/Postgres configuration, and any existing scripts that already access historical data. Determine whether the authorized application DB connection can be reused. Do not expose or print any secrets. If no authorized connection is available, stop and report exactly what connection is missing.
+
+That prevents us from unnecessarily creating another DB-access path.
+
+⸻
+
+Final status
+
+I’d classify the project right now as:
+
+🟢 Formula/source truth — substantially established
+
+🟢 Architecture — established
+
+🟡 Market integration — established, but contribution/double-counting still needs empirical measurement
+
+🟡 Closeness — real signal, but market-controlled usefulness unproven
+
+🟡 Risk — real calculation, calibration of the Closeness floor unproven
+
+🔴 Removal as a probability — not validly specified
+
+🔴 Overall Score as an independent score — not valid; it is Validation
+
+🟡 KEEP/BORDERLINE/REMOVE — current behavior known, current out-of-sample calibration unresolved
+
+🔴 Current thresholds — not sufficiently justified by fresh holdout evidence
+
+🟢 Prediction Engine / Parlay Builder separation — architecturally preserved
+
+🟡 Prediction Engine / Parlay Builder agreement — needs contract-level empirical audit
+
+So don’t change the scoring system yet.
+
+Commit the consolidated audit report, get authorized DB access through the existing application infrastructure, and run the six missing empirical tests. Those results are what should determine the next engineering changes.

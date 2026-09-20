@@ -1,0 +1,121 @@
+This clears up the situation substantially. Replit and Claude are now telling the same story from two different sides.
+
+What we know now
+
+The actual application code is already consolidated on the feature branch. It is not necessary to rebuild the Prediction Engine or Parlay Builder.
+
+The current state is:
+
+Tennis-Stats-Engine
+        │
+        │  source of PE + Parlay
+        ▼
+claude/tennis-engine-audit-32-razn75
+        │
+        ├── Truth Engine
+        ├── Prediction Engine
+        ├── Parlay Builder
+        ├── Tennis Predictor UI
+        └── PostgreSQL / Drizzle
+                │
+                │  NOT MERGED
+                ▼
+canonical main
+        │
+        └── Truth Engine only
+
+And Replit confirms something very important:
+
+heliumdb already contains the data needed by all three systems.
+
+So the problem is no longer “Where is the Prediction Engine?”
+
+It’s:
+
+How do we safely land the already-consolidated feature branch into main without dragging in 4.4M lines of garbage, breaking the database architecture, or losing the Truth Engine’s existing data?
+
+There are 3 real blockers
+
+1. The branch has enormous repository cruft.
+
+The 4.4M-line diff is largely:
+
+* .migration-backup
+* .output
+* .wrangler
+* backup directory
+* screenshots
+* manifests
+* attached_assets
+
+That should not be merged into the canonical repo.
+
+2. Truth Engine’s old Supabase runtime needs to be completely removed/reconciled.
+
+This is especially important because you told us PostgreSQL/Drizzle is authoritative.
+
+Replit found active Supabase calls in the Truth Engine upload path. So we need to make the Truth Engine use the same PostgreSQL/Drizzle architecture rather than having:
+
+Prediction Engine ──► PostgreSQL
+Parlay Builder ────► PostgreSQL
+Truth Engine ───────► Supabase
+
+The desired state is:
+
+                    CANONICAL REPOSITORY
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+        Truth Engine   Prediction     Parlay Builder
+             │          Engine             │
+             └────────────┬────────────────┘
+                          ▼
+                    PostgreSQL
+                     heliumdb
+
+3. The live Truth Engine data needs to be accounted for before Supabase is retired.
+
+This is the one thing I would not let an agent casually migrate.
+
+The code can be merged without rebuilding anything, but before switching the Truth Engine’s production data source, Replit needs to establish what Truth Engine data currently lives in the old Supabase database and what equivalent data already exists in heliumdb.
+
+⸻
+
+One important correction to Claude’s recommendation
+
+I would not tell Claude to immediately “fast-forward merge” PR #85.
+
+It’s not a fast-forward situation in the ordinary sense because main and the feature branch have diverged, and there are substantial architectural/data-layer changes.
+
+More importantly, we shouldn’t merge 139 commits / 3,687 files blindly just because GitHub says mergeable_state: clean.
+
+Git being mergeable ≠ application being ready.
+
+What I would do next
+
+Have Replit do one final read-only job:
+
+Compare the Truth Engine data currently in Supabase against the Truth Engine schema/data already in heliumdb, without modifying either database.
+
+We need:
+
+* row counts
+* table-by-table inventory
+* primary key coverage
+* important foreign-key relationships
+* latest timestamps
+* whether heliumdb contains the actual Truth Engine production records or only newly created/test records
+* any records that exist in Supabase but not PostgreSQL
+* any schema differences that would cause data loss
+
+Then we’ll know whether this is:
+
+A. Code consolidation + simple database cutover
+
+or
+
+B. Code consolidation + required Truth Engine data migration
+
+That’s the last major unknown.
+
+And importantly, we don’t need another giant audit. The Git question is answered. The PE/Parlay code is accounted for. The PostgreSQL database is accounted for. We now just need to prove the Truth Engine data transition is safe, clean the branch, and land it.

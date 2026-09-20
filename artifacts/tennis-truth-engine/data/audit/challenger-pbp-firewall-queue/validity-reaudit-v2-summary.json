@@ -1,0 +1,9 @@
+{
+  "generated_at_utc": "2026-08-23T23:42:52.346984+00:00",
+  "mappings_checked": 9218,
+  "fully_firewall_certified": 0,
+  "provisional_reaudit_required": 9218,
+  "load_errors": [],
+  "collisions": [],
+  "critical_note": "v1 verified mappings are not fully certified unless exact independent match date, round, surface, and all-historical-H2H uniqueness are established."
+}

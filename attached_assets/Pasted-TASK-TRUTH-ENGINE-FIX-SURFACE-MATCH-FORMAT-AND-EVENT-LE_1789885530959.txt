@@ -1,0 +1,507 @@
+TASK: TRUTH ENGINE — FIX SURFACE, MATCH FORMAT, AND EVENT-LEVEL CLASSIFICATION
+
+The Truth Engine OCR verification page is currently showing cases like:
+
+MISSING DATA — PREDICTIONS WILL STILL RUN
+
+33 matches: surface not detected
+Defaulting to Hard
+
+The UI is also displaying event classification such as:
+
+WTA SAO PAULO
+HARD
+ATP250
+BO3
+
+The problem is that the Truth Engine is not reliably resolving match metadata from the available evidence and is falling back to generic defaults.
+
+OBJECTIVE
+
+Fix the Truth Engine so that every match attempts to independently resolve:
+
+1. Surface
+2. Best-of format
+3. Competition/tour level
+4. Tournament
+5. Round
+
+The system should use the strongest available evidence before falling back.
+
+CRITICAL RULE:
+
+DO NOT simply change the default from Hard to another surface.
+
+DO NOT guess.
+
+DO NOT fabricate missing metadata.
+
+The objective is to actually resolve the correct metadata whenever the available data supports it.
+
+==================================================
+1. SURFACE RESOLUTION
+==================================================
+
+The Truth Engine must resolve:
+
+- Hard
+- Clay
+- Grass
+- Carpet, if applicable
+
+Use the strongest available source in this order:
+
+1. Verified tournament/match metadata
+2. Live Tennis API normalized event/match metadata
+3. Existing canonical tournament metadata
+4. Local historical match metadata
+5. OCR-derived event/tournament information followed by deterministic tournament lookup
+6. Other existing authoritative data already available to the application
+
+Do NOT default to Hard simply because surface resolution failed.
+
+If the tournament can be identified but the surface is missing from the immediate match record, resolve the tournament first and obtain the tournament's canonical surface.
+
+Example:
+
+WTA São Paulo
+→ resolve exact tournament/event identity
+→ resolve official tournament metadata
+→ determine surface
+→ attach surface to the match
+
+The same process must work for ATP, WTA, Challenger, ITF, Masters, Grand Slam, etc.
+
+==================================================
+2. SURFACE CONFIDENCE
+==================================================
+
+Every resolved surface should have provenance.
+
+Record:
+
+- surface
+- source
+- resolution method
+- confidence/status
+- whether it was directly supplied or derived from tournament metadata
+
+Example:
+
+surface: CLAY
+source: tournament_metadata
+status: VERIFIED
+
+or:
+
+surface: HARD
+source: live_provider
+status: VERIFIED
+
+If surface genuinely cannot be resolved:
+
+surface: UNKNOWN
+
+Do NOT silently convert UNKNOWN into HARD.
+
+==================================================
+3. BEST-OF FORMAT
+==================================================
+
+The Truth Engine must independently determine whether the match is:
+
+- Best of 3
+- Best of 5
+
+Do not hard-code BO3 globally.
+
+Use the actual competition/tournament/round rules and available match metadata.
+
+The resolver should consider:
+
+- tournament
+- tour
+- event category
+- round
+- competition type
+- match metadata
+
+Examples of event classes that can have different formats must be handled through the canonical competition rules rather than a generic default.
+
+The resulting record must contain:
+
+bestOf: 3
+or
+bestOf: 5
+
+with provenance.
+
+If the exact format genuinely cannot be determined:
+
+bestOf: UNKNOWN
+
+Do not silently assume BO3.
+
+==================================================
+4. EVENT / COMPETITION LEVEL
+==================================================
+
+Resolve the actual level/category of the match.
+
+Examples include:
+
+ATP:
+- Grand Slam
+- Masters 1000
+- ATP 500
+- ATP 250
+- ATP Finals
+- Davis Cup / other applicable team competition
+- Challenger
+- ITF
+
+WTA:
+- Grand Slam
+- WTA 1000
+- WTA 500
+- WTA 250
+- WTA Finals
+- other applicable WTA competitions
+
+Lower-level events must also be represented correctly rather than being forced into ATP250/WTA250.
+
+The resolver must NOT infer:
+
+"ATP250"
+
+merely because no better classification was found.
+
+==================================================
+5. TOURNAMENT IDENTITY FIRST
+==================================================
+
+Tournament classification should be based on the canonical tournament identity whenever possible.
+
+Pipeline:
+
+OCR event text
+→ normalize tournament name
+→ resolve canonical tournament identity
+→ resolve tour
+→ resolve competition category
+→ resolve surface
+→ resolve match format
+→ resolve round
+
+Do not independently guess each field from the same noisy OCR text if a canonical tournament record can resolve all of them.
+
+==================================================
+6. ROUND RESOLUTION
+==================================================
+
+Resolve the actual round when available:
+
+- R128
+- R64
+- R32
+- R16
+- Quarterfinal
+- Semifinal
+- Final
+- Qualifying rounds
+- Round Robin
+- etc.
+
+Use provider/tournament metadata rather than OCR-only inference whenever possible.
+
+==================================================
+7. OCR SHOULD NOT BE THE ONLY SOURCE
+==================================================
+
+OCR is the starting point for extracting:
+
+- player names
+- tournament/event name
+- visible round
+- visible surface
+- visible competition information
+
+But OCR should not be treated as authoritative when structured tournament metadata is available.
+
+Example:
+
+OCR:
+"WTA SAO PAULO"
+
+The resolver should use that as a lookup key and then resolve the canonical event record.
+
+==================================================
+8. EXISTING LOCAL DATA FIRST
+==================================================
+
+Use the same local-first philosophy recently implemented for player identity.
+
+Resolution order should generally be:
+
+LOCAL/CANONICAL DATA
+        ↓
+NORMALIZED PROVIDER DATA
+        ↓
+LIVE PROVIDER LOOKUP
+        ↓
+UNKNOWN
+
+Avoid unnecessary network calls.
+
+If the local tournament metadata already contains the answer, do not call the provider just to rediscover it.
+
+==================================================
+9. NO CROSS-FIELD CONTAMINATION
+==================================================
+
+Do not infer one field merely because another field is known.
+
+For example:
+
+Known:
+WTA São Paulo
+
+does NOT by itself justify:
+
+surface = Hard
+
+unless the tournament metadata establishes that.
+
+Likewise:
+
+ATP tournament
+
+does NOT automatically mean:
+
+category = ATP 250
+
+and:
+
+ATP tournament
+
+does NOT automatically mean:
+
+bestOf = 3
+
+Each value must have its own evidence/provenance.
+
+==================================================
+10. REMOVE THE CURRENT HARD DEFAULT
+==================================================
+
+Find the code responsible for:
+
+"surface not detected — Defaulting to Hard"
+
+Replace this behavior with:
+
+1. Attempt deterministic resolution.
+2. If resolution succeeds, use the resolved surface.
+3. If resolution fails, mark surface UNKNOWN.
+4. Surface UNKNOWN must remain visible to the user.
+5. Predictions may continue only according to the existing missing-data policy.
+
+Do not hide uncertainty by assigning Hard.
+
+==================================================
+11. DATA MODEL / CONTRACT
+==================================================
+
+Ensure the resolved matchup metadata can represent:
+
+{
+  tournament,
+  tournamentId,
+  tour,
+  competitionLevel,
+  surface,
+  bestOf,
+  round,
+  provenance,
+  resolutionStatus
+}
+
+Where appropriate, use structured values rather than display strings.
+
+Example:
+
+{
+  "surface": "CLAY",
+  "surfaceSource": "tournament_metadata",
+  "surfaceStatus": "VERIFIED",
+  "bestOf": 3,
+  "bestOfSource": "competition_rules",
+  "competitionLevel": "WTA_250",
+  "competitionLevelSource": "canonical_tournament",
+  "round": "R32"
+}
+
+Do not invent fields if an equivalent canonical contract already exists. Reuse existing contracts where possible.
+
+==================================================
+12. TEST CASES
+==================================================
+
+Add regression tests for at least:
+
+A. Known hard tournament
+→ correctly resolves HARD.
+
+B. Known clay tournament
+→ correctly resolves CLAY.
+
+C. Known grass tournament
+→ correctly resolves GRASS.
+
+D. Tournament where surface is available only through tournament metadata
+→ resolves correctly without defaulting to Hard.
+
+E. Known ATP 250
+→ resolves ATP_250.
+
+F. Known ATP Masters 1000
+→ resolves MASTERS_1000.
+
+G. Known WTA 250
+→ resolves WTA_250.
+
+H. Known WTA 1000
+→ resolves WTA_1000.
+
+I. Grand Slam
+→ resolves GRAND_SLAM.
+
+J. Best-of-3 event
+→ resolves BO3.
+
+K. Best-of-5 event
+→ resolves BO5.
+
+L. Unknown tournament
+→ does NOT become ATP250/BO3/Hard by default.
+
+M. Ambiguous tournament identity
+→ remains unresolved rather than guessing.
+
+N. OCR tournament name with minor OCR corruption
+→ normalized lookup resolves the correct canonical tournament where available.
+
+O. Existing screenshot matchup such as WTA São Paulo
+→ tournament, surface, competition level, and format are resolved from authoritative metadata rather than generic defaults.
+
+==================================================
+13. LIVE PAGE VERIFICATION
+==================================================
+
+After implementation, replay the Truth Engine OCR verification page.
+
+Specifically verify that the current page no longer produces:
+
+"33 matches: surface not detected — Defaulting to Hard"
+
+unless those individual matches genuinely cannot be resolved.
+
+For every displayed matchup, inspect:
+
+- P1
+- P2
+- tournament
+- surface
+- competition level
+- best-of
+- round
+
+Verify that the values correspond to the actual event.
+
+==================================================
+14. DO NOT ALTER PREDICTION LOGIC
+==================================================
+
+This task is metadata-resolution work.
+
+Do NOT change:
+
+- Surface Elo calculations
+- Serve & Return calculations
+- Recent Form
+- Ensemble weights
+- calibration
+- Candidate B
+- Candidate D
+- Monte Carlo
+- confidence calculations
+- Parlay Builder logic
+
+Only improve the accuracy/provenance of the metadata supplied to those existing systems.
+
+==================================================
+15. DATABASE SAFETY
+==================================================
+
+Use existing database access as necessary to inspect/resolve tournament metadata.
+
+Do not perform destructive migrations.
+
+Do not delete historical data.
+
+Do not rewrite historical predictions.
+
+Do not perform a historical backfill unless specifically required to repair the metadata-resolution layer and separately documented.
+
+==================================================
+16. ACCEPTANCE CRITERIA
+==================================================
+
+The task is complete only when:
+
+- Surface is no longer blindly defaulted to Hard.
+- Tournament identity is resolved before tournament-level classification whenever possible.
+- Competition level is correctly resolved.
+- Best-of format is correctly resolved.
+- Round is correctly resolved where available.
+- Every resolved field has provenance.
+- Unknown values remain UNKNOWN rather than being fabricated.
+- Local/canonical data is preferred before network calls.
+- Regression tests pass.
+- Truth Engine production build passes.
+- OCR verification page renders successfully.
+- Existing Prediction Engine behavior is unchanged.
+
+==================================================
+GIT
+==================================================
+
+Create a focused commit containing only this metadata-resolution fix and tests.
+
+Do not push.
+Do not merge.
+Do not deploy.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. Root cause of the Hard default.
+2. Root cause of incorrect/generic event classification.
+3. Resolution hierarchy implemented.
+4. Surface resolution results.
+5. Best-of resolution results.
+6. Competition-level resolution results.
+7. Round resolution results.
+8. Network calls before/after where measurable.
+9. Tests and results.
+10. Live OCR verification results.
+11. Files changed.
+12. Commit SHA.
+13. Confirmation that Prediction Engine/model/calibration/Parlay Builder logic was not changed.
+
+DO NOT CALL THIS COMPLETE JUST BECAUSE THE UI NO LONGER SAYS "Defaulting to Hard."
+
+The underlying metadata must actually be resolved correctly and traceably.

@@ -1,0 +1,109 @@
+This is a much better position. The audit confirms that Live Tennis API can become the primary provider for most of the application. But I found one important discrepancy that we should resolve before making any retirement decision.
+
+The big picture
+
+Your intended migration is now realistic:
+
+                 Live Tennis API Pro
+                        │
+        ┌───────────────┼────────────────┐
+        ↓               ↓                ↓
+     Fixtures        History           PBP/H2H
+        │               │                │
+        └───────────────┼────────────────┘
+                        ↓
+             TennisDataProvider
+                        ↓
+          ┌─────────────┴─────────────┐
+          ↓                           ↓
+   Prediction Engine             Parlay Builder
+
+ESPN can remain the emergency live-fixture fallback.
+
+Candidate D, model formulas, calibration, database schema, and internal contracts remain untouched.
+
+So retiring the subscriptions to MatchStat/API-Tennis is not the same thing as immediately deleting their code. You can stop paying them; the code can remain dormant while we finish the migration safely.
+
+One thing I caught
+
+Your report says:
+
+Pro → historical/as-of ranking endpoint = 403, Ultra required.
+
+But the current official Live Tennis API documentation I just checked says the /rankings endpoint is PRO and explicitly describes it as providing rank-ordered listings and per-player as-of records. 
+
+So we have a conflict:
+
+Your measured credential result:
+403 upgrade_required
+
+Current official documentation:
+/rankings → PRO, including per-player as-of records. 
+
+That needs to be resolved before we label historical ranking support as a permanent Pro limitation.
+
+It could be an endpoint/version difference, a different ranking operation, or an entitlement mismatch. Don’t upgrade anything yet. Just have the agent identify the exact endpoint it tested and compare it against the current official /rankings documentation.
+
+The other limitation is real
+
+The match-statistics limitation is much clearer. The documentation distinguishes detailed/shot-level data as Ultra, and your measured Pro credential returned 403 for the statistics capability. 
+
+But that does not automatically mean your Prediction Engine is broken.
+
+We need to map:
+
+Prediction Engine required metric
+          ↓
+Can Live Tennis API Pro supply it?
+          ↓
+ YES directly
+ YES derivable from PBP
+ YES from existing historical DB
+ NO
+
+That is the actual parity question.
+
+And the PBP side is genuinely promising: Live Tennis API documents /history/matches/{matchId} as returning the full point tape and provides measured coverage through /history/coverage. 
+
+Historical holdout is now potentially unblocked
+
+This is the biggest development.
+
+The API has a historical-match system with stable match IDs and completed-match retrieval, and the historical package system supports bulk files. 
+
+So unlike our old corpus, we potentially have a legitimate post-June-2 population available.
+
+But we still must not run B/D until we establish the holdout exactly as your protocol requires.
+
+Licensing remains the other hard gate
+
+The provider’s terms grant use of API responses within your own applications, but prohibit redistribution and say data shouldn’t be cached/stored beyond what is reasonably necessary to operate the application. 
+
+Therefore I would not bulk-ingest the historical API response into historical_matches yet.
+
+That’s not necessarily a deal-breaker. It means we need written clarification for your particular use:
+
+* persistent historical storage
+* internal backtesting
+* point-in-time reconstruction
+* model validation
+* temporal holdouts
+* derived features
+* commercial predictions
+
+So I would make the next task extremely narrow
+
+Don’t ask Claude to migrate anything yet.
+
+Ask it to do this:
+
+Resolve the two remaining gates:
+
+1. Why does the authenticated Pro key report 403 for historical/as-of rankings when the current official documentation says /rankings is Pro and includes per-player as-of records?
+2. Produce the exact Prediction Engine metric → Live Tennis API Pro capability matrix, identifying which metrics are direct, PBP-derivable, existing-DB-supplied, or unavailable.
+3. Do not change code, ingest data, upgrade the subscription, run predictions, or delete MatchStat/API-Tennis.
+4. Separately document the exact storage/licensing questions that require provider confirmation.
+
+Once those two technical questions are resolved, then we can make the retirement decision.
+
+And importantly: you don’t need to keep paying MatchStat/API-Tennis while we’re doing this. Their subscriptions can remain inactive. We’re preserving their code temporarily as a safety/reference layer, not telling you to continue paying for them.

@@ -1,0 +1,128 @@
+Yes — now we have the actual provider identified, and this changes the picture substantially.
+
+The screenshot you sent is indeed Live Tennis API (livetennisapi.com), and its official documentation confirms that it is intended to cover ATP, WTA, Challenger and ITF through one API. 
+
+So your original idea — make Live Tennis API the primary provider and retire MatchStat/API-Tennis — is technically plausible. The important part is that we now know exactly what we’re dealing with.
+
+What Live Tennis API actually gives you
+
+The official API currently documents:
+
+* Upcoming fixtures — FREE
+* Live scores — FREE
+* Player search/profiles — FREE
+* Tournament catalog and stable tournament IDs — FREE
+* Completed-match history — BASIC
+* Point-by-point historical tape — BASIC
+* H2H — BASIC
+* Historical results back to 1968 — BASIC
+* Historical PBP from 2023 onward — available through the historical product
+* ATP/WTA/Challenger/ITF coverage
+* Match statistics — ULTRA
+* As-of-match rankings — ULTRA
+* Shot/rally data — ULTRA
+* REST and WebSocket interfaces. 
+
+So this is far more than just a live-score API.
+
+The big discovery for your 50% problem
+
+This is particularly relevant:
+
+Live Tennis API says its historical tape runs from January 2023 through September 2026, including ATP, WTA, Challenger and ITF. 
+
+And the documentation explicitly provides date filtering and measured coverage metadata for historical matches. 
+
+That means this may solve the exact problem that blocked our Candidate D temporal holdout.
+
+Your current corpus ends:
+
+2026-06-02
+
+Live Tennis API says its historical coverage extends through:
+
+September 2026
+
+So there is potentially a completely separate post-June-2 population available.
+
+But we still should not run B/D yet.
+
+First we need to determine whether the API can provide the exact fields required to reconstruct your existing Prediction Engine point-in-time, rather than simply having the matches.
+
+There is one important catch
+
+Some capabilities are tier-dependent.
+
+For example:
+
+Requirement	Live Tennis API
+Upcoming fixtures	✅ Free
+Live scores	✅ Free
+Players	✅ Free
+Tournaments	✅ Free
+Historical completed matches	✅ Basic
+Historical PBP	✅ Basic / Historical Data
+H2H	✅ Basic
+Match statistics	⚠️ Ultra
+As-of rankings	⚠️ Ultra
+Rally/shot data	⚠️ Ultra
+WebSocket	⚠️ Ultra
+Bulk historical packages	⚠️ Pro/History plans
+
+So whether your existing subscription/secret gives you everything the Prediction Engine needs is still something we need to verify.
+
+And this is the part I would NOT skip
+
+The API’s own Terms say you’re licensed to use API responses within your own applications, but they prohibit redistributing raw responses and restrict caching/storing data beyond what is reasonably necessary to operate the application. 
+
+That’s important because your system has:
+
+* a historical database,
+* Truth Engine,
+* model validation,
+* backtesting,
+* prediction generation,
+* potentially commercial functionality.
+
+So technical capability and licensing capability are two separate gates.
+
+Here’s what I think we should do now
+
+We no longer need to ask you for the provider identity.
+
+We have it:
+
+Live Tennis API — livetennisapi.com
+
+The next Claude task should be:
+
+Audit Live Tennis API against the actual Prediction Engine data contract and determine whether the existing Live_Tennis_Api credential/subscription is sufficient to replace MatchStat and API-Tennis.
+
+And specifically, it should answer:
+
+Can Live Tennis API supply everything the Prediction Engine currently gets from those two providers, either directly or through safe derivation?
+
+If yes, then we can migrate:
+
+                    LIVE TENNIS API
+                          ↓
+              TennisDataProvider interface
+                          ↓
+        ┌─────────────────┴──────────────────┐
+        ↓                                    ↓
+ Prediction Engine                      Parlay Builder
+        ↓
+ Truth / historical validation
+
+with ESPN remaining only as a fallback for live/upcoming fixtures.
+
+And then we can retire:
+
+MatchStat
+API-Tennis
+
+without changing the actual model.
+
+Even better: the Live Tennis API historical coverage potentially gives us the missing post-June-2 data needed for the Candidate D holdout. That’s the next thing I’d investigate before touching the model. 
+
+Live Tennis API documentation⁠￼ Live Tennis API terms⁠￼

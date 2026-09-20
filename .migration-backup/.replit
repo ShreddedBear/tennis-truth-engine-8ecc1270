@@ -1,0 +1,53 @@
+modules = ["nodejs-22", "python-3.12", "web", "postgresql-16"]
+
+[nix]
+channel = "stable-25_05"
+
+[agent]
+expertMode = true
+
+run = "bun run dev"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 20235
+externalPort = 3000
+
+[workflows]
+runButton = "Start"
+
+[[workflows.workflow]]
+name = "Start"
+mode = "sequential"
+author = 64742427
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun run dev"
+
+[[workflows.workflow]]
+name = "typecheck"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bun run typecheck"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npx", "wrangler", "dev", "--config", ".output/server/wrangler.json", "--local", "--ip", "0.0.0.0", "--port", "5000"]
+build = ["bun", "run", "build"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000

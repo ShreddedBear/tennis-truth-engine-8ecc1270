@@ -1,0 +1,32 @@
+name: Phase 27b WTA match ingestion CI
+
+on:
+  push:
+    branches:
+      - repair/evidence-coverage-phase27b-wta-match-persistence
+    paths:
+      - 'src/lib/ingestion/wta-official-match-results.server.ts'
+      - 'src/lib/ingestion/orchestrator.server.ts'
+      - '.github/workflows/phase27b-wta-match-ingestion-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - name: Ingestion regression tests
+        run: npx vitest run src/lib/ingestion/tour-results-schedule.test.ts src/lib/ingestion/orchestrator-validation.test.ts
+      - name: Full regression suite
+        run: npx vitest run
+      - name: Production build
+        run: npm run build

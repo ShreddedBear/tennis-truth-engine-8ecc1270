@@ -1,0 +1,45 @@
+{
+  "auditDate": "2026-09-20",
+  "observationalRange": {"from": "2026-06-03", "to": "2026-09-20"},
+  "playerIdentity": {
+    "uniqueLiveTennisIds": 11714,
+    "exactIdMatches": 0,
+    "deterministicNameMatches": 3723,
+    "deterministicNamePercent": 31.78,
+    "ambiguous": 1,
+    "unmapped": 7990,
+    "status": "FAIL_NOT_DETERMINISTIC",
+    "notes": [
+      "Live Tennis IDs use a new provider namespace.",
+      "No guessing or fuzzy auto-linking is permitted.",
+      "Final audit must exclude doubles/non-singles before freezing the denominator."
+    ]
+  },
+  "canonicalTournamentLevels": [
+    "GrandSlam",
+    "Masters1000",
+    "ATP500",
+    "ATP250",
+    "WTA1000",
+    "WTA500",
+    "WTA250",
+    "Challenger",
+    "ITF",
+    "Other"
+  ],
+  "categoryCoverage": {
+    "atp": {"mapped": 1379, "total": 1905, "percent": 72.39},
+    "wta": {"mapped": 1273, "total": 1894, "percent": 67.21},
+    "challenger": {"mapped": 6125, "total": 6200, "percent": 98.79},
+    "itf": {"mapped": 18760, "total": 19025, "percent": 98.61}
+  },
+  "ambiguousCategories": [
+    "tour_finals",
+    "juniors",
+    "team events",
+    "null category",
+    "null tour",
+    "unmatched tournament id"
+  ],
+  "status": "PARTIAL_BLOCKED"
+}
