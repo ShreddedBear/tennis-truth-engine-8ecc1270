@@ -1,0 +1,146 @@
+Yes — if Live Tennis API really provides all the capabilities your app currently gets from MatchStat/API-Tennis, then retiring those two providers should be a provider migration, not a Prediction Engine rewrite.
+
+What I was warning about is simply that we haven’t yet verified that fact from the actual Live Tennis API documentation.
+
+What should NOT change
+
+If we build the replacement correctly, these stay the same:
+
+* Prediction Engine formulas
+* Candidate D
+* Surface Elo
+* Serve & Return
+* Recent Form
+* Fatigue
+* Availability
+* H2H calculations
+* Ensemble
+* Calibration
+* Monte Carlo/simulation
+* Parlay Builder logic
+* Confidence/data-quality logic
+* Database schema
+* Player/match internal structures
+* Your no-market-odds rule
+
+The model should continue receiving the same normalized objects:
+
+Fixture
+PlayerProfile
+MatchRecord
+HeadToHeadRecord
+LiveScore
+HistoricalFixture
+ProviderStatusInfo
+
+What actually changes
+
+Basically this:
+
+Today
+
+MatchStat ─────┐
+               ├──→ provider layer → normalized tennis data → Prediction Engine
+API-Tennis ────┘
+       ↓
+ESPN fallback
+
+After migration
+
+Live Tennis API ──→ provider layer → normalized tennis data → Prediction Engine
+                         ↓
+                    ESPN fallback
+
+The key is that Live Tennis API replaces the providers underneath the existing interface.
+
+The Prediction Engine shouldn’t know or care whether the data came from MatchStat, API-Tennis, Live Tennis API, ESPN, or a historical database.
+
+⸻
+
+What we actually need to verify
+
+Because you intend Live Tennis API to be your main provider for everything, I would verify these specific capabilities:
+
+Capability	Must Live Tennis API provide?
+Upcoming matches	✅
+Live scores	✅
+ATP/WTA	✅
+Challenger/other levels you use	✅ if your app needs them
+Player IDs	✅
+Tournament IDs	✅
+Round	✅
+Surface	✅ or reliable mapping
+Match history	✅
+Completed results	✅
+Rankings	Ideally ✅
+Player profiles	Ideally ✅
+H2H	Either native or enough history to derive
+Serve/return stats	Important
+Point-by-point	Important for your Truth Engine/data work
+Historical date-range retrieval	Critical
+Stable historical IDs	Critical
+Scheduled timestamps	✅
+Rate limits	Need to know
+Historical retention	Critical
+Commercial/storage rights	Critical
+
+If Live Tennis API covers those, then yes, retiring MatchStat and API-Tennis makes sense.
+
+And your ESPN change doesn’t conflict with this
+
+ESPN can remain as an emergency/public fallback for the live fixture layer.
+
+That doesn’t mean we’re saying ESPN is your primary provider.
+
+It could simply be:
+
+                 LIVE TENNIS API
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+        Primary data       Historical data
+             │                   │
+             └─────────┬─────────┘
+                       ↓
+               Normalized Provider
+                       ↓
+              Prediction Engine
+                       ↑
+                 ESPN fallback
+
+So if Live Tennis API goes down, ESPN can keep the app showing fixtures/live scores. It doesn’t have to replace Live Tennis API.
+
+The one thing I DON’T want to do
+
+I don’t want Claude to blindly delete MatchStat/API-Tennis because we know you’re no longer paying for them, but we don’t yet know whether Live Tennis API has every endpoint your code currently calls.
+
+For example, if your Prediction Engine asks the provider for:
+
+historical match
+→ serve statistics
+→ player profile
+→ ranking
+→ surface
+→ tournament metadata
+→ H2H
+
+and Live Tennis API only supplies:
+
+fixture
+→ score
+→ tournament
+→ players
+
+then the app may still run, but your predictions silently become thinner. That’s the problem I was trying to prevent.
+
+And that is especially important for your 50% investigation: we don’t want a provider migration accidentally reducing the data going into the model and then mistaking the resulting probability compression for a model problem.
+
+So your goal is absolutely reasonable
+
+You don’t need to keep paying for MatchStat/API-Tennis just because they’re currently wired in.
+
+The correct engineering task is:
+
+Replace MatchStat and API-Tennis with Live Tennis API as the primary provider, preserve the existing internal contracts and Prediction Engine behavior, retain ESPN only as fallback where useful, and verify capability parity before deleting the old providers.
+
+Once we have the Live Tennis API documentation/product identity, we can tell Claude to perform that parity audit. If it passes, then we can safely retire the two services.
