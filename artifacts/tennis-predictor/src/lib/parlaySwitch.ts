@@ -51,9 +51,18 @@ export function flipSide(side: Side): Side {
  * every switch, so a flipped `selectedSide` always produces a payload for the
  * opposite player — there is no second code path that can re-derive the side
  * from a stale prediction and override it.
+ *
+ * Throws rather than defaulting to Player 1 when `selectedSide` is null: a
+ * leg with no resolved side (e.g. its Prediction Engine call failed) must
+ * never be silently scored as if Player 1 had been picked — callers are
+ * required to filter such legs out before validation (see
+ * `resolvePredictedSideOrNull` and its use in the initial analyze).
  */
 export function buildValidateLegPayload(leg: LegLike): ValidateLegPayload {
-  const side: Side = leg.selectedSide ?? "1";
+  if (leg.selectedSide == null) {
+    throw new Error(`buildValidateLegPayload: leg "${leg.key}" has no selected side — cannot validate an unresolved prediction`);
+  }
+  const side: Side = leg.selectedSide;
   const selectedIsP1 = side === "1";
   const player1Id = leg.player1Id ?? `unresolved-${leg.key}-p1`;
   const player2Id = leg.player2Id ?? `unresolved-${leg.key}-p2`;
@@ -236,4 +245,77 @@ export async function fetchJsonWithRetry(
 
   // Unreachable — the loop above always returns or throws.
   throw new Error("Too many requests");
+}
+
+// ── Prediction Engine request contract ──────────────────────────────────────
+//
+// The initial analyze auto-selects the Prediction Engine's winner for each
+// leg. Two rules matter here: the request must use the canonical contract
+// /api/predictions actually expects (matchFormat "BestOf3"/"BestOf5" plus the
+// x-prediction-request-id / x-prediction-match-id integrity headers — see
+// artifacts/api-server/src/routes/predictionRequestIntegrity.ts), and a leg
+// whose prediction could not be obtained must resolve to `null`, never to a
+// silently-assumed Player 1.
+
+export interface PredictionCallLeg {
+  key: string;
+  player1Id: string;
+  player2Id: string;
+  player1Name?: string;
+  player2Name?: string;
+  surface: string | null;
+  tournamentName: string | null;
+}
+
+export interface PredictionRequestInput {
+  player1Id: string;
+  player2Id: string;
+  surface: string;
+  matchFormat: "BestOf3";
+  tournamentName: string | null;
+}
+
+export interface PredictionRequestContext {
+  requestMatchId: string;
+  submittedPlayer1Name?: string;
+  submittedPlayer2Name?: string;
+}
+
+/**
+ * Builds the arguments for `createPredictionWithIntegrity` (the canonical
+ * helper already used by every other prediction call site in this app —
+ * BulkMatchupPredictor, PasteMatchupPredictor, FixturesList) from a Parlay
+ * Builder leg. This is the single place that decides the request contract,
+ * so the Parlay Builder can't drift from it again the way the previous
+ * hand-rolled fetch (wrong matchFormat literal, no integrity headers) did.
+ */
+export function buildPredictionCallArgs(leg: PredictionCallLeg): {
+  input: PredictionRequestInput;
+  context: PredictionRequestContext;
+} {
+  return {
+    input: {
+      player1Id: leg.player1Id,
+      player2Id: leg.player2Id,
+      surface: leg.surface ?? "Hard",
+      matchFormat: "BestOf3",
+      tournamentName: leg.tournamentName ?? null,
+    },
+    context: {
+      requestMatchId: leg.key,
+      submittedPlayer1Name: leg.player1Name || undefined,
+      submittedPlayer2Name: leg.player2Name || undefined,
+    },
+  };
+}
+
+/**
+ * Turns a Prediction Engine response's calibrated probability into the side
+ * to back — or `null` when no usable probability came back. Returning `null`
+ * (rather than defaulting to "1") is what lets the caller keep the leg
+ * genuinely unresolved instead of fabricating a Player-1 pick.
+ */
+export function resolvePredictedSideOrNull(calibratedProbabilityP1: number | null | undefined): Side | null {
+  if (calibratedProbabilityP1 == null || Number.isNaN(calibratedProbabilityP1)) return null;
+  return calibratedProbabilityP1 >= 50 ? "1" : "2";
 }

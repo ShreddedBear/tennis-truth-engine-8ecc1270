@@ -16,10 +16,11 @@ import {
   Cell, ResponsiveContainer, ComposedChart, Line, Legend,
 } from "recharts"
 import {
-  buildValidateLegPayload, chunk, computeSummary, fetchJsonWithRetry,
-  flipLegsByKey, mergeSwitchedResults, runWithConcurrency, selectKeysByDecision,
+  buildPredictionCallArgs, buildValidateLegPayload, chunk, computeSummary, fetchJsonWithRetry,
+  flipLegsByKey, mergeSwitchedResults, resolvePredictedSideOrNull, runWithConcurrency, selectKeysByDecision,
   type Side as BuilderSide, type ValidateLegPayload,
 } from "@/lib/parlaySwitch"
+import { createPredictionWithIntegrity } from "@/lib/predictionRequestIntegrity"
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "")
 const api = (path: string) => `${BASE}${path}`
@@ -74,10 +75,16 @@ interface ParlayLeg {
   player1Candidates?: PlayerCandidate[]
   player2Candidates?: PlayerCandidate[]
   // User selections
-  selectedSide: "1" | "2" | null  // which player they're backing
+  selectedSide: "1" | "2" | null  // which player they're backing; null = not auto-selected (see predictionStatus)
   marketOdds: string   // decimal odds input
   // Screenshot diagnostics
   debugLog?: string[]; errorMessage?: string
+  // Prediction Engine call outcome for this leg (initial analyze only). "error" means the
+  // Prediction Engine could not be reached/could not produce a probability for this matchup —
+  // selectedSide stays null rather than silently defaulting to Player 1, and the leg is left
+  // out of Independent Builder Validation until the user manually picks a side.
+  predictionStatus?: "success" | "error"
+  predictionError?: string
 }
 
 interface CheckResult { label: string; value: string; status: "pass" | "warn" | "fail" }
@@ -420,9 +427,13 @@ function LegInputCard({ leg, index, onSelect, onOdds, onRemove }: {
   }
 
   const isUnresolved = leg.status === "unresolved"
-  const backed = leg.selectedSide === "1" ? leg.player1Name : leg.player2Name
-  const opponent = leg.selectedSide === "1" ? leg.player2Name : leg.player1Name
-  const backedId = leg.selectedSide === "1" ? leg.player1Id : leg.player2Id
+  // A leg whose Prediction Engine call failed has selectedSide: null — it must not be
+  // rendered as if Player 1 (or Player 2) had been picked; show the diagnostic instead
+  // until the user manually chooses a side (the flip button below still works for that).
+  const predictionUnavailable = leg.selectedSide == null
+  const backed = leg.selectedSide === "1" ? leg.player1Name : leg.selectedSide === "2" ? leg.player2Name : null
+  const opponent = leg.selectedSide === "1" ? leg.player2Name : leg.selectedSide === "2" ? leg.player1Name : null
+  const backedId = leg.selectedSide === "1" ? leg.player1Id : leg.selectedSide === "2" ? leg.player2Id : null
   const flipSide = () => onSelect(leg.selectedSide === "1" ? "2" : "1")
 
   return (
@@ -452,18 +463,32 @@ function LegInputCard({ leg, index, onSelect, onOdds, onRemove }: {
 
         {/* Backing row — auto-selected, flip button to swap */}
         <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-2">
-            <p className="text-[9px] font-mono text-primary/60 uppercase tracking-wider leading-none mb-0.5">BACKING</p>
-            <p className="text-sm font-semibold text-primary leading-tight" style={{ wordBreak: "break-word" }}>
-              {backed || "—"}
+          <div className={`flex-1 min-w-0 rounded-lg border px-2.5 py-2 ${
+            predictionUnavailable ? "border-destructive/30 bg-destructive/5" : "border-primary/30 bg-primary/5"
+          }`}>
+            <p className={`text-[9px] font-mono uppercase tracking-wider leading-none mb-0.5 ${
+              predictionUnavailable ? "text-destructive/70" : "text-primary/60"
+            }`}>
+              {predictionUnavailable ? "PREDICTION UNAVAILABLE" : "BACKING"}
             </p>
-            {opponent && (
-              <p className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5">
-                vs {opponent}
+            {predictionUnavailable ? (
+              <p className="text-[10px] font-mono text-destructive/90 leading-snug" style={{ wordBreak: "break-word" }}>
+                {leg.predictionError ?? "Prediction Engine could not resolve a winner"} — tap swap to pick a side manually.
               </p>
-            )}
-            {!backedId && !isUnresolved && (
-              <p className="text-[9px] font-mono text-warning/80 mt-0.5">⚠ unresolved</p>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-primary leading-tight" style={{ wordBreak: "break-word" }}>
+                  {backed || "—"}
+                </p>
+                {opponent && (
+                  <p className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5">
+                    vs {opponent}
+                  </p>
+                )}
+                {!backedId && !isUnresolved && (
+                  <p className="text-[9px] font-mono text-warning/80 mt-0.5">⚠ unresolved</p>
+                )}
+              </>
             )}
           </div>
           <button
@@ -1851,20 +1876,19 @@ export default function AdminParlayBuilder() {
   // ── Analyze Parlay ─────────────────────────────────────────────────────────
 
   const analyzeParlay = async (overrideLegs?: ParlayLeg[]) => {
-    // All legs with names — selectedSide defaults to "1" so no manual click needed
+    // All legs with names — selectedSide is resolved either by a fresh prediction
+    // (initial analyze) or was already decided by the caller (Best of Best).
     const sourcLegs = overrideLegs ?? legs
     const ready = sourcLegs.filter(l =>
       l.status !== "resolving" && l.status !== "error" &&
       (l.player1Name || l.player2Name)
     )
     if (ready.length === 0) { toast({ title: "Upload at least one match before analyzing" }); return }
-    // Record the key order so switchBorderlineLegs can map result[i] → leg key
-    setResultLegKeys(ready.map(l => l.key))
 
     setEvaluating(true)
     setResult(null)
     try {
-      let resolvedSideByKey: Record<string, BuilderSide> = {}
+      let resolvedSideByKey: Record<string, BuilderSide | null> = {}
 
       if (!overrideLegs) {
         // ── Phase 1: Run fresh predictions, auto-determine which side to back ─────
@@ -1878,30 +1902,28 @@ export default function AdminParlayBuilder() {
           upsetRisk: string
           modelAgreement: string
           closenessTo50: number | null
-          /** Auto-determined from calibratedProbabilityP1: back the predicted winner */
-          predictedWinnerSide: BuilderSide
+          /** Auto-determined from calibratedProbabilityP1: back the predicted winner. Null if
+           *  the Prediction Engine could not produce a usable probability for this matchup. */
+          predictedWinnerSide: BuilderSide | null
         }
         const legSignals: Record<string, InlineSignals | null> = {}
+        const predictionErrors: Record<string, string> = {}
 
         await runWithConcurrency(ready, PREDICTION_CONCURRENCY, async (l) => {
-          if (!l.player1Id || !l.player2Id) { legSignals[l.key] = null; return }
+          if (!l.player1Id || !l.player2Id) {
+            legSignals[l.key] = null
+            predictionErrors[l.key] = "Player not resolved — cannot request a prediction"
+            return
+          }
           try {
-            const pred = await fetchJsonWithRetry(() => fetch(api("/api/predictions"), {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                player1Id: l.player1Id,
-                player2Id: l.player2Id,
-                surface: l.surface ?? "Hard",
-                matchFormat: "best-of-3",
-                tournamentName: l.tournamentName ?? null,
-              }),
-            })) as {
-              calibratedProbability: number; dataQuality: number; dataQualityLabel?: string
-              upsetRisk?: string; engine?: { modelAgreement?: string; closenessTo50?: number }
-            }
+            const { input, context } = buildPredictionCallArgs({
+              key: l.key, player1Id: l.player1Id, player2Id: l.player2Id,
+              player1Name: l.player1Name, player2Name: l.player2Name,
+              surface: l.surface, tournamentName: l.tournamentName,
+            })
+            const pred = await createPredictionWithIntegrity(input, context)
             const calibP1 = Number(pred.calibratedProbability)
+            const predictedWinnerSide = resolvePredictedSideOrNull(calibP1)
             legSignals[l.key] = {
               calibratedProbabilityP1: calibP1,
               dataQuality: Number(pred.dataQuality),
@@ -1909,41 +1931,66 @@ export default function AdminParlayBuilder() {
               upsetRisk: pred.upsetRisk ?? "UNKNOWN",
               modelAgreement: pred.engine?.modelAgreement ?? "Unknown",
               closenessTo50: typeof pred.engine?.closenessTo50 === "number" ? pred.engine.closenessTo50 : null,
-              predictedWinnerSide: calibP1 >= 50 ? "1" : "2",
+              predictedWinnerSide,
             }
-          } catch {
+            if (predictedWinnerSide == null) {
+              predictionErrors[l.key] = "Prediction Engine returned no usable probability for this matchup"
+            }
+          } catch (e) {
             legSignals[l.key] = null
+            predictionErrors[l.key] = e instanceof Error ? e.message : "Prediction request failed"
           }
         })
 
         // Persist signals so Best of Best can flip all legs to the predicted winner
         // even after the user has manually toggled some legs post-analysis.
         legSignalsRef.current = Object.fromEntries(
-          Object.entries(legSignals).map(([k, v]) => [k, v ? { predictedWinnerSide: v.predictedWinnerSide } : null])
+          Object.entries(legSignals).map(([k, v]) => [k, v?.predictedWinnerSide ? { predictedWinnerSide: v.predictedWinnerSide } : null])
         )
 
-        // Auto-select the Prediction Engine's winner for each leg.
+        // Auto-select the Prediction Engine's winner for each leg that produced one.
+        // A leg whose prediction failed or came back unusable is marked with a
+        // diagnostic and left with selectedSide: null — it is NOT defaulted to Player 1,
+        // and it will not be sent to Independent Builder Validation until either the
+        // prediction succeeds on a later analyze or the user manually picks a side.
         setLegs(prev => prev.map(l => {
           const sig = legSignals[l.key]
-          if (!sig) return l
-          return { ...l, selectedSide: sig.predictedWinnerSide }
+          if (!(l.key in legSignals)) return l
+          if (sig?.predictedWinnerSide) {
+            return { ...l, selectedSide: sig.predictedWinnerSide, predictionStatus: "success", predictionError: undefined }
+          }
+          return { ...l, selectedSide: null, predictionStatus: "error", predictionError: predictionErrors[l.key] ?? "Prediction unavailable" }
         }))
 
         resolvedSideByKey = Object.fromEntries(
-          ready.map(l => [l.key, legSignals[l.key]?.predictedWinnerSide ?? l.selectedSide ?? "1"])
+          ready.map(l => [l.key, legSignals[l.key]?.predictedWinnerSide ?? null])
         )
       } else {
         // Re-evaluating already-selected picks (e.g. Best of Best): the caller has
         // already decided which side each leg should back — never rerun the
         // Prediction Engine just to re-derive the same answer for every leg.
-        resolvedSideByKey = Object.fromEntries(ready.map(l => [l.key, l.selectedSide ?? "1"]))
+        resolvedSideByKey = Object.fromEntries(ready.map(l => [l.key, l.selectedSide]))
+      }
+
+      // Only legs with an actual resolved side go to validation — a failed/unusable
+      // prediction is excluded rather than silently scored as Player 1.
+      const readyForValidation = ready.filter(l => resolvedSideByKey[l.key] != null)
+      // Record the key order so switchBorderlineLegs/switchRemoveLegs can map result[i] → leg key.
+      setResultLegKeys(readyForValidation.map(l => l.key))
+      if (readyForValidation.length === 0) {
+        toast({
+          title: "No predictions available to validate",
+          description: "The Prediction Engine could not resolve a winner for any uploaded matchup.",
+          variant: "destructive",
+        })
+        return
       }
 
       // ── Phase 2: Independent Builder Validation (Task 105) ───────────────────
       // Reads historical_matches directly — NEVER uses engine scores or predictions table.
       setAnalyzePhase("evaluating")
       const validateBody: { legs: ValidateLegPayload[] } = {
-        legs: ready.map(l => buildValidateLegPayload({ ...l, selectedSide: resolvedSideByKey[l.key] })),
+        legs: readyForValidation.map(l => buildValidateLegPayload({ ...l, selectedSide: resolvedSideByKey[l.key] })),
       }
       const j = await fetchJsonWithRetry(() => fetch(api("/api/admin/parlay/validate"), {
         method: "POST", credentials: "include",

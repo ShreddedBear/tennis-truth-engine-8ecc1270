@@ -191,3 +191,13 @@ test("flipSide reverses exactly between '1' and '2'", () => {
   assert.equal(flipSide("1"), "2");
   assert.equal(flipSide("2"), "1");
 });
+
+// ── Test 6 (payload level) — never silently invents a Player 1 pick ────────
+test("buildValidateLegPayload throws rather than silently defaulting to Player 1 when selectedSide is null", () => {
+  const leg = makeLeg({ key: "unresolved-leg", selectedSide: null });
+  assert.throws(
+    () => buildValidateLegPayload(leg),
+    /no selected side/,
+    "a leg with no resolved prediction must never be scored as if Player 1 had been picked",
+  );
+});
