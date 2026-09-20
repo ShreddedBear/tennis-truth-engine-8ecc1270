@@ -1,0 +1,210 @@
+TASK: 50% INVESTIGATION — BUILD THE POST-JUNE-2 TEMPORAL HOLDOUT DATASET
+
+We are continuing the frozen Candidate B vs Candidate D investigation.
+
+DO NOT tune Candidate D.
+DO NOT modify model logic.
+DO NOT run a new ablation.
+DO NOT change calibration.
+DO NOT change priors.
+DO NOT change the historical replay cutoff.
+DO NOT change the frozen B/D implementations.
+
+OBJECTIVE
+
+The original authoritative experiment ends on:
+
+2026-06-02
+
+The current historical corpus also ends on:
+
+2026-06-02
+
+Therefore the required temporal holdout cannot currently be evaluated.
+
+The next assignment is to obtain a NEW point-in-time-correct population after 2026-06-02 so we can perform the already-defined B-vs-D temporal holdout.
+
+DATA SOURCE
+
+Use the already-validated Live Tennis API Pro integration.
+
+Do NOT reactivate MatchStat/API-Tennis.
+
+Do NOT alter the Prediction Engine's provider architecture.
+
+Use the existing normalized provider/data layer.
+
+IMPORTANT:
+This is a DATASET-CONSTRUCTION task, not a model-tuning task.
+
+==================================================
+HOLDOUT REQUIREMENTS
+==================================================
+
+The holdout must:
+
+1. Begin strictly AFTER 2026-06-02.
+2. Use matches that were not part of the original 1,644-match experiment.
+3. Preserve point-in-time availability.
+4. Use only information that would have been available at the prediction cutoff.
+5. Apply the historical Availability cutoff fix:
+   input.asOfDate ?? new Date()
+6. Preserve deterministic ordering.
+7. Preserve the same player orientation rules.
+8. Preserve the same calibration configuration.
+9. Preserve the same priors.
+10. Preserve the same historical scoring methodology.
+11. Preserve the same no-market-data rule.
+12. Preserve the same gradeability rules.
+
+DO NOT select the holdout based on outcomes.
+
+DO NOT select matches because they favor Candidate B or Candidate D.
+
+DO NOT tune the time period after seeing model performance.
+
+==================================================
+PRE-FLIGHT
+==================================================
+
+Before running B or D:
+
+A. Determine the earliest usable post-2026-06-02 date.
+
+B. Determine the exact holdout start/end dates.
+
+C. Determine:
+- total candidate matches
+- eligible matches
+- excluded matches
+- gradeable matches
+- exclusion reasons
+
+D. Freeze the population.
+
+E. Generate a population fingerprint/hash.
+
+F. Record the fingerprint BEFORE calculating B/D performance.
+
+Once frozen, do not modify the population.
+
+==================================================
+DATA QUALITY
+==================================================
+
+Verify:
+
+- player identity resolution
+- tournament identity
+- tournament category
+- surface
+- round
+- match date
+- final result
+- set scores
+- required historical inputs
+- historical rankings where required
+- Availability inputs
+- any other data required by the existing engine
+
+Do not fabricate missing values.
+
+If a required value is unavailable, mark it unavailable and apply the existing engine behavior.
+
+==================================================
+DATABASE SAFETY
+==================================================
+
+Use the existing database only as required to construct/read the evaluation population.
+
+No production schema changes.
+
+No destructive operations.
+
+No modification of existing historical experiment rows.
+
+No deletion.
+
+No provider-data migration unrelated to this holdout.
+
+If persistent Live Tennis data would violate an unresolved licensing/storage gate, STOP before ingestion and report the exact blocker.
+
+Do not silently bypass the licensing boundary.
+
+==================================================
+REQUIRED ARTIFACT
+==================================================
+
+Create:
+
+docs/data-source-discovery/live-tennis-temporal-holdout-20260920.md
+
+and:
+
+docs/data-source-discovery/live-tennis-temporal-holdout-20260920.json
+
+The report must contain:
+
+- exact start date
+- exact end date
+- population size
+- gradeable population
+- exclusion counts
+- data-source provenance
+- point-in-time rules
+- Availability cutoff behavior
+- deterministic ordering
+- population fingerprint
+- database snapshot/reference information
+- confirmation that the population was frozen before B/D scoring
+
+==================================================
+STOP CONDITION
+==================================================
+
+If a sufficiently large, point-in-time-correct holdout cannot be constructed, STOP.
+
+Do NOT run B or D on an invalid population.
+
+Do NOT manufacture a holdout.
+
+Do NOT substitute the existing June 2 population.
+
+==================================================
+ENGINEERING BOUNDARY
+==================================================
+
+Do not modify model behavior.
+
+Do not merge Candidate D.
+
+Do not modify Candidate B.
+
+Do not tune anything.
+
+Do not deploy.
+
+Do not push.
+
+Do not merge.
+
+Commit documentation/data-audit artifacts only if appropriate.
+
+FINAL REPORT
+
+Report:
+
+1. Whether a valid post-June-2 holdout was constructed.
+2. Exact date range.
+3. Population size.
+4. Gradeable size.
+5. Population fingerprint.
+6. Data-quality/exclusion breakdown.
+7. Whether licensing/storage restrictions prevented construction.
+8. Whether the dataset is now frozen and ready for B1/B2/D1/D2.
+9. Files created.
+10. Commit SHA.
+
+STOP after constructing and freezing the population.
+
+Do not run the B/D performance comparison yet.

@@ -1,0 +1,262 @@
+TASK: FIX TENNIS TRUTH ENGINE — WHITE SCREEN ON OPEN
+
+The Tennis Truth Engine currently opens to a completely white/blank screen.
+
+This is a restoration/runtime bug. Diagnose the actual cause and fix it.
+
+CANONICAL REPO
+
+ShreddedBear/tennis-truth-engine-8ecc1270
+
+IMPORTANT ARCHITECTURE
+
+The Truth Engine is part of the current multi-service Tennis Matrix AI workspace.
+
+Do NOT replace the Truth Engine.
+Do NOT rebuild it from scratch.
+Do NOT move the Prediction Engine into the Truth Engine.
+Do NOT change Prediction Engine model logic.
+Do NOT change the Parlay Builder.
+Do NOT change the database architecture unless the actual white-screen root cause requires a minimal, documented fix.
+
+CURRENT EXPECTED ROUTE
+
+The Truth Engine should be reachable at:
+
+/truth-engine
+
+Expected behavior:
+
+/truth-engine
+→ redirect to /truth-engine/
+/truth-engine/
+→ redirect to /truth-engine/app/upload
+/truth-engine/app/upload
+→ render the Truth Engine UI
+
+Previously verified behavior was:
+
+- /truth-engine → 307
+- /truth-engine/ → 307
+- /truth-engine/app/upload → 200
+- Truth Engine UI rendered successfully
+
+It now opens to a white screen.
+
+OBJECTIVE
+
+Find the ACTUAL runtime cause of the white screen and fix it.
+
+Do not guess.
+
+==================================================
+STEP 1 — REPRODUCE
+==================================================
+
+Open the current Truth Engine route and reproduce the white screen.
+
+Test:
+
+1. /truth-engine
+2. /truth-engine/
+3. /truth-engine/app/upload
+
+Capture:
+
+- HTTP status
+- redirects
+- browser console errors
+- JavaScript exceptions
+- failed network requests
+- asset loading failures
+- hydration errors
+- runtime exceptions
+- route-resolution failures
+
+Determine whether the problem is:
+
+- routing
+- asset paths
+- JavaScript bundle
+- CSS/rendering
+- hydration
+- runtime import
+- environment variable
+- API request
+- authentication initialization
+- Supabase initialization
+- build artifact
+- Worker/TanStack runtime
+- stale build
+- deployment/startup configuration
+
+==================================================
+STEP 2 — TRACE THE ACTUAL FAILURE
+==================================================
+
+Follow the error to the source.
+
+Do not simply hide the error.
+
+Do not add a generic fallback page that makes the app appear functional.
+
+Identify:
+
+FILE
+→ FUNCTION/COMPONENT
+→ ERROR
+→ ROOT CAUSE
+
+If the browser console is empty, inspect:
+
+- server logs
+- route handlers
+- generated assets
+- build output
+- startup logs
+- network responses
+- runtime configuration
+
+==================================================
+STEP 3 — COMPARE AGAINST LAST KNOWN GOOD STATE
+==================================================
+
+Use the last known verified restoration state as the reference.
+
+Relevant restoration commits include:
+
+a974f83deaef155c8d0998767390062665cd114b
+8cce4002b64235daf2c17907ff4ea91984886fc8
+4d52f28993bff061def724644bc884dc83a8c9fa
+
+Determine what changed between the last known-good Truth Engine state and the current broken state.
+
+Do not blindly revert unrelated work.
+
+Identify the smallest change that restores the Truth Engine.
+
+==================================================
+STEP 4 — PRESERVE EXISTING BOUNDARIES
+==================================================
+
+The Truth Engine's existing data/auth boundary must remain intact.
+
+Do not:
+
+- remove existing Truth Engine authentication
+- replace its database
+- migrate databases
+- remove Supabase solely because of this issue
+- change Prediction API database configuration
+- modify Prediction Engine calculations
+- modify Candidate B
+- modify Candidate D
+- change calibration
+- change provider routing
+- change Live Tennis API integration
+
+The fix must be isolated to the Truth Engine white-screen problem unless evidence proves otherwise.
+
+==================================================
+STEP 5 — VERIFY THE FIX
+==================================================
+
+After the fix, verify all of the following:
+
+A. /truth-engine loads.
+B. /truth-engine/ redirects correctly.
+C. /truth-engine/app/upload loads.
+D. The Truth Engine UI is visibly rendered.
+E. No fatal browser console errors.
+F. No fatal hydration/runtime errors.
+G. Required JS/CSS assets return successfully.
+H. Upload page controls render.
+I. Existing Truth Engine functionality still initializes.
+J. No Prediction Engine regression.
+K. No Parlay Builder regression.
+L. API health remains 200.
+M. Production build succeeds.
+
+If the Truth Engine requires an authenticated session for some functionality, verify the unauthenticated page behavior separately from protected functionality. Do not bypass authentication.
+
+==================================================
+REGRESSION TEST
+==================================================
+
+Add or update a regression check that would catch this exact white-screen failure in the future.
+
+The check should verify more than HTTP 200.
+
+HTTP 200 with a blank application is NOT considered success.
+
+Verify that the expected Truth Engine application/root content is actually rendered.
+
+==================================================
+NO FALSE PASS
+==================================================
+
+Do NOT report success because:
+
+- the server starts
+- HTTP 200 is returned
+- the HTML shell exists
+- a redirect works
+
+The actual UI must render.
+
+If browser automation is available, use it.
+
+If browser automation is unavailable, use the strongest available runtime/build verification and clearly state the limitation.
+
+==================================================
+SCOPE
+==================================================
+
+Allowed:
+
+- Truth Engine bug fix
+- Truth Engine route/runtime/build configuration required to fix the white screen
+- Regression test
+- Documentation of root cause
+
+Not allowed:
+
+- Prediction Engine changes
+- model changes
+- calibration changes
+- B/D experiments
+- temporal holdout work
+- historical ingestion
+- provider migration
+- database migration
+- unrelated refactoring
+
+==================================================
+GIT
+==================================================
+
+Create a focused commit containing only the white-screen fix and its regression test/documentation.
+
+Do NOT push.
+Do NOT merge.
+Do NOT deploy.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Report:
+
+1. Exact root cause of the white screen.
+2. How it was reproduced.
+3. Browser/runtime error observed.
+4. Files changed.
+5. Exact fix.
+6. Regression test added/run.
+7. Truth Engine route verification results.
+8. Production build result.
+9. API health result.
+10. Confirmation that Prediction Engine/model/Parlay Builder were not changed.
+11. Commit SHA.
+
+Do not call this complete until /truth-engine/app/upload actually renders the Truth Engine UI rather than merely returning HTTP 200.

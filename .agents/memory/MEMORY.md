@@ -1,2 +1,3 @@
 - [Truth Engine preservation](truth-engine-preservation.md) — product-shell recovery must preserve the current Truth Engine and never restore it from prediction-era history.
 - [OCR failure boundaries](ocr-failure-boundaries.md) — screenshot imports must bound both vision and player resolution, preserve OCR names on degradation, and reject UI text as players.
+- [Operational history resets](operational-history-resets.md) — paginate Supabase exports and verify provider availability before clearing cross-system prediction history.
