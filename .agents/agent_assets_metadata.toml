@@ -42,3 +42,45 @@ mtime_ms = 1789863467433
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/4d1d364b-4348-46f3-9607-1bb6c9281535/26c73524-499b-4e15-9705-6fdf3f5fb067"
 storage_version_token = "1789863483474978"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "T2PhR-xumWzt0PK2dR0pg"
+uri = "file://.local/candidate-c/evaluation-artifacts/candidate-c-report.md"
+type = "text"
+title = "Candidate C Replay Report"
+description = "Structured B-vs-C findings, active code-path diagnosis, reproducibility, and the next controlled experiment recommendation."
+logical_id = "4546b689-c95d-49b5-aa98-b615f60e2642"
+content_hash = "sha256:3667268d92749274f3f1f98d85d812ed41a6389126d5e2623cb66255e99ef0bb"
+size = 4206
+mtime_ms = 1789864649456
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/4546b689-c95d-49b5-aa98-b615f60e2642/541ddb2f-dc8d-47ad-9c5c-02dbb01ccb59"
+storage_version_token = "1789864674837555"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "fz-X8rLZ9LRjsPxHbHfdf"
+uri = "file://.local/candidate-c/evaluation-artifacts/candidate-c-replay.json"
+type = "unspecified"
+title = "Candidate C Replay Data"
+description = "Machine-readable paired artifact with metrics, partitions, population proof, duplicate hashes, and Surface Elo traces."
+logical_id = "09a81143-3e87-47d5-ac2e-75b4ee6add0a"
+content_hash = "sha256:b6b79d7bf71e68c2ac670422f46df1dc3191bfb1c248adc83177a44a4ba1256a"
+size = 2542868
+mtime_ms = 1789864649452
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/09a81143-3e87-47d5-ac2e-75b4ee6add0a/be495e7e-41f0-40bf-aaa1-40d2f5de8d32"
+storage_version_token = "1789864675646763"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "NzINfWtvj8eAdGgr8Is_I"
+uri = "file://.local/candidate-c/evaluation-artifacts/candidate-c-source.diff"
+type = "unspecified"
+title = "Candidate C Exact Source Diff"
+description = "The one-expression model change from verified Candidate B to Candidate C."
+logical_id = "00c6efdf-5735-4129-a7a5-da60f9587ef4"
+content_hash = "sha256:efce0a3e935000d4f28df669f196390e6467565a4b124bf37854ad00a6f1393a"
+size = 922
+mtime_ms = 1789864578272
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:c6aabbf3-6a6a-4d39-a523-a02e504a70d6/00c6efdf-5735-4129-a7a5-da60f9587ef4/4b84ded1-668a-493f-b6ef-cfa4c2edfe09"
+storage_version_token = "1789864676396461"
+content_type = "application/octet-stream"
