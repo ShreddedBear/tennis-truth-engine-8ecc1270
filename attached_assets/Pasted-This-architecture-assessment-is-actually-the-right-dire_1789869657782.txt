@@ -1,0 +1,181 @@
+This architecture assessment is actually the right direction for the live app problem you just described. It explains why the Truth Engine is currently showing while the Tennis Matrix AI/Prediction Engine and Parlay Builder are missing from the opening experience: the consolidated repo currently has multiple runtimes/app surfaces, and the product shell/navigation has not yet been restored around them.
+
+The key decision
+
+You do not need to move the Prediction Engine into Cloudflare Workers.
+
+Keep:
+
+* Tennis Matrix AI / Prediction Engine → Node
+* Parlay Builder → Node/Prediction API
+* Prediction workers → Node
+* Truth Engine → TanStack Start / Workers
+* Tennis Predictor frontend → Vite initially
+* One canonical monorepo → tennis-truth-engine-8ecc1270
+
+Then make Tennis Matrix AI the product’s default landing surface, with:
+
+Tennis Matrix AI
+│
+├── Prediction Engine       ← DEFAULT / HOME
+├── Parlay Builder
+└── Truth Engine
+
+The architecture document specifically recommends the Predictor frontend under a stable path such as /predict, while Truth remains under the TanStack application.
+
+What I would do next
+
+Don’t ask Claude to implement the entire six-phase migration yet.
+
+That’s too broad and could destabilize the app.
+
+First have Claude perform Phase 1 + the immediate navigation restoration only.
+
+Use this:
+
+CANONICAL APP RESTORATION — TENNIS MATRIX AI MUST BE THE PRIMARY PRODUCT
+Use the approved architecture assessment as the architectural source of truth.
+Canonical repository:
+ShreddedBear/tennis-truth-engine-8ecc1270
+DO NOT move the Prediction Engine to Cloudflare Workers.
+DO NOT rewrite the Prediction Engine.
+DO NOT rewrite the Parlay Builder.
+DO NOT migrate authentication yet.
+DO NOT migrate databases yet.
+DO NOT merge the two PostgreSQL databases.
+DO NOT perform the full six-phase migration.
+IMMEDIATE PRODUCT REQUIREMENT
+When a user opens the live Tennis Matrix AI application, the opening experience must be:
+Tennis Matrix AI / Prediction Engine
+The product navigation must expose:
+1. Tennis Matrix AI / Prediction Engine
+2. Parlay Builder
+3. Truth Engine
+Truth Engine must NOT be the default landing application.
+ARCHITECTURAL BOUNDARY
+Preserve the approved hybrid architecture:
+Truth Engine:
+- TanStack Start
+- Cloudflare Workers-compatible runtime
+- Supabase PostgreSQL
+Prediction Engine:
+- Existing Node/Express runtime
+- Existing TSE PostgreSQL (`helium/heliumdb`)
+Prediction Worker:
+- Separate Node process for long-running jobs
+Parlay Builder:
+- Served through the Prediction API initially
+Predictor frontend:
+- Existing Vite application initially
+- Mounted/proxied under a stable canonical product path
+DO NOT attempt a Node → Workers rewrite.
+FIRST TASK — FORENSIC ROUTE/NAVIGATION INVENTORY
+Before modifying anything, identify:
+1. Current TanStack root route.
+2. Current default route.
+3. Current Truth Engine route.
+4. Existing Predictor frontend location.
+5. Existing Prediction Engine routes/API endpoints.
+6. Existing Parlay Builder routes/API endpoints.
+7. Existing navigation/sidebar/tab components.
+8. Any redirects sending `/` to Truth Engine.
+9. Any feature flags hiding Prediction Engine.
+10. Any authentication/authorization condition hiding Predictor or Parlay Builder.
+11. Any deployment configuration determining which frontend is served at the root domain.
+12. Whether the Predictor frontend still builds and runs.
+13. Whether the Parlay Builder code still exists and is reachable.
+14. Whether the current live deployment is serving the canonical repo/branch/commit.
+CRITICAL:
+Do not assume the Prediction Engine or Parlay Builder were deleted.
+Determine whether they are:
+- present but hidden,
+- present but unrouted,
+- present but deployed separately,
+- redirected away,
+- disabled by a feature flag,
+- or actually absent.
+RESTORATION TARGET
+Restore the minimum application shell necessary to produce:
+Tennis Matrix AI
+├── Prediction Engine
+├── Parlay Builder
+└── Truth Engine
+The root/default route must open Prediction Engine.
+Truth Engine must remain fully functional and accessible through its own navigation item.
+Parlay Builder must remain fully functional and accessible through its own navigation item.
+PRESERVE EXISTING SYSTEMS
+Do not modify:
+- prediction algorithms
+- Surface Elo
+- Serve & Return
+- Recent Form
+- calibration
+- ensemble logic
+- Truth Engine audit logic
+- database schemas
+- payment logic
+- entitlement logic
+- provider ingestion
+- background workers
+unless a minimal routing/integration change is absolutely required.
+DATABASE RULE
+This task does NOT authorize any database migration.
+Keep:
+Truth Engine → Supabase
+Prediction/TSE → heliumdb
+Do not synchronize, merge, copy, or migrate tables.
+AUTH RULE
+This task does NOT authorize an authentication migration.
+Preserve:
+Truth Engine → Supabase Auth
+Prediction/Parlay → Clerk
+Do not translate browser tokens or replace either auth system.
+DEPLOYMENT RULE
+Do not claim the live app is fixed merely because local development works.
+Verify separately:
+A. source code
+B. local application
+C. built production artifact
+D. configured deployment target
+E. live application, if accessible
+If a Replit publish/deploy action is required after the code fix, explicitly state that.
+Do not perform that action unless authorized.
+GIT
+Make the smallest focused change possible.
+Create a dedicated branch.
+Commit the restoration.
+DO NOT PUSH.
+DO NOT MERGE.
+FINAL REPORT
+Return:
+1. ROOT CAUSE
+2. WHERE TENNIS MATRIX AI CURRENTLY EXISTS
+3. WHERE PREDICTION ENGINE CURRENTLY EXISTS
+4. WHERE PARLAY BUILDER CURRENTLY EXISTS
+5. WHY TRUTH ENGINE BECAME THE DEFAULT
+6. EXACT ROUTING CHANGE
+7. EXACT NAVIGATION CHANGE
+8. DEFAULT LANDING ROUTE
+9. LOCAL BUILD RESULT
+10. LOCAL BROWSER RESULT
+11. PRODUCTION BUILD RESULT
+12. LIVE DEPLOYMENT STATUS
+13. FILES CHANGED
+14. EXACT COMMIT SHA
+15. WHETHER REPLIT DEPLOYMENT ACTION IS STILL REQUIRED
+STOP after restoring the application shell.
+Do not begin the broader database/auth/runtime migration in this task.
+
+One thing I would not let Claude do
+
+Don’t let it interpret this architecture document as permission to immediately execute:
+
+“Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6.”
+
+That’s a migration plan, not the next coding task.
+
+Right now the priority is much simpler:
+
+Get Tennis Matrix AI back as the front door → make Prediction Engine, Parlay Builder, and Truth Engine accessible → verify each one → then tackle the larger architecture migration separately.
+
+And because the assessment explicitly says “No architecture implementation, database write, production change, migration-manifest edit, commit, merge, or push was performed,” this is still an architectural recommendation rather than evidence that those phases have already been implemented.
