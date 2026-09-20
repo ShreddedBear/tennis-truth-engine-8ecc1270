@@ -2,6 +2,8 @@
 // Run with: pnpm --filter @workspace/api-server run test:tennisData
 import test from "node:test";
 import assert from "node:assert/strict";
+import { db, historicalMatchesTable } from "@workspace/db";
+import { inArray } from "drizzle-orm";
 import { resolveScreenshotMatchup, isInitialEquivalentGroup } from "./screenshotMatchupResolver";
 import type { PlayerSummary, TennisDataProvider } from "./types";
 
@@ -80,6 +82,227 @@ function makeProvider(overrides: Partial<TennisDataProvider> = {}): TennisDataPr
     ...overrides,
   };
 }
+
+function makeHistoricalMatch(opts: {
+  externalId: string;
+  player1Id: string;
+  player1Name: string;
+  player2Id: string;
+  player2Name: string;
+}) {
+  const scheduledStartAt = new Date("2026-09-20T10:00:00Z");
+  return {
+    externalId: opts.externalId,
+    provider: "local-first-resolver-test",
+    tour: "ATP",
+    tournamentName: "Local First Resolver Test",
+    tournamentLevel: null,
+    surface: "Hard" as const,
+    round: null,
+    matchFormat: "BestOf3" as const,
+    player1Id: opts.player1Id,
+    player1Name: opts.player1Name,
+    player2Id: opts.player2Id,
+    player2Name: opts.player2Name,
+    winnerId: opts.player1Id,
+    score: "6-3 6-4",
+    retired: false,
+    walkover: false,
+    cancelled: false,
+    gameMarginsPlayer1: [{ player1Games: 6, player2Games: 3 }],
+    rawSource: {},
+    scheduledStartAt,
+    cutoffMinutes: 30,
+    cutoffAt: new Date(scheduledStartAt.getTime() - 30 * 60_000),
+  };
+}
+
+interface ProviderCallCounts {
+  searchPlayers: number;
+  getPlayer: number;
+  getUpcomingFixtures: number;
+  getUpcomingFixturesRange: number;
+}
+
+function makeCountingProvider(
+  searchResult?: (query: string) => PlayerSummary[],
+): { provider: TennisDataProvider; calls: ProviderCallCounts } {
+  const calls: ProviderCallCounts = {
+    searchPlayers: 0,
+    getPlayer: 0,
+    getUpcomingFixtures: 0,
+    getUpcomingFixturesRange: 0,
+  };
+  return {
+    calls,
+    provider: makeProvider({
+      searchPlayers: async (query) => {
+        calls.searchPlayers += 1;
+        return searchResult?.(query) ?? [];
+      },
+      getPlayer: async () => {
+        calls.getPlayer += 1;
+        return null;
+      },
+      getUpcomingFixtures: async () => {
+        calls.getUpcomingFixtures += 1;
+        return [];
+      },
+      getUpcomingFixturesRange: async () => {
+        calls.getUpcomingFixturesRange += 1;
+        return [];
+      },
+    }),
+  };
+}
+
+test("local-first identity resolver uses local exact/surname evidence before provider fallback", async (t) => {
+  const runId = `local-first-${Date.now()}`;
+  const cappedSurname = `Zzzcap${runId}`;
+  const uniqueSurname = `Zzzunique${runId}`;
+  const ambiguousSurname = `Zzzambiguous${runId}`;
+  const rows = [
+    makeHistoricalMatch({
+      externalId: `${runId}-darwin`,
+      player1Id: "canonical-sackmann-atp-210464",
+      player1Name: "Darwin Blanch",
+      player2Id: `${runId}-darwin-opp`,
+      player2Name: `Opponent Darwin ${runId}`,
+    }),
+    makeHistoricalMatch({
+      externalId: `${runId}-full`,
+      player1Id: `${runId}-full-id`,
+      player1Name: `Exact Fullname ${runId}`,
+      player2Id: `${runId}-full-opp`,
+      player2Name: `Opponent Fullname ${runId}`,
+    }),
+    makeHistoricalMatch({
+      externalId: `${runId}-unique`,
+      player1Id: `${runId}-unique-id`,
+      player1Name: `U. ${uniqueSurname}`,
+      player2Id: `${runId}-unique-opp`,
+      player2Name: `Opponent Unique ${runId}`,
+    }),
+    makeHistoricalMatch({
+      externalId: `${runId}-ambiguous-a`,
+      player1Id: `${runId}-ambiguous-alice`,
+      player1Name: `Alice ${ambiguousSurname}`,
+      player2Id: `${runId}-ambiguous-a-opp`,
+      player2Name: `Opponent Ambiguous A ${runId}`,
+    }),
+    makeHistoricalMatch({
+      externalId: `${runId}-ambiguous-b`,
+      player1Id: `${runId}-ambiguous-amy`,
+      player1Name: `Amy ${ambiguousSurname}`,
+      player2Id: `${runId}-ambiguous-b-opp`,
+      player2Name: `Opponent Ambiguous B ${runId}`,
+    }),
+    ...Array.from({ length: 30 }, (_, index) =>
+      makeHistoricalMatch({
+        externalId: `${runId}-cap-distractor-${index}`,
+        player1Id: `${runId}-cap-distractor-${index}`,
+        player1Name: `Distractor${index} ${cappedSurname}`,
+        player2Id: `${runId}-cap-distractor-opp-${index}`,
+        player2Name: `Opponent Cap ${index} ${runId}`,
+      }),
+    ),
+    // Stored in player2 so the initial 25-result pool is filled by player1 distractors first.
+    makeHistoricalMatch({
+      externalId: `${runId}-cap-target`,
+      player1Id: `${runId}-cap-target-opp`,
+      player1Name: `Opponent Cap Target ${runId}`,
+      player2Id: `${runId}-cap-target`,
+      player2Name: `C. ${cappedSurname}`,
+    }),
+  ];
+
+  const inserted = await db
+    .insert(historicalMatchesTable)
+    .values(rows)
+    .returning({ id: historicalMatchesTable.id });
+  t.after(async () => {
+    await db
+      .delete(historicalMatchesTable)
+      .where(inArray(historicalMatchesTable.id, inserted.map((row) => row.id)));
+  });
+
+  await t.test("Darwin Blanch resolves locally with zero provider calls", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{ player1Name: "Darwin Blanch", player2Name: null, eventName: null }],
+    });
+    assert.equal(result.player1.player?.id, "canonical-sackmann-atp-210464");
+    assert.deepEqual(calls, {
+      searchPlayers: 0,
+      getPlayer: 0,
+      getUpcomingFixtures: 0,
+      getUpcomingFixturesRange: 0,
+    });
+  });
+
+  await t.test("full-name exact local match retains the zero-network fast path", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{ player1Name: `Exact Fullname ${runId}`, player2Name: null, eventName: null }],
+    });
+    assert.equal(result.player1.player?.id, `${runId}-full-id`);
+    assert.equal(Object.values(calls).reduce((sum, count) => sum + count, 0), 0);
+  });
+
+  await t.test("unique abbreviated surname resolves locally without identity-provider calls", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{ player1Name: `Uma ${uniqueSurname}`, player2Name: null, eventName: null }],
+    });
+    assert.equal(result.player1.player?.id, `${runId}-unique-id`);
+    assert.equal(calls.searchPlayers, 0);
+    assert.equal(calls.getPlayer, 0);
+  });
+
+  await t.test("candidate beyond the initial 25-result cap resolves through local surname retry", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{ player1Name: `Casey ${cappedSurname}`, player2Name: null, eventName: null }],
+    });
+    assert.equal(result.player1.player?.id, `${runId}-cap-target`);
+    assert.equal(calls.searchPlayers, 0);
+    assert.equal(calls.getPlayer, 0);
+  });
+
+  await t.test("ambiguous local surname candidates are not silently selected", async () => {
+    const { provider, calls } = makeCountingProvider();
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{ player1Name: `A. ${ambiguousSurname}`, player2Name: null, eventName: null }],
+    });
+    assert.equal(result.player1.player, null);
+    assert.equal(result.player1.status, "ambiguous");
+    assert.ok(result.warnings.some((warning) => warning.includes("multiple matching players")));
+    assert.equal(calls.searchPlayers, 0);
+    assert.equal(calls.getPlayer, 0);
+  });
+
+  await t.test("only a genuinely unresolved name reaches the provider fallback", async () => {
+    const providerOnlyName = `Networkonlyperson${Date.now()}`;
+    const providerPlayer: PlayerSummary = {
+      id: `${runId}-provider-id`,
+      name: providerOnlyName,
+      countryCode: "US",
+      currentRank: 123,
+      tour: "ATP",
+    };
+    const { provider, calls } = makeCountingProvider((query) =>
+      query.toLowerCase().includes(providerOnlyName.toLowerCase())
+        ? [providerPlayer]
+        : [],
+    );
+    const result = await resolveScreenshotMatchup(provider, {
+      matchups: [{ player1Name: providerPlayer.name, player2Name: null, eventName: null }],
+    });
+    assert.equal(result.player1.player?.id, providerPlayer.id);
+    assert.equal(calls.searchPlayers, 1);
+    assert.equal(calls.getPlayer, 0);
+  });
+});
 
 test("resolveScreenshotMatchup falls back to a real name search for a Challenger event the name table never covers", async () => {
   const provider = makeProvider({

@@ -951,7 +951,7 @@ export async function resolvePlayerProfileByName(
 export async function searchKnownPlayers(
   provider: TennisDataProvider,
   query: string,
-  options?: { historicalOnly?: boolean },
+  options?: { historicalOnly?: boolean; resultLimit?: number },
 ): Promise<PlayerSummary[]> {
   // Nickname expansion: if the query is a well-known moniker (e.g. "Rafa"), also search by the
   // canonical full name ("Rafael Nadal") so the result set includes the actual player record,
@@ -1209,7 +1209,7 @@ export async function searchKnownPlayers(
   for (const player of [...filteredLiveResults, ...filteredHistorical, ...fallbackEntries]) {
     if (!deduped.has(player.id)) deduped.set(player.id, player);
   }
-  const results = Array.from(deduped.values()).slice(0, 25);
+  const results = Array.from(deduped.values()).slice(0, options?.resultLimit ?? 25);
   if (!options?.historicalOnly) {
     await enrichCountryCodes(provider, results);
   }

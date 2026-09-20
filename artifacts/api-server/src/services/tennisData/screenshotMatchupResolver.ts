@@ -796,7 +796,10 @@ async function gatherCandidates(
   const words = searchName.trim().split(/\s+/).filter((w) => w.length >= 2).reverse();
   const historicalAccumulated = new Map(historical.map((player) => [player.id, player]));
   for (const word of words) {
-    const wordResults = await searchKnownPlayers(provider, word, { historicalOnly: true });
+    const wordResults = await searchKnownPlayers(provider, word, {
+      historicalOnly: true,
+      resultLimit: 100,
+    });
     for (const candidate of wordResults) {
       if (!historicalAccumulated.has(candidate.id)) historicalAccumulated.set(candidate.id, candidate);
     }
@@ -1301,10 +1304,15 @@ export async function resolveScreenshotMatchup(
   const recognizedNames = raw.matchups.flatMap((entry) =>
     [entry.player1Name, entry.player2Name].filter((name): name is string => Boolean(name?.trim())),
   );
-  const [todayFixtures, historicalExactByName] = await Promise.all([
-    getTodayFixtures(provider),
-    searchHistoricalPlayersByExactNames(recognizedNames),
-  ]);
+  const historicalExactByName = await searchHistoricalPlayersByExactNames(recognizedNames);
+  const allRecognizedNamesHaveOneExactLocalMatch = recognizedNames.every(
+    (name) => historicalExactByName.get(name.trim().toLowerCase())?.length === 1,
+  );
+  // Fixture context is only needed for a name that local exact identity could not resolve
+  // uniquely. Skipping it for complete local hits keeps the identity path truly network-free.
+  const todayFixtures = allRecognizedNamesHaveOneExactLocalMatch
+    ? []
+    : await getTodayFixtures(provider);
 
   // Resolve each matchup concurrently
   const resolvedEntries = await Promise.all(
