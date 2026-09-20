@@ -1,0 +1,151 @@
+Correct. Do not evaluate Candidate D yet. The stop was appropriate.
+
+The important discovery is actually useful: the experiment exposed a reproducibility defect in the historical replay infrastructure, not a model result.
+
+What we know now
+
+Candidate D is reaching the intended active path:
+
+Surface Elo reliability → ensemble weight → final probability
+
+The single-match test proves the change is capable of affecting the final prediction:
+
+* normalized Surface Elo weight: 0.220 → 0.849
+* final probability: 52.2% → 51.5%
+
+So Candidate D is not another null-path experiment.
+
+But the full replay cannot be trusted yet because:
+
+[...matches].sort((a, b) => (a.date > b.date ? 1 : -1))
+
+doesn’t deterministically order equal-date matches.
+
+Since Elo is order-sensitive, identical database contents can produce different Elo histories depending on the input order.
+
+Therefore the next prompt should be ONLY the determinism fix
+
+Don’t have Claude rerun Candidate D yet. Don’t have it calculate any performance metrics. First make the replay deterministic.
+
+Send this:
+
+REPLAY INFRASTRUCTURE PREREQUISITE — FIX NON-DETERMINISTIC SAME-DATE ELO ORDERING
+Candidate D correctly reached the active Surface Elo ensemble-weight path, but the experiment was stopped because duplicate Candidate D runs were not mathematically identical.
+DO NOT evaluate Candidate D yet.
+DO NOT calculate Brier, log loss, ECE, accuracy, compression, or any model conclusion.
+DO NOT merge or push.
+CURRENT VERIFIED PROBLEM
+The historical Surface Elo replay uses:
+[...matches].sort((a, b) => (a.date > b.date ? 1 : -1))
+This comparator has no deterministic secondary key.
+When two matches have the same date, their relative order can depend on database/input ordering.
+Surface Elo updates are order-sensitive.
+Observed Candidate D duplicate differences:
+- 29 mathematically differing rows
+- 5 raw-probability differences
+- 3 final-probability differences
+- maximum final difference: 0.1 pp
+- 0 winner-selection differences
+This is a replay determinism defect.
+OBJECTIVE
+Make historical Elo replay ordering deterministic without changing the intended chronological ordering.
+The fix must apply a deterministic secondary key ONLY when dates are equal.
+FIRST — INSPECT
+Locate every historical replay/Elo path that sorts match history.
+Determine:
+1. Which comparator produced the observed nondeterminism.
+2. Whether there are other equivalent date-only comparators in the same replay path.
+3. What stable match identifier is available for deterministic tie-breaking.
+Do NOT assume an ID is appropriate until verifying that it is:
+- stable across runs
+- available for all relevant historical matches
+- independent of database row insertion order
+- not an outcome-dependent identifier
+PREFERRED ORDERING
+Primary:
+match date ascending
+Secondary:
+a stable canonical match identifier / deterministic canonical match key
+The ordering must be documented explicitly.
+If there is no suitable single ID, construct a deterministic composite key from immutable match identity fields.
+Do NOT use:
+- database insertion order
+- array position
+- random values
+- current timestamp
+- unstable provider row order
+- outcome-dependent ordering
+IMPORTANT
+Do not change:
+- Elo formulas
+- Surface Elo ratings
+- ESS calculations
+- reliability
+- ensemble weighting
+- calibration
+- prediction probabilities
+- player orientation
+- match population
+- cutoff
+This task is ONLY about deterministic historical ordering.
+TEST REQUIREMENTS
+Add focused tests proving:
+1. Two same-date matches always sort in the same order.
+2. Input permutation does not change the resulting sorted order.
+3. Different database/input row ordering produces identical Elo replay order.
+4. Different runs over the same population produce identical ordered match sequences.
+5. Chronological ordering remains correct across different dates.
+If the repository already has replay determinism tests, extend them minimally rather than creating redundant infrastructure.
+VERIFY THE ACTUAL FAILURE
+Before declaring success, deliberately feed the same same-date records in multiple input orders.
+Prove that the resulting ordered sequence is identical.
+Then run the Elo update/replay using those permutations and prove that the resulting Elo state is identical.
+FULL REPLAY IS NOT REQUIRED YET.
+REQUIRED VERIFICATION
+After the deterministic ordering fix:
+A. Run the targeted tests.
+B. Run the historical ordering/determinism check at scale using the protected 1,644-match population.
+C. Run the replay twice using the UNCHANGED Candidate B code.
+Candidate B must produce mathematically identical outputs.
+Do NOT run Candidate D yet unless the Candidate B determinism check passes.
+If Candidate B duplicate runs still differ:
+STOP.
+Investigate all remaining nondeterminism before touching Candidate D.
+If Candidate B is deterministic:
+STOP after proving that.
+Do NOT automatically proceed to Candidate D in the same task.
+WHY
+We need to establish that the replay harness itself is deterministic before measuring a model ablation.
+GIT
+Create one focused commit containing only:
+- deterministic ordering fix
+- targeted tests
+- necessary replay-determinism verification
+Do NOT push.
+Do NOT merge.
+Do NOT modify canonical production behavior beyond what is necessary for deterministic historical replay.
+FINAL REPORT
+Return exactly:
+1. ROOT CAUSE
+2. DETERMINISTIC KEY SELECTED
+3. EXACT CODE CHANGE
+4. TESTS ADDED/UPDATED
+5. SAME-DATE PERMUTATION TEST
+6. ELO REPLAY DETERMINISM TEST
+7. 1,644-MATCH DETERMINISM CHECK
+8. CANDIDATE B DUPLICATE REPLAY RESULT
+9. FILES CHANGED
+10. EXACT COMMIT SHA
+11. GIT STATUS
+12. WHETHER CANDIDATE D IS NOW READY FOR A FRESH CONTROLLED REPLAY
+Do not provide any Candidate D performance conclusion.
+Do not report the previous Candidate D metrics as results.
+
+Then we have a clean sequence
+
+Step 1: Fix deterministic ordering.
+Step 2: Prove Candidate B × 2 = identical.
+Step 3: Run Candidate D × 2.
+Step 4: Only then calculate B vs D.
+
+That’s important because otherwise a tiny change like 0.1 pp could be coming from replay-order nondeterminism rather than Candidate D itself.
