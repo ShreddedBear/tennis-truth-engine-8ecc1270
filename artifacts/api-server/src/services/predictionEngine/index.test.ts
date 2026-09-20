@@ -105,6 +105,59 @@ test("historical Availability is invariant to wall-clock changes when the simula
   assert.equal(first.engine.availability.player1.confirmedAvailabilityConcernType, "MidMatchRetirement");
 });
 
+test("historical Availability suppresses current web research while live predictions retain it", async () => {
+  const webResearch = {
+    selected: {
+      playerName: "Player One",
+      injuryStatus: "injured" as const,
+      injuryDetail: "Current injury report that did not exist at the replay cutoff",
+      fatigueLevel: "tired" as const,
+      riskLevel: 100,
+      newsItems: ["Current report"],
+      confidence: 1,
+    },
+    opponent: {
+      playerName: "Player Two",
+      injuryStatus: "fit" as const,
+      injuryDetail: null,
+      fatigueLevel: "fresh" as const,
+      riskLevel: 0,
+      newsItems: [],
+      confidence: 1,
+    },
+    confidence: 1,
+    researchedAt: new Date("2026-09-20T00:00:00.000Z"),
+  };
+
+  const replayWithoutResearch = await runPredictionEngine(baseInput({
+    asOfDate: new Date("2026-06-15T12:00:00.000Z"),
+    webResearch: null,
+  }));
+  const replayWithCurrentResearch = await runPredictionEngine(baseInput({
+    asOfDate: new Date("2026-06-15T12:00:00.000Z"),
+    webResearch,
+  }));
+  const liveWithCurrentResearch = await runPredictionEngine(baseInput({
+    asOfDate: undefined,
+    webResearch,
+  }));
+
+  assert.deepEqual(
+    replayWithCurrentResearch.engine.availability,
+    replayWithoutResearch.engine.availability,
+    "current web research must have no effect on a historical replay with an explicit cutoff",
+  );
+  assert.equal(
+    replayWithCurrentResearch.engine.availability.warnings.some((warning) => warning.includes("Real-time injury research")),
+    false,
+  );
+  assert.equal(
+    liveWithCurrentResearch.engine.availability.warnings.some((warning) => warning.includes("Real-time injury research")),
+    true,
+    "live predictions must retain current web-research behavior",
+  );
+});
+
 test("live Availability still defaults to the current wall clock when no asOfDate is supplied", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-06-15T12:00:00.000Z") });
 

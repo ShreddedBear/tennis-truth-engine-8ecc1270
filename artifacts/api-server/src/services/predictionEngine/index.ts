@@ -387,7 +387,17 @@ export async function runPredictionEngine(input: PredictionEngineInput): Promise
   const recentForm = computeRecentFormModule(input.player1Matches, input.player2Matches, input.surface, player1OpponentElo, player2OpponentElo);
   const fatigue = computeFatigueModule(input.player1Matches, input.player2Matches, input.asOfDate);
   const matchLoadRecovery = computeMatchLoadRecoveryModule(input.player1Matches, input.player2Matches, input.asOfDate);
-  const availability = computeAvailabilityModule(input.player1Matches, input.player2Matches, input.tournamentName ?? null, input.asOfDate ?? new Date(), input.webResearch ?? null);
+  // Real-time web research describes the player's CURRENT condition. It is valid only for live
+  // predictions (no explicit asOfDate). Historical replay must use evidence available at its
+  // simulated cutoff, so suppress current research defensively even if a future caller
+  // accidentally supplies both fields.
+  const availability = computeAvailabilityModule(
+    input.player1Matches,
+    input.player2Matches,
+    input.tournamentName ?? null,
+    input.asOfDate ?? new Date(),
+    input.asOfDate === undefined ? (input.webResearch ?? null) : null,
+  );
   const styleMatchup = computeStyleMatchupModule(input.player1Matches, input.player2Matches);
   const headToHead = computeHeadToHeadModule(input.headToHead, input.surface);
 
