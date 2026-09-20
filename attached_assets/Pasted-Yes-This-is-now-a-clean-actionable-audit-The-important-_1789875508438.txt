@@ -1,0 +1,333 @@
+Yes. This is now a clean, actionable audit. The important thing is that the ranking issue is resolved, so we’re down to three real gates, not an unknown provider problem.
+
+Where we stand
+
+Live Tennis API Pro can become your primary provider.
+
+It already covers enough that you can stop paying for MatchStat/API-Tennis without losing the ability to keep the app running. Their code should remain temporarily as dormant fallback/reference code, but you do not need to reactivate their subscriptions.
+
+The remaining blockers are:
+
+1. Serve/return historical parity
+2. Point-in-time availability handling
+3. Storage/licensing permission
+
+There are also two implementation-quality checks:
+
+* tournament-level normalization
+* strict player identity reconciliation
+
+Those aren’t reasons to keep paying the old providers; they’re migration validation requirements.
+
+⸻
+
+The most important one: serve/return
+
+This is where I would be very careful.
+
+Your existing 1,644-match experiment was evaluated using the established Prediction Engine data path.
+
+Live Tennis API Pro gives you:
+
+Match result
+Surface
+Score
+PBP
+Server
+Point states
+
+From PBP we can potentially reconstruct:
+
+service points won
+return points won
+service points played
+return points played
+
+But we cannot automatically assume that:
+
+PBP-derived service points won
+=
+provider-reported Service Points Won
+
+And we definitely cannot assume PBP can recreate:
+
+* first-serve percentage
+* first-serve points won
+* aces
+* double faults
+* serve speed
+* every break-point statistic
+
+So before the temporal holdout, we need to answer a very specific question:
+
+How much of the original 1,644 population’s Serve & Return input actually came from direct statistics versus score/PBP-derived proxies?
+
+That’s the key comparison.
+
+If, for example, the original population already frequently used the same proxy path, then Live Tennis API Pro could be much closer to parity than the table initially makes it look.
+
+If the original population overwhelmingly used direct statistics, then we need to account for that before comparing Candidate B/D.
+
+⸻
+
+I would NOT run the holdout yet
+
+We’re close, but running it now would create a methodological problem.
+
+Suppose:
+
+Original 1,644:
+mostly direct serve/return statistics
+New holdout:
+mostly PBP-derived serve/return statistics
+
+Then we wouldn’t know whether a difference between B and D came from Candidate D or from a data-regime change.
+
+That would contaminate exactly the experiment we’re trying to make clean.
+
+So Candidate D stays frozen.
+
+⸻
+
+The next Claude task should be narrower
+
+I would send Claude this:
+
+TASK: LIVE TENNIS API HISTORICAL PARITY GATE — SERVE/RETURN + AVAILABILITY
+Candidate D remains FROZEN.
+Do NOT:
+- run Candidate B
+- run Candidate D
+- tune anything
+- modify Candidate D
+- modify calibration
+- modify ensemble weights
+- ingest historical data
+- backfill the database
+- modify production
+- delete MatchStat/API-Tennis
+- upgrade Live Tennis API
+- make any subscription changes
+This is a READ-ONLY PARITY AUDIT.
+We have established that Live Tennis API Pro can provide:
+- completed historical matches
+- ATP/WTA/ITF coverage
+- PBP
+- H2H
+- historical ranking tables by effective date
+- player profiles
+- tournament/surface/round metadata
+The remaining methodological concern is whether Live Tennis API Pro can reproduce the SAME DATA REGIME used by the original 1,644-match Candidate B/D experiment.
+==================================================
+1. ORIGINAL 1,644 SERVE/RETURN DATA REGIME
+==================================================
+Inspect the exact executable historical replay path used for the authoritative 1,644 population.
+For every Serve & Return input actually consumed by the Prediction Engine, determine whether the value originated from:
+A. direct match statistics
+B. PBP-derived statistics
+C. score/game-derived proxy
+D. existing database aggregate
+E. fallback/default
+F. unavailable
+Do NOT infer this from documentation.
+Trace the actual code and persisted data.
+Produce counts and percentages across the original 1,644 rows.
+For every relevant field report:
+- field name
+- source path
+- direct/derived/proxy classification
+- number of rows using it
+- percentage of population
+- number of gradeable rows using it
+==================================================
+2. LIVE TENNIS API PRO RECONSTRUCTION
+==================================================
+Using READ-ONLY API requests only, determine which of those EXACT fields can be reproduced from Live Tennis API Pro.
+Classify each:
+SUPPORTED_DIRECTLY
+SUPPORTED_BY_PBP
+SUPPORTED_BY_SCORE_PROXY
+AVAILABLE_FROM_EXISTING_DATABASE
+UNAVAILABLE
+Do not call a PBP-derived field equivalent to a direct provider statistic unless the semantics are proven identical.
+For every derivable field document the derivation and any limitations.
+==================================================
+3. POPULATION-LEVEL PARITY
+==================================================
+Determine what percentage of the original Serve & Return input regime could be reproduced under Live Tennis API Pro.
+Calculate:
+- exact direct-stat parity
+- PBP-equivalent parity
+- score-proxy parity
+- unavailable percentage
+Do NOT run model predictions.
+Do NOT calculate Candidate B/D performance.
+The goal is only to establish data-regime compatibility.
+==================================================
+4. POST-JUNE-2 SAMPLE
+==================================================
+Using READ-ONLY Live Tennis API requests, inspect the potential post-June-2 historical population.
+DO NOT finalize or declare the holdout yet.
+Measure:
+- ATP
+- WTA
+- Challenger
+- ITF if relevant
+For each:
+- match count
+- PBP availability
+- point-complete count
+- direct-stat availability
+- score-proxy availability
+- outcome completeness
+- surface availability
+- player-ID availability
+- tournament-ID availability
+- round availability
+- scheduled timestamp availability
+Do not choose a favorable period.
+Do not inspect B/D predictions.
+==================================================
+5. AVAILABILITY CUT-OFF AUDIT
+==================================================
+Trace the existing Availability module.
+Determine exactly which fields it consumes.
+For each field determine:
+- whether Live Tennis API can provide it
+- whether it is point-in-time safe
+- whether current-date information can leak into historical replay
+- whether the existing historical replay already has this issue
+Do not fix it yet.
+If the current implementation has a historical cutoff problem, document the exact code path and required remediation.
+==================================================
+6. TOURNAMENT LEVEL
+==================================================
+Determine the exact canonical tournament-level taxonomy currently used by the Prediction Engine.
+Map Live Tennis API's:
+- tour
+- tournament
+- event type
+- level
+- round
+to the existing taxonomy.
+Report every ambiguous mapping.
+Do not silently guess.
+==================================================
+7. PLAYER IDENTITY
+==================================================
+Test Live Tennis API player IDs against the canonical player identity system.
+Measure:
+- exact ID matches
+- deterministic name matches
+- ambiguous names
+- unmapped players
+No guessing.
+No database writes.
+==================================================
+8. LICENSING CHECKLIST
+==================================================
+Do NOT accept the terms as sufficient.
+Produce the exact questions that require written confirmation from Live Tennis API concerning:
+- persistent raw historical storage
+- PBP retention
+- private database backups
+- internal backtesting
+- temporal holdout datasets
+- model validation
+- derived features
+- indefinite retention of derived metrics
+- commercial prediction use
+- attribution
+- cancellation of subscription
+Do not contact the provider unless explicitly authorized.
+==================================================
+9. FINAL GATE
+Return one of:
+READY_FOR_HOLDOUT
+or
+BLOCKED_PENDING_PARITY
+or
+BLOCKED_PENDING_LICENSING
+or
+BLOCKED_PENDING_BOTH
+READY_FOR_HOLDOUT is permitted ONLY if:
+1. Serve/Return data regime is sufficiently compatible with the original evaluation.
+2. Availability can be reconstructed point-in-time safely.
+3. Tournament-level mapping is deterministic.
+4. Player identity mapping is deterministic.
+5. Post-June data is sufficiently complete.
+6. Licensing permits the required historical evaluation/storage workflow.
+If any condition fails, remain blocked.
+==================================================
+10. REQUIRED ARTIFACTS
+Create:
+docs/data-source-discovery/live-tennis-historical-parity-20260920.md
+docs/data-source-discovery/live-tennis-serve-return-parity-20260920.json
+docs/data-source-discovery/live-tennis-availability-audit-20260920.json
+docs/data-source-discovery/live-tennis-identity-level-audit-20260920.json
+docs/data-source-discovery/live-tennis-holdout-readiness-20260920.json
+No production code changes.
+No database writes.
+No Candidate B/D execution.
+No push.
+No merge.
+No deployment.
+==================================================
+FINAL REPORT
+==================================================
+The final report must answer:
+1. How much of the original 1,644 Serve & Return data regime was direct statistics?
+2. How much was already PBP/score-derived?
+3. How much can Live Tennis API Pro reproduce?
+4. Is the post-June population sufficiently comparable?
+5. Is Availability point-in-time safe?
+6. Is tournament mapping deterministic?
+7. Is player mapping deterministic?
+8. What exact licensing confirmation remains?
+9. Is the temporal holdout now methodologically ready?
+Do not recommend model changes.
+Do not tune Candidate D.
+Do not run the holdout.
+
+Then we’ll have a very clean decision tree
+
+             Live Tennis API Pro
+                     │
+                     ▼
+          Historical parity audit
+                     │
+        ┌────────────┴────────────┐
+        │                         │
+      PASS                      FAIL
+        │                         │
+        ▼                         ▼
+Licensing confirmation       Remediate/retain
+        │
+        ▼
+Predeclare post-6/2 holdout
+        │
+        ▼
+Freeze population + fingerprint
+        │
+        ▼
+B1 = B2
+D1 = D2
+        │
+        ▼
+Compare B vs D
+
+And only after that do we even discuss a partial-strength ESS experiment.
+
+One more important point
+
+Your audit establishes something useful beyond the immediate migration:
+
+Live Tennis API does not appear to require the Prediction Engine itself to change.
+
+The likely work is concentrated in the provider/normalization layer, plus making sure historical provenance distinguishes:
+
+direct statistic vs PBP-derived statistic vs score proxy.
+
+That’s exactly the kind of boundary we want before returning to the 50% investigation.
+
+So I would keep MatchStat/API-Tennis dormant, not pay for them, keep their code temporarily, finish this parity gate, and then retire the code once Live Tennis API passes.
