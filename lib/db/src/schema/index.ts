@@ -30,3 +30,4 @@ export * from "./savedCards";
 export * from "./canonicalIdentity";
 export * from "./truthEngine";
 export * from "./marketSnapshots";
+export * from "./builderVersioning";

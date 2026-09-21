@@ -36,6 +36,7 @@ async function main() {
     "sql/immutability-trigger.sql",
     "sql/predictions-forward-compat.sql",
     "sql/evaluation-holdout-freeze.sql",
+    "sql/builder-version-manifest-immutable.sql",
   ];
 
   // Files whose statements must run one-by-one outside any transaction block.

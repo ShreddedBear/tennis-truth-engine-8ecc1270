@@ -34,7 +34,7 @@ import {
   computeServeReturnModule,
 } from "../shared/predictionCalculations.js";
 import { applyCalibrationOriented } from "../evaluation/calibration.js";
-import { getActiveCalibration } from "../evaluation/calibrationCache.js";
+import { resolveBuilderCalibrationForScoring, type BuilderLineageStatus } from "./builderVersioning.js";
 
 export const BUILDER_VERSION = "1.0.0";
 
@@ -153,6 +153,16 @@ export interface BuilderResult {
   factorScores: FactorScore[];
   dataSourceDiagnostics: DataSourceDiagnostics;
   builderVersion: string;
+  /**
+   * Point-in-time lineage classification for the calibration used in this score (see
+   * builderVersioning.ts). Always VALID_HISTORICAL_LINEAGE in live mode (asOfDate unset) --
+   * only meaningfully varies in backfill/historical mode, where it records exactly why the
+   * calibration mapping was or wasn't applied instead of that being silently indistinguishable
+   * from "raw score, no calibration ever configured".
+   */
+  builderLineageStatus: "VALID_HISTORICAL_LINEAGE" | "NO_BUILDER_DECISION" | "CALIBRATION_UNAVAILABLE" | "ALGORITHM_VERSION_UNAVAILABLE" | "CONFLICTING_LINEAGE" | "PIT_VIOLATION";
+  /** Human-readable explanation backing builderLineageStatus. */
+  builderLineageReason: string;
   /**
    * "pre-match" — match has not yet started; market odds reflect handicapping evidence.
    * "live"      — match is in progress (scheduledStart is in the past); market odds were
@@ -1293,6 +1303,8 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       factorScores: [],
       dataSourceDiagnostics,
       builderVersion: BUILDER_VERSION,
+      builderLineageStatus: "NO_BUILDER_DECISION",
+      builderLineageReason: "No player data was available at all (provider outage or unresolved player); scoring never reached the calibration step, so no lineage lookup was attempted.",
       matchStatus: matchIsLive ? "live" : "pre-match",
       builderPickedPlayerId: selectedPlayerId,
       builderCalibratedProbability: 0,
@@ -2012,17 +2024,30 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   // Apply the same calibration function the Prediction Engine uses to convert the
   // raw validation score (a weighted average) into a calibrated probability.
   // If no active calibration model exists, fall back to the raw score.
+  //
+  // Live mode (asOfDate == null): resolveBuilderCalibrationForScoring delegates straight to
+  // getActiveCalibration(), so behavior here is unchanged from before this lineage layer existed.
+  // Backfill mode (asOfDate set): resolves the calibration that was GENUINELY active as of
+  // asOfDate rather than today's — see builderVersioning.ts. When lineage isn't
+  // VALID_HISTORICAL_LINEAGE, mapping is null and builderLineageStatus/Reason record exactly why,
+  // instead of the raw-score fallback looking identical to "calibration was never configured".
   const rawValidationScore = validationScore;
   let builderCalibratedProbability = validationScore; // fallback: raw score
+  let builderLineageStatus: BuilderLineageStatus = "VALID_HISTORICAL_LINEAGE";
+  let builderLineageReason = "Live scoring always uses the currently active calibration; PIT-correctness is trivial for 'now'.";
   try {
-    const { mapping } = await getActiveCalibration();
+    const { mapping, lineageStatus, lineageReason } = await resolveBuilderCalibrationForScoring(asOfDate);
+    builderLineageStatus = lineageStatus;
+    builderLineageReason = lineageReason;
     if (mapping && mapping.length > 0) {
       const knots = mapping as CalibrationKnot[];
       const calibrated01 = applyCalibrationOriented(knots, validationScore / 100);
       builderCalibratedProbability = Math.round(calibrated01 * 100);
     }
   } catch {
-    // Calibration cache unavailable — raw score is the fallback
+    // Calibration lookup unavailable — raw score is the fallback
+    builderLineageStatus = "CALIBRATION_UNAVAILABLE";
+    builderLineageReason = "Calibration lookup threw; raw score used as fallback.";
   }
 
   // Independent winner selection: the engine picks the player it favors on its own,
@@ -2051,6 +2076,8 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     factorScores: factors,
     dataSourceDiagnostics,
     builderVersion: BUILDER_VERSION,
+    builderLineageStatus,
+    builderLineageReason,
     matchStatus: matchIsLive ? "live" : "pre-match",
     builderPickedPlayerId,
     builderCalibratedProbability,
