@@ -1,0 +1,46 @@
+{
+  "auditDate": "2026-09-21",
+  "mainShaAtWriting": "64831cac96daf3831e447e02f3d79b50989914f8",
+  "mergedCommits": ["90fe3b11d0e3d1977344889b0e6f4744194ec137", "1203f7041501eef7aae6fd4c5c3617db158cf176", "64831cac96daf3831e447e02f3d79b50989914f8"],
+  "builderLineage": {
+    "status": "NO_BUILDER_DECISION_FOR_TARGET_COHORT",
+    "reason": "Builder algorithm and calibration model both postdate the 2026-04-22..2026-06-02 cohort by 3-4.5 months; calibration_models had 2 rows (both fitted 2026-09-16), parlay_builder_settings had 0 rows ever, parlay_leg_outcomes spanned only 2026-09-14..2026-09-20.",
+    "liveAuditRunId": "cohort-2575-2026-09-21",
+    "liveAuditMatchesEvaluated": 5524,
+    "liveAuditResult": { "NO_BUILDER_DECISION": 5524, "VALID_HISTORICAL_LINEAGE": 0, "CALIBRATION_UNAVAILABLE": 0, "ALGORITHM_VERSION_UNAVAILABLE": 0, "CONFLICTING_LINEAGE": 0, "PIT_VIOLATION": 0 },
+    "populationReconciliationNote": "5,524 (historical_matches query by date) has not been reconciled against the Prediction Engine's own 2,575-row population; conclusion is unaffected either way.",
+    "unresolvedRisk": "Current Builder weights are attributed to a 2026-08-11 n=39,000-leg ablation whose source rows no longer exist in parlay_leg_outcomes (958 rows, none older than 2026-09-14); overlap with the target cohort can be neither confirmed nor ruled out."
+  },
+  "truthEngineLineage": {
+    "status": "NOT_RECONSTRUCTABLE_FOR_TARGET_COHORT",
+    "reason": "Independently audited: hard_delete_clear_slate migration wiped evidence 2026-09-05; evidence-warehouse lockdown migrations landed 2026-09-10/11; no rule_version/evidence_version schema concept exists at all.",
+    "migrationHistoryStart": "2026-08-21"
+  },
+  "phase5cAuthorityArtifacts": {
+    "status": "NOT_FOUND",
+    "searched": [
+      "phase5_preregistration_v2.json",
+      "phase5c_final_run_prompt_rev_b.md",
+      "signoff hash 270870c0aab5199ebfaa32b179e65322399274484eb4d0fca858d84883cc6479",
+      "addendum hash 811e0e5ee00a3d4f22afb5d5944879d2bb75629be0d2d7275b663573ee282062",
+      "approval receipt hash 1988f9a826b4ceeea7b0b6740040a98631b935b398785d82d588dde77f208d2a"
+    ],
+    "searchedIn": [
+      "full local git history, all branches/commits, both repos (git log --all -S, --diff-filter=A --name-only)",
+      "GitHub code search, default branch, both repos",
+      "GitHub commit-message search, default branch, both repos",
+      "all tags, both repos (none exist)",
+      "all releases, both repos (none exist)",
+      "all pull requests all states, both repos (89 + 8, reviewed by title)",
+      "live Replit workspace filesystem (prior to Replit going offline), including attached_assets/ and .migration-backup/"
+    ],
+    "result": "zero matches anywhere accessible",
+    "recreatedFromPromptOrMemory": false,
+    "unblockRequirement": "The exact bytes of phase5_preregistration_v2.json and phase5c_final_run_prompt_rev_b.md, or a verifiable pointer to their actual storage location, sufficient to confirm their SHA-256 hashes match the values named in the task specification."
+  },
+  "preExistingUnrelatedIssue": {
+    "description": "drizzle-kit push proposes deleting populated columns on historical_matches (530097 rows), predictions (2575 rows), backtest_runs, backtest_predictions (5150 rows) due to schema drift unrelated to Builder versioning.",
+    "resolved": false,
+    "note": "Not touched; flagged for separate follow-up. pnpm --filter db run push should not be run until reconciled."
+  }
+}
