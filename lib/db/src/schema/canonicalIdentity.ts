@@ -1,4 +1,5 @@
-import { boolean, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgTable, primaryKey, real, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -139,6 +140,9 @@ export const evaluationHoldoutPopulationsTable = pgTable("evaluation_holdout_pop
     .on(table.eligibleFingerprint),
   uniqueIndex("evaluation_holdout_populations_window_idx")
     .on(table.windowFrom, table.windowTo),
+  // Verified directly against the live database's own catalog:
+  // evaluation_holdout_populations_eligible_count_check CHECK (eligible_count = 9).
+  check("evaluation_holdout_populations_eligible_count_check", sql`${table.eligibleCount} = 9`),
 ]);
 
 export const evaluationHoldoutMembersTable = pgTable("evaluation_holdout_members", {
@@ -149,8 +153,10 @@ export const evaluationHoldoutMembersTable = pgTable("evaluation_holdout_members
   admission: jsonb("admission").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  uniqueIndex("evaluation_holdout_members_population_fixture_idx")
-    .on(table.populationId, table.fixtureId),
+  // Composite primary key (verified directly against the live database's own
+  // catalog: evaluation_holdout_members_pk PRIMARY KEY (population_id, fixture_id))
+  // -- not merely a unique index, correcting an earlier port of this table.
+  primaryKey({ columns: [table.populationId, table.fixtureId] }),
 ]);
 
 export const playerResolutionReviewsTable = pgTable("player_resolution_reviews", {

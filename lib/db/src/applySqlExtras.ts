@@ -35,6 +35,7 @@ async function main() {
   const regularFiles = [
     "sql/immutability-trigger.sql",
     "sql/predictions-forward-compat.sql",
+    "sql/evaluation-holdout-freeze.sql",
   ];
 
   // Files whose statements must run one-by-one outside any transaction block.
