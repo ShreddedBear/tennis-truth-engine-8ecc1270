@@ -120,10 +120,28 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-  const publishableKey = publishableKeyFromHost(
-    typeof window === "undefined" ? "" : window.location.hostname,
-    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-  );
+  // publishableKeyFromHost() throws "Host must not be empty" during SSR when
+  // VITE_CLERK_PUBLISHABLE_KEY isn't set (or isn't a recognized dev key) --
+  // there's no window/hostname on the server, and Clerk explicitly refuses
+  // to derive a key from an empty host. That crash previously took down the
+  // ENTIRE app (every server-rendered route 500s) whenever the key was
+  // missing, rather than degrading to a clear "auth not configured" state.
+  // The real fix is setting a valid VITE_CLERK_PUBLISHABLE_KEY; this guard
+  // just stops a missing key from being an app-wide outage.
+  let publishableKey = "";
+  try {
+    publishableKey = publishableKeyFromHost(
+      typeof window === "undefined" ? "" : window.location.hostname,
+      import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+    );
+  } catch (error) {
+    if (typeof window === "undefined") {
+      console.error(
+        "[Clerk] No usable publishable key -- set VITE_CLERK_PUBLISHABLE_KEY. Rendering without auth for this request.",
+        error,
+      );
+    }
+  }
 
   return (
     <ClerkProvider
