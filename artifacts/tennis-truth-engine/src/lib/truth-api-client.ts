@@ -161,6 +161,13 @@ export async function uploadTruthSummary(body: {
   filename: string;
   rawText: string;
   pageCount: number;
+  /** Which page of the source file this specific matchup came from. */
+  pageNumber?: number | null;
+  /** File-level extraction provenance -- the same for every matchup ingested from one file. */
+  pagesProcessed?: number;
+  pagesVision?: number;
+  pagesFailed?: number;
+  extractionStatus?: "COMPLETE" | "PARTIAL" | "FAILED";
   match: {
     canonicalKey: string;
     player1Name: string;
