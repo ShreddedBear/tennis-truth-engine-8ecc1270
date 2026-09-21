@@ -25,6 +25,11 @@ export interface RawMatchupEntry {
   player1Name: string | null;
   player2Name: string | null;
   eventName: string | null;
+  surface?: string | null;
+  eventLevel?: string | null;
+  bestOf?: string | null;
+  date?: string | null;
+  time?: string | null;
 }
 
 export interface RawScreenshotRecognition {
@@ -52,6 +57,11 @@ For each matchup, extract:
 - player1Name: first tennis player name in that pair (topmost or leftmost if side-by-side)
 - player2Name: second tennis player name in that pair
 - eventName: tournament or event name for that matchup (null if not visible; use the same event name for all matchups if they share one card/image)
+- surface: the match surface exactly as shown, such as "Hard", "Clay", "Grass", or "Indoor Hard" (null if not visible)
+- eventLevel: the event level exactly as shown, such as "ATP250", "WTA500", "ATP Challenger", "Challenger 75", "ITF", or "Grand Slam" (null if not visible)
+- bestOf: the match format exactly as shown, such as "3", "5", "Best of 3", or "Best of 5" (null if not visible)
+- date: the match date exactly as shown (null if not visible or explicitly says not provided)
+- time: the match time exactly as shown (null if not visible or explicitly says not provided)
 
 PLAYER NAME RULES — a player name is a PERSON's name (first name, last name, or both). It is NOT any of the following:
 - Betting market type labels: MONEYLINE, SPREAD, TOTAL, OVER, UNDER, PARLAY, COMBO, TEASER, PROP, FUTURES, HANDICAP, LIVE, SGP, SAME GAME PARLAY, or any phrase containing these words
@@ -66,7 +76,7 @@ If a word that IS normally a sport name (e.g. "TENNIS") appears as part of a pla
 
 General rules:
 - Ignore betting odds, probability percentages, prices, team logos, country flags, decorative elements, and sponsored content.
-- Ignore match times, court numbers, seed numbers in brackets (e.g. "(1)"), rankings, scores, and score-related numbers.
+- Ignore court numbers, seed numbers in brackets (e.g. "(1)"), rankings, scores, and score-related numbers. Do not discard date/time columns that belong to a matchup row.
 - If the image shows a full bracket or schedule, return EACH individual matchup row/card as a separate entry.
 - For long scroll-images with multiple match cards stacked vertically, return each card as a separate entry.
 - Player names may appear on separate lines (e.g. one player above the other, separated by a divider, "vs", "v", or a dash). Treat consecutive player names as a pair.
@@ -74,12 +84,14 @@ General rules:
 - If both players in a matchup are unclear or unreadable, omit that matchup from the array.
 - If the image shows a sportsbook parlay slip with multiple sports, only extract the TENNIS matchup rows — identify them by the presence of actual player surnames, not by sport labels.
 - If the image is unrelated to tennis or contains no recognisable player names, return an empty array.
+- Metadata may be inherited from a clearly shared event header or repeated row prefix, but never infer it from general tennis knowledge.
+- Treat "not provided", "unknown", blank cells, and unreadable values as null.
 - Prefer null over guessing for any field you cannot confidently read.
 - ORIENTATION: Some screenshots contain text that is rotated, upside-down (180°), or mirrored/backwards. Mentally correct for any rotation or mirroring and extract the actual player name as it would normally read.
 - NAME FORMATS: Player names appear in many formats — full name ("Rafael Nadal"), last name only ("Nadal"), abbreviated ("R. Nadal"), initials + surname. Return the name exactly as it appears; the system will resolve abbreviations.
 
 Respond with ONLY a strict JSON array, no markdown, no other text:
-[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null}, ...]`;
+[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null, "surface": string|null, "eventLevel": string|null, "bestOf": string|null, "date": string|null, "time": string|null}, ...]`;
 
 /**
  * Fallback prompt used when the primary attempt returns zero matchups.
@@ -96,15 +108,20 @@ Look at the image carefully. Look for:
 
 For each pair of players you find, return:
 - player1Name: the first/top/left player name exactly as written
-- player2Name: the second/bottom/right player name exactly as written  
+- player2Name: the second/bottom/right player name exactly as written
 - eventName: any tournament/event/league name shown, or null
+- surface: visible surface for that row/event, or null
+- eventLevel: visible level for that row/event, or null
+- bestOf: visible best-of value for that row/event, or null
+- date: visible match date, or null
+- time: visible match time, or null
 
 Be INCLUSIVE not exclusive. Return every pair of human names that could plausibly be tennis players.
 If you see a name next to another name with odds/numbers/decorations around them, that pair is a matchup.
 Only return an empty array if the image contains zero player names whatsoever.
 
 Respond with ONLY a JSON array, no markdown:
-[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null}, ...]`;
+[{"player1Name": string|null, "player2Name": string|null, "eventName": string|null, "surface": string|null, "eventLevel": string|null, "bestOf": string|null, "date": string|null, "time": string|null}, ...]`;
 
 // ---------------------------------------------------------------------------
 // Key / provider detection
@@ -258,7 +275,21 @@ function cleanEntry(obj: unknown): RawMatchupEntry | null {
   const player1Name = clean(o.player1Name);
   const player2Name = clean(o.player2Name);
   if (player1Name === null && player2Name === null) return null;
-  return { player1Name, player2Name, eventName: clean(o.eventName) };
+  const cleanMetadata = (v: unknown): string | null => {
+    if (typeof v !== "string" && typeof v !== "number") return null;
+    const t = String(v).trim();
+    return !t || /^(?:unknown|not\s+provided|n\/a|null)$/i.test(t) ? null : t;
+  };
+  return {
+    player1Name,
+    player2Name,
+    eventName: clean(o.eventName),
+    surface: cleanMetadata(o.surface),
+    eventLevel: cleanMetadata(o.eventLevel),
+    bestOf: cleanMetadata(o.bestOf),
+    date: cleanMetadata(o.date),
+    time: cleanMetadata(o.time),
+  };
 }
 
 function parseRecognitionResponse(raw: string | null | undefined): RawScreenshotRecognition {
@@ -332,7 +363,7 @@ async function callOpenAI(resolved: ResolvedKey, imageDataUrl: string, systemPro
   });
   const response = await client.chat.completions.create({
     model: "gpt-4o",
-    max_completion_tokens: 2000,
+    max_completion_tokens: 6000,
     messages: [
       { role: "system", content: systemPrompt },
       {
@@ -383,7 +414,7 @@ async function callGemini(resolved: ResolvedKey, data: string, mediaType: "image
           { text: "Extract all matchups from this screenshot." },
         ],
       }],
-      generationConfig: { maxOutputTokens: 2000 },
+      generationConfig: { maxOutputTokens: 6000 },
     };
 
       const res = await fetch(url, {
@@ -469,7 +500,7 @@ async function callAnthropic(resolved: ResolvedKey, data: string, mediaType: "im
   const client = new Anthropic({ apiKey: resolved.key, timeout: VISION_PROVIDER_TIMEOUT_MS });
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 2000,
+    max_tokens: 6000,
     system: systemPrompt,
     messages: [
       {

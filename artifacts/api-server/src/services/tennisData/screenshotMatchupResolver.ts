@@ -36,6 +36,11 @@ export interface ScreenshotPlayerMatch {
 
 export interface ScreenshotEventMatch {
   recognizedName: string | null;
+  recognizedSurface?: string | null;
+  recognizedLevel?: string | null;
+  recognizedBestOf?: string | null;
+  recognizedDate?: string | null;
+  recognizedTime?: string | null;
   canonicalName: string | null;
   tour: "ATP" | "WTA" | null;
   surface: import("./types").Surface | null;
@@ -1322,15 +1327,47 @@ async function resolvePlayerMatch(
 
 async function resolveEventMatch(
   provider: TennisDataProvider,
-  eventName: string | null,
+  entry: RawMatchupEntry,
   warnings: string[],
 ): Promise<ScreenshotEventMatch> {
+  const eventName = entry.eventName;
   const localMetadata = resolveLocalTournamentMetadata(eventName);
-  let surface = localMetadata.surface;
-  let level = localMetadata.category;
+  const normalizeOcrSurface = (raw: string | null | undefined): import("./types").Surface | null => {
+    if (!raw) return null;
+    const value = raw.toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+    if (value === "hard" || value === "hard court" || value === "outdoor hard") return "Hard";
+    if (value === "indoor hard" || value === "hard indoor") return "IndoorHard";
+    if (value === "clay" || value === "clay court" || value === "red clay") return "Clay";
+    if (value === "grass" || value === "grass court") return "Grass";
+    return null;
+  };
+  const normalizeOcrLevel = (raw: string | null | undefined): import("./types").TournamentLevel | null => {
+    if (!raw) return null;
+    const value = raw.toUpperCase().replace(/[-_ ]/g, "");
+    if (value.includes("GRANDSLAM") || value === "SLAM") return "GrandSlam";
+    if (value.includes("MASTERS1000") || value === "ATP1000") return "Masters1000";
+    if (value.includes("WTA1000")) return "WTA1000";
+    if (value.includes("WTA500")) return "WTA500";
+    if (value.includes("WTA250")) return "WTA250";
+    if (value.includes("ATP500")) return "ATP500";
+    if (value.includes("ATP250")) return "ATP250";
+    if (value.includes("CHALLENGER")) return "Challenger";
+    if (value.includes("ITF")) return "ITF";
+    return null;
+  };
+  const normalizeOcrBestOf = (raw: string | null | undefined): import("./types").MatchFormat | null => {
+    if (!raw) return null;
+    const match = raw.match(/\b([35])\b/);
+    return match?.[1] === "5" ? "BestOf5" : match?.[1] === "3" ? "BestOf3" : null;
+  };
+  const ocrSurface = normalizeOcrSurface(entry.surface);
+  const ocrLevel = normalizeOcrLevel(entry.eventLevel);
+  const ocrBestOf = normalizeOcrBestOf(entry.bestOf);
+  let surface = ocrSurface ?? localMetadata.surface;
+  let level = ocrLevel ?? localMetadata.category;
   let canonicalName = localMetadata.canonicalName;
   let tour = localMetadata.tour;
-  let bestOf = localMetadata.bestOf;
+  let bestOf = ocrBestOf ?? localMetadata.bestOf;
   let round = localMetadata.round;
   const provenance = {
     tournament: localMetadata.provenance.tournament,
@@ -1340,6 +1377,10 @@ async function resolveEventMatch(
     bestOf: localMetadata.provenance.bestOf,
     round: localMetadata.provenance.round,
   };
+  const directOcr = { source: "screenshot OCR", method: "ocr", status: "verified", direct: true } as const;
+  if (ocrSurface) provenance.surface = directOcr;
+  if (ocrLevel) provenance.level = directOcr;
+  if (ocrBestOf) provenance.bestOf = directOcr;
   const legacy = inferSurfaceAndLevel(eventName);
   if (!surface && legacy.surface) {
     surface = legacy.surface;
@@ -1353,7 +1394,7 @@ async function resolveEventMatch(
   // The named table never resolves Challenger/ITF events by name (see surfaceMap.ts)
   // because live fixtures get a tournament_key → surface lookup instead.
   // A screenshot import has no tournament_key, so fall back to a real name search.
-  if (eventName && surface === null && provider.findTournamentSurfaceByName) {
+  if (eventName && (surface === null || level === null || bestOf === null) && provider.findTournamentSurfaceByName) {
     let found: Awaited<ReturnType<NonNullable<typeof provider.findTournamentSurfaceByName>>> | null = null;
     found = await withOptionalContextDeadline(provider.findTournamentSurfaceByName(eventName), null);
     if (found) {
@@ -1373,7 +1414,7 @@ async function resolveEventMatch(
       // The provider's tournament DB sometimes returns a stale ATP-era label (e.g. "ATP250")
       // for a city that now hosts a WTA event (Memphis, Vancouver). The event name prefix is
       // a stronger signal than the provider's coarse category label.
-      let providerLevel = found.level ?? level;
+      let providerLevel = level ?? found.level;
       if (providerLevel && eventName) {
         const eUpper = eventName.toUpperCase();
         const isWtaEvent = /\bwta\b/.test(eUpper);
@@ -1405,7 +1446,21 @@ async function resolveEventMatch(
     warnings.push(`No event/tournament name could be read from the screenshot -- surface was not auto-detected.`);
   }
 
-  return { recognizedName: eventName, canonicalName, tour, surface, level, bestOf, round, provenance };
+  return {
+    recognizedName: eventName,
+    recognizedSurface: entry.surface,
+    recognizedLevel: entry.eventLevel,
+    recognizedBestOf: entry.bestOf,
+    recognizedDate: entry.date,
+    recognizedTime: entry.time,
+    canonicalName,
+    tour,
+    surface,
+    level,
+    bestOf,
+    round,
+    provenance,
+  };
 }
 
 // ── Bounded per-matchup resolution ─────────────────────────────────────────
@@ -1511,7 +1566,7 @@ async function resolveOneMatchup(
   const warnings: string[] = [];
   const exactFixturePair = pickUniqueExactFixturePair(entry, todayFixtures);
   if (exactFixturePair) {
-    const event = await resolveEventMatch(provider, entry.eventName, warnings);
+    const event = await resolveEventMatch(provider, entry, warnings);
     const players = resolveFromFixtureCandidate(
       exactFixturePair,
       { recognizedName: entry.player1Name, player: null },
@@ -1552,7 +1607,7 @@ async function resolveOneMatchup(
   const [player1Outcome, player2Outcome, event] = await Promise.all([
     resolveCachedPlayer(entry.player1Name),
     resolveCachedPlayer(entry.player2Name),
-    resolveEventMatch(provider, entry.eventName, warnings),
+    resolveEventMatch(provider, entry, warnings),
   ]);
 
   let player1 = player1Outcome.match;

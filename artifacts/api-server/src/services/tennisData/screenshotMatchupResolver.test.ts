@@ -558,6 +558,30 @@ test("unknown OCR events stay fully unknown instead of defaulting to hard, 250, 
   assert.equal(result.event.provenance.tournament.status, "unresolved");
 });
 
+test("direct OCR metadata populates surface, level, and best-of with OCR provenance", async () => {
+  const result = await resolveScreenshotMatchup(makeProvider(), {
+    matchups: [{
+      player1Name: null,
+      player2Name: null,
+      eventName: "ATP Challenger Buenos Aires II",
+      surface: "Clay",
+      eventLevel: "ATP Challenger",
+      bestOf: "3",
+      date: "Sep 21, 2026",
+      time: "10:50am",
+    }],
+  });
+  assert.equal(result.event.surface, "Clay");
+  assert.equal(result.event.level, "Challenger");
+  assert.equal(result.event.bestOf, "BestOf3");
+  assert.equal(result.event.recognizedDate, "Sep 21, 2026");
+  assert.equal(result.event.recognizedTime, "10:50am");
+  assert.equal(result.event.provenance.surface.method, "ocr");
+  assert.equal(result.event.provenance.level.method, "ocr");
+  assert.equal(result.event.provenance.bestOf.method, "ocr");
+  assert.equal(result.event.provenance.surface.direct, true);
+});
+
 test("resolveScreenshotMatchup returns matchups array with multiple entries when input has multiple", async () => {
   // Use clearly fictional names ("Testington", "Fakeovsky") that cannot appear in the real
   // historical_matches DB rows — avoids the mock-id vs DB-id duplicate that trips isConfidentMatch.

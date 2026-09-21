@@ -473,10 +473,11 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
         if (result.matchups && result.matchups.length > 1) {
           console.log(`[SCREENSHOT] [10/13] Expanding ${result.matchups.length} matchups into separate rows`)
           const expandedItems: BatchItem[] = result.matchups.map((m, mi) => {
-            // Grand Slam ATP men's draws are Best-of-5; all others remain Best-of-3.
             const mTournament = m.event.recognizedName ?? null
-            const mIsATP = m.player1.player?.tour === "ATP" || m.player2.player?.tour === "ATP"
-            const mFormat: MatchFormat = isGrandSlam(mTournament) && mIsATP ? "BestOf5" : "BestOf3"
+            const mFormat = (m.event as ScreenshotMatchupResult["event"] & { bestOf?: MatchFormat | null }).bestOf
+              ?? (isGrandSlam(mTournament) && (m.player1.player?.tour === "ATP" || m.player2.player?.tour === "ATP")
+                ? "BestOf5"
+                : "BestOf3")
             const mRetryable = !m.resolved && (isRetryableLookupStatus(m.player1.status) || isRetryableLookupStatus(m.player2.status))
             return ({
               ...makeDefaultItem(`${key}-m${mi}`, mi === 0 ? file.name : `${file.name} (match ${mi + 1} of ${result.matchups!.length})`),
@@ -484,7 +485,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
               result: entryToResult(m),
               errorMessage: m.resolved ? null : (m.warnings[0] ?? "Couldn't resolve this matchup from the screenshot."),
               surface: m.event.surface as Surface | null,
-              level: (m.event.level ?? "ATP250") as TournamentLevel,
+              level: (m.event.level ?? makeDefaultItem("", "").level) as TournamentLevel,
               matchFormat: mFormat,
               tournamentName: mTournament,
               surfaceDetected: !!m.event.surface,
@@ -507,9 +508,10 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
           const detectedSurface = result.event.surface as Surface | null
           const detectedLevel = result.event.level as TournamentLevel | null
           const detectedTournament = result.event.recognizedName ?? null
-          // Grand Slam ATP men's draws are Best-of-5; all others remain Best-of-3.
           const singleIsATP = result.player1.player?.tour === "ATP" || result.player2.player?.tour === "ATP"
-          const detectedFormat: MatchFormat = isGrandSlam(detectedTournament) && singleIsATP ? "BestOf5" : "BestOf3"
+          const detectedFormat: MatchFormat =
+            ((result.event as ScreenshotMatchupResult["event"] & { bestOf?: MatchFormat | null }).bestOf)
+            ?? (isGrandSlam(detectedTournament) && singleIsATP ? "BestOf5" : "BestOf3")
           console.log(`[SCREENSHOT] [10/13] Single match: resolved=${ready} surface=${detectedSurface} tournament=${detectedTournament} format=${detectedFormat}`)
           setItems((prev) =>
             prev.map((it) =>
