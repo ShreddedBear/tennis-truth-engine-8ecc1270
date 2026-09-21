@@ -21,7 +21,11 @@ import {
   ScreenshotRecognitionUnavailableError,
   type RawScreenshotRecognitionWithDebug,
 } from "../tennisData/screenshotRecognition.js";
-import { resolveScreenshotMatchup } from "../tennisData/screenshotMatchupResolver.js";
+import {
+  resolveScreenshotMatchup,
+  MATCHUP_RESOLUTION_TIMEOUT_MS,
+  MATCHUP_RESOLUTION_CONCURRENCY,
+} from "../tennisData/screenshotMatchupResolver.js";
 import type { ScreenshotMatchupResult } from "../tennisData/screenshotMatchupResolver.js";
 import { getTennisDataProvider } from "../tennisData/index.js";
 import { inferSurfaceAndLevel } from "../tennisData/surfaceMap.js";
@@ -37,11 +41,35 @@ import {
 import { imageHash, cacheGet, cacheSet, cacheStats, cacheClear } from "./imageHashCache.js";
 import { callOcrSpace } from "./ocrSpaceProvider.js";
 
-// Catastrophic whole-document guard. Individual live identity lookups are bounded inside
-// screenshotMatchupResolver, so this only protects against a stuck DB/unknown resolver defect.
-// Multi-table documents may legitimately need several local fallback scans; do not erase every
-// successful exact-local result just because one or two names need that slower path.
-const PLAYER_RESOLUTION_TIMEOUT_MS = 45_000;
+// Catastrophic whole-document guard. Both individual player lookups AND whole matchups are
+// bounded inside screenshotMatchupResolver (per-player 7.5s deadline; per-matchup
+// MATCHUP_RESOLUTION_TIMEOUT_MS deadline running through a bounded worker pool), so this
+// guard only protects against a stuck DB/unknown resolver defect -- it should essentially
+// never fire in normal operation, even for a 100+ matchup document.
+//
+// The bound must still scale with matchup count: a grouped screenshot/PDF page can carry
+// dozens of matchups, resolved MATCHUP_RESOLUTION_CONCURRENCY at a time, each individually
+// allowed up to MATCHUP_RESOLUTION_TIMEOUT_MS. A fixed 45s guard sized for a handful of
+// matchups will trip mid-batch on a large one -- discarding every matchup's real,
+// already-completed resolution (including ones that succeeded) just because the batch as a
+// whole needed more wall-clock time. That was the root cause of "Player lookup timed out,
+// but OCR succeeded" firing for entire large, perfectly-readable batches.
+const DOCUMENT_RESOLUTION_TIMEOUT_FLOOR_MS = 45_000;
+const DOCUMENT_RESOLUTION_TIMEOUT_CEILING_MS = 120_000;
+const PER_MATCHUP_BATCH_BUFFER_MS = 5_000;
+
+/**
+ * Computes a document-level resolution deadline that scales with how many matchups this
+ * screenshot/page actually contains, so the worst case (every matchup needing its own full
+ * per-matchup deadline, resolved MATCHUP_RESOLUTION_CONCURRENCY at a time) still fits inside
+ * the guard. Capped so one pathological upload can't hold an HTTP request open indefinitely.
+ */
+export function computeDocumentResolutionTimeoutMs(matchupCount: number): number {
+  const count = Math.max(1, matchupCount);
+  const batches = Math.ceil(count / MATCHUP_RESOLUTION_CONCURRENCY);
+  const estimated = batches * (MATCHUP_RESOLUTION_TIMEOUT_MS + PER_MATCHUP_BATCH_BUFFER_MS);
+  return Math.min(DOCUMENT_RESOLUTION_TIMEOUT_CEILING_MS, Math.max(DOCUMENT_RESOLUTION_TIMEOUT_FLOOR_MS, estimated));
+}
 
 export class ScreenshotResolutionTimeoutError extends Error {
   constructor(timeoutMs: number) {
@@ -52,7 +80,7 @@ export class ScreenshotResolutionTimeoutError extends Error {
 
 export async function withScreenshotResolutionDeadline<T>(
   operation: Promise<T>,
-  timeoutMs = PLAYER_RESOLUTION_TIMEOUT_MS,
+  timeoutMs = DOCUMENT_RESOLUTION_TIMEOUT_FLOOR_MS,
 ): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   try {
@@ -70,6 +98,14 @@ export async function withScreenshotResolutionDeadline<T>(
 export function buildUnresolvedRecognitionResult(
   raw: Pick<RawScreenshotRecognitionWithDebug, "matchups">,
   warning: string,
+  /**
+   * "lookup-timeout" for an actual resolution timeout, "error" for any other resolver
+   * failure. Defaults to "not-found" only for callers with no failure to attribute (e.g.
+   * every vision AI provider being unavailable -- OCR itself never ran). A timeout or
+   * error status (unlike "not-found") tells the frontend this row is retryable without
+   * re-running OCR, since the names were genuinely recognized.
+   */
+  status: "not-found" | "lookup-timeout" | "error" = "not-found",
 ): ScreenshotMatchupResult {
   const entries = raw.matchups.map((entry) => {
     const inferred = inferSurfaceAndLevel(entry.eventName);
@@ -79,12 +115,12 @@ export function buildUnresolvedRecognitionResult(
       player1: {
         recognizedName: entry.player1Name,
         player: null,
-        status: entry.player1Name ? "not-found" : "unreadable",
+        status: entry.player1Name ? status : "unreadable",
       },
       player2: {
         recognizedName: entry.player2Name,
         player: null,
-        status: entry.player2Name ? "not-found" : "unreadable",
+        status: entry.player2Name ? status : "unreadable",
       },
       event: {
         recognizedName: entry.eventName,
@@ -327,19 +363,24 @@ class ScreenshotImportService {
 
     let resolved: ScreenshotMatchupResult;
     let resolutionThrew = false;
+    const documentTimeoutMs = computeDocumentResolutionTimeoutMs(rawForResolver.matchups.length);
     try {
       resolved = await withScreenshotResolutionDeadline(
         resolveScreenshotMatchup(getTennisDataProvider(), rawForResolver),
+        documentTimeoutMs,
       );
     } catch (resolveErr) {
       resolutionThrew = true;
-      logger.warn({ err: resolveErr }, "ScreenshotImportService: player resolution failed");
+      logger.warn(
+        { err: resolveErr, matchupCount: rawForResolver.matchups.length, documentTimeoutMs },
+        "ScreenshotImportService: player resolution failed",
+      );
       const timedOut = resolveErr instanceof ScreenshotResolutionTimeoutError;
       const warning = timedOut
-        ? "Player lookup timed out, but OCR succeeded. The recognized names were preserved — verify or select the players manually."
-        : "Player lookup failed, but OCR succeeded. The recognized names were preserved — verify or select the players manually.";
+        ? "Player lookup timed out, but OCR succeeded. The recognized names were preserved — retry the lookup or select the players manually."
+        : "Player lookup failed, but OCR succeeded. The recognized names were preserved — retry the lookup or select the players manually.";
       debugLog.push(`[RESOLUTION] ${timedOut ? "Timed out" : "Failed"} — returning OCR names without resolved player records`);
-      resolved = buildUnresolvedRecognitionResult(rawForResolver, warning);
+      resolved = buildUnresolvedRecognitionResult(rawForResolver, warning, timedOut ? "lookup-timeout" : "error");
     }
 
     const totalDurationMs = Date.now() - t0;
@@ -357,14 +398,18 @@ class ScreenshotImportService {
       },
     };
 
-    // 6. Cache the result — but skip caching when the resolver itself threw (likely a transient
-    //    provider failure such as a circuit-breaker open). Caching a "resolution failed" result
-    //    would cause every subsequent upload of the same image to instantly return null names
-    //    even after the provider recovers.
+    // 6. Cache the result — but skip caching when the resolver itself threw, or when any
+    //    individual matchup degraded to "lookup-timeout"/"error" (likely a transient provider
+    //    failure such as a circuit-breaker open, now isolated to just that row — see
+    //    screenshotMatchupResolver's bounded per-matchup resolution). Caching a transient
+    //    failure would cause every subsequent upload of the same image to instantly return
+    //    null names even after the provider recovers.
     const hasTimedOutPlayerLookup = resolved.matchups?.some(
       (entry) =>
         entry.player1.status === "lookup-timeout" ||
-        entry.player2.status === "lookup-timeout",
+        entry.player2.status === "lookup-timeout" ||
+        entry.player1.status === "error" ||
+        entry.player2.status === "error",
     ) ?? false;
     if (!resolutionThrew && !hasTimedOutPlayerLookup) {
       cacheSet(hash, result);

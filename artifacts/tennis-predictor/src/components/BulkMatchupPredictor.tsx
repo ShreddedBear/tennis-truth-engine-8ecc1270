@@ -48,20 +48,41 @@ interface ParlayDraftLeg {
 // returns a single ScreenshotMatchupResult (no matchups array).
 // ScreenshotMatchupEntry was renamed to ScreenshotMatchupInput in the generated
 // schema; we keep a local alias here to represent one entry in a bulk response.
+//
+// `status` (e.g. "lookup-timeout", "ambiguous", "not-found") is populated by the
+// resolver on every unresolved player slot, but isn't in the generated OpenAPI
+// type yet — same gap AdminParlayBuilder already works around for `candidates`.
+// It IS present on the real JSON response; this just gives it a type here too.
 // ---------------------------------------------------------------------------
+type PlayerMatchWithStatus = ScreenshotMatchupResult["player1"] & { status?: string }
 type ScreenshotMatchupEntry = ScreenshotMatchupInput & {
-  player1: ScreenshotMatchupResult["player1"]
-  player2: ScreenshotMatchupResult["player2"]
+  player1: PlayerMatchWithStatus
+  player2: PlayerMatchWithStatus
   event: ScreenshotMatchupResult["event"]
   warnings: ScreenshotMatchupResult["warnings"]
   resolved?: boolean
 }
-type ScreenshotResultExtended = ScreenshotMatchupResult & {
+type ScreenshotResultExtended = Omit<ScreenshotMatchupResult, "player1" | "player2"> & {
+  player1: PlayerMatchWithStatus
+  player2: PlayerMatchWithStatus
   debugLog?: string[]
   rawText?: string
   /** Present when the endpoint returns multiple matchups (e.g. from-text-names). */
   matchups?: ScreenshotMatchupEntry[]
 }
+
+/**
+ * "lookup-timeout" and "error" mean OCR succeeded but player-identity resolution
+ * didn't finish -- these are retryable without re-running OCR (see
+ * screenshotMatchupResolver.ts). "not-found"/"ambiguous"/"unreadable" mean
+ * resolution DID finish and genuinely needs a human decision.
+ */
+function isRetryableLookupStatus(status: string | undefined): boolean {
+  return status === "lookup-timeout" || status === "error"
+}
+
+const MAX_LOOKUP_RETRIES = 3
+const LOOKUP_RETRY_BACKOFF_MS = [2_000, 5_000, 10_000]
 
 // ---------------------------------------------------------------------------
 // Session persistence
@@ -165,6 +186,13 @@ interface BatchItem {
   rawTextDraft?: string
   rawTextParsing?: boolean
   rawTextError?: string | null
+  // Lookup-timeout retry state. Set when this item is "unresolved" ONLY because
+  // player-identity resolution timed out or errored (OCR itself succeeded) --
+  // distinct from "not-found"/"ambiguous"/"unreadable", which need a human
+  // decision and are never auto-retried. See isRetryableLookupStatus().
+  lookupRetryable?: boolean
+  lookupRetryCount?: number
+  lookupRetrying?: boolean
 }
 
 function isReady(item: BatchItem): boolean {
@@ -449,6 +477,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
             const mTournament = m.event.recognizedName ?? null
             const mIsATP = m.player1.player?.tour === "ATP" || m.player2.player?.tour === "ATP"
             const mFormat: MatchFormat = isGrandSlam(mTournament) && mIsATP ? "BestOf5" : "BestOf3"
+            const mRetryable = !m.resolved && (isRetryableLookupStatus(m.player1.status) || isRetryableLookupStatus(m.player2.status))
             return ({
               ...makeDefaultItem(`${key}-m${mi}`, mi === 0 ? file.name : `${file.name} (match ${mi + 1} of ${result.matchups!.length})`),
               status: (m.resolved ? "resolved" : "unresolved") as ItemStatus,
@@ -463,6 +492,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
               tournamentDetected: !!m.event.recognizedName,
               debugLog,
               rawText,
+              lookupRetryable: mRetryable,
             })
           })
           console.log(`[SCREENSHOT] [12/13] ${expandedItems.filter(e => e.status === "resolved").length}/${expandedItems.length} matchups resolved`)
@@ -473,6 +503,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
           })
         } else {
           const ready = !!result.player1.player && !!result.player2.player
+          const retryable = !ready && (isRetryableLookupStatus(result.player1.status) || isRetryableLookupStatus(result.player2.status))
           const detectedSurface = result.event.surface as Surface | null
           const detectedLevel = result.event.level as TournamentLevel | null
           const detectedTournament = result.event.recognizedName ?? null
@@ -497,6 +528,7 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
                     tournamentDetected: !!detectedTournament,
                     debugLog,
                     rawText,
+                    lookupRetryable: retryable,
                   }
                 : it,
             ),
@@ -536,6 +568,81 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
       }
     })
   }
+
+  // ---------------------------------------------------------------------------
+  // Lookup-only retry — re-resolves player identity from the names OCR already
+  // recognized, WITHOUT re-running OCR. Used both for the manual "RETRY LOOKUP"
+  // button and for the bounded automatic retry effect below. Bounded to
+  // MAX_LOOKUP_RETRIES so a persistently-down provider degrades to a manual
+  // "select players" state instead of retrying forever.
+  // ---------------------------------------------------------------------------
+  const handleRetryLookup = async (key: string) => {
+    setItems((prev) => prev.map((it) => (it.key === key ? { ...it, lookupRetrying: true } : it)))
+    const item = items.find((it) => it.key === key)
+    const p1 = item?.result?.player1.recognizedName
+    const p2 = item?.result?.player2.recognizedName
+    if (!item || !p1 || !p2) {
+      setItems((prev) => prev.map((it) => (it.key === key ? { ...it, lookupRetrying: false } : it)))
+      return
+    }
+    try {
+      const result = await resolveFromTextNames([
+        { player1Name: p1, player2Name: p2, eventName: item.result?.event.recognizedName ?? null },
+      ]) as ScreenshotResultExtended
+      const ready = !!result.player1.player && !!result.player2.player
+      const retryable = !ready && (isRetryableLookupStatus(result.player1.status) || isRetryableLookupStatus(result.player2.status))
+      setItems((prev) =>
+        prev.map((it) =>
+          it.key === key
+            ? {
+                ...it,
+                status: ready ? "resolved" : "unresolved",
+                // debugLog/rawText are left untouched -- from-text-names re-resolves identity
+                // only, it has no OCR output of its own to overwrite the original OCR provenance with.
+                result,
+                errorMessage: ready ? null : (result.warnings[0] ?? it.errorMessage),
+                surface: (result.event.surface as Surface | null) ?? it.surface,
+                surfaceDetected: it.surfaceDetected || !!result.event.surface,
+                lookupRetryable: retryable,
+                lookupRetrying: false,
+                lookupRetryCount: (it.lookupRetryCount ?? 0) + 1,
+              }
+            : it,
+        ),
+      )
+    } catch {
+      setItems((prev) =>
+        prev.map((it) =>
+          it.key === key
+            ? { ...it, lookupRetrying: false, lookupRetryCount: (it.lookupRetryCount ?? 0) + 1 }
+            : it,
+        ),
+      )
+    }
+  }
+
+  // Bounded automatic retry: any item that's unresolved ONLY because of a
+  // lookup timeout/error (not a genuine ambiguity or unreadable name) gets a
+  // few automatic retries with backoff before it's left for the user to
+  // retry manually or pick players by hand. This is what keeps a lookup
+  // timeout from silently reading as "skipped" -- see isRetryableLookupStatus.
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = []
+    for (const item of items) {
+      if (
+        item.status === "unresolved"
+        && item.lookupRetryable
+        && !item.lookupRetrying
+        && (item.lookupRetryCount ?? 0) < MAX_LOOKUP_RETRIES
+      ) {
+        const delay = LOOKUP_RETRY_BACKOFF_MS[Math.min(item.lookupRetryCount ?? 0, LOOKUP_RETRY_BACKOFF_MS.length - 1)]
+        const key = item.key
+        timers.push(setTimeout(() => { void handleRetryLookup(key) }, delay))
+      }
+    }
+    return () => { timers.forEach(clearTimeout) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items])
 
   // ---------------------------------------------------------------------------
   // Raw text fallback: Parse & Retry
@@ -958,14 +1065,37 @@ export const BulkMatchupPredictor = forwardRef<BulkMatchupPredictorHandle>(funct
                 {/* ── Error / unresolved panel ── */}
                 {(item.status === "unresolved" || item.status === "read-error") && item.errorMessage && (
                   <div className="mt-2 space-y-2">
-                    {/* Main error message */}
-                    <div className="text-xs text-destructive font-mono flex items-start gap-2">
+                    {/* Main error message — a lookup timeout/error is retryable and OCR already
+                        succeeded, so it gets a distinct, less alarming message than a genuine
+                        not-found/ambiguous/unreadable result that needs a human decision. */}
+                    <div className={`text-xs font-mono flex items-start gap-2 ${item.lookupRetryable ? "text-warning" : "text-destructive"}`}>
                       <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                      <span>{item.errorMessage} This item will be skipped unless you fix it.</span>
+                      <span>
+                        {item.errorMessage}{" "}
+                        {item.lookupRetryable
+                          ? item.lookupRetrying
+                            ? "Retrying player lookup…"
+                            : (item.lookupRetryCount ?? 0) < MAX_LOOKUP_RETRIES
+                              ? "OCR succeeded — retrying automatically."
+                              : `OCR succeeded — automatic retry gave up after ${MAX_LOOKUP_RETRIES} attempts. Retry again or select the players manually below.`
+                          : "Select the players manually or edit the raw text below."}
+                      </span>
                     </div>
 
-                    {/* Action row: Copy debug + raw text fallback */}
+                    {/* Action row: retry lookup, copy debug, raw text fallback */}
                     <div className="flex flex-wrap gap-2 pl-5">
+                      {item.lookupRetryable && (
+                        <button
+                          type="button"
+                          disabled={item.lookupRetrying}
+                          onClick={() => void handleRetryLookup(item.key)}
+                          className="flex items-center gap-1 text-[0.6rem] font-mono text-warning/90 hover:text-warning transition-colors bg-warning/10 px-2 py-1 rounded border border-warning/30 disabled:opacity-50"
+                        >
+                          {item.lookupRetrying
+                            ? <><RefreshCw className="w-3 h-3 animate-spin" /> RETRYING...</>
+                            : <><RotateCcw className="w-3 h-3" /> RETRY LOOKUP</>}
+                        </button>
+                      )}
                       {(item.debugLog && item.debugLog.length > 0) && (
                         <button
                           type="button"
@@ -1261,5 +1391,14 @@ function ItemStatusBadge({ item }: { item: BatchItem }) {
   if (item.predictStatus === "pending") return <Badge variant="outline" className="font-mono gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> PREDICTING</Badge>
   if (item.status === "resolving") return <Badge variant="outline" className="font-mono gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> READING</Badge>
   if (item.status === "resolved") return <Badge variant="success" className="font-mono gap-1"><CheckCircle2 className="w-3 h-3" /> READY</Badge>
-  return <Badge variant="destructive" className="font-mono gap-1"><XCircle className="w-3 h-3" /> SKIPPED</Badge>
+  // A lookup timeout/error is never "skipped" -- OCR succeeded and the item stays
+  // visible and actionable (auto-retried, then manually retryable/editable).
+  // Only a genuine not-found/ambiguous/unreadable result, or an OCR read failure,
+  // needs the destructive "NEEDS REVIEW" badge.
+  if (item.lookupRetryable) {
+    return item.lookupRetrying
+      ? <Badge variant="warning" className="font-mono gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> RETRYING LOOKUP</Badge>
+      : <Badge variant="warning" className="font-mono gap-1"><AlertTriangle className="w-3 h-3" /> LOOKUP TIMED OUT</Badge>
+  }
+  return <Badge variant="destructive" className="font-mono gap-1"><XCircle className="w-3 h-3" /> NEEDS REVIEW</Badge>
 }

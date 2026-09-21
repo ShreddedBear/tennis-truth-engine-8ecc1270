@@ -3,6 +3,8 @@ import { searchHistoricalPlayersByExactNames, searchKnownPlayers } from "./playe
 import { inferSurfaceAndLevel, resolveLocalTournamentMetadata } from "./surfaceMap";
 import type { RawScreenshotRecognition, RawMatchupEntry } from "./screenshotRecognition";
 import { resolveCanonicalScreenshotPlayer } from "./canonicalScreenshotIdentity";
+import { runWithConcurrency } from "../../lib/concurrency.js";
+import { logger } from "../../lib/logger.js";
 
 /**
  * Resolves raw names/event read off a screenshot against real trusted sources --
@@ -20,7 +22,13 @@ import { resolveCanonicalScreenshotPlayer } from "./canonicalScreenshotIdentity"
 export interface ScreenshotPlayerMatch {
   recognizedName: string | null;
   player: PlayerSummary | null;
-  /** "resolved" | "best-guess" | "ambiguous" | "not-found" | "unreadable". Included in API response for UI disambiguation. */
+  /**
+   * "resolved" | "best-guess" | "ambiguous" | "not-found" | "unreadable" |
+   * "lookup-timeout" | "error" | "unsupported-doubles".
+   * Included in API response for UI disambiguation. "lookup-timeout" and "error"
+   * mean OCR succeeded but identity resolution did not complete -- these are
+   * retryable without re-running OCR, unlike "not-found"/"ambiguous"/"unreadable".
+   */
   status?: string;
   /** Populated when status === "ambiguous". The confident candidates the resolver couldn't narrow to one. */
   candidates?: PlayerSummary[];
@@ -1292,6 +1300,96 @@ async function resolveEventMatch(
   return { recognizedName: eventName, canonicalName, tour, surface, level, bestOf, round, provenance };
 }
 
+// ── Bounded per-matchup resolution ─────────────────────────────────────────
+//
+// A grouped screenshot/PDF page can contain dozens of matchups (e.g. a 37-match
+// "grouped by event" sheet). Two failure modes must both be avoided:
+//   1. Unbounded fan-out — firing resolveOneMatchup() for every matchup at once
+//      (2 player searches + fixture context each) can flood the DB/provider with
+//      70+ concurrent lookups for a single request, which is what actually makes
+//      individual lookups slow enough to time out in the first place.
+//   2. A single slow matchup blocking the rest — without a per-matchup deadline,
+//      one player identity stuck behind a slow provider call stalls the whole
+//      Promise.all(), and the caller's document-level guard (see
+//      ScreenshotImportService.withScreenshotResolutionDeadline) then discards
+//      EVERY matchup's already-completed resolution, not just the slow one.
+//
+// Both are fixed here: matchups resolve through a bounded worker pool, and each
+// matchup individually races against MATCHUP_RESOLUTION_TIMEOUT_MS. A matchup
+// that times out degrades to a "lookup-timeout" entry for just that one row —
+// preserving its OCR-recognized names — while every other matchup keeps
+// whatever real resolution (or fixture-context inference) it already completed.
+export const MATCHUP_RESOLUTION_TIMEOUT_MS = Number(process.env.SCREENSHOT_MATCHUP_TIMEOUT_MS) || 20_000;
+export const MATCHUP_RESOLUTION_CONCURRENCY = Number(process.env.SCREENSHOT_MATCHUP_CONCURRENCY) || 6;
+
+class MatchupResolutionTimeoutError extends Error {
+  constructor() {
+    super(`Matchup resolution exceeded ${MATCHUP_RESOLUTION_TIMEOUT_MS}ms`);
+    this.name = "MatchupResolutionTimeoutError";
+  }
+}
+
+async function withMatchupResolutionDeadline<T>(operation: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new MatchupResolutionTimeoutError()), MATCHUP_RESOLUTION_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Builds a degraded entry for a matchup whose resolution timed out or threw.
+ * OCR-recognized names and locally-inferred event metadata (surface/level, which
+ * need no network call) are always preserved -- only player *identity* resolution
+ * failed, not OCR.
+ */
+export function buildDegradedMatchupEntry(
+  entry: RawMatchupEntry,
+  status: "lookup-timeout" | "error",
+  warning: string,
+): ScreenshotMatchupEntry {
+  const inferred = inferSurfaceAndLevel(entry.eventName ?? null);
+  const empty: import("./types").MetadataFieldProvenance = { source: null, method: "none", status: "unresolved", direct: false };
+  const localEvidence: import("./types").MetadataFieldProvenance = { source: "local tournament name table", method: "local-registry", status: "verified", direct: true };
+  return {
+    player1: {
+      recognizedName: entry.player1Name,
+      player: null,
+      status: entry.player1Name ? status : "unreadable",
+    },
+    player2: {
+      recognizedName: entry.player2Name,
+      player: null,
+      status: entry.player2Name ? status : "unreadable",
+    },
+    event: {
+      recognizedName: entry.eventName,
+      canonicalName: null,
+      tour: null,
+      surface: inferred.surface,
+      level: inferred.level,
+      bestOf: null,
+      round: null,
+      provenance: {
+        tournament: empty,
+        tour: empty,
+        surface: inferred.surface ? localEvidence : empty,
+        level: inferred.level ? localEvidence : empty,
+        bestOf: empty,
+        round: empty,
+      },
+    },
+    resolved: false,
+    warnings: [warning],
+  };
+}
+
 // ── Top-level resolution ───────────────────────────────────────────────────
 
 /** Resolves one raw matchup entry to real players and event info. */
@@ -1591,7 +1689,21 @@ export async function resolveScreenshotMatchup(
       namesNeedingHistoricalScan.push(name);
     }
   }
-  const historicalFallbacks = await searchHistoricalPlayersByExactNames(namesNeedingHistoricalScan);
+  // This one batched local-DB scan covers every matchup in the document, but a transient
+  // DB hiccup here must not throw away matchups that never needed it in the first place
+  // (already-resolved via the canonical registry above). Degrade to "nothing found via
+  // this scan" and let per-matchup/per-player resolution (provider fallback, fixture
+  // inference, timeouts) carry the rest -- same pattern as getTodayFixtures() below.
+  let historicalFallbacks: Map<string, PlayerSummary[]>;
+  try {
+    historicalFallbacks = await searchHistoricalPlayersByExactNames(namesNeedingHistoricalScan);
+  } catch (error) {
+    logger.error(
+      { err: error, nameCount: namesNeedingHistoricalScan.length },
+      "screenshotMatchupResolver: batched historical-name scan failed -- continuing without it",
+    );
+    historicalFallbacks = new Map();
+  }
   for (const [name, players] of historicalFallbacks) {
     historicalExactByName.set(name, players);
   }
@@ -1604,12 +1716,38 @@ export async function resolveScreenshotMatchup(
     ? []
     : await getTodayFixtures(provider);
 
-  // Resolve each matchup concurrently
-  const resolvedEntries = await Promise.all(
-    raw.matchups.map((entry) =>
-      resolveOneMatchup(provider, entry, todayFixtures, historicalExactByName),
-    ),
-  );
+  // Resolve matchups through a bounded worker pool: each matchup independently
+  // races against MATCHUP_RESOLUTION_TIMEOUT_MS, and a timeout or error on one
+  // matchup degrades ONLY that row (preserving its OCR names) rather than
+  // discarding every other matchup's real resolution. Order-preserving so
+  // resolvedEntries[i] always corresponds to raw.matchups[i].
+  const resolvedEntries: ScreenshotMatchupEntry[] = new Array(raw.matchups.length);
+  await runWithConcurrency(raw.matchups, MATCHUP_RESOLUTION_CONCURRENCY, async (entry, i) => {
+    try {
+      resolvedEntries[i] = await withMatchupResolutionDeadline(
+        resolveOneMatchup(provider, entry, todayFixtures, historicalExactByName),
+      );
+    } catch (error) {
+      if (error instanceof MatchupResolutionTimeoutError) {
+        resolvedEntries[i] = buildDegradedMatchupEntry(
+          entry,
+          "lookup-timeout",
+          `Player identity lookup for this matchup exceeded ${MATCHUP_RESOLUTION_TIMEOUT_MS}ms, but OCR succeeded -- the recognized names were preserved. Retry the lookup or select the players manually.`,
+        );
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(
+          { err: error, player1: entry.player1Name, player2: entry.player2Name, eventName: entry.eventName },
+          "screenshotMatchupResolver: matchup resolution failed -- preserving OCR names for this row",
+        );
+        resolvedEntries[i] = buildDegradedMatchupEntry(
+          entry,
+          "error",
+          `Player identity lookup failed for this matchup (${message}), but OCR succeeded -- the recognized names were preserved. Retry the lookup or select the players manually.`,
+        );
+      }
+    }
+  });
 
   // Primary slot: first resolved entry (backward compatibility)
   const primary = resolvedEntries[0];
