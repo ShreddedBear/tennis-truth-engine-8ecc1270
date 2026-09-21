@@ -657,6 +657,134 @@ const STATEMENTS: string[] = [
         ON DELETE SET NULL;
     END IF;
   END $$`,
+
+  // ── Parlay Builder historical version-lineage layer ───────────────────────────
+  //
+  // Deliberately created here (auto-applied, idempotent, on every server boot) rather than via
+  // `pnpm --filter db run push` (drizzle-kit push): this repository's live database currently has
+  // columns on historical_matches/predictions/backtest_runs/backtest_predictions that are absent
+  // from the checked-in Drizzle schema files, which makes a full `drizzle-kit push` schema DIFF
+  // propose deleting those real, populated columns (530,097/2,575/2/5,150 rows respectively) --
+  // confirmed by actually running it against the live database on 2026-09-21, where it correctly
+  // refused only because the environment is non-interactive and cannot confirm a destructive
+  // prompt. That pre-existing drift is unrelated to this feature and is NOT fixed here -- these
+  // two CREATE TABLE statements are scoped to exactly the two new tables below, touching nothing
+  // else, exactly like every other table in this file (parlay_builder_settings, parlay_leg_outcomes,
+  // builder_decision_log, ...) already does for the same reason.
+  //
+  // The Drizzle definitions in lib/db/src/schema/builderVersioning.ts describe this exact shape
+  // for type-safe querying (db.select().from(builderVersionManifestsTable), etc.) -- they are
+  // never applied via drizzle-kit push; this raw SQL is the only thing that actually creates them.
+  `
+  CREATE TABLE IF NOT EXISTS parlay_builder_version_manifests (
+    id                       SERIAL PRIMARY KEY,
+    version                  INTEGER NOT NULL,
+    effective_from           TIMESTAMPTZ NOT NULL,
+    effective_to             TIMESTAMPTZ,
+    algorithm_config         JSONB NOT NULL,
+    calibration_model_id     INTEGER REFERENCES calibration_models(id),
+    optimizer_run_id         TEXT,
+    source_commit            TEXT NOT NULL,
+    config_fingerprint       TEXT NOT NULL,
+    reconstruction_method    TEXT NOT NULL,
+    confidence               TEXT NOT NULL,
+    provenance               JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by               TEXT
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_builder_version_manifests_version_idx ON parlay_builder_version_manifests (version)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_builder_version_manifests_fingerprint_idx ON parlay_builder_version_manifests (config_fingerprint)`,
+  `CREATE INDEX IF NOT EXISTS parlay_builder_version_manifests_effective_from_idx ON parlay_builder_version_manifests (effective_from)`,
+  // At most one currently-open (effective_to IS NULL) row at a time.
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_builder_version_manifests_one_open_idx ON parlay_builder_version_manifests (effective_to) WHERE effective_to IS NULL`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'parlay_builder_version_manifests_interval_check'
+    ) THEN
+      ALTER TABLE parlay_builder_version_manifests
+        ADD CONSTRAINT parlay_builder_version_manifests_interval_check
+        CHECK (effective_to IS NULL OR effective_to > effective_from);
+    END IF;
+  END $$`,
+
+  `
+  CREATE TABLE IF NOT EXISTS parlay_builder_lineage_audit (
+    id                             SERIAL PRIMARY KEY,
+    audit_run_id                   TEXT NOT NULL,
+    historical_match_id            INTEGER NOT NULL,
+    cutoff_at                      TIMESTAMPTZ NOT NULL,
+    status                         TEXT NOT NULL,
+    resolved_manifest_id           INTEGER REFERENCES parlay_builder_version_manifests(id),
+    resolved_manifest_version      INTEGER,
+    resolved_calibration_model_id  INTEGER REFERENCES calibration_models(id),
+    reason                         TEXT NOT NULL,
+    created_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_builder_lineage_audit_run_match_idx ON parlay_builder_lineage_audit (audit_run_id, historical_match_id)`,
+  `CREATE INDEX IF NOT EXISTS parlay_builder_lineage_audit_status_idx ON parlay_builder_lineage_audit (audit_run_id, status)`,
+
+  // Immutability: parlay_builder_version_manifests permits exactly one UPDATE shape (closing an
+  // open row's effective_to, NULL -> timestamp, nothing else changed) and no DELETE ever.
+  // parlay_builder_lineage_audit is pure append-only -- no UPDATE or DELETE is ever legitimate.
+  // Idempotent (CREATE OR REPLACE / DROP + CREATE), safe to re-run on every boot.
+  `
+  CREATE OR REPLACE FUNCTION parlay_builder_version_manifests_prevent_mutation()
+  RETURNS trigger AS $BODY$
+  BEGIN
+    IF TG_OP = 'DELETE' THEN
+      RAISE EXCEPTION
+        'parlay_builder_version_manifests row % is immutable and cannot be deleted', OLD.id;
+    END IF;
+
+    IF OLD.effective_to IS NOT NULL
+       OR NEW.effective_to IS NULL
+       OR NEW.version IS DISTINCT FROM OLD.version
+       OR NEW.effective_from IS DISTINCT FROM OLD.effective_from
+       OR NEW.algorithm_config IS DISTINCT FROM OLD.algorithm_config
+       OR NEW.calibration_model_id IS DISTINCT FROM OLD.calibration_model_id
+       OR NEW.optimizer_run_id IS DISTINCT FROM OLD.optimizer_run_id
+       OR NEW.source_commit IS DISTINCT FROM OLD.source_commit
+       OR NEW.config_fingerprint IS DISTINCT FROM OLD.config_fingerprint
+       OR NEW.reconstruction_method IS DISTINCT FROM OLD.reconstruction_method
+       OR NEW.confidence IS DISTINCT FROM OLD.confidence
+       OR NEW.provenance IS DISTINCT FROM OLD.provenance
+       OR NEW.created_at IS DISTINCT FROM OLD.created_at
+       OR NEW.created_by IS DISTINCT FROM OLD.created_by
+    THEN
+      RAISE EXCEPTION
+        'parlay_builder_version_manifests row % is immutable; only closing effective_to (NULL -> timestamp) is permitted',
+        OLD.id;
+    END IF;
+
+    RETURN NEW;
+  END;
+  $BODY$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_builder_version_manifests_immutable ON parlay_builder_version_manifests;
+
+  CREATE TRIGGER parlay_builder_version_manifests_immutable
+    BEFORE UPDATE OR DELETE ON parlay_builder_version_manifests
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_builder_version_manifests_prevent_mutation();
+
+  CREATE OR REPLACE FUNCTION parlay_builder_lineage_audit_prevent_mutation()
+  RETURNS trigger AS $BODY$
+  BEGIN
+    RAISE EXCEPTION
+      'parlay_builder_lineage_audit row % is append-only and cannot be modified or deleted',
+      COALESCE(OLD.id, NEW.id);
+  END;
+  $BODY$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_builder_lineage_audit_immutable ON parlay_builder_lineage_audit;
+
+  CREATE TRIGGER parlay_builder_lineage_audit_immutable
+    BEFORE UPDATE OR DELETE ON parlay_builder_lineage_audit
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_builder_lineage_audit_prevent_mutation();
+  `,
 ];
 
 let ensured = false;
