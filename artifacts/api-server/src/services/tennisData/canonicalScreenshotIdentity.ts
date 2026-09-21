@@ -69,7 +69,16 @@ export function resolveCanonicalScreenshotName(
 ): CanonicalScreenshotResolution {
   const normalized = normalizePlayerName(recognizedName);
   if (!normalized) return { status: "not-found" };
-  const ids = [...(index.names.get(normalized) ?? [])].sort();
+  let ids = [...(index.names.get(normalized) ?? [])].sort();
+  // East Asian names are commonly emitted in opposite family/given-name order
+  // across providers. Accept only an exact two-token reversal, and preserve
+  // ambiguity if more than one canonical identity owns that reversed name.
+  if (ids.length === 0) {
+    const words = normalized.split(/\s+/).filter(Boolean);
+    if (words.length === 2) {
+      ids = [...(index.names.get(`${words[1]} ${words[0]}`) ?? [])].sort();
+    }
+  }
   const candidates = ids
     .map((id) => index.players.find((player) => player.id === id))
     .filter((player): player is CanonicalScreenshotPlayer => Boolean(player))

@@ -176,7 +176,13 @@ function stripOcrMetadata(raw: string): string {
     return DRAW_STATUS_SET.has(token.toLowerCase()) ? " " : match;
   });
 
-  // 3. Trailing birth year (realistic range for tennis players: 1960–2015)
+  // 3. Parenthesized/bracketed birth year annotations and trailing birth years.
+  //    OCR-ready draw sheets commonly emit "Kenta Miyoshi (b. 2004)"; leaving
+  //    that annotation attached prevents both canonical and historical exact hits.
+  s = s.replace(
+    /\s*[\[(]\s*(?:b(?:orn)?\.?\s*)?(19[6-9]\d|200\d|201[0-5])\s*[\])]\s*$/i,
+    "",
+  );
   s = s.replace(/\s+\b(19[6-9]\d|200\d|201[0-5])\b\s*$/, "");
 
   // 4. Trailing seed/draw-position: #3  #12
@@ -216,6 +222,11 @@ function normalizeName(name: string): string {
     .replace(/[^a-z0-9\s]/g, "")    // keep only ASCII letters, digits, spaces
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** One lookup key shared by preload, caches, and per-player resolution. */
+export function normalizeScreenshotPlayerLookupKey(raw: string): string {
+  return normalizeName(stripOcrMetadata(raw));
 }
 
 function normalizeLooseText(text: string | null | undefined): string {
@@ -454,6 +465,68 @@ function pickUniqueFixtureCandidate(candidates: FixtureCandidate[]): FixtureCand
   return ranked[0];
 }
 
+/**
+ * Uses already-fetched fixture context before any player-provider search.
+ * This is intentionally strict: both OCR names must closely match one unique
+ * scheduled pair, and the tournament must agree when OCR supplied an event.
+ */
+function pickUniqueExactFixturePair(
+  entry: RawMatchupEntry,
+  fixtures: Fixture[],
+): FixtureCandidate | null {
+  if (!entry.player1Name || !entry.player2Name) return null;
+  const emptyProvenance = {
+    source: null,
+    method: "none",
+    status: "unresolved",
+    direct: false,
+  } as const;
+  const event: ScreenshotEventMatch = {
+    recognizedName: entry.eventName,
+    canonicalName: null,
+    tour: null,
+    surface: null,
+    level: null,
+    bestOf: null,
+    round: null,
+    provenance: {
+      tournament: emptyProvenance,
+      tour: emptyProvenance,
+      surface: emptyProvenance,
+      level: emptyProvenance,
+      bestOf: emptyProvenance,
+      round: emptyProvenance,
+    },
+  };
+  const candidates = fixtures
+    .map((fixture) => scoreFixtureCandidate({
+      fixture,
+      entry,
+      event,
+      resolvedPlayer1: null,
+      resolvedPlayer2: null,
+    }))
+    .filter((candidate): candidate is FixtureCandidate => {
+      return Boolean(candidate && candidate.nameScore >= 0.92);
+    });
+  const byPlayerPair = new Map<string, FixtureCandidate>();
+  for (const candidate of candidates) {
+    const firstId = candidate.orientation === "direct"
+      ? candidate.fixture.player1Id
+      : candidate.fixture.player2Id;
+    const secondId = candidate.orientation === "direct"
+      ? candidate.fixture.player2Id
+      : candidate.fixture.player1Id;
+    const key = `${firstId}\u0000${secondId}`;
+    const previous = byPlayerPair.get(key);
+    if (!previous || candidate.score > previous.score) {
+      byPlayerPair.set(key, candidate);
+    }
+  }
+  const uniquePairs = Array.from(byPlayerPair.values());
+  return uniquePairs.length === 1 ? uniquePairs[0]! : pickUniqueFixtureCandidate(uniquePairs);
+}
+
 function inferUniqueOpponentFromSingleResolvedSide(params: {
   entry: RawMatchupEntry;
   event: ScreenshotEventMatch;
@@ -559,6 +632,31 @@ async function getTodayFixtures(provider: TennisDataProvider): Promise<Fixture[]
   } catch {
     return [];
   }
+}
+
+/**
+ * Starts fixture loading without imposing an extra wait on the caller. Screenshot
+ * OCR can run in parallel, then resolution consumes the completed result through
+ * its existing optional-context deadline.
+ */
+export async function preloadScreenshotFixtures(provider: TennisDataProvider): Promise<Fixture[]> {
+  const todayDate = new Date();
+  const today = todayDate.toISOString().slice(0, 10);
+  const startDate = new Date(todayDate);
+  startDate.setUTCDate(startDate.getUTCDate() - 1);
+  const stopDate = new Date(todayDate);
+  stopDate.setUTCDate(stopDate.getUTCDate() + 2);
+  const start = startDate.toISOString().slice(0, 10);
+  const stop = stopDate.toISOString().slice(0, 10);
+  const [sameDay, range] = await Promise.all([
+    provider.getUpcomingFixtures(today).catch(() => [] as Fixture[]),
+    provider.getUpcomingFixturesRange
+      ? provider.getUpcomingFixturesRange(start, stop).catch(() => [] as Fixture[])
+      : Promise.resolve([] as Fixture[]),
+  ]);
+  const deduped = new Map<string, Fixture>();
+  for (const fixture of [...sameDay, ...range]) deduped.set(fixture.id, fixture);
+  return Array.from(deduped.values());
 }
 
 const OPTIONAL_CONTEXT_TIMEOUT_MS = 2_500;
@@ -924,6 +1022,16 @@ async function gatherCandidates(
     // Primary search
     const primary = await searchKnownPlayers(provider, searchName);
     const primaryConfident = primary.filter((c) => isConfidentMatch(norm, normalizeName(c.name)));
+    if (primaryConfident.length > 0) {
+      return {
+        candidates: [...canonicalCandidates, ...primaryConfident, ...Array.from(historicalAccumulated.values())].filter(
+          (candidate, index, all) => all.findIndex((other) => other.id === candidate.id) === index,
+        ),
+        canonicalAmbiguous,
+        requiresProviderResolution: canonical.status === "not-found",
+        providerConfidentCount: primaryConfident.length,
+      };
+    }
 
     // Word-by-word fallback (surname first — most distinctive, fewest false positives)
     // Min length of 2 catches very short surnames (e.g. "Lea Ma" → "Ma" is 2 chars).
@@ -1398,24 +1506,52 @@ async function resolveOneMatchup(
   entry: RawMatchupEntry,
   todayFixtures: Fixture[],
   historicalExactByName: Map<string, PlayerSummary[]>,
+  playerResolutionCache: Map<string, Promise<PlayerResolveOutcome>>,
 ): Promise<ScreenshotMatchupEntry> {
   const warnings: string[] = [];
+  const exactFixturePair = pickUniqueExactFixturePair(entry, todayFixtures);
+  if (exactFixturePair) {
+    const event = await resolveEventMatch(provider, entry.eventName, warnings);
+    const players = resolveFromFixtureCandidate(
+      exactFixturePair,
+      { recognizedName: entry.player1Name, player: null },
+      { recognizedName: entry.player2Name, player: null },
+    );
+    warnings.push(
+      `[resolver-debug] Resolved both players from unique exact fixture pair: ${exactFixturePair.fixture.player1Name} vs ${exactFixturePair.fixture.player2Name}.`,
+    );
+    return {
+      ...players,
+      event,
+      resolved: Boolean(players.player1.player && players.player2.player),
+      warnings,
+    };
+  }
+
+  const resolveCachedPlayer = (recognizedName: string | null): Promise<PlayerResolveOutcome> => {
+    if (!recognizedName) {
+      return resolvePlayerMatch(provider, null, entry.eventName, todayFixtures, []);
+    }
+    const playerKey = normalizeScreenshotPlayerLookupKey(recognizedName);
+    const eventKey = normalizeLooseText(entry.eventName);
+    const cacheKey = `${playerKey}\u0000${eventKey}`;
+    let pending = playerResolutionCache.get(cacheKey);
+    if (!pending) {
+      pending = resolvePlayerMatch(
+        provider,
+        recognizedName,
+        entry.eventName,
+        todayFixtures,
+        historicalExactByName.get(playerKey) ?? [],
+      );
+      playerResolutionCache.set(cacheKey, pending);
+    }
+    return pending;
+  };
 
   const [player1Outcome, player2Outcome, event] = await Promise.all([
-    resolvePlayerMatch(
-      provider,
-      entry.player1Name,
-      entry.eventName,
-      todayFixtures,
-      entry.player1Name ? historicalExactByName.get(entry.player1Name.trim().toLowerCase()) ?? [] : [],
-    ),
-    resolvePlayerMatch(
-      provider,
-      entry.player2Name,
-      entry.eventName,
-      todayFixtures,
-      entry.player2Name ? historicalExactByName.get(entry.player2Name.trim().toLowerCase()) ?? [] : [],
-    ),
+    resolveCachedPlayer(entry.player1Name),
+    resolveCachedPlayer(entry.player2Name),
     resolveEventMatch(provider, entry.eventName, warnings),
   ]);
 
@@ -1652,6 +1788,7 @@ async function resolveOneMatchup(
 export async function resolveScreenshotMatchup(
   provider: TennisDataProvider,
   raw: RawScreenshotRecognition,
+  prefetchedFixtures?: Promise<Fixture[]>,
 ): Promise<ScreenshotMatchupResult> {
   if (raw.matchups.length === 0) {
     const noData: ScreenshotPlayerMatch = { recognizedName: null, player: null };
@@ -1669,24 +1806,31 @@ export async function resolveScreenshotMatchup(
   const recognizedNames = raw.matchups.flatMap((entry) =>
     [entry.player1Name, entry.player2Name].filter((name): name is string => Boolean(name?.trim())),
   );
+  const uniqueRecognizedNames = new Map<string, string>();
+  for (const name of recognizedNames) {
+    const key = normalizeScreenshotPlayerLookupKey(name);
+    if (key && !uniqueRecognizedNames.has(key)) {
+      uniqueRecognizedNames.set(key, stripOcrMetadata(name));
+    }
+  }
   // Resolve the compact canonical identity registry first. Most OCR names are
   // settled by this one cached read, avoiding two full historical-match scans.
   const canonicalOutcomes = await Promise.all(
-    recognizedNames.map(async (name) => ({
-      name,
-      outcome: await resolveCanonicalScreenshotPlayer(name),
+    Array.from(uniqueRecognizedNames, async ([key, searchName]) => ({
+      key,
+      searchName,
+      outcome: await resolveCanonicalScreenshotPlayer(searchName),
     })),
   );
   const historicalExactByName = new Map<string, PlayerSummary[]>();
   const namesNeedingHistoricalScan: string[] = [];
-  for (const { name, outcome } of canonicalOutcomes) {
-    const key = name.trim().toLowerCase();
+  for (const { key, searchName, outcome } of canonicalOutcomes) {
     if (outcome.status === "resolved") {
       historicalExactByName.set(key, [outcome.player]);
     } else if (outcome.status === "ambiguous") {
       historicalExactByName.set(key, outcome.candidates);
     } else {
-      namesNeedingHistoricalScan.push(name);
+      namesNeedingHistoricalScan.push(searchName);
     }
   }
   // This one batched local-DB scan covers every matchup in the document, but a transient
@@ -1705,16 +1849,18 @@ export async function resolveScreenshotMatchup(
     historicalFallbacks = new Map();
   }
   for (const [name, players] of historicalFallbacks) {
-    historicalExactByName.set(name, players);
+    historicalExactByName.set(normalizeScreenshotPlayerLookupKey(name), players);
   }
   const allRecognizedNamesHaveOneExactLocalMatch = recognizedNames.every(
-    (name) => historicalExactByName.get(name.trim().toLowerCase())?.length === 1,
+    (name) => historicalExactByName.get(normalizeScreenshotPlayerLookupKey(name))?.length === 1,
   );
   // Fixture context is only needed for a name that local exact identity could not resolve
   // uniquely. Skipping it for complete local hits keeps the identity path truly network-free.
   const todayFixtures = allRecognizedNamesHaveOneExactLocalMatch
     ? []
-    : await getTodayFixtures(provider);
+    : prefetchedFixtures
+      ? await withOptionalContextDeadline(prefetchedFixtures, [] as Fixture[])
+      : await getTodayFixtures(provider);
 
   // Resolve matchups through a bounded worker pool: each matchup independently
   // races against MATCHUP_RESOLUTION_TIMEOUT_MS, and a timeout or error on one
@@ -1722,10 +1868,11 @@ export async function resolveScreenshotMatchup(
   // discarding every other matchup's real resolution. Order-preserving so
   // resolvedEntries[i] always corresponds to raw.matchups[i].
   const resolvedEntries: ScreenshotMatchupEntry[] = new Array(raw.matchups.length);
+  const playerResolutionCache = new Map<string, Promise<PlayerResolveOutcome>>();
   await runWithConcurrency(raw.matchups, MATCHUP_RESOLUTION_CONCURRENCY, async (entry, i) => {
     try {
       resolvedEntries[i] = await withMatchupResolutionDeadline(
-        resolveOneMatchup(provider, entry, todayFixtures, historicalExactByName),
+        resolveOneMatchup(provider, entry, todayFixtures, historicalExactByName, playerResolutionCache),
       );
     } catch (error) {
       if (error instanceof MatchupResolutionTimeoutError) {

@@ -22,6 +22,7 @@ import {
   type RawScreenshotRecognitionWithDebug,
 } from "../tennisData/screenshotRecognition.js";
 import {
+  preloadScreenshotFixtures,
   resolveScreenshotMatchup,
   MATCHUP_RESOLUTION_TIMEOUT_MS,
   MATCHUP_RESOLUTION_CONCURRENCY,
@@ -268,6 +269,8 @@ class ScreenshotImportService {
       }
     }
     debugLog.push(`[CACHE] MISS — hash=${hash.slice(0, 8)}…`);
+    const tennisProvider = getTennisDataProvider();
+    const prefetchedFixtures = preloadScreenshotFixtures(tennisProvider);
 
     // 2. Attempt vision AI providers (with pre-emptive skip for known-bad ones)
     const skipLabels = buildSkipSet();
@@ -366,7 +369,7 @@ class ScreenshotImportService {
     const documentTimeoutMs = computeDocumentResolutionTimeoutMs(rawForResolver.matchups.length);
     try {
       resolved = await withScreenshotResolutionDeadline(
-        resolveScreenshotMatchup(getTennisDataProvider(), rawForResolver),
+        resolveScreenshotMatchup(tennisProvider, rawForResolver, prefetchedFixtures),
         documentTimeoutMs,
       );
     } catch (resolveErr) {

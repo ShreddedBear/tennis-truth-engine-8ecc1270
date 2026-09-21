@@ -10,6 +10,7 @@ import {
   buildDegradedMatchupEntry,
   MATCHUP_RESOLUTION_TIMEOUT_MS,
   MATCHUP_RESOLUTION_CONCURRENCY,
+  normalizeScreenshotPlayerLookupKey,
 } from "./screenshotMatchupResolver";
 import type { PlayerSummary, TennisDataProvider } from "./types";
 
@@ -140,6 +141,17 @@ test("matchup resolution concurrency and per-matchup timeout are positive, finit
   // Concurrency must be bounded, not unlimited -- a 100+ matchup document must not
   // fire every matchup's player lookups at once.
   assert.ok(MATCHUP_RESOLUTION_CONCURRENCY < 50);
+});
+
+test("player lookup key removes OCR birth-year metadata before preload and cache lookup", () => {
+  assert.equal(
+    normalizeScreenshotPlayerLookupKey("Kenta Miyoshi (b. 2004)"),
+    normalizeScreenshotPlayerLookupKey("Kenta Miyoshi"),
+  );
+  assert.equal(
+    normalizeScreenshotPlayerLookupKey("Kenta Miyoshi [2004]"),
+    normalizeScreenshotPlayerLookupKey("Kenta Miyoshi"),
+  );
 });
 
 function makeProvider(overrides: Partial<TennisDataProvider> = {}): TennisDataProvider {
