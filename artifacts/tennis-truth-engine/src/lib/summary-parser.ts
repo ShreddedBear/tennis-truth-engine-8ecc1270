@@ -38,7 +38,14 @@ const UI_CHROME_PHRASES=new Set(["model votes","monte carlo simulation","full en
  // "PLAYER 1"/"PLAYER 2" already fail the digit check in looksLikeFullPlayerName; "EVENT DATA"
  // has no digit and is plain title-case text, so without this it would itself be picked up as
  // a fake "name" and thrown into the no-vs pairing sequence, offsetting every real pair after it.
- "event data","player 1","player 2"]);
+ "event data","player 1","player 2",
+ // Two-word surface labels that repeat once per data row on a real table page (discovered via
+ // real-fixture OCR validation: a real reference sheet prints "Indoor Hard" above every row of
+ // an indoor-hard section). Single-word surfaces ("Clay"/"Hard"/"Grass") already fail the
+ // >=2-word check in looksLikeSingleNameShape and never needed listing here, but a two-word
+ // surface passes that same shape check and, printed once per row, silently offsets every
+ // pair after it by one -- the exact cascading misalignment a stray candidate here causes.
+ "indoor hard","outdoor hard","indoor clay","outdoor clay","hard court","clay court","grass court"]);
 function isUiChromePhrase(s:string){return UI_CHROME_PHRASES.has(s.toLowerCase().replace(/[.,:&-]/g," ").replace(/\s+/g," ").trim());}
 const FIELD_PATTERNS:Array<[string,RegExp]>=[
  ["tournament",/(?:tournament|event)\s*[:\-]\s*(.+)/i],["event_level",/(?:event level|level|category)\s*[:\-]\s*(.+)/i],["round",/round\s*[:\-]\s*(.+)/i],["scheduled_date",/(?:date|scheduled)\s*[:\-]\s*(.+)/i],["surface",/surface\s*[:\-]\s*(.+)/i],["indoor_outdoor",/(indoor|outdoor)\s*[:\-]?\s*(.*)/i],["best_of",/best[\s\-]?(?:of)?\s*[:\-]?\s*([35])/i],

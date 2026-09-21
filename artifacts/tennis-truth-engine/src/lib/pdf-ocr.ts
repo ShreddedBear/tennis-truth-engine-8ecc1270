@@ -3,6 +3,7 @@
 // Lovable AI credits, or an API key.
 
 import { readPdfFileBytes } from "./pdf-text";
+import { reconstructTableAwareText } from "./ocr-table-reconstruction";
 
 export interface OcrPdfResult {
   pages: string[];
@@ -110,7 +111,21 @@ export async function ocrPdfLocally(
         if (!ctx) throw new Error("Could not create OCR canvas");
         await page.render({ canvas, canvasContext: ctx, viewport } as any).promise;
         const result = await worker.recognize(canvas);
-        pages.push((result.data.text ?? "").replace(/\r/g, "").trim());
+        // Reconstruct one table cell per line from word bounding boxes rather
+        // than using Tesseract's flat per-visual-row text directly: a real
+        // table-formatted screenshot puts an entire row (row #, both player
+        // names, round/event text) on ONE physical line, and
+        // parseSummaryText's no-"vs" heuristic requires one name per line.
+        // Confirmed on the real "Truth Engine OCR Verification" fixture --
+        // without this, parseSummaryText recovered ~0% of a real table
+        // page's matches even though the underlying OCR text was accurate.
+        // See ocr-table-reconstruction.ts for the gap-based column detection.
+        const lineBoxes = (result.data.lines ?? []).map((line) => ({
+          text: line.text ?? "",
+          words: (line.words ?? []).map((w) => ({ text: w.text ?? "", x0: w.bbox.x0, x1: w.bbox.x1 })),
+        }));
+        const reconstructed = reconstructTableAwareText(lineBoxes);
+        pages.push((reconstructed || (result.data.text ?? "")).replace(/\r/g, "").trim());
         canvas.width = 1;
         canvas.height = 1;
       } catch (error) {

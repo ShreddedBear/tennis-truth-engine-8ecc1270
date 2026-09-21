@@ -20,6 +20,7 @@ process.env.SCREENSHOT_MATCHUP_CONCURRENCY = "2";
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { PlayerSummary, TennisDataProvider } from "./types";
+import type { ScreenshotMatchupEntry } from "./screenshotMatchupResolver.js";
 
 const {
   resolveScreenshotMatchup,
@@ -122,4 +123,52 @@ test("matchup resolution runs through a bounded worker pool, not unbounded fan-o
   // once, and never more than the configured concurrency limit.
   assert.ok(maxConcurrent <= MATCHUP_RESOLUTION_CONCURRENCY, `expected <= ${MATCHUP_RESOLUTION_CONCURRENCY}, got ${maxConcurrent}`);
   assert.ok(maxConcurrent > 0);
+});
+
+test("~10% of player lookups forced to hang: OCR names preserved, only affected lookups degrade, no mass SKIPPED", async () => {
+  const TOTAL_MATCHUPS = 40;
+  const HANG_EVERY_NTH = 10; // exactly 4 of 40 = 10% forced to hang
+  const hungIndices = new Set<number>();
+  for (let i = 0; i < TOTAL_MATCHUPS; i++) if (i % HANG_EVERY_NTH === 0) hungIndices.add(i);
+  assert.equal(hungIndices.size, TOTAL_MATCHUPS / HANG_EVERY_NTH); // sanity: exactly 10%
+
+  const provider = makeProvider({
+    searchPlayers: async (query: string) => {
+      const idx = Number(query.replace("Player", ""));
+      if (hungIndices.has(idx)) return new Promise<PlayerSummary[]>(() => {}); // never resolves
+      return [{ id: `id-${query}`, name: query, countryCode: null, currentRank: null, tour: "ATP" }];
+    },
+  });
+
+  const matchups = Array.from({ length: TOTAL_MATCHUPS }, (_, i) => ({
+    player1Name: `Player${i}`,
+    player2Name: null,
+    eventName: null,
+  }));
+
+  const result = await resolveScreenshotMatchup(provider, { matchups });
+
+  assert.equal(result.matchups?.length, TOTAL_MATCHUPS);
+
+  let resolvedCount = 0;
+  let timeoutCount = 0;
+  for (let i = 0; i < TOTAL_MATCHUPS; i++) {
+    const entry: ScreenshotMatchupEntry = result.matchups![i]!;
+    if (hungIndices.has(i)) {
+      timeoutCount++;
+      // OCR name preserved even though identity resolution never completed.
+      assert.equal(entry.player1.recognizedName, `Player${i}`);
+      assert.equal(entry.player1.player, null);
+      assert.equal(entry.player1.status, "lookup-timeout");
+    } else {
+      resolvedCount++;
+      assert.equal(entry.player1.player?.id, `id-Player${i}`, `Player${i} should have resolved`);
+      assert.equal(entry.player1.status, undefined);
+    }
+  }
+
+  // No mass SKIPPED: exactly the forced-timeout 10% degraded, the other 90% succeeded --
+  // this is the isolation property the whole per-matchup bounded-timeout fix exists for.
+  assert.equal(timeoutCount, TOTAL_MATCHUPS / HANG_EVERY_NTH);
+  assert.equal(resolvedCount, TOTAL_MATCHUPS - TOTAL_MATCHUPS / HANG_EVERY_NTH);
 });
