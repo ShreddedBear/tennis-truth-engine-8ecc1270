@@ -4,7 +4,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { db, historicalMatchesTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
-import { resolveScreenshotMatchup, isInitialEquivalentGroup } from "./screenshotMatchupResolver";
+import {
+  resolveScreenshotMatchup,
+  isInitialEquivalentGroup,
+  buildDegradedMatchupEntry,
+  MATCHUP_RESOLUTION_TIMEOUT_MS,
+  MATCHUP_RESOLUTION_CONCURRENCY,
+} from "./screenshotMatchupResolver";
 import type { PlayerSummary, TennisDataProvider } from "./types";
 
 // ── isInitialEquivalentGroup unit tests ────────────────────────────────────
@@ -65,6 +71,75 @@ test("isInitialEquivalentGroup: handles three candidates with one abbreviation c
   const g2   = ["g", "kravchenko"];
   const full = ["georgii", "kravchenko"];
   assert.equal(isInitialEquivalentGroup([g1, g2, full]), true);
+});
+
+// ── buildDegradedMatchupEntry unit tests ───────────────────────────────────
+// Pure-function tests -- no DB or provider dependency. These exercise the
+// per-matchup degradation path directly: when one matchup's identity
+// resolution times out or errors, this is the entry that stands in for it.
+// The core "never throw away recognized names" requirement lives here.
+
+test("buildDegradedMatchupEntry preserves recognized names and marks players as lookup-timeout, not not-found", () => {
+  const entry = buildDegradedMatchupEntry(
+    { player1Name: "Federico Arnaboldi", player2Name: "Florian Broska", eventName: "ATP Challenger Genoa" },
+    "lookup-timeout",
+    "Player identity lookup for this matchup exceeded 20000ms, but OCR succeeded.",
+  );
+
+  assert.equal(entry.player1.recognizedName, "Federico Arnaboldi");
+  assert.equal(entry.player1.player, null);
+  assert.equal(entry.player1.status, "lookup-timeout");
+  assert.equal(entry.player2.recognizedName, "Florian Broska");
+  assert.equal(entry.player2.player, null);
+  assert.equal(entry.player2.status, "lookup-timeout");
+  assert.equal(entry.event.recognizedName, "ATP Challenger Genoa");
+  assert.equal(entry.resolved, false);
+  assert.deepEqual(entry.warnings, [
+    "Player identity lookup for this matchup exceeded 20000ms, but OCR succeeded.",
+  ]);
+});
+
+test("buildDegradedMatchupEntry still infers surface/level locally for the degraded entry", () => {
+  const entry = buildDegradedMatchupEntry(
+    { player1Name: "Coco Gauff", player2Name: "Iga Swiatek", eventName: "US Open" },
+    "lookup-timeout",
+    "timed out",
+  );
+  assert.equal(entry.event.surface, "Hard");
+});
+
+test("buildDegradedMatchupEntry marks an unreadable name as unreadable rather than lookup-timeout", () => {
+  const entry = buildDegradedMatchupEntry(
+    { player1Name: null, player2Name: "Iga Swiatek", eventName: null },
+    "lookup-timeout",
+    "timed out",
+  );
+  assert.equal(entry.player1.status, "unreadable");
+  assert.equal(entry.player2.status, "lookup-timeout");
+});
+
+test("buildDegradedMatchupEntry supports a distinct 'error' status for non-timeout resolver failures", () => {
+  const entry = buildDegradedMatchupEntry(
+    { player1Name: "Novak Djokovic", player2Name: "Carlos Alcaraz", eventName: null },
+    "error",
+    "Player identity lookup failed for this matchup (ECONNRESET).",
+  );
+  assert.equal(entry.player1.status, "error");
+  assert.equal(entry.player2.status, "error");
+});
+
+// ── Bounded resolution configuration sanity checks ─────────────────────────
+// No DB/provider dependency -- just verifying the exported constants that
+// drive the bounded worker pool are sane defaults (a config regression here
+// would silently reintroduce unbounded fan-out or a too-short per-matchup
+// deadline for large batches).
+
+test("matchup resolution concurrency and per-matchup timeout are positive, finite bounds", () => {
+  assert.ok(Number.isFinite(MATCHUP_RESOLUTION_TIMEOUT_MS) && MATCHUP_RESOLUTION_TIMEOUT_MS > 0);
+  assert.ok(Number.isFinite(MATCHUP_RESOLUTION_CONCURRENCY) && MATCHUP_RESOLUTION_CONCURRENCY > 0);
+  // Concurrency must be bounded, not unlimited -- a 100+ matchup document must not
+  // fire every matchup's player lookups at once.
+  assert.ok(MATCHUP_RESOLUTION_CONCURRENCY < 50);
 });
 
 function makeProvider(overrides: Partial<TennisDataProvider> = {}): TennisDataProvider {

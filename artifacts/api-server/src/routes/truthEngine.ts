@@ -467,6 +467,11 @@ router.post("/truth-engine/uploads", requireAdmin, async (req, res): Promise<voi
     filename?: unknown;
     pageCount?: unknown;
     rawText?: unknown;
+    pageNumber?: unknown;
+    pagesProcessed?: unknown;
+    pagesVision?: unknown;
+    pagesFailed?: unknown;
+    extractionStatus?: unknown;
     match?: Record<string, unknown>;
     fields?: Array<Record<string, unknown>>;
   };
@@ -495,12 +500,28 @@ router.post("/truth-engine/uploads", requireAdmin, async (req, res): Promise<voi
       surface: typeof match.surface === "string" ? match.surface : null,
       bestOf: typeof match.bestOf === "number" ? match.bestOf : null,
     }).returning())[0];
+    // Page-level provenance: was silently left at these columns' defaults (0 / "PENDING")
+    // by every prior upload, even fully-successful ones -- these columns existed in the
+    // schema but nothing populated them. Default pagesProcessed to the whole page count
+    // (matches TEXT/LOCAL_OCR extraction, which is already page-independent and has no
+    // per-page failure signal to report) unless the caller (the page-batched VISION tier)
+    // explicitly reports otherwise.
+    const pageCount = typeof body.pageCount === "number" ? body.pageCount : null;
+    const pagesFailed = typeof body.pagesFailed === "number" ? body.pagesFailed : 0;
+    const pagesProcessed = typeof body.pagesProcessed === "number"
+      ? body.pagesProcessed
+      : (pageCount ?? 0) - pagesFailed;
+    const extractionStatus = typeof body.extractionStatus === "string" ? body.extractionStatus : "COMPLETE";
     const upload = (await tx.insert(summaryUploadsTable).values({
       userId: WORKSPACE_ID,
       filename: body.filename as string,
-      pageCount: typeof body.pageCount === "number" ? body.pageCount : null,
+      pageCount,
       parseStatus: "COMPLETE",
       rawText: body.rawText as string,
+      pagesProcessed,
+      pagesVision: typeof body.pagesVision === "number" ? body.pagesVision : 0,
+      pagesFailed,
+      extractionStatus,
     }).returning())[0]!;
     const previous = await tx.select({ versionNumber: summaryVersionsTable.versionNumber })
       .from(summaryVersionsTable)
@@ -513,6 +534,7 @@ router.post("/truth-engine/uploads", requireAdmin, async (req, res): Promise<voi
       matchId: matchRow.id,
       uploadId: upload.id,
       versionNumber: (previous[0]?.versionNumber ?? 0) + 1,
+      pageNumber: typeof body.pageNumber === "number" ? body.pageNumber : null,
       isActive: true,
     }).returning())[0]!;
     const fields = Array.isArray(body.fields) ? body.fields : [];
