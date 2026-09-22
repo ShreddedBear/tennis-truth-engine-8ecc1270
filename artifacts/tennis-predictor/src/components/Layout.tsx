@@ -23,6 +23,7 @@ type NavItem = {
 const NAV_LINKS: NavItem[] = [
   { href: "/", label: "Prediction Engine", icon: LayoutDashboard, exact: true },
   { href: "/admin/parlay-builder", label: "Parlay Builder", icon: Layers, exact: false },
+  { href: "/admin/parlay-research-v1", label: "Parlay Research (V1)", icon: FlaskConical, exact: false },
   { href: "/truth-engine", label: "Truth Engine", icon: SearchCheck, exact: false, external: true },
   { href: "/predict", label: "Run Model", icon: PlaySquare, exact: false },
   { href: "/history", label: "Prediction History", icon: History, exact: false },
@@ -50,6 +51,7 @@ const MOBILE_PRIMARY_TABS = [
 // ── Mobile "More" sheet — subscriber items always shown, admin appended ─────
 const MOBILE_MORE_SUBSCRIBER: NavItem[] = [
   { href: "/admin/parlay-builder", label: "Parlay Builder", icon: Layers, exact: false },
+  { href: "/admin/parlay-research-v1", label: "Parlay Research (V1)", icon: FlaskConical, exact: false },
   { href: "/truth-engine", label: "Truth Engine", icon: SearchCheck, exact: false, external: true },
   { href: "/monitoring", label: "Model Monitoring", icon: Monitor, exact: false },
   { href: "/payments", label: "Plans & Billing", icon: CreditCard, exact: false },

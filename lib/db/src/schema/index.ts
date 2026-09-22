@@ -31,3 +31,4 @@ export * from "./canonicalIdentity";
 export * from "./truthEngine";
 export * from "./marketSnapshots";
 export * from "./builderVersioning";
+export * from "./parlayBuilderResearchV1";

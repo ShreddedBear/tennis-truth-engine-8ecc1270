@@ -785,6 +785,132 @@ const STATEMENTS: string[] = [
     FOR EACH ROW
     EXECUTE FUNCTION parlay_builder_lineage_audit_prevent_mutation();
   `,
+
+  // ── COUNTERFACTUAL_RESEARCH_V1 — isolated Parlay Builder research/backtest tables ─────────
+  //
+  // Explicitly NOT the production Builder's historical lineage (Phase 0 established that could
+  // not be reconstructed -- see docs/historical-builder-integration/). These tables hold a
+  // counterfactual research question's results only: every row is tagged
+  // researchBuilderVersion='COUNTERFACTUAL_RESEARCH_V1'. Never read by builderScoringService.ts,
+  // builder_decision_log, or parlay_leg_outcomes; nothing here ever writes to those either.
+  `
+  CREATE TABLE IF NOT EXISTS parlay_builder_research_v1_runs (
+    id                              SERIAL PRIMARY KEY,
+    run_id                          TEXT NOT NULL,
+    research_builder_version        TEXT NOT NULL DEFAULT 'COUNTERFACTUAL_RESEARCH_V1',
+    config_fingerprint              TEXT NOT NULL,
+    algorithm_config                JSONB NOT NULL,
+    cohort_start                    TIMESTAMPTZ NOT NULL,
+    cohort_end                      TIMESTAMPTZ NOT NULL,
+    cohort_fingerprint              TEXT NOT NULL,
+    cohort_match_count              INTEGER NOT NULL,
+    status                          TEXT NOT NULL DEFAULT 'queued',
+    started_at                      TIMESTAMPTZ,
+    decisions_frozen_at             TIMESTAMPTZ,
+    outcomes_attached_at            TIMESTAMPTZ,
+    completed_at                    TIMESTAMPTZ,
+    deterministic_comparison_run_id TEXT,
+    deterministic_match             BOOLEAN,
+    result_set_fingerprint          TEXT,
+    summary                         JSONB,
+    errors                          JSONB,
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_builder_research_v1_runs_run_id_idx ON parlay_builder_research_v1_runs (run_id)`,
+  `CREATE INDEX IF NOT EXISTS parlay_builder_research_v1_runs_status_idx ON parlay_builder_research_v1_runs (status)`,
+
+  `
+  CREATE TABLE IF NOT EXISTS parlay_builder_research_v1_results (
+    id                          SERIAL PRIMARY KEY,
+    run_id                      TEXT NOT NULL,
+    historical_match_id         INTEGER NOT NULL,
+    scheduled_start_at          TIMESTAMPTZ NOT NULL,
+    cutoff_at                   TIMESTAMPTZ NOT NULL,
+    player1_id                  TEXT NOT NULL,
+    player1_name                TEXT NOT NULL,
+    player2_id                  TEXT NOT NULL,
+    player2_name                TEXT NOT NULL,
+    surface                     TEXT,
+    prediction_engine_output    JSONB,
+    research_builder_version    TEXT NOT NULL DEFAULT 'COUNTERFACTUAL_RESEARCH_V1',
+    config_fingerprint          TEXT NOT NULL,
+    calibration_snapshot_id     TEXT,
+    calibration_fitted_at       TIMESTAMPTZ,
+    builder_score                REAL,
+    builder_picked_player_id     TEXT,
+    builder_decision             TEXT,
+    eligibility                  TEXT NOT NULL,
+    rejection_reason             TEXT,
+    pit_status                   TEXT NOT NULL,
+    data_coverage                REAL,
+    factor_scores                JSONB,
+    outcome_actual_winner_id     TEXT,
+    outcome_included_in_accuracy BOOLEAN,
+    outcome_correct              BOOLEAN,
+    provenance                   JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at                   TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_builder_research_v1_results_run_match_idx ON parlay_builder_research_v1_results (run_id, historical_match_id)`,
+  `CREATE INDEX IF NOT EXISTS parlay_builder_research_v1_results_decision_idx ON parlay_builder_research_v1_results (run_id, builder_decision)`,
+  `CREATE INDEX IF NOT EXISTS parlay_builder_research_v1_results_eligibility_idx ON parlay_builder_research_v1_results (run_id, eligibility)`,
+
+  // Immutability: a run row may only progress through its status/decisionsFrozenAt/
+  // outcomesAttachedAt/completedAt/deterministic* fields forward (enforced at the application
+  // layer, since this table is actively updated as a run progresses -- unlike results, which are
+  // genuinely append-only once written).
+  `
+  CREATE OR REPLACE FUNCTION parlay_builder_research_v1_results_prevent_mutation()
+  RETURNS trigger AS $BODY$
+  BEGIN
+    RAISE EXCEPTION
+      'parlay_builder_research_v1_results row % is append-only and cannot be modified once written (outcome columns are populated via a single UPDATE from attachResearchV1Outcomes, see the one-time exception below)',
+      COALESCE(OLD.id, NEW.id);
+  END;
+  $BODY$ LANGUAGE plpgsql;
+
+  CREATE OR REPLACE FUNCTION parlay_builder_research_v1_results_check_outcome_only(
+    OLD_ROW parlay_builder_research_v1_results,
+    NEW_ROW parlay_builder_research_v1_results
+  ) RETURNS boolean AS $BODY2$
+  BEGIN
+    RETURN NEW_ROW.historical_match_id = OLD_ROW.historical_match_id
+       AND NEW_ROW.run_id = OLD_ROW.run_id
+       AND NEW_ROW.builder_score IS NOT DISTINCT FROM OLD_ROW.builder_score
+       AND NEW_ROW.builder_decision IS NOT DISTINCT FROM OLD_ROW.builder_decision
+       AND NEW_ROW.builder_picked_player_id IS NOT DISTINCT FROM OLD_ROW.builder_picked_player_id
+       AND NEW_ROW.eligibility IS NOT DISTINCT FROM OLD_ROW.eligibility
+       AND NEW_ROW.rejection_reason IS NOT DISTINCT FROM OLD_ROW.rejection_reason
+       AND NEW_ROW.pit_status IS NOT DISTINCT FROM OLD_ROW.pit_status
+       AND NEW_ROW.data_coverage IS NOT DISTINCT FROM OLD_ROW.data_coverage
+       AND NEW_ROW.factor_scores IS NOT DISTINCT FROM OLD_ROW.factor_scores
+       AND OLD_ROW.outcome_actual_winner_id IS NULL; -- outcome can be attached exactly once
+  END;
+  $BODY2$ LANGUAGE plpgsql;
+
+  CREATE OR REPLACE FUNCTION parlay_builder_research_v1_results_immutable_trigger()
+  RETURNS trigger AS $BODY3$
+  BEGIN
+    IF TG_OP = 'DELETE' THEN
+      RAISE EXCEPTION 'parlay_builder_research_v1_results row % is append-only and cannot be deleted', OLD.id;
+    END IF;
+    IF NOT parlay_builder_research_v1_results_check_outcome_only(OLD, NEW) THEN
+      RAISE EXCEPTION
+        'parlay_builder_research_v1_results row % is immutable except for the one-time outcome attachment (outcome_actual_winner_id/outcome_included_in_accuracy/outcome_correct, only when previously NULL)',
+        OLD.id;
+    END IF;
+    RETURN NEW;
+  END;
+  $BODY3$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_builder_research_v1_results_immutable ON parlay_builder_research_v1_results;
+
+  CREATE TRIGGER parlay_builder_research_v1_results_immutable
+    BEFORE UPDATE OR DELETE ON parlay_builder_research_v1_results
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_builder_research_v1_results_immutable_trigger();
+  `,
 ];
 
 let ensured = false;
