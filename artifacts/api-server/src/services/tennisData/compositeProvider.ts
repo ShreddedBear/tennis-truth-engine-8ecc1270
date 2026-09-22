@@ -451,8 +451,12 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   async getCompletedMatchesByDateRange(dateStart: string, dateStop: string): Promise<HistoricalFixture[]> {
-    // Historical backfill uses API-Tennis exclusively — MatchStat doesn't support this endpoint.
-    return this.fallback.getCompletedMatchesByDateRange(dateStart, dateStop);
+    try {
+      return await this.primary.getCompletedMatchesByDateRange(dateStart, dateStop);
+    } catch (error) {
+      if (!(error instanceof ProviderUnavailableError)) throw error;
+      return this.fallback.getCompletedMatchesByDateRange(dateStart, dateStop);
+    }
   }
 
   async getLiveScores(fixtureIds: string[]): Promise<Map<string, LiveScore>> {
@@ -465,10 +469,10 @@ export class CompositeTennisProvider implements TennisDataProvider {
 
     if (providerIds.length > 0) {
       try {
-        for (const [id, score] of await this.fallback.getLiveScores(providerIds)) scores.set(id, score);
+        for (const [id, score] of await this.primary.getLiveScores(providerIds)) scores.set(id, score);
       } catch (err) {
         if (!(err instanceof ProviderUnavailableError)) throw err;
-        logger.warn({ err }, "API-Tennis unavailable for live scores");
+        logger.warn({ err }, "Live Tennis API unavailable for live scores");
       }
     }
 
@@ -485,9 +489,8 @@ export class CompositeTennisProvider implements TennisDataProvider {
   }
 
   async findTournamentSurfaceByName(name: string): Promise<{ surface: import("./types").Surface | null; level: import("./types").TournamentLevel | null } | null> {
-    // Only API-Tennis has the tournament-surface-by-name lookup; delegate directly.
-    if (this.fallback.findTournamentSurfaceByName) {
-      return this.fallback.findTournamentSurfaceByName(name);
+    if (this.primary.findTournamentSurfaceByName) {
+      return this.primary.findTournamentSurfaceByName(name);
     }
     return null;
   }
@@ -501,11 +504,11 @@ export class CompositeTennisProvider implements TennisDataProvider {
    * `totalProviderRankings: 0` sentinel.
    */
   async getCurrentStandings(): Promise<Array<{ playerKey: string; rank: number; name: string; tour: "ATP" | "WTA" }>> {
-    if (!this.fallback.getCurrentStandings) {
+    if (!this.primary.getCurrentStandings) {
       logger.warn({ provider: this.name }, "Neither primary nor fallback implements getCurrentStandings — ranking verification will be skipped");
       return [];
     }
-    return this.fallback.getCurrentStandings();
+    return this.primary.getCurrentStandings();
   }
 
   /**

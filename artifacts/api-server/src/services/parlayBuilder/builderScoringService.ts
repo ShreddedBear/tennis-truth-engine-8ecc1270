@@ -1243,7 +1243,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       noDataReason === "provider-unreachable"
         ? `External data providers could not be reached for ${noEvidencePlayers.join(" and ")}. Validation is unavailable — try again when providers are online.`
         : noDataReason === "not-configured"
-          ? `No data providers are configured for ${noEvidencePlayers.join(" and ")}. Check that API keys (API_TENNIS_KEY, X_RAPIDAPI_KEY) are set.`
+          ? `No data providers are configured for ${noEvidencePlayers.join(" and ")}. Check that Live_Tennis_Api is set.`
           : noDataReason === "player-not-found"
             ? `${noEvidencePlayers.join(" and ")} could not be found in any configured data provider. Check spelling and try again.`
             : /* no-history */
@@ -1268,7 +1268,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       : noDataReason === "provider-unreachable"
         ? ["All configured data providers were unreachable. No evidence could be gathered for this validation."]
         : noDataReason === "not-configured"
-          ? ["No data provider API keys are configured. Set API_TENNIS_KEY or X_RAPIDAPI_KEY to enable live validation."]
+          ? ["No data provider API key is configured. Set Live_Tennis_Api to enable live validation."]
           : noDataReason === "player-not-found"
             ? [`${noEvidencePlayers.join(" and ")} could not be found in any provider. Verify the player name and try again.`]
             : [`${noEvidencePlayers.join(" and ")} has no completed professional match records on file.`];

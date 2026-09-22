@@ -211,3 +211,50 @@ test("uses scheduled timestamp as the historical source cutoff and does not use 
   assert.equal(fixture.time, "23:40");
   assert.equal((fixture.raw as { fieldProvenance: { scheduledTime: string } }).fieldProvenance.scheduledTime, "match.scheduled_time");
 });
+
+test("implements the runtime provider endpoints without guessing missing values", async () => {
+  const calls: string[] = [];
+  const fixtureRow = row({
+    id: 77,
+    status: "upcoming",
+    outcome: null,
+    event_status: null,
+    scheduled_time: "2026-09-21T12:00:00Z",
+    players: {
+      p1: { id: 101, name: "Alpha Player", ranking: 10, tour: "atp", is_doubles_team: false },
+      p2: { id: 202, name: "Beta Player", ranking: 20, tour: "atp", is_doubles_team: false },
+    },
+  });
+  const fetchImpl = async (url: string) => {
+    calls.push(url);
+    const path = new URL(url).pathname;
+    if (path === "/api/public/v1/players") {
+      return { ok: true, status: 200, json: async () => ({ data: [{ id: 101, name: "Alpha Player", country: "USA", ranking: 10, tour: "atp" }] }) };
+    }
+    if (path === "/api/public/v1/players/101" || path === "/api/public/v1/players/202") {
+      const second = path.endsWith("/202");
+      return { ok: true, status: 200, json: async () => ({ id: second ? 202 : 101, name: second ? "Beta Player" : "Alpha Player", country: "USA", ranking: second ? 20 : 10, tour: "atp" }) };
+    }
+    if (path === "/api/public/v1/fixtures") {
+      return { ok: true, status: 200, json: async () => ({ data: [fixtureRow] }) };
+    }
+    if (path === "/api/public/v1/matches/77/score") {
+      return { ok: true, status: 200, json: async () => ({ score: { games: [[6], [4]] }, status: "live" }) };
+    }
+    if (path === "/api/public/v1/h2h") {
+      return { ok: true, status: 200, json: async () => ({ meetings: [{ date: "2026-01-01", tournament: "Example", surface: "hard", score: "6-4 6-4", winner: 1 }] }) };
+    }
+    if (path === "/api/public/v1/matches") {
+      return { ok: true, status: 200, json: async () => ({ data: [row({ id: 88 })] }) };
+    }
+    throw new Error(`unexpected test endpoint ${path}`);
+  };
+  const p = new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl });
+  assert.equal((await p.searchPlayers("Alpha"))[0].id, "101");
+  assert.equal((await p.getPlayer("101"))?.name, "Alpha Player");
+  assert.equal((await p.getUpcomingFixtures("2026-09-21"))[0].id, "77");
+  assert.equal((await p.getLiveScores(["77"])).get("77")?.sets.length, 1);
+  assert.equal((await p.getHeadToHead("101", "202")).meetings[0].winnerId, "101");
+  assert.equal((await p.getPlayerMatches("101"))[0].opponentId, "202");
+  assert.ok(calls.every((url) => !url.includes("api-tennis") && !url.includes("rapidapi")));
+});

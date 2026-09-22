@@ -11,6 +11,7 @@ import {
   type TournamentLevel,
   type Surface,
   type MatchFormat,
+  type LiveScore,
 } from "./types.js";
 
 export const LIVE_TENNIS_API_BASE_URL = "https://api.livetennisapi.com/api/public/v1";
@@ -28,6 +29,45 @@ type FetchLike = (input: string, init?: { headers?: Record<string, string> }) =>
   status: number;
   json(): Promise<unknown>;
 }>;
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  return value && typeof value === "object" ? value as JsonRecord : {};
+}
+
+function listData(body: unknown): JsonRecord[] {
+  const rows = asRecord(body).data;
+  return Array.isArray(rows) ? rows.map(asRecord) : [];
+}
+
+function playerFromRow(value: unknown): LiveTennisPlayer | null {
+  const row = asRecord(value);
+  const id = row.id;
+  const name = asString(row.name);
+  if ((typeof id !== "number" && typeof id !== "string") || !name) return null;
+  return {
+    id,
+    name,
+    ranking: row.ranking as number | string | null | undefined,
+    tour: asString(row.tour),
+    is_doubles_team: row.is_doubles_team === true,
+  };
+}
+
+function matchFromRow(value: unknown): LiveTennisMatch {
+  const row = asRecord(value);
+  return {
+    ...row,
+    id: row.id as number | string | null | undefined,
+    players: {
+      p1: playerFromRow(asRecord(row.players).p1),
+      p2: playerFromRow(asRecord(row.players).p2),
+    },
+    tournament: row.tournament as LiveTennisMatch["tournament"],
+    score: row.score as LiveTennisMatch["score"],
+  };
+}
 
 export interface LiveTennisTournamentCatalogueEntry {
   id?: string;
@@ -334,6 +374,52 @@ export function normalizeLiveTennisHistoricalMatch(
   };
 }
 
+function fixturePlayerId(player: LiveTennisPlayer): string {
+  return asString(player.id) ?? `lta-unresolved-${(player.name ?? "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+function normalizeLiveFixture(row: LiveTennisMatch): Fixture | null {
+  const p1 = row.players?.p1;
+  const p2 = row.players?.p2;
+  const scheduledTime = asString(row.scheduled_time);
+  const timestamp = scheduledTime ? Date.parse(scheduledTime) : NaN;
+  if (!p1?.name || !p2?.name || !Number.isFinite(timestamp)) return null;
+  const tournament = tournamentFields(row, new Map());
+  const indoor = row.indoor == null ? null : row.indoor === true || row.indoor === 1;
+  const status = normalizeToken(row.status ?? row.event_status ?? "");
+  return {
+    id: asString(row.id) ?? `lta-match-${fixturePlayerId(p1)}-${fixturePlayerId(p2)}-${timestamp}`,
+    date: new Date(timestamp).toISOString().slice(0, 10),
+    scheduledStart: new Date(timestamp).toISOString(),
+    timeConfirmed: true,
+    isLive: status === "live",
+    tournamentName: tournament.tournamentName,
+    tournamentLevel: mapCategory(tournament.category, mapTour(row.tour ?? p1.tour)),
+    round: asString(row.round_code) ?? asString(row.round),
+    surface: mapSurface(asString(row.surface), indoor),
+    indoor,
+    matchFormat: mapFormat(asString(row.format)),
+    player1Id: fixturePlayerId(p1),
+    player1Name: p1.name,
+    player2Id: fixturePlayerId(p2),
+    player2Name: p2.name,
+  };
+}
+
+function normalizeLiveScore(row: JsonRecord): LiveScore | null {
+  const score = asRecord(row.score);
+  const games = mapGames(score.games);
+  const setsRaw = score.sets;
+  const sets = Array.isArray(setsRaw) && setsRaw.every((v) => Number.isFinite(Number(v)))
+    ? setsRaw.map((v, i) => ({ player1Games: Number(v), player2Games: games[i]?.player2Games ?? 0 }))
+    : games;
+  if (!games.length && !sets.length) return null;
+  return {
+    sets,
+    statusText: asString(row.event_status) ?? asString(row.status),
+  };
+}
+
 export class LiveTennisHistoricalProvider implements TennisDataProvider {
   readonly name = LIVE_TENNIS_PROVIDER_NAME;
   private readonly fetchImpl: FetchLike;
@@ -356,6 +442,33 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
 
   private readonly apiKey: string;
 
+  private async request(path: string, params: Record<string, string | number | undefined> = {}): Promise<unknown> {
+    const url = new URL(`${this.baseUrl}${path}`);
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) url.searchParams.set(key, String(value));
+    }
+    try {
+      const response = await this.fetchImpl(url.toString(), {
+        headers: { "X-API-Key": this.apiKey, Accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new ProviderUnavailableError(
+          response.status === 403
+            ? `${this.name} endpoint unavailable for the current subscription (${path}; upgrade_required)`
+            : `${this.name} request failed (${path}; HTTP ${response.status})`,
+        );
+      }
+      const body = await response.json();
+      this.lastSuccessfulCallAt = new Date().toISOString();
+      this.lastError = null;
+      return body;
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : String(error);
+      if (error instanceof ProviderUnavailableError) throw error;
+      throw new ProviderUnavailableError(`${this.name} request failed (${path}): ${this.lastError}`);
+    }
+  }
+
   getStatus(): ProviderStatusInfo {
     return {
       provider: this.name,
@@ -363,6 +476,156 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
       lastSuccessfulCallAt: this.lastSuccessfulCallAt,
       lastError: this.lastError,
     };
+  }
+
+  async searchPlayers(query: string): Promise<PlayerSummary[]> {
+    const rows = listData(await this.request("/players", { search: query, limit: 50, offset: 0 }));
+    return rows.flatMap((row) => {
+      const player = playerFromRow(row);
+      if (!player?.name) return [];
+      return [{
+        id: String(player.id),
+        name: player.name,
+        countryCode: asString(row.country),
+        currentRank: mapRank(row.ranking),
+        tour: mapTour(player.tour),
+      }];
+    });
+  }
+
+  async getPlayer(playerId: string): Promise<PlayerProfile | null> {
+    const row = asRecord(await this.request(`/players/${encodeURIComponent(playerId)}`));
+    const player = playerFromRow(row);
+    if (!player) return null;
+    return {
+      id: String(player.id),
+      name: player.name!,
+      countryCode: asString(row.country),
+      currentRank: mapRank(row.ranking),
+      tour: mapTour(player.tour),
+      age: null,
+      plays: asString(row.hand),
+      fullName: player.name!,
+    };
+  }
+
+  async getUpcomingFixturesRange(dateStart: string, dateStop: string): Promise<Fixture[]> {
+    const rows = listData(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: 200, offset: 0 }));
+    return rows.map(matchFromRow).map(normalizeLiveFixture).filter((fixture): fixture is Fixture => fixture !== null)
+      .filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
+  }
+
+  async getUpcomingFixtures(date: string): Promise<Fixture[]> {
+    return this.getUpcomingFixturesRange(date, date);
+  }
+
+  async getLiveScores(fixtureIds: string[]): Promise<Map<string, LiveScore>> {
+    const result = new Map<string, LiveScore>();
+    await Promise.all(fixtureIds.map(async (fixtureId) => {
+      if (fixtureId.startsWith("espn-") || fixtureId.startsWith("sf-") || fixtureId.startsWith("lta-unresolved-")) return;
+      try {
+        const row = asRecord(await this.request(`/matches/${encodeURIComponent(fixtureId)}/score`));
+        const score = normalizeLiveScore(row);
+        if (score) result.set(fixtureId, score);
+      } catch (error) {
+        if (!(error instanceof ProviderUnavailableError)) throw error;
+      }
+    }));
+    return result;
+  }
+
+  async getPlayerMatches(playerId: string): Promise<MatchRecord[]> {
+    const rows = listData(await this.request("/matches", { status: "completed", player: playerId, draw: "singles", limit: 200, offset: 0 }));
+    const records: MatchRecord[] = [];
+    for (const raw of rows) {
+      const row = matchFromRow(raw);
+      const fixture = normalizeLiveTennisHistoricalMatch(row);
+      if (!fixture) continue;
+      const isP1 = fixture.player1Id === playerId;
+      const opponentId = isP1 ? fixture.player2Id : fixture.player1Id;
+      const opponentName = isP1 ? fixture.player2Name : fixture.player1Name;
+      const winner = fixture.winnerId === playerId;
+      records.push({
+        id: fixture.id,
+        date: fixture.date,
+        tournamentName: fixture.tournamentName,
+        tournamentLevel: fixture.tournamentLevel,
+        round: fixture.round,
+        matchFormat: fixture.matchFormat,
+        surface: fixture.surface,
+        indoor: fixture.indoor,
+        opponentId,
+        opponentName,
+        opponentRank: isP1 ? fixture.player2Rank : fixture.player1Rank,
+        result: winner ? "W" : "L",
+        score: fixture.score,
+        retired: fixture.retired,
+        walkover: fixture.walkover,
+        stats: null,
+        opponentStats: null,
+        setGameMargins: fixture.setGameMargins.map((set) => ({
+          playerGames: isP1 ? set.player1Games : set.player2Games,
+          opponentGames: isP1 ? set.player2Games : set.player1Games,
+        })),
+      });
+    }
+    return records;
+  }
+
+  async getHeadToHead(player1Id: string, player2Id: string): Promise<HeadToHeadRecord> {
+    const [p1, p2] = await Promise.all([this.getPlayer(player1Id), this.getPlayer(player2Id)]);
+    if (!p1?.name || !p2?.name) return { player1Id, player2Id, meetings: [] };
+    const body = asRecord(await this.request("/h2h", { p1: p1.name, p2: p2.name }));
+    const meetings = Array.isArray(body.meetings) ? body.meetings.map(asRecord).flatMap((meeting) => {
+      const date = asString(meeting.date);
+      const winner = Number(meeting.winner);
+      if (!date || (winner !== 1 && winner !== 2)) return [];
+      return [{
+        date,
+        tournamentName: asString(meeting.tournament),
+        surface: mapSurface(asString(meeting.surface), null),
+        score: asString(meeting.score),
+        winnerId: winner === 1 ? player1Id : player2Id,
+      }];
+    }) : [];
+    return { player1Id, player2Id, meetings };
+  }
+
+  async findTournamentSurfaceByName(name: string): Promise<{
+    surface: Surface | null;
+    level: TournamentLevel | null;
+    canonicalName?: string | null;
+    tour?: "ATP" | "WTA" | null;
+    bestOf?: MatchFormat | null;
+    round?: string | null;
+  } | null> {
+    const wanted = normalizeToken(name);
+    const catalogue = await this.getTournamentCatalogue();
+    const matches = [...catalogue.values()].filter((entry) => normalizeToken(entry.name ?? "") === wanted);
+    if (matches.length !== 1) return null;
+    const match = matches[0];
+    return {
+      surface: mapSurface(match.surface, match.indoor === true ? true : null),
+      level: match.level ?? mapCategory(match.category, match.tour ?? null),
+      canonicalName: match.name ?? null,
+      tour: normalizeToken(match.tour ?? "") === "atp" ? "ATP" : normalizeToken(match.tour ?? "") === "wta" ? "WTA" : null,
+      bestOf: null,
+      round: null,
+    };
+  }
+
+  async getCurrentStandings(): Promise<Array<{ playerKey: string; rank: number; name: string; tour: "ATP" | "WTA" }>> {
+    const standings: Array<{ playerKey: string; rank: number; name: string; tour: "ATP" | "WTA" }> = [];
+    for (const tour of ["atp", "wta"] as const) {
+      const body = await this.request("/rankings", { system: tour, limit: 500, offset: 0 });
+      for (const row of listData(body)) {
+        const player = playerFromRow(asRecord(row).player ?? row);
+        const rank = mapRank(asRecord(row).rank ?? asRecord(row).ranking ?? player?.ranking);
+        if (!player || !rank) continue;
+        standings.push({ playerKey: String(player.id), rank, name: player.name!, tour: tour.toUpperCase() as "ATP" | "WTA" });
+      }
+    }
+    return standings;
   }
 
   async getCompletedMatchesByDateRange(dateStart: string, dateStop: string): Promise<HistoricalFixture[]> {
@@ -530,14 +793,4 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
     }
   }
 
-  private unsupported(method: string): never {
-    throw new ProviderUnavailableError(`${this.name} historical adapter does not implement ${method}; use it only for completed historical matches`);
-  }
-  async searchPlayers(): Promise<never> { return this.unsupported("searchPlayers"); }
-  async getPlayer(): Promise<never> { return this.unsupported("getPlayer"); }
-  async getPlayerMatches(): Promise<never> { return this.unsupported("getPlayerMatches"); }
-  async getUpcomingFixtures(): Promise<never> { return this.unsupported("getUpcomingFixtures"); }
-  async getUpcomingFixturesRange(): Promise<never> { return this.unsupported("getUpcomingFixturesRange"); }
-  async getHeadToHead(): Promise<never> { return this.unsupported("getHeadToHead"); }
-  async getLiveScores(): Promise<never> { return this.unsupported("getLiveScores"); }
 }

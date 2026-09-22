@@ -100,31 +100,17 @@ function buildProviderCards(): ProviderHealthCard[] {
 
   const cards: ProviderHealthCard[] = [];
 
-  // Primary tennis data provider (MatchStat/RapidAPI)
-  const rapidApiKeyConfigured = !!(process.env.X_RAPIDAPI_KEY ?? process.env.x_rapidapi_key);
+  // The sole authenticated tennis data provider.
+  const liveTennisKeyConfigured = !!(process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API_KEY);
   cards.push({
-    name: 'MatchStat (RapidAPI)',
+    name: 'Live Tennis API',
     category: 'tennis-data',
     role: 'primary',
-    keyConfigured: rapidApiKeyConfigured,
-    status: !rapidApiKeyConfigured ? 'Not Configured' : status.provider.includes('MatchStat') && status.connected ? 'Healthy' : rapidApiKeyConfigured ? 'No Recent Traffic' : 'Not Configured',
-    lastCallAt: status.provider.includes('MatchStat') ? status.lastSuccessfulCallAt ?? null : null,
-    lastError: status.provider.includes('MatchStat') ? status.lastError ?? null : null,
-    details: rapidApiKeyConfigured ? 'Upcoming ATP/WTA fixtures, player search' : 'x_rapidapi_key not configured',
-  });
-
-  // Fallback tennis data provider (API-Tennis)
-  const apiTennisKeyConfigured = !!process.env.API_TENNIS_KEY;
-  const apiTennisConnected = status.provider.includes('API-Tennis') && status.connected;
-  cards.push({
-    name: 'API-Tennis',
-    category: 'tennis-data',
-    role: 'fallback',
-    keyConfigured: apiTennisKeyConfigured,
-    status: !apiTennisKeyConfigured ? 'Not Configured' : apiTennisConnected ? 'Healthy' : apiTennisKeyConfigured ? 'No Recent Traffic' : 'Not Configured',
-    lastCallAt: status.provider.includes('API-Tennis') ? status.lastSuccessfulCallAt ?? null : null,
-    lastError: status.provider.includes('API-Tennis') ? status.lastError ?? null : null,
-    details: apiTennisKeyConfigured ? 'Fallback: H2H, historical, live scores, player profiles' : 'API_TENNIS_KEY not configured',
+    keyConfigured: liveTennisKeyConfigured,
+    status: !liveTennisKeyConfigured ? 'Not Configured' : status.connected ? 'Healthy' : 'No Recent Traffic',
+    lastCallAt: status.lastSuccessfulCallAt ?? null,
+    lastError: status.lastError ?? null,
+    details: liveTennisKeyConfigured ? 'Fixtures, player data, H2H, history, rankings' : 'Live_Tennis_Api not configured',
   });
 
   // Odds providers

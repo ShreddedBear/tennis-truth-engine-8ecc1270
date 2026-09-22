@@ -7,9 +7,8 @@
  * their match records for use as validation evidence.
  *
  * Provider chain (mirrors compositeProvider.ts but is intentionally independent):
- *   Tier 1: RapidAPI / MatchStat  (X_RAPIDAPI_KEY) — player search via rankings
- *   Tier 2: API-Tennis            (API_TENNIS_KEY)  — player search + full match history
- *   Tier 3: Sofascore             (no key required) — supplemental history for sparse players
+ *   Tier 1: Live Tennis API        (Live_Tennis_Api) — player search + full match history
+ *   Tier 2: Sofascore               (no key required) — supplemental history for sparse players
  *
  * Each tier has its own error handling and diagnostics.  No tier shares circuit-breaker
  * state or provider instances with the prediction engine's compositeProvider.ts — the
@@ -32,8 +31,7 @@
  */
 
 import { pool } from "@workspace/db";
-import { ApiTennisProvider } from "../tennisData/apiTennisProvider.js";
-import { MatchStatProvider } from "../tennisData/matchStatProvider.js";
+import { LiveTennisHistoricalProvider } from "../tennisData/liveTennisHistoricalProvider.js";
 import {
   ProviderUnavailableError,
   type TennisDataProvider,
@@ -112,21 +110,13 @@ export interface LiveFetchResult {
 // instances so quota exhaustion / circuit state in one subsystem never bleeds
 // into the other.  `undefined` = not yet initialised; `null` = key absent.
 
-let _builderRapidApiProvider: MatchStatProvider | null | undefined;
-let _builderApiTennisProvider: ApiTennisProvider | null | undefined;
+let _builderLiveProvider: LiveTennisHistoricalProvider | null | undefined;
 
-function getBuilderRapidApiProvider(): MatchStatProvider | null {
-  if (_builderRapidApiProvider !== undefined) return _builderRapidApiProvider;
-  const key = process.env.X_RAPIDAPI_KEY ?? process.env.x_rapidapi_key;
-  _builderRapidApiProvider = key ? new MatchStatProvider(key) : null;
-  return _builderRapidApiProvider;
-}
-
-function getBuilderApiTennisProvider(): ApiTennisProvider | null {
-  if (_builderApiTennisProvider !== undefined) return _builderApiTennisProvider;
-  const key = process.env.API_TENNIS_KEY;
-  _builderApiTennisProvider = key ? new ApiTennisProvider(key) : null;
-  return _builderApiTennisProvider;
+function getBuilderLiveProvider(): LiveTennisHistoricalProvider | null {
+  if (_builderLiveProvider !== undefined) return _builderLiveProvider;
+  const key = process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API_KEY;
+  _builderLiveProvider = key ? new LiveTennisHistoricalProvider({ apiKey: key }) : null;
+  return _builderLiveProvider;
 }
 
 function describeProviderError(err: unknown): string {
@@ -213,9 +203,9 @@ async function saveMatchesToDb(
 async function attemptRapidApi(
   playerName: string,
   diag: LiveFetchDiagnostics,
-  providerOverride?: InstanceType<typeof import("../tennisData/matchStatProvider.js").MatchStatProvider> | null,
+  providerOverride?: TennisDataProvider | null,
 ): Promise<PlayerSummary | null> {
-  const provider = providerOverride !== undefined ? providerOverride : getBuilderRapidApiProvider();
+  const provider = providerOverride !== undefined ? providerOverride : null;
   if (!provider) return null; // key not configured — skip silently
 
   const sourceDiag: ProviderSourceDiagnostic = {
@@ -300,9 +290,9 @@ async function attemptRapidApi(
 async function attemptMatchstat(
   playerName: string,
   diag: LiveFetchDiagnostics,
-  providerOverride?: InstanceType<typeof import("../tennisData/apiTennisProvider.js").ApiTennisProvider> | null,
+  providerOverride?: TennisDataProvider | null,
 ): Promise<LiveFetchResult | null> {
-  const provider = providerOverride !== undefined ? providerOverride : getBuilderApiTennisProvider();
+  const provider = providerOverride !== undefined ? providerOverride : getBuilderLiveProvider();
   if (!provider) return null; // key not configured — skip silently
 
   const sourceDiag: ProviderSourceDiagnostic = {
@@ -549,8 +539,8 @@ export async function attemptOddsApi(
 // ─── Provider injection interface (tests override; production uses env-key singletons) ──
 
 export interface BuilderProviders {
-  rapidApi: InstanceType<typeof import("../tennisData/matchStatProvider.js").MatchStatProvider> | null;
-  apiTennis: InstanceType<typeof import("../tennisData/apiTennisProvider.js").ApiTennisProvider> | null;
+  rapidApi: TennisDataProvider | null;
+  apiTennis: TennisDataProvider | null;
   sofascore: typeof fetchFromSofascore;
 }
 
@@ -584,8 +574,8 @@ export async function fetchPlayerMatchesFromProviders(
   const injectedApiTennis = _providers && "apiTennis" in _providers ? _providers.apiTennis : undefined;
   const injectedSofascore = _providers?.sofascore;
 
-  const effectiveRapidApi = injectedRapidApi !== undefined ? injectedRapidApi : getBuilderRapidApiProvider();
-  const effectiveApiTennis = injectedApiTennis !== undefined ? injectedApiTennis : getBuilderApiTennisProvider();
+  const effectiveRapidApi = injectedRapidApi !== undefined ? injectedRapidApi : null;
+  const effectiveApiTennis = injectedApiTennis !== undefined ? injectedApiTennis : getBuilderLiveProvider();
 
   const sourcesConfigured: string[] = [];
   if (effectiveRapidApi) sourcesConfigured.push("rapidapi");

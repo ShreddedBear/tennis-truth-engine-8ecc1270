@@ -1,16 +1,15 @@
-import { ApiTennisProvider } from "./apiTennisProvider";
 import { CompositeTennisProvider } from "./compositeProvider";
-import { MatchStatProvider } from "./matchStatProvider";
+import { LiveTennisHistoricalProvider } from "./liveTennisHistoricalProvider";
 import { ProviderUnavailableError, type ProviderStatusInfo, type TennisDataProvider } from "./types";
 
 export * from "./types";
 
 const NOT_CONFIGURED_MESSAGE =
-  "API_TENNIS_KEY is not set yet. Add a real tennis data provider API key -- this app never falls back to mock data.";
+  "Live_Tennis_Api is not set yet. Add the Live Tennis API key -- this app never falls back to mock data.";
 
 /** Used until a real API key is configured. Every data method reports a clean 502, never fake data. */
 class NotConfiguredProvider implements TennisDataProvider {
-  readonly name = "API-Tennis";
+  readonly name = "Live Tennis API";
 
   getStatus(): ProviderStatusInfo {
     return { provider: this.name, connected: false, lastSuccessfulCallAt: null, lastError: NOT_CONFIGURED_MESSAGE };
@@ -46,45 +45,29 @@ let cachedProvider: TennisDataProvider | null = null;
 /**
  * Factory for the active tennis data provider.
  *
- * When both API_TENNIS_KEY and X_RAPIDAPI_KEY are configured, returns a composite provider
- * that tries RapidAPI (tennis-api-atp-wta-itf.p.rapidapi.com) first and falls back to API-Tennis on any
- * error. This gives the app access to MatchStat's richer data (H2H, stats, rankings) while
- * preserving the proven API-Tennis path for anything MatchStat can't serve.
- *
- * When only API_TENNIS_KEY is set, returns the ApiTennisProvider directly (no change from
- * before this task). When neither key is set, returns NotConfiguredProvider so routes get a
- * clean 502 rather than a crash.
+ * Live Tennis API is the only authenticated provider used by the application. ESPN, Sofascore,
+ * and the local historical database remain public/local fallbacks in their respective layers.
  */
 export function getTennisDataProvider(): TennisDataProvider {
   if (cachedProvider) return cachedProvider;
 
-  const apiTennisKey = process.env.API_TENNIS_KEY;
-  // Secret was renamed from X_RAPIDAPI_KEY → x_rapidapi_key; accept both for compatibility.
-  const rapidApiKey = process.env.X_RAPIDAPI_KEY ?? process.env.x_rapidapi_key;
+  const liveTennisKey = process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API_KEY;
 
-  if (!apiTennisKey) {
+  if (!liveTennisKey) {
     cachedProvider = new NotConfiguredProvider();
     return cachedProvider;
   }
 
-  const apiTennisProvider = new ApiTennisProvider(apiTennisKey);
-
-  if (rapidApiKey) {
-    const matchStatProvider = new MatchStatProvider(rapidApiKey);
-    cachedProvider = new CompositeTennisProvider(matchStatProvider, apiTennisProvider);
-  } else {
-    cachedProvider = apiTennisProvider;
-  }
+  const liveTennisProvider = new LiveTennisHistoricalProvider({ apiKey: liveTennisKey });
+  cachedProvider = new CompositeTennisProvider(liveTennisProvider, new NotConfiguredProvider());
 
   return cachedProvider;
 }
 
 /**
- * Returns the raw API-Tennis provider regardless of composite configuration.
- * Used by the historical backfill pipeline, which requires API-Tennis's bulk
- * date-range endpoint that MatchStat does not provide.
+ * Returns the active Live Tennis API provider for historical jobs.
  */
-export function getApiTennisProvider(): ApiTennisProvider | null {
-  const apiTennisKey = process.env.API_TENNIS_KEY;
-  return apiTennisKey ? new ApiTennisProvider(apiTennisKey) : null;
+export function getLiveTennisProvider(): LiveTennisHistoricalProvider | null {
+  const key = process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API_KEY;
+  return key ? new LiveTennisHistoricalProvider({ apiKey: key }) : null;
 }
