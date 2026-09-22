@@ -267,3 +267,22 @@ test("implements the runtime provider endpoints without guessing missing values"
   assert.equal((await p.getPlayerMatches("101"))[0].opponentId, "202");
   assert.ok(calls.every((url) => !url.includes("api-tennis") && !url.includes("rapidapi")));
 });
+
+test("paginates player history, de-duplicates provider IDs, and preserves usable records", async () => {
+  const urls: string[] = [];
+  const p = provider([
+    {
+      data: [row({ id: 91 }), row({ id: 92 })],
+      meta: { has_more: true, count: 2, limit: 200, offset: 0 },
+    },
+    {
+      data: [row({ id: 92 }), row({ id: 93 })],
+      meta: { has_more: false, count: 2, limit: 200, offset: 2 },
+    },
+  ], urls);
+
+  const records = await p.getPlayerMatches("101");
+  assert.deepEqual(records.map((record) => record.id), ["91", "92", "93"]);
+  assert.equal(new URL(urls[0]).searchParams.get("offset"), "0");
+  assert.equal(new URL(urls[1]).searchParams.get("offset"), "2");
+});

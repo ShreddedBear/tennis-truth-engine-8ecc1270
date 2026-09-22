@@ -629,7 +629,7 @@ async function applyStalenessSupplementIfNeeded(
   // Fresh DB data: no supplement needed.
   if (!isStaleResult(dbResult.rows)) return dbResult;
 
-  const fetchResult = await fetchFn(playerName);
+  const fetchResult = await fetchFn(playerName, { playerId: dbResult.resolvedId });
   if (fetchResult.records.length > 0 && fetchResult.resolvedPlayerId) {
     let freshRows = matchRecordsToRows(fetchResult.records, fetchResult.resolvedPlayerId);
     // Gap 1 post-filter: discard provider rows on or after the ceiling date.
@@ -819,7 +819,7 @@ async function resolvePlayerMatchRows(
   //
   // On success the provider records are written to historical_matches
   // (non-blocking) so the NEXT request for the same player hits Layer 1.
-  const fetchResult = await fetchPlayerMatchesFromProviders(playerName);
+  const fetchResult = await fetchPlayerMatchesFromProviders(playerName, { playerId: rawId });
   if (fetchResult.records.length > 0 && fetchResult.resolvedPlayerId) {
     let rows = matchRecordsToRows(fetchResult.records, fetchResult.resolvedPlayerId);
     // Gap 1 post-filter: discard provider rows on or after the ceiling date.

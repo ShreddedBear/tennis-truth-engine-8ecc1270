@@ -105,6 +105,20 @@ interface LiveFetchDiagnostics {
   providerIdsFound: Record<string, string>; recordsPerSource: Record<string, number>
   failureReasons: string[]; sources: ProviderSourceDiag[]
 }
+
+function providerDisplayName(source: string): string {
+  const names: Record<string, string> = {
+    "live-tennis-api": "Live Tennis API",
+    "api-tennis": "API-Tennis",
+    rapidapi: "MatchStat / RapidAPI",
+    sofascore: "Sofascore",
+  }
+  return names[source] ?? source
+}
+
+function providerList(sources: string[]): string {
+  return sources.map(providerDisplayName).join(", ")
+}
 interface DataSourceDiagnostics {
   selectedPlayerStatus: PlayerDataStatus; opponentStatus: PlayerDataStatus
   selectedPlayerMatchCount: number; opponentMatchCount: number; h2hMatchCount: number
@@ -919,7 +933,7 @@ function ValidationLegCard({ leg, isAutoSelected, isSaved, onToggleSave }: {
               {/* Per-player provider outcome detail */}
               {leg.dataSourceDiagnostics.selectedPlayerProviderDiag && (
                 <p className="text-[9px] font-mono text-muted-foreground/60">
-                  Selected player — sources tried: {leg.dataSourceDiagnostics.selectedPlayerProviderDiag.sourcesAttempted.join(", ") || "none"}
+                  Selected player — sources tried: {providerList(leg.dataSourceDiagnostics.selectedPlayerProviderDiag.sourcesAttempted) || "none"}
                   {leg.dataSourceDiagnostics.selectedPlayerProviderDiag.outcome !== "DATA_FOUND" && (
                     <span className="ml-1 text-muted-foreground/40">({leg.dataSourceDiagnostics.selectedPlayerProviderDiag.outcome})</span>
                   )}
@@ -927,7 +941,7 @@ function ValidationLegCard({ leg, isAutoSelected, isSaved, onToggleSave }: {
               )}
               {leg.dataSourceDiagnostics.opponentProviderDiag && (
                 <p className="text-[9px] font-mono text-muted-foreground/60">
-                  Opponent — sources tried: {leg.dataSourceDiagnostics.opponentProviderDiag.sourcesAttempted.join(", ") || "none"}
+                  Opponent — sources tried: {providerList(leg.dataSourceDiagnostics.opponentProviderDiag.sourcesAttempted) || "none"}
                   {leg.dataSourceDiagnostics.opponentProviderDiag.outcome !== "DATA_FOUND" && (
                     <span className="ml-1 text-muted-foreground/40">({leg.dataSourceDiagnostics.opponentProviderDiag.outcome})</span>
                   )}
@@ -965,7 +979,7 @@ function ValidationLegCard({ leg, isAutoSelected, isSaved, onToggleSave }: {
                 {(leg.dataSourceDiagnostics.selectedPlayerProviderDiag?.outcome === "PLAYER_NOT_FOUND" ||
                   leg.dataSourceDiagnostics.selectedPlayerProviderDiag?.outcome === "NO_MATCH_HISTORY") && (
                   <p className="text-warning/60">
-                    Provider search ({leg.dataSourceDiagnostics.selectedPlayerProviderDiag.sourcesAttempted.join(", ")}):
+                    Provider search ({providerList(leg.dataSourceDiagnostics.selectedPlayerProviderDiag.sourcesAttempted)}):
                     {" "}{leg.dataSourceDiagnostics.selectedPlayerProviderDiag.outcome === "PLAYER_NOT_FOUND"
                       ? "player not recognised — check name spelling"
                       : "player found but no match records returned"}
@@ -981,7 +995,7 @@ function ValidationLegCard({ leg, isAutoSelected, isSaved, onToggleSave }: {
                 )}
                 {leg.dataSourceDiagnostics.selectedPlayerProviderDiag?.outcome === "DATA_FOUND" && (
                   <p className="text-success/70">
-                    Live data fetched from {leg.dataSourceDiagnostics.selectedPlayerProviderDiag.sourcesSuccessful.join(", ")}
+                    Live data fetched from {providerList(leg.dataSourceDiagnostics.selectedPlayerProviderDiag.sourcesSuccessful)}
                     {" "}({leg.dataSourceDiagnostics.selectedPlayerProviderDiag.recordsPerSource
                       ? Object.values(leg.dataSourceDiagnostics.selectedPlayerProviderDiag.recordsPerSource)[0]
                       : "?"} records)
@@ -1930,7 +1944,9 @@ export default function AdminParlayBuilder() {
               dataQualityLabel: pred.dataQualityLabel ?? "Unknown",
               upsetRisk: pred.upsetRisk ?? "UNKNOWN",
               modelAgreement: pred.engine?.modelAgreement ?? "Unknown",
-              closenessTo50: typeof pred.engine?.closenessTo50 === "number" ? pred.engine.closenessTo50 : null,
+              closenessTo50: Number.isFinite(calibP1)
+                ? 1 - Math.min(1, Math.abs(calibP1 - 50) / 50)
+                : null,
               predictedWinnerSide,
             }
             if (predictedWinnerSide == null) {

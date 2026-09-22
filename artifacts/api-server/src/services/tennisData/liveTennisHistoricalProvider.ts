@@ -538,7 +538,36 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
   }
 
   async getPlayerMatches(playerId: string): Promise<MatchRecord[]> {
-    const rows = listData(await this.request("/matches", { status: "completed", player: playerId, draw: "singles", limit: 200, offset: 0 }));
+    const rows: JsonRecord[] = [];
+    const seenRawIds = new Set<string>();
+    let offset = 0;
+    for (let page = 0; page < this.maxPages; page++) {
+      const body = asRecord(await this.request("/matches", {
+        status: "completed",
+        player: playerId,
+        draw: "singles",
+        limit: PAGE_SIZE,
+        offset,
+      }));
+      const pageRows = listData(body);
+      for (const raw of pageRows) {
+        const id = asString(raw.id);
+        if (id && seenRawIds.has(id)) continue;
+        if (id) seenRawIds.add(id);
+        rows.push(raw);
+      }
+      const meta = asRecord(body.meta);
+      const hasMore = meta.has_more === true;
+      if (!hasMore) break;
+      if (page === this.maxPages - 1) {
+        throw new ProviderUnavailableError(`${this.name} player history pagination exceeded maxPages=${this.maxPages}`);
+      }
+      const nextOffset = Number(meta.offset) + Number(meta.count ?? pageRows.length);
+      offset = Number.isFinite(nextOffset) && nextOffset > offset ? nextOffset : offset + pageRows.length;
+      if (pageRows.length === 0) {
+        throw new ProviderUnavailableError(`${this.name} player history pagination made no progress`);
+      }
+    }
     const records: MatchRecord[] = [];
     for (const raw of rows) {
       const row = matchFromRow(raw);

@@ -8,7 +8,7 @@
  *
  * Provider chain (mirrors compositeProvider.ts but is intentionally independent):
  *   Tier 1: Live Tennis API        (Live_Tennis_Api) — player search + full match history
- *   Tier 2: Sofascore               (no key required) — supplemental history for sparse players
+ *   Fallback: Sofascore             (no key required) — supplemental history for sparse players
  *
  * Each tier has its own error handling and diagnostics.  No tier shares circuit-breaker
  * state or provider instances with the prediction engine's compositeProvider.ts — the
@@ -40,7 +40,7 @@ import {
 } from "../tennisData/index.js";
 import { logger } from "../../lib/logger.js";
 import { resolvePlayerProfileByName } from "../tennisData/playerIdentity.js";
-import { fetchFromSofascore } from "./sofascoreProvider.js";
+import { fetchFromSofascore, isConfidentSofascoreMatch } from "./sofascoreProvider.js";
 import { fetchMarketOdds } from "../oddsData/index.js";
 
 // ─── Outcome & diagnostic types ──────────────────────────────────────────────
@@ -188,7 +188,9 @@ async function saveMatchesToDb(
   }
 }
 
-// ─── Tier-1: RapidAPI / MatchStat ────────────────────────────────────────────
+const LIVE_TENNIS_SOURCE = "live-tennis-api";
+
+// ─── Fallback identity source: RapidAPI / MatchStat ──────────────────────────
 
 /**
  * Attempt to resolve a player's identity via the RapidAPI / MatchStat provider.
@@ -275,59 +277,70 @@ async function attemptRapidApi(
   return foundPlayer; // caller uses this as a hint (identity confirmed) even though no records
 }
 
-// ─── Tier-2: API-Tennis (full history) ───────────────────────────────────────
+// ─── Primary full-history source: Live Tennis API ────────────────────────────
 
 /**
- * Attempt to resolve a player and their match history via API-Tennis.
+ * Attempt to resolve a player and their match history via Live Tennis API.
  *
- * API-Tennis supports both player search and full match-history retrieval, making
+ * Live Tennis API supports both player search and full match-history retrieval, making
  * it the primary source of actual MatchRecord data in this chain. This is tried
- * after (or in parallel with) the RapidAPI tier, and returns a full LiveFetchResult
- * when records are found. Returns null when the player cannot be identified, when
- * the provider is unavailable, or when 0 completed matches are returned (Sofascore
- * tier-3 is then tried by the caller).
+ * before every fallback and returns a full LiveFetchResult when records are found.
+ * Returns null when the player cannot be identified, when the provider is unavailable,
+ * or when 0 completed matches are returned (fallback tiers are then tried by the caller).
  */
-async function attemptMatchstat(
+async function attemptLiveTennis(
   playerName: string,
   diag: LiveFetchDiagnostics,
   providerOverride?: TennisDataProvider | null,
+  requestedPlayerId?: string | null,
 ): Promise<LiveFetchResult | null> {
   const provider = providerOverride !== undefined ? providerOverride : getBuilderLiveProvider();
   if (!provider) return null; // key not configured — skip silently
 
   const sourceDiag: ProviderSourceDiagnostic = {
-    source: "api-tennis",
+    source: LIVE_TENNIS_SOURCE,
     attempted: true,
     succeeded: false,
     playerFound: false,
     recordsReturned: 0,
   };
-  diag.sourcesAttempted.push("api-tennis");
+  diag.sourcesAttempted.push(LIVE_TENNIS_SOURCE);
 
   // ── Step 1: Resolve the player through the shared identity service ──────
   let foundPlayer: PlayerSummary | null = null;
   let searchErrorReason: string | null = null;
+  // Fixture IDs from Live Tennis API are authoritative when the player endpoint
+  // confirms that the name still matches. A foreign/canonical ID returning 404 is
+  // an identity miss, not a provider outage, so continue with name search.
+  if (requestedPlayerId && provider.getPlayer) {
+    try {
+      const direct = await provider.getPlayer(requestedPlayerId);
+      if (direct?.name && isConfidentSofascoreMatch(direct.name, playerName)) {
+        foundPlayer = direct;
+        diag.playerResolutionMethod = "provider-id";
+      }
+    } catch (err) {
+      logger.debug(
+        { source: LIVE_TENNIS_SOURCE, requestedPlayerId, err },
+        "builderProviderFetch: Live Tennis direct ID lookup missed — continuing with name search",
+      );
+    }
+  }
+
   try {
-    const resolved = await resolvePlayerProfileByName(
-      provider as TennisDataProvider,
-      playerName,
-      playerName,
-      {
-        onSearchError: (err, query) => {
-          searchErrorReason = describeProviderError(err);
-          logger.warn({ source: "api-tennis", query, err, reason: searchErrorReason }, "builderProviderFetch: api-tennis shared resolver search failed");
-        },
-      },
-    );
-    if (resolved) {
-      foundPlayer = resolved;
+    if (!foundPlayer) {
+      const candidates = await provider.searchPlayers(playerName);
+      foundPlayer = candidates.find((candidate) =>
+        candidate.name != null && isConfidentSofascoreMatch(candidate.name, playerName)
+      ) ?? null;
+      if (foundPlayer) diag.playerResolutionMethod = "provider-name";
     }
   } catch (err) {
     const reason = describeProviderError(err);
-    logger.warn({ source: "api-tennis", err, reason }, "builderProviderFetch: api-tennis shared resolver failed");
+    logger.warn({ source: LIVE_TENNIS_SOURCE, err, reason }, "builderProviderFetch: Live Tennis API shared resolver failed");
     sourceDiag.failureReason = reason;
-    diag.sourcesFailed.push("api-tennis");
-    diag.failureReasons.push(`api-tennis resolve: ${reason}`);
+    diag.sourcesFailed.push(LIVE_TENNIS_SOURCE);
+    diag.failureReasons.push(`Live Tennis API resolve: ${reason}`);
     diag.outcome = "SOURCE_UNAVAILABLE";
     diag.sources.push(sourceDiag);
     return null;
@@ -335,25 +348,25 @@ async function attemptMatchstat(
 
   if (searchErrorReason && !foundPlayer) {
     sourceDiag.failureReason = searchErrorReason;
-    diag.sourcesFailed.push("api-tennis");
-    diag.failureReasons.push(`api-tennis resolve: ${searchErrorReason}`);
+    diag.sourcesFailed.push(LIVE_TENNIS_SOURCE);
+    diag.failureReasons.push(`Live Tennis API resolve: ${searchErrorReason}`);
     diag.outcome = "SOURCE_UNAVAILABLE";
     diag.sources.push(sourceDiag);
     return null;
   }
 
   if (!foundPlayer) {
-    sourceDiag.failureReason = "Player not found in API-Tennis";
-    diag.sourcesFailed.push("api-tennis");
+    sourceDiag.failureReason = "Player not found in Live Tennis API";
+    diag.sourcesFailed.push(LIVE_TENNIS_SOURCE);
     diag.sources.push(sourceDiag);
     return null;
   }
 
   sourceDiag.playerFound = true;
   sourceDiag.providerPlayerId = foundPlayer.id;
-  diag.providerIdsFound["api-tennis"] = foundPlayer.id;
+  diag.providerIdsFound[LIVE_TENNIS_SOURCE] = foundPlayer.id;
   if (diag.playerResolutionMethod === "none" || diag.playerResolutionMethod === "rapidapi-search") {
-    diag.playerResolutionMethod = "shared-player-identity";
+    diag.playerResolutionMethod = "provider-name";
   }
 
   // ── Step 2: Fetch match history ───────────────────────────────────────────
@@ -362,8 +375,8 @@ async function attemptMatchstat(
     records = await provider.getPlayerMatches(foundPlayer.id);
     sourceDiag.succeeded = true;
     sourceDiag.recordsReturned = records.length;
-    diag.sourcesSuccessful.push("api-tennis");
-    diag.recordsPerSource["api-tennis"] = records.length;
+    diag.sourcesSuccessful.push(LIVE_TENNIS_SOURCE);
+    diag.recordsPerSource[LIVE_TENNIS_SOURCE] = records.length;
 
     if (records.length > 0) {
       diag.outcome = "DATA_FOUND";
@@ -374,7 +387,7 @@ async function attemptMatchstat(
         foundPlayer.id,
         foundPlayer.name,
         foundPlayer.tour ?? null,
-        "builder-live-fetch:api-tennis",
+        "builder-live-fetch:live-tennis-api",
       ).catch(() => {});
 
       diag.sources.push(sourceDiag);
@@ -392,8 +405,8 @@ async function attemptMatchstat(
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     sourceDiag.failureReason = reason;
-    diag.sourcesFailed.push("api-tennis");
-    diag.failureReasons.push(`api-tennis getPlayerMatches(${foundPlayer.id}): ${reason}`);
+    diag.sourcesFailed.push(LIVE_TENNIS_SOURCE);
+    diag.failureReasons.push(`Live Tennis API getPlayerMatches(${foundPlayer.id}): ${reason}`);
     diag.outcome = "SOURCE_UNAVAILABLE";
   }
 
@@ -405,7 +418,7 @@ async function attemptMatchstat(
 
 /**
  * Attempt to resolve a player and their match history via Sofascore.
- * Called after both RapidAPI and API-Tennis tiers fail to return records.
+ * Called after Live Tennis API and the fallback identity lookup fail to return records.
  * Updates `diag` in-place; returns a full LiveFetchResult on success, or null
  * when Sofascore also cannot provide data.
  */
@@ -539,6 +552,7 @@ export async function attemptOddsApi(
 // ─── Provider injection interface (tests override; production uses env-key singletons) ──
 
 export interface BuilderProviders {
+  /** Live Tennis API adapter configured by Live_Tennis_Api. */
   rapidApi: TennisDataProvider | null;
   apiTennis: TennisDataProvider | null;
   sofascore: typeof fetchFromSofascore;
@@ -550,9 +564,9 @@ export interface BuilderProviders {
  * Fetch match records for a player from all configured external providers.
  *
  * Provider chain:
- *   1. RapidAPI/MatchStat — player identity resolution via current rankings search
- *   2. API-Tennis         — player search + full match history
- *   3. Sofascore          — supplemental history for sparse/lower-tier players
+ *   1. Live Tennis API    — player search + full match history
+ *   2. RapidAPI/MatchStat — fallback identity resolution only (no history endpoint)
+ *   3. Sofascore          — fallback history for sparse/lower-tier players
  *
  * Each provider is attempted independently with its own error handling.  A
  * failure at any tier is recorded in diagnostics and the chain continues to the
@@ -564,7 +578,7 @@ export interface BuilderProviders {
  */
 export async function fetchPlayerMatchesFromProviders(
   playerName: string,
-  _context?: { opponentName?: string; tournamentName?: string },
+  _context?: { playerId?: string; opponentName?: string; tournamentName?: string },
   _providers?: Partial<BuilderProviders>,
 ): Promise<LiveFetchResult> {
   // Resolve providers: injected overrides take precedence (tests use this);
@@ -578,8 +592,8 @@ export async function fetchPlayerMatchesFromProviders(
   const effectiveApiTennis = injectedApiTennis !== undefined ? injectedApiTennis : getBuilderLiveProvider();
 
   const sourcesConfigured: string[] = [];
+  if (effectiveApiTennis) sourcesConfigured.push(LIVE_TENNIS_SOURCE);
   if (effectiveRapidApi) sourcesConfigured.push("rapidapi");
-  if (effectiveApiTennis) sourcesConfigured.push("api-tennis");
   sourcesConfigured.push("sofascore");
 
   const diag: LiveFetchDiagnostics = {
@@ -595,21 +609,21 @@ export async function fetchPlayerMatchesFromProviders(
     sources: [],
   };
 
-  // ── Tier 1: RapidAPI / MatchStat — player identity resolution ────────────
-  // MatchStat can confirm a player exists in current standings (useful for
-  // identity resolution diagnostics) but has no match-history endpoint.
-  // Run it first so any identity signal is captured before Tier 2 searches.
-  if (effectiveRapidApi) {
-    await attemptRapidApi(playerName, diag, effectiveRapidApi);
-    // Result (PlayerSummary | null) is intentionally discarded here — MatchStat
-    // IDs are incompatible with API-Tennis IDs, so the Tier-2 search is always
-    // run independently. The value of Tier 1 is diagnostic coverage, not data.
+  // ── Tier 1: Live Tennis API — full search + match history ─────────────────
+  if (effectiveApiTennis) {
+    const liveTennisResult = await attemptLiveTennis(
+      playerName,
+      diag,
+      effectiveApiTennis,
+      _context?.playerId ?? null,
+    );
+    if (liveTennisResult) return liveTennisResult;
   }
 
-  // ── Tier 2: API-Tennis — full search + match history ─────────────────────
-  if (effectiveApiTennis) {
-    const apiTennisResult = await attemptMatchstat(playerName, diag, effectiveApiTennis);
-    if (apiTennisResult) return apiTennisResult;
+  // ── Tier 2: RapidAPI / MatchStat — fallback identity diagnostics ─────────
+  // This provider cannot return history and is never substituted for Live Tennis API.
+  if (effectiveRapidApi) {
+    await attemptRapidApi(playerName, diag, effectiveRapidApi);
   }
 
   // ── Tier 3: Sofascore — supplemental / fallback ───────────────────────────
@@ -617,11 +631,11 @@ export async function fetchPlayerMatchesFromProviders(
   if (sfResult) return sfResult;
 
   // ── All providers exhausted ───────────────────────────────────────────────
-  if (diag.outcome === "CACHE_MISS") {
+  if (diag.outcome !== "NO_MATCH_HISTORY") {
     const anyAttempted = diag.sourcesAttempted.length > 0;
     if (!anyAttempted) {
       diag.outcome = "DATA_UNAVAILABLE";
-    } else if (diag.sourcesFailed.length > 0) {
+    } else if (diag.failureReasons.length > 0) {
       diag.outcome = "SOURCE_UNAVAILABLE";
     } else {
       diag.outcome = "PLAYER_NOT_FOUND";

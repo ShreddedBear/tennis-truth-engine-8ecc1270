@@ -27,7 +27,7 @@ import { inferSurfaceAndLevel } from "./surfaceMap.js";
 import { fetchFromSofascore } from "../parlayBuilder/sofascoreProvider.js";
 import { fetchFromBsdTennis } from "./bsdTennisProvider.js";
 import { getPlayerMatchesFromDb } from "./dbHistoryFallback.js";
-import { getCachedPlayerIdentityIndex, getAliasIds } from "./playerIdentity.js";
+import { getCachedPlayerIdentityIndex, getAliasIds, resolvePlayerProfileByName } from "./playerIdentity.js";
 import { fetchEspnFixturesRange, fetchEspnLiveScores } from "./espnScoreboardProvider.js";
 
 // ─── Sofascore tertiary fixture fallback ──────────────────────────────────────
@@ -265,8 +265,25 @@ export class CompositeTennisProvider implements TennisDataProvider {
     // (MatchStat has no history endpoint; API-Tennis times out under load), return [] so
     // the prediction still runs rather than surfacing a 502 to the user.
     let records: MatchRecord[] = [];
+    const playerName = this.playerNameCache.get(playerId);
+    let primaryPlayerId = playerId;
+
+    // Fixture and DB IDs may be canonical or provider-prefixed rather than native
+    // Live Tennis IDs. When the prediction path seeded the fixture name, resolve it
+    // through the primary provider before requesting history.
+    if (playerName) {
+      try {
+        const primaryProfile = await resolvePlayerProfileByName(this.primary, playerName, playerId);
+        if (primaryProfile?.id) primaryPlayerId = primaryProfile.id;
+      } catch (err) {
+        logger.warn(
+          { playerId, playerName, err },
+          "Primary provider player resolution failed before getPlayerMatches — using submitted ID",
+        );
+      }
+    }
     try {
-      records = await this.primary.getPlayerMatches(playerId);
+      records = await this.primary.getPlayerMatches(primaryPlayerId);
     } catch (err) {
       if (!(err instanceof ProviderUnavailableError)) {
         throw err;
@@ -286,8 +303,6 @@ export class CompositeTennisProvider implements TennisDataProvider {
         logger.warn({ playerId, err: err.message }, "Fallback provider unavailable for getPlayerMatches — continuing to tertiary tiers");
       }
     }
-
-    const playerName = this.playerNameCache.get(playerId);
 
     // Tier-3: BSD Tennis (sports.bzzoiro.com). Structured JSON API, covers top ATP/WTA
     // ranked players. Only fires when BSD_TENNIS_API_KEY is configured and both primary

@@ -35,10 +35,12 @@ function makeRapidApiStub(overrides: {
 
 function makeApiTennisStub(overrides: {
   searchPlayers?: (q: string) => Promise<PlayerSummary[]>;
+  getPlayer?: (id: string) => Promise<PlayerSummary | null>;
   getPlayerMatches?: (id: string) => Promise<MatchRecord[]>;
 } = {}): BuilderProviders["apiTennis"] {
   return {
     searchPlayers: overrides.searchPlayers ?? (async () => []),
+    getPlayer: overrides.getPlayer,
     getPlayerMatches: overrides.getPlayerMatches ?? (async () => []),
   } as unknown as BuilderProviders["apiTennis"];
 }
@@ -116,8 +118,8 @@ describe("shared playerIdentity resolver path", () => {
       assert.equal(result.resolvedPlayerName, testCase.providerName);
       assert.equal(result.resolvedPlayerId, testCase.providerId);
       assert.equal(result.records.length, 1);
-      assert.ok(result.diagnostics.sourcesSuccessful.includes("api-tennis"));
-      assert.equal(result.diagnostics.playerResolutionMethod, "shared-player-identity");
+      assert.ok(result.diagnostics.sourcesSuccessful.includes("live-tennis-api"));
+      assert.equal(result.diagnostics.playerResolutionMethod, "provider-name");
     }
   });
 
@@ -145,7 +147,7 @@ describe("shared playerIdentity resolver path", () => {
 describe("fetchPlayerMatchesFromProviders — provider chain", () => {
   // ── Happy paths ────────────────────────────────────────────────────────────
 
-  it("DATA_FOUND when API-Tennis finds player + records", async () => {
+  it("DATA_FOUND when Live Tennis API finds player + records", async () => {
     const providers: BuilderProviders = {
       rapidApi: null,
       apiTennis: makeApiTennisStub({
@@ -160,10 +162,10 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     assert.equal(result.diagnostics.outcome, "DATA_FOUND");
     assert.equal(result.records.length, 1);
     assert.equal(result.resolvedPlayerId, "at-1");
-    assert.ok(result.diagnostics.sourcesSuccessful.includes("api-tennis"));
+    assert.ok(result.diagnostics.sourcesSuccessful.includes("live-tennis-api"));
   });
 
-  it("RapidAPI player identity recorded in diagnostics even though no records", async () => {
+  it("does not call RapidAPI when Live Tennis API returns usable history", async () => {
     const providers: BuilderProviders = {
       rapidApi: makeRapidApiStub({
         searchPlayers: async (q) =>
@@ -181,13 +183,44 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     const result = await fetchPlayerMatchesFromProviders("Carlos Alcaraz", undefined, providers);
 
     assert.equal(result.diagnostics.outcome, "DATA_FOUND");
-    assert.ok(result.diagnostics.sourcesAttempted.includes("rapidapi"));
-    assert.ok(result.diagnostics.sourcesSuccessful.includes("rapidapi"));
-    assert.equal(result.diagnostics.providerIdsFound["rapidapi"], "rapid-99");
-    assert.equal(result.diagnostics.recordsPerSource["rapidapi"], 0);
+    assert.deepEqual(result.diagnostics.sourcesAttempted, ["live-tennis-api"]);
+    assert.ok(!result.diagnostics.providerIdsFound["rapidapi"]);
   });
 
-  it("falls through to Sofascore when API-Tennis returns 0 records", async () => {
+  it("falls back from a foreign fixture ID to Live Tennis name search", async () => {
+    const calls: string[] = [];
+    const providers: BuilderProviders = {
+      rapidApi: null,
+      apiTennis: makeApiTennisStub({
+        getPlayer: async (id) => {
+          calls.push(`get:${id}`);
+          throw new ProviderUnavailableError("Live Tennis API player ID not found");
+        },
+        searchPlayers: async (query) => {
+          calls.push(`search:${query}`);
+          return [makePlayer("live-77", "D. Snigur")];
+        },
+        getPlayerMatches: async (id) => {
+          calls.push(`history:${id}`);
+          return [makeRecord("live-history-1")];
+        },
+      }),
+      sofascore: makeSofascoreStub({ player: null, records: [] }),
+    };
+
+    const result = await fetchPlayerMatchesFromProviders(
+      "Daria Snigur",
+      { playerId: "foreign-id" },
+      providers,
+    );
+
+    assert.equal(result.diagnostics.outcome, "DATA_FOUND");
+    assert.equal(result.resolvedPlayerId, "live-77");
+    assert.deepEqual(calls, ["get:foreign-id", "search:Daria Snigur", "history:live-77"]);
+    assert.deepEqual(result.diagnostics.sourcesAttempted, ["live-tennis-api"]);
+  });
+
+  it("falls through to Sofascore when Live Tennis API returns 0 records", async () => {
     const providers: BuilderProviders = {
       rapidApi: null,
       apiTennis: makeApiTennisStub({
@@ -280,7 +313,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
 
   // ── Provider unavailable / fallback ───────────────────────────────────────
 
-  it("continues to API-Tennis when RapidAPI throws ProviderUnavailableError", async () => {
+  it("does not call RapidAPI when Live Tennis succeeds", async () => {
     const providers: BuilderProviders = {
       rapidApi: makeRapidApiStub({
         searchPlayers: async () => { throw new ProviderUnavailableError("rate-limit"); },
@@ -295,8 +328,8 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     const result = await fetchPlayerMatchesFromProviders("Test Player", undefined, providers);
 
     assert.equal(result.diagnostics.outcome, "DATA_FOUND");
-    assert.ok(result.diagnostics.sourcesFailed.includes("rapidapi"));
-    assert.ok(result.diagnostics.sourcesSuccessful.includes("api-tennis"));
+    assert.deepEqual(result.diagnostics.sourcesAttempted, ["live-tennis-api"]);
+    assert.ok(result.diagnostics.sourcesSuccessful.includes("live-tennis-api"));
   });
 
   it("surfaces RapidAPI 401 as SOURCE_UNAVAILABLE instead of PLAYER_NOT_FOUND", async () => {
@@ -313,10 +346,10 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     assert.equal(result.diagnostics.outcome, "SOURCE_UNAVAILABLE");
     assert.ok(result.diagnostics.sourcesFailed.includes("rapidapi"));
     assert.ok(result.diagnostics.failureReasons.some((reason) => reason.includes("401")));
-    assert.ok(result.diagnostics.failureReasons.some((reason) => reason.includes("rapidapi search")));
+    assert.ok(result.diagnostics.failureReasons.some((reason) => reason.includes("rapidapi resolve")));
   });
 
-  it("surfaces API-Tennis 429 as SOURCE_UNAVAILABLE instead of PLAYER_NOT_FOUND", async () => {
+  it("surfaces Live Tennis API 429 as SOURCE_UNAVAILABLE instead of PLAYER_NOT_FOUND", async () => {
     const providers: BuilderProviders = {
       rapidApi: null,
       apiTennis: makeApiTennisStub({
@@ -328,9 +361,9 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     const result = await fetchPlayerMatchesFromProviders("Test Player", undefined, providers);
 
     assert.equal(result.diagnostics.outcome, "SOURCE_UNAVAILABLE");
-    assert.ok(result.diagnostics.sourcesFailed.includes("api-tennis"));
+    assert.ok(result.diagnostics.sourcesFailed.includes("live-tennis-api"));
     assert.ok(result.diagnostics.failureReasons.some((reason) => reason.includes("429")));
-    assert.ok(result.diagnostics.failureReasons.some((reason) => reason.includes("api-tennis search")));
+    assert.ok(result.diagnostics.failureReasons.some((reason) => reason.includes("Live Tennis API")));
   });
 
   it("surfaces Sofascore timeout as SOURCE_UNAVAILABLE instead of PLAYER_NOT_FOUND", async () => {
@@ -349,7 +382,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     assert.ok(result.diagnostics.failureReasons.some((reason) => reason.toLowerCase().includes("timeout")));
   });
 
-  it("falls through to Sofascore when API-Tennis search throws ProviderUnavailableError", async () => {
+  it("falls through to Sofascore when Live Tennis API search throws ProviderUnavailableError", async () => {
     const providers: BuilderProviders = {
       rapidApi: null,
       apiTennis: makeApiTennisStub({
@@ -364,7 +397,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     const result = await fetchPlayerMatchesFromProviders("Test Player", undefined, providers);
 
     assert.equal(result.diagnostics.outcome, "DATA_FOUND");
-    assert.ok(result.diagnostics.sourcesFailed.includes("api-tennis"));
+    assert.ok(result.diagnostics.sourcesFailed.includes("live-tennis-api"));
     assert.ok(result.diagnostics.sourcesSuccessful.includes("sofascore"));
   });
 
@@ -382,7 +415,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     assert.equal(result.resolvedPlayerId, null);
   });
 
-  it("returns NO_MATCH_HISTORY when API-Tennis finds player but both it and Sofascore return 0 records", async () => {
+  it("returns NO_MATCH_HISTORY when Live Tennis API finds player but both it and Sofascore return 0 records", async () => {
     const providers: BuilderProviders = {
       rapidApi: null,
       apiTennis: makeApiTennisStub({
@@ -403,7 +436,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
 
   // ── No providers configured ───────────────────────────────────────────────
 
-  it("uses only Sofascore when both RapidAPI and API-Tennis providers are null", async () => {
+  it("uses only Sofascore when both RapidAPI and Live Tennis API providers are null", async () => {
     const providers: BuilderProviders = {
       rapidApi: null,
       apiTennis: null,
@@ -448,7 +481,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     const result = await fetchPlayerMatchesFromProviders("Anyone", undefined, providers);
 
     assert.ok(result.diagnostics.sourcesConfigured.includes("rapidapi"));
-    assert.ok(result.diagnostics.sourcesConfigured.includes("api-tennis"));
+    assert.ok(result.diagnostics.sourcesConfigured.includes("live-tennis-api"));
     assert.ok(result.diagnostics.sourcesConfigured.includes("sofascore"));
   });
 
@@ -462,7 +495,7 @@ describe("fetchPlayerMatchesFromProviders — provider chain", () => {
     const result = await fetchPlayerMatchesFromProviders("Anyone", undefined, providers);
 
     assert.ok(!result.diagnostics.sourcesConfigured.includes("rapidapi"));
-    assert.ok(result.diagnostics.sourcesConfigured.includes("api-tennis"));
+    assert.ok(result.diagnostics.sourcesConfigured.includes("live-tennis-api"));
   });
 
   // ── Sofascore rate-limit branch ───────────────────────────────────────────

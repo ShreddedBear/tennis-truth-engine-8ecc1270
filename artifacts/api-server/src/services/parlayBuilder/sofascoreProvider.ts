@@ -189,12 +189,15 @@ function eventToMatchRecord(event: SofascoreEvent, playerId: number): MatchRecor
 // ─── Name matching (same guard as builderProviderFetch) ───────────────────────
 
 function extractSurname(name: string): string {
+  const commaSurname = name.split(",")[0]?.trim();
+  if (name.includes(",") && commaSurname) return commaSurname.toLowerCase();
   const parts = name.trim().split(/\s+/);
   return (parts[parts.length - 1] ?? name).toLowerCase();
 }
 
 function extractFirstInitial(name: string): string {
-  const first = name.trim().split(/\s+/)[0] ?? "";
+  const commaGiven = name.split(",")[1]?.trim();
+  const first = commaGiven || name.trim().split(/\s+/)[0] || "";
   return first.replace(/\./g, "").charAt(0).toUpperCase();
 }
 
@@ -214,10 +217,21 @@ export function isConfidentSofascoreMatch(candidateName: string, queriedName: st
 
   const normCandidate = normalize(candidateName);
   const normSurname = normalize(qSurname);
+  const candidateTokens = normCandidate.replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  const queryTokens = normalize(queriedName).replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+
+  // Some providers render East Asian names family-name first while fixtures use
+  // given-name first. Exact token equality is unambiguous and order-independent.
+  if (
+    candidateTokens.length === queryTokens.length &&
+    [...candidateTokens].sort().join(" ") === [...queryTokens].sort().join(" ")
+  ) {
+    return true;
+  }
 
   if (!normCandidate.includes(normSurname)) return false;
   if (qInitial) {
-    const cInitial = normalize(candidateName).trimStart().charAt(0);
+    const cInitial = normalize(extractFirstInitial(candidateName)).charAt(0);
     const qInitialNorm = normalize(qInitial);
     if (cInitial !== qInitialNorm) return false;
   }

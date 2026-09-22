@@ -17,6 +17,8 @@
  * produced "Too many requests" on 100+ leg slates.
  */
 
+import type { Surface } from "@workspace/api-client-react";
+
 export type Side = "1" | "2";
 
 export interface LegLike {
@@ -280,7 +282,7 @@ export interface PredictionCallLeg {
 export interface PredictionRequestInput {
   player1Id: string;
   player2Id: string;
-  surface: string;
+  surface: Surface;
   matchFormat: "BestOf3";
   tournamentName: string | null;
 }
@@ -307,7 +309,7 @@ export function buildPredictionCallArgs(leg: PredictionCallLeg): {
     input: {
       player1Id: leg.player1Id,
       player2Id: leg.player2Id,
-      surface: leg.surface ?? "Hard",
+      surface: (leg.surface ?? "Hard") as Surface,
       matchFormat: "BestOf3",
       tournamentName: leg.tournamentName ?? null,
     },
