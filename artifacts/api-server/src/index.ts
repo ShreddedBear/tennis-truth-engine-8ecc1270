@@ -21,20 +21,25 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function bootstrap(): Promise<void> {
-  try {
-    await ensureEvaluationSchema();
-  } catch (err) {
-    logger.error({ err }, "Schema compatibility check failed");
-    process.exit(1);
-  }
-
-  app.listen(port, (err) => {
+  app.listen(port, async (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
       process.exit(1);
     }
 
     logger.info({ port }, "Server listening");
+
+    // Open the HTTP port before running the compatibility transaction. The schema
+    // check includes a large set of idempotent DDL statements and data backfills
+    // that can legitimately exceed the deployment platform's startup timeout on a
+    // production database. Background jobs still wait for it to finish, so they
+    // never run against a partially initialized schema.
+    try {
+      await ensureEvaluationSchema();
+    } catch (err) {
+      logger.error({ err }, "Schema compatibility check failed");
+      process.exit(1);
+    }
 
   // Task #121 root cause: this in-process trigger was deliberately removed (see git history)
   // in favor of a standalone, durably-logged job (`src/jobs/runPaperTradingJob.ts`) intended to
