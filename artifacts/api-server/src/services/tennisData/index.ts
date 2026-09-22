@@ -40,6 +40,49 @@ class NotConfiguredProvider implements TennisDataProvider {
   }
 }
 
+const NO_SECONDARY_PROVIDER_MESSAGE =
+  "No secondary tennis data provider is configured; Live Tennis API is the only configured source.";
+
+/**
+ * Live Tennis API has no second authenticated provider to fall back to (see getTennisDataProvider
+ * below). CompositeTennisProvider still requires a fallback argument for its retry/status logic, so
+ * this stub fills that role with a name and message distinct from NotConfiguredProvider -- reusing
+ * NotConfiguredProvider here would misreport an actually-configured key as missing every time the
+ * real provider merely rate-limits or errors (it would also share the primary's exact display name,
+ * making "X unavailable -- falling back to X" log lines impossible to interpret).
+ */
+class NoSecondaryProvider implements TennisDataProvider {
+  readonly name = "Live Tennis API (no secondary provider)";
+
+  getStatus(): ProviderStatusInfo {
+    return { provider: this.name, connected: false, lastSuccessfulCallAt: null, lastError: NO_SECONDARY_PROVIDER_MESSAGE };
+  }
+  async searchPlayers(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getPlayer(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getPlayerMatches(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getUpcomingFixtures(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getUpcomingFixturesRange(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getHeadToHead(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getCompletedMatchesByDateRange(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+  async getLiveScores(): Promise<never> {
+    throw new ProviderUnavailableError(NO_SECONDARY_PROVIDER_MESSAGE);
+  }
+}
+
 let cachedProvider: TennisDataProvider | null = null;
 
 /**
@@ -59,7 +102,7 @@ export function getTennisDataProvider(): TennisDataProvider {
   }
 
   const liveTennisProvider = new LiveTennisHistoricalProvider({ apiKey: liveTennisKey });
-  cachedProvider = new CompositeTennisProvider(liveTennisProvider, new NotConfiguredProvider());
+  cachedProvider = new CompositeTennisProvider(liveTennisProvider, new NoSecondaryProvider());
 
   return cachedProvider;
 }
