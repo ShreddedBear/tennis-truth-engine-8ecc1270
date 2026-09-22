@@ -109,6 +109,31 @@ test("buildDegradedMatchupEntry still infers surface/level locally for the degra
   assert.equal(entry.event.surface, "Hard");
 });
 
+test("buildDegradedMatchupEntry preserves direct OCR surface, level, best-of, date, and time", () => {
+  const entry = buildDegradedMatchupEntry(
+    {
+      player1Name: "Carlos Taberner",
+      player2Name: "Pyotr Nesterov",
+      eventName: "ATP Challenger Plovdiv 4",
+      surface: "Clay",
+      eventLevel: "ATP Challenger",
+      bestOf: "3",
+      date: "2026-09-22",
+      time: "5:00 AM",
+    },
+    "lookup-timeout",
+    "timed out",
+  );
+  assert.equal(entry.event.surface, "Clay");
+  assert.equal(entry.event.level, "Challenger");
+  assert.equal(entry.event.bestOf, "BestOf3");
+  assert.equal(entry.event.recognizedDate, "2026-09-22");
+  assert.equal(entry.event.recognizedTime, "5:00 AM");
+  assert.equal(entry.event.provenance.surface.method, "ocr");
+  assert.equal(entry.event.provenance.level.method, "ocr");
+  assert.equal(entry.event.provenance.bestOf.method, "ocr");
+});
+
 test("buildDegradedMatchupEntry marks an unreadable name as unreadable rather than lookup-timeout", () => {
   const entry = buildDegradedMatchupEntry(
     { player1Name: null, player2Name: "Iga Swiatek", eventName: null },

@@ -260,7 +260,10 @@ class ScreenshotImportService {
     // 1. Cache check
     if (!skipCache) {
       const cached = cacheGet<ImportScreenshotResult>(hash);
-      if (cached) {
+      // Never reuse a cached empty recognition. A vision provider may have returned
+      // malformed JSON or temporarily missed a readable document; treating that as a
+      // durable success prevents every later upload from retrying OCR.
+      if (cached && (cached.matchups?.length ?? 0) > 0) {
         debugLog.push(`[CACHE] HIT — returning cached result (hash=${hash.slice(0, 8)}…)`);
         return {
           ...cached,
@@ -414,7 +417,7 @@ class ScreenshotImportService {
         entry.player1.status === "error" ||
         entry.player2.status === "error",
     ) ?? false;
-    if (!resolutionThrew && !hasTimedOutPlayerLookup) {
+    if (!resolutionThrew && !hasTimedOutPlayerLookup && (resolved.matchups?.length ?? 0) > 0) {
       cacheSet(hash, result);
     }
     logger.info(

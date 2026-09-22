@@ -201,7 +201,21 @@ function parseImageBase64(imageBase64: string): {
   data: string;
   mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
   dataUrl: string;
+  width?: number;
+  height?: number;
 } {
+  const dimensions = (data: string, mediaType: string): { width?: number; height?: number } => {
+    if (mediaType !== "image/png") return {};
+    try {
+      const bytes = Buffer.from(data, "base64");
+      if (bytes.length >= 24 && bytes.subarray(12, 16).toString("ascii") === "IHDR") {
+        return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+      }
+    } catch {
+      // Invalid image data is handled by the vision provider; dimensions are optional.
+    }
+    return {};
+  };
   if (imageBase64.startsWith("data:")) {
     const semi = imageBase64.indexOf(";");
     const comma = imageBase64.indexOf(",");
@@ -209,7 +223,8 @@ function parseImageBase64(imageBase64: string): {
     const mediaType = (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mimeRaw)
       ? mimeRaw
       : "image/jpeg") as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-    return { data: imageBase64.slice(comma + 1), mediaType, dataUrl: imageBase64 };
+    const data = imageBase64.slice(comma + 1);
+    return { data, mediaType, dataUrl: imageBase64, ...dimensions(data, mediaType) };
   }
   const data = imageBase64;
   return { data, mediaType: "image/jpeg", dataUrl: `data:image/jpeg;base64,${data}` };
@@ -240,6 +255,8 @@ const SPORTSBOOK_JUNK_TERMS = new Set([
   "today", "tomorrow", "continue", "back", "next", "more", "home",
   "add", "remove", "confirm", "submit", "bet now", "view", "open", "close",
   "sgp+", "bet slip", "place bet",
+  // Schedule/document field labels that must never be treated as people
+  "player", "surface", "tournament", "event", "level", "best of", "date", "time",
   // Odds / status
   "even", "push",
   // Market count descriptors (prefix — matched differently below)
@@ -251,6 +268,7 @@ function isSportsbookJunk(name: string): boolean {
   const lower = name.toLowerCase().trim();
   // Exact match in blocklist
   if (SPORTSBOOK_JUNK_TERMS.has(lower)) return true;
+  if (/^(?:player|surface|tournament|event|level|best\s+of|date|time)\b[\s:.\-]*/i.test(lower)) return true;
   // "COMBO 5 MARKETS", "3 LEG PARLAY", "X MARKETS" etc.
   if (/\bmarkets?\b/.test(lower)) return true;
   if (/\bleg\s+parlay\b/.test(lower)) return true;
@@ -597,9 +615,10 @@ export async function recognizeMatchupScreenshot(
     throw new ScreenshotRecognitionUnavailableError(msg, debugLog);
   }
 
-  const { data, mediaType, dataUrl } = parseImageBase64(imageBase64);
+  const { data, mediaType, dataUrl, width, height } = parseImageBase64(imageBase64);
   const imageSizeKb = Math.round((data.length * 0.75) / 1024);
-  debugLog.push(`[IMAGE] mediaType=${mediaType} estimatedSize≈${imageSizeKb}KB`);
+  const isTallSchedule = Boolean(width && height && height / width >= 2.5);
+  debugLog.push(`[IMAGE] mediaType=${mediaType} estimatedSize≈${imageSizeKb}KB${width && height ? ` dimensions=${width}x${height}` : ""}`);
   logger.info({ mediaType, imageSizeKb, providerCount: providers.length }, "Screenshot recognition starting");
 
   /** Call one provider with a given systemPrompt. Returns the parsed result or throws. */
@@ -638,8 +657,9 @@ export async function recognizeMatchupScreenshot(
         // retry once with the permissive fallback prompt before giving up on this provider.
         // This handles screenshots from odds apps / non-standard layouts that the strict
         // prompt misses because it says "unrelated to tennis → return []".
-        if (result.matchups.length === 0) {
-          debugLog.push(`[FALLBACK] primary returned [] — retrying with permissive prompt`);
+        const primaryTooSparse = isTallSchedule && result.matchups.length < 4;
+        if (result.matchups.length === 0 || primaryTooSparse) {
+          debugLog.push(`[FALLBACK] primary returned ${result.matchups.length} usable matchup(s)${primaryTooSparse ? " for a tall schedule image" : ""} — retrying with permissive prompt`);
           logger.info({ provider: resolved.provider, label: resolved.label }, "Screenshot recognition: primary returned empty; retrying with fallback prompt");
           try {
             const fallbackRaw = await callProvider(resolved, FALLBACK_SYSTEM_PROMPT);
@@ -650,8 +670,12 @@ export async function recognizeMatchupScreenshot(
             for (const m of fallbackResult.matchups) {
               debugLog.push(`  • player1="${m.player1Name}" player2="${m.player2Name}" event="${m.eventName}"`);
             }
-            if (fallbackResult.matchups.length > 0) {
+            const fallbackTooSparse = isTallSchedule && fallbackResult.matchups.length < 4;
+            if (fallbackResult.matchups.length > 0 && !fallbackTooSparse) {
               return { ...fallbackResult, debugLog, rawText: fallbackRaw ?? undefined, providerUsed: resolved.label };
+            }
+            if (fallbackTooSparse) {
+              debugLog.push(`[FALLBACK-REJECT] ${fallbackResult.matchups.length} usable matchup(s) is implausibly sparse for a tall schedule image`);
             }
           } catch (fallbackErr) {
             debugLog.push(`[FALLBACK-FAIL] fallback prompt also failed — ${String(fallbackErr).slice(0, 80)}`);

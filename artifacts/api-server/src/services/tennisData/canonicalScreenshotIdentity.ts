@@ -70,6 +70,20 @@ export function resolveCanonicalScreenshotName(
   const normalized = normalizePlayerName(recognizedName);
   if (!normalized) return { status: "not-found" };
   let ids = [...(index.names.get(normalized) ?? [])].sort();
+  // Common transliterations can differ even when both full names are exact spellings.
+  // Only consult a narrowly defined alternate full-name key, and keep the normal
+  // unique/ambiguous handling below so this never guesses between identities.
+  if (ids.length === 0) {
+    const words = normalized.split(/\s+/).filter(Boolean);
+    const givenNameAliases: Record<string, string> = {
+      aleksandr: "alexander",
+      alexander: "aleksandr",
+    };
+    const alternateGivenName = words[0] ? givenNameAliases[words[0]] : undefined;
+    if (alternateGivenName && words.length >= 2) {
+      ids = [...(index.names.get([alternateGivenName, ...words.slice(1)].join(" ")) ?? [])].sort();
+    }
+  }
   // East Asian names are commonly emitted in opposite family/given-name order
   // across providers. Accept only an exact two-token reversal, and preserve
   // ambiguity if more than one canonical identity owns that reversed name.

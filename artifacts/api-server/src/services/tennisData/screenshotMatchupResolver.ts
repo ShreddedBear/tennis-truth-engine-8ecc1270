@@ -958,6 +958,7 @@ async function gatherCandidates(
   provider: TennisDataProvider,
   searchName: string,
   preloadedHistoricalExact: PlayerSummary[] = [],
+  skipRepeatedHistoricalFallbacks = false,
 ): Promise<CandidateGatherResult> {
   const norm = normalizeName(searchName);
   const canonical = await resolveCanonicalScreenshotPlayer(searchName);
@@ -980,49 +981,40 @@ async function gatherCandidates(
     };
   }
 
-  // Historical rows are useful context, but a canonical miss must still reach
-  // the external provider before any identity is accepted.
-
-  // Screenshot imports usually contain full names and our historical store already carries
-  // canonical identities for them. Resolve that trusted local evidence first so a slow or
-  // circuit-open live provider cannot turn successful OCR into an item-level timeout.
-  const historical = await searchKnownPlayers(provider, searchName, { historicalOnly: true });
-
-  // A full-name LIKE query can hit the 25-row cap before the exact record when a common first or
-  // last name has many historical entries. Repeat the existing surname-first fallback locally
-  // before touching the network.
   const words = searchName.trim().split(/\s+/).filter((w) => w.length >= 2).reverse();
   const historicalAccumulated = new Map(
-    [...preloadedHistoricalExact, ...historical].map((player) => [player.id, player]),
+    preloadedHistoricalExact.map((player) => [player.id, player]),
   );
-  for (const word of words) {
-    const wordResults = await searchKnownPlayers(provider, word, {
-      historicalOnly: true,
-      resultLimit: 100,
-    });
-    for (const candidate of wordResults) {
-      if (!historicalAccumulated.has(candidate.id)) historicalAccumulated.set(candidate.id, candidate);
+
+  // Small imports retain the richer surname/fuzzy local recovery. Large documents already
+  // performed one batched exact-name lookup for every OCR name; repeating these scans for
+  // dozens of unresolved players can block the event loop long enough to hit row deadlines.
+  if (!skipRepeatedHistoricalFallbacks) {
+    const historical = await searchKnownPlayers(provider, searchName, { historicalOnly: true });
+    for (const player of historical) historicalAccumulated.set(player.id, player);
+    for (const word of words) {
+      const wordResults = await searchKnownPlayers(provider, word, {
+        historicalOnly: true,
+        resultLimit: 100,
+      });
+      for (const candidate of wordResults) {
+        if (!historicalAccumulated.has(candidate.id)) historicalAccumulated.set(candidate.id, candidate);
+      }
+    }
+    if (!isWeakOcrIdentityKey(norm)) {
+      const localFuzzy = await ocrFuzzyFallback(provider, searchName, true);
+      if (localFuzzy) {
+        return {
+          candidates: [localFuzzy],
+          canonicalAmbiguous: false,
+          requiresProviderResolution: false,
+          providerConfidentCount: 0,
+        };
+      }
     }
   }
 
-  if (!isWeakOcrIdentityKey(norm)) {
-    const localFuzzy = await ocrFuzzyFallback(provider, searchName, true);
-    if (localFuzzy) {
-      // The historical-only fuzzy resolver accepts only a unique best full-name
-      // match under strict surname/full-name edit-distance ceilings. Preserve
-      // that safe local result instead of requiring a failing live provider to
-      // confirm it again.
-      return {
-        candidates: [localFuzzy],
-        canonicalAmbiguous: false,
-        requiresProviderResolution: false,
-        providerConfidentCount: 0,
-      };
-    }
-  }
-
-  // Only the live-provider phase is deadline-bound. Local historical scans above remain allowed
-  // to complete so an under-load DB query cannot be mislabeled as a provider timeout.
+  // The live-provider phase is always deadline-bound.
   return withPlayerLookupDeadline((async () => {
     // Primary search
     const primary = await searchKnownPlayers(provider, searchName);
@@ -1083,6 +1075,7 @@ async function resolvePlayerMatch(
   eventName?: string | null,
   todayFixtures?: Fixture[],
   preloadedHistoricalExact: PlayerSummary[] = [],
+  skipRepeatedHistoricalFallbacks = false,
 ): Promise<PlayerResolveOutcome> {
   if (!recognizedName) {
     return {
@@ -1123,7 +1116,12 @@ async function resolvePlayerMatch(
   let requiresProviderResolution = false;
   let providerConfidentCount = 0;
   try {
-    const gathered = await gatherCandidates(provider, searchName, preloadedHistoricalExact);
+    const gathered = await gatherCandidates(
+      provider,
+      searchName,
+      preloadedHistoricalExact,
+      skipRepeatedHistoricalFallbacks,
+    );
     candidates = gathered.candidates;
     canonicalAmbiguous = gathered.canonicalAmbiguous;
     requiresProviderResolution = gathered.requiresProviderResolution;
@@ -1315,9 +1313,19 @@ async function resolvePlayerMatch(
     return { match: { recognizedName, player: autoPick }, status: "best-guess", candidates: confident };
   } else {
     // OCR misread recovery: try edit-distance ≤1 on the surname before giving up entirely.
-    const fuzzyMatch = await ocrFuzzyFallback(provider, searchName);
-    if (fuzzyMatch) {
-      return { match: { recognizedName, player: fuzzyMatch }, status: "best-guess" };
+    try {
+      // Typo recovery may call the live provider again. Bound this second pass too;
+      // otherwise a failed primary search plus an unbounded fuzzy search can consume
+      // the full per-matchup deadline and discard both player outcomes.
+      const fuzzyMatch = await withPlayerLookupDeadline(ocrFuzzyFallback(provider, searchName));
+      if (fuzzyMatch) {
+        return { match: { recognizedName, player: fuzzyMatch }, status: "best-guess" };
+      }
+    } catch (error) {
+      if (error instanceof PlayerLookupTimeoutError) {
+        return { match: { recognizedName, player: null }, status: "lookup-timeout" };
+      }
+      throw error;
     }
     return { match: { recognizedName, player: null }, status: "not-found" };
   }
@@ -1520,6 +1528,31 @@ export function buildDegradedMatchupEntry(
   const inferred = inferSurfaceAndLevel(entry.eventName ?? null);
   const empty: import("./types").MetadataFieldProvenance = { source: null, method: "none", status: "unresolved", direct: false };
   const localEvidence: import("./types").MetadataFieldProvenance = { source: "local tournament name table", method: "local-registry", status: "verified", direct: true };
+  const directOcr: import("./types").MetadataFieldProvenance = { source: "screenshot OCR", method: "ocr", status: "verified", direct: true };
+  const surfaceToken = entry.surface?.toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " ").trim() ?? "";
+  const ocrSurface: import("./types").Surface | null =
+    surfaceToken === "hard" || surfaceToken === "hard court" || surfaceToken === "outdoor hard" ? "Hard"
+    : surfaceToken === "indoor hard" || surfaceToken === "hard indoor" ? "IndoorHard"
+    : surfaceToken === "clay" || surfaceToken === "clay court" || surfaceToken === "red clay" ? "Clay"
+    : surfaceToken === "grass" || surfaceToken === "grass court" ? "Grass"
+    : null;
+  const levelToken = entry.eventLevel?.toUpperCase().replace(/[-_ ]/g, "") ?? "";
+  const ocrLevel: import("./types").TournamentLevel | null =
+    levelToken.includes("GRANDSLAM") || levelToken === "SLAM" ? "GrandSlam"
+    : levelToken.includes("MASTERS1000") || levelToken === "ATP1000" ? "Masters1000"
+    : levelToken.includes("WTA1000") ? "WTA1000"
+    : levelToken.includes("WTA500") ? "WTA500"
+    : levelToken.includes("WTA250") ? "WTA250"
+    : levelToken.includes("ATP500") ? "ATP500"
+    : levelToken.includes("ATP250") ? "ATP250"
+    : levelToken.includes("CHALLENGER") ? "Challenger"
+    : levelToken.includes("ITF") ? "ITF"
+    : null;
+  const bestOfToken = entry.bestOf?.match(/\b([35])\b/)?.[1];
+  const ocrBestOf: import("./types").MatchFormat | null =
+    bestOfToken === "5" ? "BestOf5" : bestOfToken === "3" ? "BestOf3" : null;
+  const surface = ocrSurface ?? inferred.surface;
+  const level = ocrLevel ?? inferred.level;
   return {
     player1: {
       recognizedName: entry.player1Name,
@@ -1533,18 +1566,23 @@ export function buildDegradedMatchupEntry(
     },
     event: {
       recognizedName: entry.eventName,
+      recognizedSurface: entry.surface ?? null,
+      recognizedLevel: entry.eventLevel ?? null,
+      recognizedBestOf: entry.bestOf ?? null,
+      recognizedDate: entry.date ?? null,
+      recognizedTime: entry.time ?? null,
       canonicalName: null,
       tour: null,
-      surface: inferred.surface,
-      level: inferred.level,
-      bestOf: null,
+      surface,
+      level,
+      bestOf: ocrBestOf,
       round: null,
       provenance: {
         tournament: empty,
         tour: empty,
-        surface: inferred.surface ? localEvidence : empty,
-        level: inferred.level ? localEvidence : empty,
-        bestOf: empty,
+        surface: ocrSurface ? directOcr : surface ? localEvidence : empty,
+        level: ocrLevel ? directOcr : level ? localEvidence : empty,
+        bestOf: ocrBestOf ? directOcr : empty,
         round: empty,
       },
     },
@@ -1562,6 +1600,7 @@ async function resolveOneMatchup(
   todayFixtures: Fixture[],
   historicalExactByName: Map<string, PlayerSummary[]>,
   playerResolutionCache: Map<string, Promise<PlayerResolveOutcome>>,
+  skipRepeatedHistoricalFallbacks: boolean,
 ): Promise<ScreenshotMatchupEntry> {
   const warnings: string[] = [];
   const exactFixturePair = pickUniqueExactFixturePair(entry, todayFixtures);
@@ -1585,7 +1624,7 @@ async function resolveOneMatchup(
 
   const resolveCachedPlayer = (recognizedName: string | null): Promise<PlayerResolveOutcome> => {
     if (!recognizedName) {
-      return resolvePlayerMatch(provider, null, entry.eventName, todayFixtures, []);
+      return resolvePlayerMatch(provider, null, entry.eventName, todayFixtures, [], skipRepeatedHistoricalFallbacks);
     }
     const playerKey = normalizeScreenshotPlayerLookupKey(recognizedName);
     const eventKey = normalizeLooseText(entry.eventName);
@@ -1598,6 +1637,7 @@ async function resolveOneMatchup(
         entry.eventName,
         todayFixtures,
         historicalExactByName.get(playerKey) ?? [],
+        skipRepeatedHistoricalFallbacks,
       );
       playerResolutionCache.set(cacheKey, pending);
     }
@@ -1924,10 +1964,18 @@ export async function resolveScreenshotMatchup(
   // resolvedEntries[i] always corresponds to raw.matchups[i].
   const resolvedEntries: ScreenshotMatchupEntry[] = new Array(raw.matchups.length);
   const playerResolutionCache = new Map<string, Promise<PlayerResolveOutcome>>();
+  const skipRepeatedHistoricalFallbacks = raw.matchups.length >= 10;
   await runWithConcurrency(raw.matchups, MATCHUP_RESOLUTION_CONCURRENCY, async (entry, i) => {
     try {
       resolvedEntries[i] = await withMatchupResolutionDeadline(
-        resolveOneMatchup(provider, entry, todayFixtures, historicalExactByName, playerResolutionCache),
+        resolveOneMatchup(
+          provider,
+          entry,
+          todayFixtures,
+          historicalExactByName,
+          playerResolutionCache,
+          skipRepeatedHistoricalFallbacks,
+        ),
       );
     } catch (error) {
       if (error instanceof MatchupResolutionTimeoutError) {

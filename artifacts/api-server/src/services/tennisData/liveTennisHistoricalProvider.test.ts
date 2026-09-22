@@ -229,7 +229,16 @@ test("implements the runtime provider endpoints without guessing missing values"
     calls.push(url);
     const path = new URL(url).pathname;
     if (path === "/api/public/v1/players") {
-      return { ok: true, status: 200, json: async () => ({ data: [{ id: 101, name: "Alpha Player", country: "USA", ranking: 10, tour: "atp" }] }) };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            { id: 101, name: "Alpha Player", country: "USA", ranking: 10, tour: "atp" },
+            { id: 303, name: "Partner / Alpha Player", tour: "atp", is_doubles_team: true },
+          ],
+        }),
+      };
     }
     if (path === "/api/public/v1/players/101" || path === "/api/public/v1/players/202") {
       const second = path.endsWith("/202");
@@ -250,7 +259,7 @@ test("implements the runtime provider endpoints without guessing missing values"
     throw new Error(`unexpected test endpoint ${path}`);
   };
   const p = new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl });
-  assert.equal((await p.searchPlayers("Alpha"))[0].id, "101");
+  assert.deepEqual((await p.searchPlayers("Alpha")).map((player) => player.id), ["101"]);
   assert.equal((await p.getPlayer("101"))?.name, "Alpha Player");
   assert.equal((await p.getUpcomingFixtures("2026-09-21"))[0].id, "77");
   assert.equal((await p.getLiveScores(["77"])).get("77")?.sets.length, 1);

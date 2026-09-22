@@ -482,7 +482,10 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
     const rows = listData(await this.request("/players", { search: query, limit: 50, offset: 0 }));
     return rows.flatMap((row) => {
       const player = playerFromRow(row);
-      if (!player?.name) return [];
+      // This resolver is for singles identities. The provider also returns doubles-team
+      // records such as "Partner / Pyotr Nesterov", which create false ambiguity for an
+      // otherwise unique singles player.
+      if (!player?.name || player.is_doubles_team === true || player.name.includes("/")) return [];
       return [{
         id: String(player.id),
         name: player.name,
