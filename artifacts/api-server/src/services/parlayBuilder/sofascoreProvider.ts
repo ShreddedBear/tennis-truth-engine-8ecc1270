@@ -247,6 +247,32 @@ export interface SofascoreFetchResult {
 }
 
 /**
+ * Sofascore's unofficial API is unauthenticated but commonly blocks requests from
+ * datacenter/cloud-provider IP ranges at its edge (observed: a clean, immediate,
+ * structured `{"error":{"code":403,"reason":"Forbidden"}}` JSON response -- not an
+ * HTML WAF challenge page -- with realistic browser headers already present). That
+ * is an access limitation of the environment this runs in, not a malformed request,
+ * so it gets a distinct label here rather than folding into a generic HTTP-error
+ * message -- the same way 429 already does below.
+ */
+function describeSofascoreHttpError(context: "search" | "events", status: number, body: string): { message: string; logEvent: string } {
+  const label = context === "search" ? "Sofascore" : "Sofascore events";
+  if (status === 429) {
+    return { message: `${label} rate-limited (429)`, logEvent: "rate-limited" };
+  }
+  if (status === 403) {
+    return {
+      message: `${label} blocked this request (403 Forbidden) -- commonly caused by Sofascore blocking this environment's IP range on its unofficial API, not a malformed request${body ? `: ${body.slice(0, 200)}` : ""}`,
+      logEvent: "blocked (403)",
+    };
+  }
+  return {
+    message: `${label} HTTP ${status}${body ? `: ${body.slice(0, 200)}` : ""}`,
+    logEvent: "returned non-OK",
+  };
+}
+
+/**
  * Search for a tennis player by name and return their recent match history.
  * Returns { player: null, records: [] } gracefully on any error.
  */
@@ -268,13 +294,9 @@ export async function fetchFromSofascore(playerName: string): Promise<SofascoreF
       const res = await sfFetch(url);
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        if (res.status === 429) {
-          logger.warn({ query, status: res.status }, "sofascoreProvider: search rate-limited");
-          return { player: null, records: [], error: "Sofascore rate-limited (429)" };
-        }
-        const error = `Sofascore search HTTP ${res.status}${body ? `: ${body.slice(0, 200)}` : ""}`;
-        logger.warn({ query, status: res.status, bodySnippet: body.slice(0, 200) }, "sofascoreProvider: search returned non-OK");
-        return { player: null, records: [], error };
+        const { message, logEvent } = describeSofascoreHttpError("search", res.status, body);
+        logger.warn({ query, status: res.status, bodySnippet: body.slice(0, 200) }, `sofascoreProvider: search ${logEvent}`);
+        return { player: null, records: [], error: message };
       }
       const data = (await res.json()) as { results?: SofascoreSearchResult[] };
       const players = (data.results ?? []).filter(
@@ -319,12 +341,9 @@ export async function fetchFromSofascore(playerName: string): Promise<SofascoreF
       const res = await sfFetch(url);
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        logger.warn({ page, foundId, status: res.status, bodySnippet: body.slice(0, 200) }, "sofascoreProvider: events page returned non-OK");
-        return {
-          player,
-          records,
-          error: `Sofascore events HTTP ${res.status}${body ? `: ${body.slice(0, 200)}` : ""}`,
-        };
+        const { message, logEvent } = describeSofascoreHttpError("events", res.status, body);
+        logger.warn({ page, foundId, status: res.status, bodySnippet: body.slice(0, 200) }, `sofascoreProvider: events page ${logEvent}`);
+        return { player, records, error: message };
       }
       const data = (await res.json()) as { events?: SofascoreEvent[]; hasNextPage?: boolean };
       const events = data.events ?? [];
