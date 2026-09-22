@@ -6,8 +6,9 @@
  * Text-extraction providers give us raw strings; this module bridges that gap.
  *
  * Heuristics applied in order:
- *   1. Inline "X vs Y" / "X v Y" / "X def. Y" patterns on the same line
- *   2. Consecutive candidate-name lines (two name-like lines back-to-back)
+ *   1. Structured "MATCH / Tournament / Player 1 / Player 2" blocks
+ *   2. Inline "X vs Y" / "X v Y" / "X def. Y" patterns on the same line
+ *   3. Consecutive candidate-name lines (two name-like lines back-to-back)
  *
  * A "name-like" line:
  *   - Contains at least one letter
@@ -66,6 +67,66 @@ function cleanName(raw: string): string | null {
   return cleaned.length >= 2 ? cleaned : null;
 }
 
+function extractLabeledValue(line: string, label: string): string | null {
+  const nextLabel = String.raw`(?=\s+(?:Tournament|Surface|Level|Best\s+of|Date|Time|Player\s*[12])\s*:|$)`;
+  const match = new RegExp(String.raw`(?:^|\s)${label}\s*:\s*(.*?)${nextLabel}`, "i").exec(line);
+  const value = match?.[1]?.trim();
+  return value ? value : null;
+}
+
+/**
+ * OCR.Space preserves the text on the supplied schedule sheets very accurately,
+ * but it does not add semantic structure. Parse their explicit labels before the
+ * generic name-line heuristic, which intentionally rejects colons and therefore
+ * cannot recognize lines such as "Player 1: Carlos Alcaraz".
+ */
+function parseStructuredMatchBlocks(lines: string[]): RawMatchupEntry[] {
+  const matchups: RawMatchupEntry[] = [];
+  let current: RawMatchupEntry | null = null;
+
+  const ensureCurrent = (): RawMatchupEntry => {
+    current ??= { player1Name: null, player2Name: null, eventName: null };
+    return current;
+  };
+
+  const flush = (): void => {
+    if (!current) return;
+    if (current.player1Name || current.player2Name) {
+      matchups.push(current);
+    }
+    current = null;
+  };
+
+  for (const line of lines) {
+    if (/^MATCH\s+\d+\b/i.test(line)) {
+      flush();
+      ensureCurrent();
+      continue;
+    }
+
+    const tournament = extractLabeledValue(line, "Tournament");
+    const surface = extractLabeledValue(line, "Surface");
+    const level = extractLabeledValue(line, "Level");
+    const bestOf = extractLabeledValue(line, String.raw`Best\s+of`);
+    const date = extractLabeledValue(line, "Date");
+    const time = extractLabeledValue(line, "Time");
+    const player1 = extractLabeledValue(line, String.raw`Player\s*1`);
+    const player2 = extractLabeledValue(line, String.raw`Player\s*2`);
+
+    if (tournament) ensureCurrent().eventName = tournament;
+    if (surface) ensureCurrent().surface = surface;
+    if (level) ensureCurrent().eventLevel = level;
+    if (bestOf) ensureCurrent().bestOf = bestOf;
+    if (date) ensureCurrent().date = date;
+    if (time) ensureCurrent().time = time;
+    if (player1) ensureCurrent().player1Name = cleanName(player1);
+    if (player2) ensureCurrent().player2Name = cleanName(player2);
+  }
+
+  flush();
+  return matchups;
+}
+
 export function parseOcrText(text: string): RawMatchupEntry[] {
   const lines = text
     .split(/\r?\n/)
@@ -74,7 +135,11 @@ export function parseOcrText(text: string): RawMatchupEntry[] {
 
   const matchups: RawMatchupEntry[] = [];
 
-  // Strategy 1 — inline "X vs Y" on the same line
+  // Strategy 1 — explicit labeled matchup blocks
+  const structured = parseStructuredMatchBlocks(lines);
+  if (structured.length > 0) return structured;
+
+  // Strategy 2 — inline "X vs Y" on the same line
   const vsRe = /^(.+?)\s+(?:vs?\.?|def\.?|–|-)\s+(.+)$/i;
   for (const line of lines) {
     const m = vsRe.exec(line);
@@ -89,7 +154,7 @@ export function parseOcrText(text: string): RawMatchupEntry[] {
 
   if (matchups.length > 0) return matchups;
 
-  // Strategy 2 — consecutive name-like lines treated as a pair
+  // Strategy 3 — consecutive name-like lines treated as a pair
   const nameLines = lines.filter(isNameLike);
   for (let i = 0; i + 1 < nameLines.length; i += 2) {
     const p1 = cleanName(nameLines[i]);

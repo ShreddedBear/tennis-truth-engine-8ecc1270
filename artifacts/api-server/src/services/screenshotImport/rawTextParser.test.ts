@@ -51,3 +51,53 @@ test("inline matchup parsing rejects URLs and app labels on either side", () => 
   ]);
   assert.deepEqual(parseOcrText("RUN MODEL - HISTORY\napp.replit.dev vs REFRESH"), []);
 });
+
+test("parses labeled OCR schedule blocks and preserves repeated matchup metadata", () => {
+  const text = `ATP CHALLENGER BUENOS AIRES II — SET 2
+OCR INPUT — Tournament / Surface / Level / Best of / Date / Time / Player 1 / Player 2
+MATCH 1
+Tournament: ATP Challenger Buenos Aires II
+Surface: Clay Level: Challenger 75 Best of: 3
+Date: 2026-09-22 Time: 10:10 AM
+Player 1: Gonzalo Bueno
+Player 2: Franco Roncadelli
+MATCH 2
+Tournament: ATP Challenger Buenos Aires II
+Surface: Clay
+Level: Challenger 75
+Date: 2026-09-22
+Time: 11:20 AM
+Player 1: Pedro Martinez
+Player 2: Eduardo Ribeiro
+Best of: 3`;
+
+  assert.deepEqual(parseOcrText(text), [
+    {
+      player1Name: "Gonzalo Bueno",
+      player2Name: "Franco Roncadelli",
+      eventName: "ATP Challenger Buenos Aires II",
+      surface: "Clay",
+      eventLevel: "Challenger 75",
+      bestOf: "3",
+      date: "2026-09-22",
+      time: "10:10 AM",
+    },
+    {
+      player1Name: "Pedro Martinez",
+      player2Name: "Eduardo Ribeiro",
+      eventName: "ATP Challenger Buenos Aires II",
+      surface: "Clay",
+      eventLevel: "Challenger 75",
+      bestOf: "3",
+      date: "2026-09-22",
+      time: "11:20 AM",
+    },
+  ]);
+});
+
+test("does not emit a structured block that contains metadata but no player", () => {
+  assert.deepEqual(
+    parseOcrText("MATCH 1\nTournament: ATP Challenger San Diego 2\nSurface: Hard\nDate: 2026-09-22"),
+    [],
+  );
+});
