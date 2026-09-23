@@ -54,3 +54,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Claude Code agent-isolation worktrees (scratch, never part of the project)
+.claude/worktrees/
