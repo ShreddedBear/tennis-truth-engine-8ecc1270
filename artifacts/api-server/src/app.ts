@@ -11,6 +11,9 @@ import { formatDatabaseError } from "./lib/databaseError";
 import { generalApiLimiter } from "./middlewares/rateLimiter";
 
 const app: Express = express();
+// Replit terminates requests at a reverse proxy. Trust only the nearest hop so
+// req.ip and per-client rate limits use the forwarded client address.
+app.set("trust proxy", 1);
 
 // Clerk proxy must be mounted before body parsers (streams raw bytes)
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
