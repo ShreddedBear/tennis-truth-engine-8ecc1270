@@ -90,3 +90,8 @@ env = { "CI" = "true" }
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 180000
+
+[userenv]
+
+[userenv.development]
+ENABLE_PARLAY_BUILDER_PAPER_TRADING_SCHEDULER = "true"
