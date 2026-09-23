@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Target, ArrowLeft, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react"
+import { Target, ArrowLeft, ShieldAlert, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react"
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "")
 const api = (path: string) => `${BASE}${path}`
@@ -93,6 +93,72 @@ interface FactorRow {
 interface SummaryResponse {
   byStatus: Record<string, number>
   crossSideDisagreements: number
+}
+
+// ── Statistics types (mirror artifacts/api-server's statistics.ts) ─────────────
+
+interface TotalsBreakdown {
+  discovered: number; eligible: number; snapshotted: number; frozen: number
+  started: number; completed: number; graded: number; pending: number
+  no_decision: number; ineligible: number; data_error: number; cancelled: number; void: number
+}
+
+interface PredictionPerformance {
+  gradedCount: number; correctCount: number; incorrectCount: number; voidCount: number; accuracy: number | null
+}
+
+interface DecisionCategoryStats {
+  count: number; gradedCount: number; correctCount: number; accuracy: number | null
+}
+
+interface DirectionalValidationDecisions {
+  label: string
+  counts: { KEEP: number; BORDERLINE: number; REMOVE: number; DATA_UNAVAILABLE: number }
+  accuracyByDecision: { KEEP: DecisionCategoryStats; BORDERLINE: DecisionCategoryStats; REMOVE: DecisionCategoryStats }
+}
+
+interface PlayerPickCount { playerId: string; playerName: string; count: number }
+interface ProbabilityBucketStats {
+  bucket: string; count: number; gradedCount: number; correctCount: number; incorrectCount: number; accuracy: number | null
+}
+
+interface AutonomousPredictionMetrics {
+  label: string
+  pickCountByPlayer: PlayerPickCount[]
+  probabilityBuckets: ProbabilityBucketStats[]
+}
+
+interface CrossSideIntegrityStats {
+  agreementCount: number; disagreementCount: number; agreementRate: number | null; disagreementsExcludedFromGrading: true
+}
+
+interface DataQualityStats {
+  dataCoverageBuckets: { bucket: string; count: number }[]
+  missingEvidenceCount: number
+  dataUnavailableCount: number
+  providerFailureCount: number
+}
+
+interface LineageBreakdownEntry {
+  builderVersion: string | null; builderConfigFingerprint: string | null; calibrationModelId: number | null; pairCount: number
+}
+
+interface ObservedTimeWindow { earliestScheduledStartAt: string | null; latestScheduledStartAt: string | null }
+
+interface ParlayPaperTradingStatistics {
+  totals: TotalsBreakdown
+  predictionPerformance: PredictionPerformance
+  directionalValidationDecisions: DirectionalValidationDecisions
+  autonomousPrediction: AutonomousPredictionMetrics
+  crossSideIntegrity: CrossSideIntegrityStats
+  dataQuality: DataQualityStats
+  lineage: LineageBreakdownEntry[]
+  timeWindow: ObservedTimeWindow
+}
+
+interface StatsResponse {
+  filters: { dateFrom: string | null; dateTo: string | null; builderVersion: string | null; builderConfigFingerprint: string | null; calibrationModelId: number | null }
+  statistics: ParlayPaperTradingStatistics
 }
 
 const UPCOMING_STATUSES = new Set(["DISCOVERED", "FROZEN", "NO_DECISION", "INELIGIBLE", "DATA_ERROR", "STARTED"])
@@ -333,6 +399,250 @@ function PairsTable({ pairs, onSelect }: { pairs: PairSummary[]; onSelect: (pair
   )
 }
 
+// ── Statistics section ───────────────────────────────────────────────────────
+// PRODUCTION PROSPECTIVE PARLAY BUILDER PAPER TRADING statistics only -- sourced entirely from
+// GET /api/admin/parlay-paper-trading/stats, which itself reads only the paper-trading tables
+// (never Research V1, the Prediction Engine, or synthetic TEST- fixtures). Five clearly separated
+// sections per spec: LIFECYCLE, AUTONOMOUS PREDICTION PERFORMANCE, DIRECTIONAL VALIDATION
+// DECISIONS, CROSS-SIDE INTEGRITY, LINEAGE. No "best/worst/strongest" language anywhere --
+// measured counts and rates only.
+
+function Pct({ value }: { value: number | null }): ReactElement {
+  return <span>{value == null ? "—" : `${value}%`}</span>
+}
+
+interface StatsFilters { dateFrom: string; dateTo: string; builderVersion: string; builderConfigFingerprint: string; calibrationModelId: string }
+const EMPTY_STATS_FILTERS: StatsFilters = { dateFrom: "", dateTo: "", builderVersion: "", builderConfigFingerprint: "", calibrationModelId: "" }
+
+function StatTile({ label, value }: { label: string; value: number | string }): ReactElement {
+  return (
+    <div className="rounded-lg border p-2.5">
+      <div className="text-xl font-bold">{value}</div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+    </div>
+  )
+}
+
+function StatisticsSection(): ReactElement {
+  const [filters, setFilters] = useState<StatsFilters>(EMPTY_STATS_FILTERS)
+  const set = (key: keyof StatsFilters) => (e: React.ChangeEvent<HTMLInputElement>) => setFilters({ ...filters, [key]: e.target.value })
+
+  const query = useMemo(() => {
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(filters)) if (v) params.set(k, v)
+    return params.toString()
+  }, [filters])
+
+  const { data, isLoading, error } = useQuery<StatsResponse>({
+    queryKey: ["paper-trading-stats", query],
+    queryFn: async () => {
+      const r = await fetch(api(`/api/admin/parlay-paper-trading/stats?${query}`), { credentials: "include" })
+      if (!r.ok) throw new Error("Failed to load statistics")
+      return r.json()
+    },
+  })
+
+  return (
+    <div className="space-y-4">
+      <Alert className="border-sky-500/50 bg-sky-500/10">
+        <BarChart3 className="h-4 w-4" />
+        <AlertTitle className="font-mono">PRODUCTION_PROSPECTIVE_PARLAY_BUILDER_PAPER_TRADING</AlertTitle>
+        <AlertDescription>
+          Sourced only from this table set. Isolated from Parlay Research (V1), the Prediction
+          Engine, and legacy retrospective Builder data. Synthetic TEST- acceptance fixtures are
+          always excluded.
+        </AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div><label className="text-xs text-muted-foreground">From</label><Input type="date" value={filters.dateFrom} onChange={set("dateFrom")} /></div>
+          <div><label className="text-xs text-muted-foreground">To</label><Input type="date" value={filters.dateTo} onChange={set("dateTo")} /></div>
+          <div><label className="text-xs text-muted-foreground">Builder version</label><Input value={filters.builderVersion} onChange={set("builderVersion")} placeholder="1.0.0" /></div>
+          <div><label className="text-xs text-muted-foreground">Config fingerprint</label><Input value={filters.builderConfigFingerprint} onChange={set("builderConfigFingerprint")} placeholder="sha256…" /></div>
+          <div><label className="text-xs text-muted-foreground">Calibration model ID</label><Input value={filters.calibrationModelId} onChange={set("calibrationModelId")} placeholder="1" /></div>
+        </CardContent>
+      </Card>
+
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
+
+      {data?.statistics && (() => {
+        const s = data.statistics
+        return (
+          <>
+            {s.totals.discovered === 0 && (
+              <Alert>
+                <AlertDescription>No prospective paper trades in this range yet. All rates below are shown as "—", not 0%.</AlertDescription>
+              </Alert>
+            )}
+
+            <Card>
+              <CardHeader><CardTitle className="text-sm">1. Lifecycle</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                <StatTile label="Discovered" value={s.totals.discovered} />
+                <StatTile label="Eligible" value={s.totals.eligible} />
+                <StatTile label="Snapshotted" value={s.totals.snapshotted} />
+                <StatTile label="Frozen" value={s.totals.frozen} />
+                <StatTile label="Started" value={s.totals.started} />
+                <StatTile label="Completed" value={s.totals.completed} />
+                <StatTile label="Graded" value={s.totals.graded} />
+                <StatTile label="Pending" value={s.totals.pending} />
+                <StatTile label="No decision" value={s.totals.no_decision} />
+                <StatTile label="Ineligible" value={s.totals.ineligible} />
+                <StatTile label="Data error" value={s.totals.data_error} />
+                <StatTile label="Cancelled" value={s.totals.cancelled} />
+                <StatTile label="Void" value={s.totals.void} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-primary/40">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> 2. Autonomous Prediction Performance</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  <StatTile label="Graded" value={s.predictionPerformance.gradedCount} />
+                  <StatTile label="Correct" value={s.predictionPerformance.correctCount} />
+                  <StatTile label="Incorrect" value={s.predictionPerformance.incorrectCount} />
+                  <StatTile label="Void (excluded)" value={s.predictionPerformance.voidCount} />
+                  <div className="rounded-lg border p-2.5 border-primary/40">
+                    <div className="text-xl font-bold"><Pct value={s.predictionPerformance.accuracy} /></div>
+                    <div className="text-[11px] text-muted-foreground">Accuracy (correct / correct+incorrect)</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Builder pick count by player</div>
+                  {s.autonomousPrediction.pickCountByPlayer.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No frozen predictions yet.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Player</TableHead><TableHead>Picks</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {s.autonomousPrediction.pickCountByPlayer.map((p) => (
+                          <TableRow key={p.playerId}><TableCell className="text-xs">{p.playerName}</TableCell><TableCell className="text-xs">{p.count}</TableCell></TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Calibrated probability buckets (measured counts/rates only)</div>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Bucket</TableHead><TableHead>Count</TableHead><TableHead>Graded</TableHead><TableHead>Correct</TableHead><TableHead>Incorrect</TableHead><TableHead>Accuracy</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {s.autonomousPrediction.probabilityBuckets.map((b) => (
+                        <TableRow key={b.bucket}>
+                          <TableCell className="text-xs">{b.bucket}</TableCell>
+                          <TableCell className="text-xs">{b.count}</TableCell>
+                          <TableCell className="text-xs">{b.gradedCount}</TableCell>
+                          <TableCell className="text-xs">{b.correctCount}</TableCell>
+                          <TableCell className="text-xs">{b.incorrectCount}</TableCell>
+                          <TableCell className="text-xs"><Pct value={b.accuracy} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">3. Directional Validation Decisions</CardTitle>
+                <p className="text-xs text-muted-foreground">Per-side KEEP/BORDERLINE/REMOVE trust labels -- NOT the Builder's autonomous prediction (see Section 2 above).</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <StatTile label="KEEP" value={s.directionalValidationDecisions.counts.KEEP} />
+                  <StatTile label="BORDERLINE" value={s.directionalValidationDecisions.counts.BORDERLINE} />
+                  <StatTile label="REMOVE" value={s.directionalValidationDecisions.counts.REMOVE} />
+                  <StatTile label="DATA_UNAVAILABLE" value={s.directionalValidationDecisions.counts.DATA_UNAVAILABLE} />
+                </div>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Decision</TableHead><TableHead>Count</TableHead><TableHead>Graded</TableHead><TableHead>Correct</TableHead><TableHead>Accuracy of autonomous pick</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {(["KEEP", "BORDERLINE", "REMOVE"] as const).map((d) => {
+                      const c = s.directionalValidationDecisions.accuracyByDecision[d]
+                      return (
+                        <TableRow key={d}>
+                          <TableCell className="text-xs"><DecisionBadge decision={d} /></TableCell>
+                          <TableCell className="text-xs">{c.count}</TableCell>
+                          <TableCell className="text-xs">{c.gradedCount}</TableCell>
+                          <TableCell className="text-xs">{c.correctCount}</TableCell>
+                          <TableCell className="text-xs"><Pct value={c.accuracy} /></TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader><CardTitle className="text-sm">4. Cross-Side Integrity</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <StatTile label="Agree" value={s.crossSideIntegrity.agreementCount} />
+                    <StatTile label="Disagree" value={s.crossSideIntegrity.disagreementCount} />
+                    <div className="rounded-lg border p-2.5"><div className="text-xl font-bold"><Pct value={s.crossSideIntegrity.agreementRate} /></div><div className="text-[11px] text-muted-foreground">Agreement rate</div></div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Disagreements are integrity/data-quality events (graded DATA_ERROR) -- never counted as an ordinary prediction loss.</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-sm">Data Quality</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-muted-foreground">DATA_UNAVAILABLE</span><div className="font-semibold">{s.dataQuality.dataUnavailableCount}</div></div>
+                    <div><span className="text-muted-foreground">Provider failures</span><div className="font-semibold">{s.dataQuality.providerFailureCount}</div></div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {s.dataQuality.dataCoverageBuckets.map((b) => (
+                      <Badge key={b.bucket} variant="outline">{b.bucket}: {b.count}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">5. Lineage</CardTitle>
+                <p className="text-xs text-muted-foreground">Distinct Builder configurations are always shown separately, never merged into one average.</p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Builder version</TableHead><TableHead>Config fingerprint</TableHead><TableHead>Calibration model</TableHead><TableHead>Pairs</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {s.lineage.map((l, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-xs">{l.builderVersion ?? "—"}</TableCell>
+                        <TableCell className="text-xs truncate max-w-[200px]">{l.builderConfigFingerprint ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{l.calibrationModelId ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{l.pairCount}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {(s.timeWindow.earliestScheduledStartAt || s.timeWindow.latestScheduledStartAt) && (
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    Observed fixture window (scheduled start, not settlement time): {s.timeWindow.earliestScheduledStartAt ?? "—"} to {s.timeWindow.latestScheduledStartAt ?? "—"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )
+      })()}
+    </div>
+  )
+}
+
 // ── Detail view ───────────────────────────────────────────────────────────────
 
 function DirectionalEvaluationCard({ label, side }: { label: string; side: PairDetail["directionalEvaluations"]["player1"] }): ReactElement {
@@ -534,7 +844,17 @@ export default function AdminParlayPaperTrading(): ReactElement {
       {selectedPairId ? (
         <PairDetailView pairId={selectedPairId} onBack={() => setSelectedPairId(null)} />
       ) : (
-        <>
+        <Tabs defaultValue="trades">
+          <TabsList>
+            <TabsTrigger value="trades">Trades</TabsTrigger>
+            <TabsTrigger value="statistics" className="gap-1"><BarChart3 className="h-3.5 w-3.5" /> Statistics</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="statistics" className="mt-4">
+            <StatisticsSection />
+          </TabsContent>
+
+          <TabsContent value="trades" className="mt-4 space-y-4">
           <FilterBar filters={filters} onChange={(f) => { setFilters(f); setOffset(0) }} />
 
           <Card>
@@ -570,7 +890,8 @@ export default function AdminParlayPaperTrading(): ReactElement {
               </div>
             </CardContent>
           </Card>
-        </>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   )
