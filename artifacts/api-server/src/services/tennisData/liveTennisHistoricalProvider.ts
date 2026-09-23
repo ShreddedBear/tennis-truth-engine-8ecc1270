@@ -620,9 +620,32 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
    * never actually returns. Callers must be obtained via getLiveTennisProvider() (a fresh,
    * uncached LiveTennisHistoricalProvider instance), never via getTennisDataProvider()'s shared
    * singleton, to keep this fully unreachable from the Prediction Engine's code path.
+   *
+   * Paginates through every page the provider reports via `meta.has_more`, mirroring the exact
+   * page-loop shape `getPlayerMatches` below already uses (maxPages guard, no-progress guard) --
+   * a live check found `/fixtures` can report `total` well beyond one page (e.g. 468 fixtures
+   * against a 200-row page size), so a single-page fetch silently drops fixtures scheduled later
+   * in the response than the API happens to order them, which recurring production must not do.
    */
   async getUpcomingFixturesRangeForBuilder(dateStart: string, dateStop: string): Promise<Fixture[]> {
-    const rows = listData(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: 200, offset: 0 }));
+    const rows: JsonRecord[] = [];
+    let offset = 0;
+    for (let page = 0; page < this.maxPages; page++) {
+      const body = asRecord(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: PAGE_SIZE, offset }));
+      const pageRows = listData(body);
+      rows.push(...pageRows);
+      const meta = asRecord(body.meta);
+      const hasMore = meta.has_more === true;
+      if (!hasMore) break;
+      if (page === this.maxPages - 1) {
+        throw new ProviderUnavailableError(`${this.name} Builder fixture pagination exceeded maxPages=${this.maxPages}`);
+      }
+      if (pageRows.length === 0) {
+        throw new ProviderUnavailableError(`${this.name} Builder fixture pagination made no progress`);
+      }
+      const nextOffset = Number(meta.offset) + Number(meta.count ?? pageRows.length);
+      offset = Number.isFinite(nextOffset) && nextOffset > offset ? nextOffset : offset + pageRows.length;
+    }
     return rows.map(normalizeLiveFixtureRow).filter((fixture): fixture is Fixture => fixture !== null)
       .filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
   }

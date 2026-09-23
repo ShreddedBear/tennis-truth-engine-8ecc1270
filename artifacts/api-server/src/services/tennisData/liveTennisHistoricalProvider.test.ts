@@ -377,6 +377,79 @@ describe("Builder/Prediction-Engine fixture-discovery isolation", () => {
   });
 });
 
+describe("Builder fixture pagination (/fixtures can report has_more beyond one page)", () => {
+  function fixturesPageProvider(pages: unknown[], seenUrls: string[] = [], options: Partial<LiveTennisHistoricalProviderOptions> = {}) {
+    let index = 0;
+    const fetchImpl = async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path !== "/api/public/v1/fixtures") throw new Error(`unexpected test endpoint ${path}`);
+      seenUrls.push(url);
+      const body = pages[Math.min(index++, pages.length - 1)];
+      return { ok: true, status: 200, json: async () => body };
+    };
+    return new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl, ...options });
+  }
+
+  test("getUpcomingFixturesRangeForBuilder follows has_more across multiple pages and returns every fixture", async () => {
+    const urls: string[] = [];
+    const pages = [
+      { data: [fixtureRow({ id: 1, player1_id: 11, player2_id: 12 })], meta: { has_more: true, count: 1, limit: 200, offset: 0 } },
+      { data: [fixtureRow({ id: 2, player1_id: 21, player2_id: 22 })], meta: { has_more: true, count: 1, limit: 200, offset: 1 } },
+      { data: [fixtureRow({ id: 3, player1_id: 31, player2_id: 32 })], meta: { has_more: false, count: 1, limit: 200, offset: 2 } },
+    ];
+    const p = fixturesPageProvider(pages, urls);
+    const fixtures = await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.deepEqual(fixtures.map((f) => f.id), ["1", "2", "3"]);
+    assert.equal(urls.length, 3);
+    assert.equal(new URL(urls[0]).searchParams.get("offset"), "0");
+    assert.equal(new URL(urls[1]).searchParams.get("offset"), "1");
+    assert.equal(new URL(urls[2]).searchParams.get("offset"), "2");
+    assert.equal(new URL(urls[0]).searchParams.get("limit"), "200");
+  });
+
+  test("a single-page response (has_more: false) still makes exactly one request, unchanged from before the fix", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider(
+      [{ data: [fixtureRow()], meta: { has_more: false, count: 1, limit: 200, offset: 0 } }],
+      urls,
+    );
+    const fixtures = await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.equal(fixtures.length, 1);
+    assert.equal(urls.length, 1);
+  });
+
+  test("stops deterministically when Builder fixture pagination exceeds the configured page guard", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider(
+      [{ data: [fixtureRow()], meta: { has_more: true, count: 1, limit: 200, offset: 0 } }],
+      urls,
+      { maxPages: 1 },
+    );
+    await assert.rejects(() => p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21"), /Builder fixture pagination exceeded maxPages=1/);
+    assert.equal(urls.length, 1);
+  });
+
+  test("stops deterministically when a page reports has_more but returns zero rows (no progress)", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider(
+      [{ data: [], meta: { has_more: true, count: 0, limit: 200, offset: 0 } }],
+      urls,
+    );
+    await assert.rejects(() => p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21"), /Builder fixture pagination made no progress/);
+  });
+
+  test("Prediction Engine's getUpcomingFixturesRange makes exactly ONE /fixtures request even when has_more is true -- pagination fix is Builder-only", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider(
+      [{ data: [fixtureRow()], meta: { has_more: true, count: 1, limit: 200, offset: 0 } }],
+      urls,
+    );
+    const fixtures = await p.getUpcomingFixturesRange("2026-09-21", "2026-09-21");
+    assert.deepEqual(fixtures, []);
+    assert.equal(urls.length, 1);
+  });
+});
+
 test("implements the runtime provider endpoints without guessing missing values", async () => {
   const calls: string[] = [];
   const fixturesEndpointRow = fixtureRow({
