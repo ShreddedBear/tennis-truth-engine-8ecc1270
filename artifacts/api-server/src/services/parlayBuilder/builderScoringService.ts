@@ -230,7 +230,7 @@ export interface BuilderResult {
 //   - Overall win rate improved from 53.3% baseline → 58.6% with new backfill data
 //   - Held-out KEEP tier accuracy: 71.0%  (n=372 held-out legs)
 // ---------------------------------------------------------------------------
-const DEFAULT_WEIGHTS: Record<string, number> = {
+export const DEFAULT_WEIGHTS: Record<string, number> = {
   surfaceElo:            0.153,  // Elo-based win probability (computeSurfaceEloModule) — primary signal
   surfaceAdvantage:      0.119,  // +13.2pp edge (n=946)
   surfaceRecord:         0.095,  // +13.0pp edge (n=990)
@@ -268,7 +268,7 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
 // - dataQuality, sourceAgreement: omitted — supportsSelected always null or
 //   excluded from decisiveFacters, so they can never appear in opinionated set
 // ---------------------------------------------------------------------------
-const AGREEMENT_EDGE_WEIGHTS: Record<string, number> = {
+export const AGREEMENT_EDGE_WEIGHTS: Record<string, number> = {
   serveAdvantage:        23.8,  // serve/return module — +23.8pp at n=7,953 (full corpus)
   returnAdvantage:       23.8,  // serve/return module — +23.8pp at n=7,953 (full corpus)
   currentRanking:        20.9,  // +20.9pp at n=11,004 — strongest directional factor
