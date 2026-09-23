@@ -45,6 +45,27 @@ function canonicalFingerprint(value: unknown): string {
 }
 
 /**
+ * Checks for a Postgres unique_violation (23505) on a specific constraint, anywhere in the
+ * error's cause chain. Required because drizzle-orm wraps the real `pg` driver error (which
+ * carries `.code`/`.constraint`) inside its own `DrizzleQueryError`, whose OWN `.code`/
+ * `.constraint` are undefined -- checking only the outer error, as an earlier version of this
+ * function did, silently never matches (confirmed live: a real concurrent-race test threw an
+ * unhandled DrizzleQueryError instead of returning the graceful outcome below, even though the
+ * underlying transaction had already rolled back correctly at the database level). Walks a
+ * bounded number of `.cause` links rather than assuming exactly one layer of wrapping, since
+ * that depth is a drizzle-orm implementation detail this code shouldn't have to track.
+ */
+function isUniqueViolationOn(err: unknown, constraintName: string): boolean {
+  let current: unknown = err;
+  for (let depth = 0; depth < 5 && current != null; depth++) {
+    const candidate = current as { code?: string; constraint?: string; cause?: unknown };
+    if (candidate.code === "23505" && candidate.constraint === constraintName) return true;
+    current = candidate.cause;
+  }
+  return false;
+}
+
+/**
  * Pure status derivation for a completed double-sided evaluation. Fails closed: a genuine
  * cross-side disagreement (or both sides independently reporting DATA_UNAVAILABLE) is never
  * resolved by picking one side -- both rows get the SAME terminal status, both raw evaluations
@@ -267,8 +288,7 @@ export async function discoverAndDecidePaperTrade(
       }
     });
   } catch (err) {
-    const pgErr = err as { code?: string; constraint?: string };
-    if (pgErr.code === "23505" && pgErr.constraint === "parlay_paper_trade_pairs_fixture_lineage_idx") {
+    if (isUniqueViolationOn(err, "parlay_paper_trade_pairs_fixture_lineage_idx")) {
       // Lost a genuine concurrent race for this exact fixture+lineage -- the winner's
       // transaction is already fully committed. Nothing of this transaction's work survives
       // (the whole thing rolled back), which is exactly the desired outcome: never a second
