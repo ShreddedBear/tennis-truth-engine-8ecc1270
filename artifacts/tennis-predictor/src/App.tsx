@@ -38,6 +38,7 @@ const AdminSupportCenter = lazy(() => import('@/pages/AdminSupportCenter'));
 const AdminUsersPage = lazy(() => import('@/pages/AdminUsers'));
 const AdminParlayBuilder = lazy(() => import('@/pages/AdminParlayBuilder'));
 const AdminParlayResearchV1 = lazy(() => import('@/pages/AdminParlayResearchV1'));
+const AdminParlayPaperTrading = lazy(() => import('@/pages/AdminParlayPaperTrading'));
 
 function TruthEngineRedirect() {
   useEffect(() => {
@@ -285,6 +286,9 @@ function Router() {
               </Route>
               <Route path="/admin/parlay-research-v1">
                 {() => <AdminRoute component={AdminParlayResearchV1} />}
+              </Route>
+              <Route path="/admin/parlay-paper-trading">
+                {() => <AdminRoute component={AdminParlayPaperTrading} />}
               </Route>
               <Route path="/truth-engine">
                 {() => <AdminRoute component={TruthEngineRedirect} />}

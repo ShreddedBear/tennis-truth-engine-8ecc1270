@@ -8,7 +8,7 @@ import { ProviderStatusIndicator } from "./ProviderStatusIndicator"
 import { TennisMatrixLogo } from "./TennisMatrixLogo"
 import { useGetAdminAuthStatus } from "@/hooks/useGetAdminAuthStatus"
 import { MatrixRain } from "./MatrixRain"
-import { History, PlaySquare, ClipboardList, LineChart, Menu, X, LayoutDashboard, Moon, Sun, FlaskConical, Zap, Ghost, ShieldCheck, UserCircle, LogOut, Monitor, CreditCard, Users, Layers, SearchCheck } from "lucide-react"
+import { History, PlaySquare, ClipboardList, LineChart, Menu, X, LayoutDashboard, Moon, Sun, FlaskConical, Zap, Ghost, ShieldCheck, UserCircle, LogOut, Monitor, CreditCard, Users, Layers, SearchCheck, Target } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 type NavItem = {
@@ -24,6 +24,7 @@ const NAV_LINKS: NavItem[] = [
   { href: "/", label: "Prediction Engine", icon: LayoutDashboard, exact: true },
   { href: "/admin/parlay-builder", label: "Parlay Builder", icon: Layers, exact: false },
   { href: "/admin/parlay-research-v1", label: "Parlay Research (V1)", icon: FlaskConical, exact: false },
+  { href: "/admin/parlay-paper-trading", label: "Builder Paper Trading", icon: Target, exact: false },
   { href: "/truth-engine", label: "Truth Engine", icon: SearchCheck, exact: false, external: true },
   { href: "/predict", label: "Run Model", icon: PlaySquare, exact: false },
   { href: "/history", label: "Prediction History", icon: History, exact: false },
@@ -52,6 +53,7 @@ const MOBILE_PRIMARY_TABS = [
 const MOBILE_MORE_SUBSCRIBER: NavItem[] = [
   { href: "/admin/parlay-builder", label: "Parlay Builder", icon: Layers, exact: false },
   { href: "/admin/parlay-research-v1", label: "Parlay Research (V1)", icon: FlaskConical, exact: false },
+  { href: "/admin/parlay-paper-trading", label: "Builder Paper Trading", icon: Target, exact: false },
   { href: "/truth-engine", label: "Truth Engine", icon: SearchCheck, exact: false, external: true },
   { href: "/monitoring", label: "Model Monitoring", icon: Monitor, exact: false },
   { href: "/payments", label: "Plans & Billing", icon: CreditCard, exact: false },
