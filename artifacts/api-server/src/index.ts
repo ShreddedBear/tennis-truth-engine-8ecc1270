@@ -4,6 +4,7 @@ import { runPaperTradingJob } from "./jobs/runPaperTradingJob";
 import { runHistoricalBackfillJob } from "./jobs/runHistoricalBackfillJob";
 import { runDegradedPredictionRecomputeJob } from "./jobs/runDegradedPredictionRecomputeJob";
 import { runCalibrationRefitJob } from "./jobs/runCalibrationRefitJob";
+import { startParlayPaperTradingScheduler } from "./jobs/parlayPaperTradingScheduler";
 import { ensureEvaluationSchema } from "./lib/ensureEvaluationSchema";
 
 const rawPort = process.env["PORT"];
@@ -90,6 +91,17 @@ async function bootstrap(): Promise<void> {
   // Also fire once shortly after startup rather than waiting a full interval, so a server
   // restart doesn't add up to 15 minutes of extra silent gap on top of its own downtime.
   setTimeout(triggerPaperTradingCycle, 10_000);
+
+  // Deliberate, explicitly-enabled in-process scheduler for the independent Builder
+  // paper-trading job -- the same Replit Scheduled Deployment gap as above (never configured;
+  // confirmed neither this assistant nor the in-workspace agent has a tool to create one), so
+  // rather than pretend an external scheduler exists, this is now the intended production
+  // mechanism, gated behind ENABLE_PARLAY_BUILDER_PAPER_TRADING_SCHEDULER (default disabled).
+  // Structurally separate from the Prediction Engine's own scheduler above: its own in-flight
+  // flag, its own Postgres advisory lock (guards against multiple Autoscale instances racing the
+  // same cadence tick -- something an in-memory flag alone cannot do), never sharing state with
+  // or modifying paperTrading.ts. See parlayPaperTradingScheduler.ts for the full design.
+  startParlayPaperTradingScheduler();
 
   // Likewise, the live probability calibration model gets refreshed by a daily in-process
   // fallback as well as its standalone Scheduled Deployment entry. The refit job's

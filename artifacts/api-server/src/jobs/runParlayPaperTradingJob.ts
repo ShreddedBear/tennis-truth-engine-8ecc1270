@@ -98,8 +98,8 @@ export async function runParlayPaperTradingJob(sourceCommit: string): Promise<{ 
   return { ok: !anyPhaseFailed };
 }
 
-/** Real git SHA of the running checkout, best-effort -- "unknown" rather than a guessed env var when unavailable (e.g. a bundled dist/ deploy with no .git present). */
-function resolveSourceCommit(): string {
+/** Real git SHA of the running checkout, best-effort -- "unknown" rather than a guessed env var when unavailable (e.g. a bundled dist/ deploy with no .git present). Exported for the in-process scheduler (parlayPaperTradingScheduler.ts), which resolves it once at server startup rather than re-shelling out on every cadence tick. */
+export function resolveSourceCommit(): string {
   try {
     return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
   } catch {
