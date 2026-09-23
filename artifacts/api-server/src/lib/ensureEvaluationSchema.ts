@@ -911,6 +911,264 @@ const STATEMENTS: string[] = [
     FOR EACH ROW
     EXECUTE FUNCTION parlay_builder_research_v1_results_immutable_trigger();
   `,
+
+  // ── LIVE_PRODUCTION_PAPER_TRADING — double-sided prospective Builder paper trading ────────
+  //
+  // Explicitly NOT COUNTERFACTUAL_RESEARCH_V1 (the tables above): this accumulates a genuine
+  // forward-looking record using the real, unmodified production computeBuilderScore, one
+  // fixture -> two sibling rows (PLAYER_1/PLAYER_2), both scored from ONE shared frozen
+  // evidence snapshot (parlay_paper_trade_snapshots, keyed by pair_id so the sharing is
+  // schema-enforced, not just asserted). See lib/db/src/schema/parlayPaperTrading.ts for the
+  // Drizzle type-safe definitions this raw SQL is the only thing that actually creates
+  // (never applied via drizzle-kit push, exactly like every other parlay_* table here).
+  `
+  CREATE TABLE IF NOT EXISTS parlay_paper_trades (
+    id                              SERIAL PRIMARY KEY,
+    paper_trade_id                  TEXT NOT NULL,
+    pair_id                         TEXT NOT NULL,
+    external_fixture_id             TEXT NOT NULL,
+    fixture_provider                TEXT NOT NULL DEFAULT 'live-tennis-api',
+    player1_id                      TEXT NOT NULL,
+    player1_name                    TEXT NOT NULL,
+    player2_id                      TEXT NOT NULL,
+    player2_name                    TEXT NOT NULL,
+    tournament_name                 TEXT,
+    tournament_level                TEXT,
+    round                           TEXT,
+    surface                         TEXT,
+    match_format                    TEXT,
+    scheduled_start_at              TIMESTAMPTZ NOT NULL,
+    evaluated_side                  TEXT NOT NULL,
+    selected_player_id              TEXT NOT NULL,
+    opposing_player_id              TEXT NOT NULL,
+    status                          TEXT NOT NULL DEFAULT 'DISCOVERED',
+    no_decision_reason              TEXT,
+    discovered_at                   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    decision_cutoff_at              TIMESTAMPTZ NOT NULL,
+    decision_at                     TIMESTAMPTZ,
+    frozen_at                       TIMESTAMPTZ,
+    match_started_at                TIMESTAMPTZ,
+    outcome_attached_at             TIMESTAMPTZ,
+    graded_at                       TIMESTAMPTZ,
+    builder_version                 TEXT,
+    builder_config_fingerprint      TEXT,
+    builder_lineage_status          TEXT,
+    builder_lineage_reason          TEXT,
+    calibration_model_id            INTEGER REFERENCES calibration_models(id),
+    lineage_key                     TEXT NOT NULL,
+    decision                        TEXT,
+    selected_player_score           INTEGER,
+    selected_player_risk_score      INTEGER,
+    builder_picked_player_id        TEXT,
+    builder_calibrated_probability  INTEGER,
+    raw_validation_score            INTEGER,
+    data_coverage                   INTEGER,
+    source_commit                   TEXT NOT NULL,
+    snapshot_fingerprint            TEXT,
+    actual_winner_id                TEXT,
+    result_type                     TEXT,
+    included_in_accuracy            BOOLEAN,
+    graded_correct                  BOOLEAN,
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trades_paper_trade_id_idx ON parlay_paper_trades (paper_trade_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trades_fixture_side_lineage_idx ON parlay_paper_trades (external_fixture_id, evaluated_side, lineage_key)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trades_pair_side_idx ON parlay_paper_trades (pair_id, evaluated_side)`,
+  `CREATE INDEX IF NOT EXISTS parlay_paper_trades_status_idx ON parlay_paper_trades (status)`,
+  `CREATE INDEX IF NOT EXISTS parlay_paper_trades_scheduled_start_idx ON parlay_paper_trades (scheduled_start_at)`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'parlay_paper_trades_evaluated_side_check') THEN
+      ALTER TABLE parlay_paper_trades
+        ADD CONSTRAINT parlay_paper_trades_evaluated_side_check
+        CHECK (evaluated_side IN ('PLAYER_1', 'PLAYER_2'));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'parlay_paper_trades_decision_cutoff_check') THEN
+      ALTER TABLE parlay_paper_trades
+        ADD CONSTRAINT parlay_paper_trades_decision_cutoff_check
+        CHECK (decision_cutoff_at < scheduled_start_at);
+    END IF;
+  END $$`,
+
+  `
+  CREATE TABLE IF NOT EXISTS parlay_paper_trade_pairs (
+    id                              SERIAL PRIMARY KEY,
+    pair_id                         TEXT NOT NULL,
+    external_fixture_id             TEXT NOT NULL,
+    lineage_key                     TEXT NOT NULL,
+    player1_trade_id                TEXT,
+    player2_trade_id                TEXT,
+    cross_side_agreement            BOOLEAN,
+    cross_side_disagreement_reason  TEXT,
+    cross_side_checked_at           TIMESTAMPTZ,
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trade_pairs_pair_id_idx ON parlay_paper_trade_pairs (pair_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trade_pairs_fixture_lineage_idx ON parlay_paper_trade_pairs (external_fixture_id, lineage_key)`,
+
+  `
+  CREATE TABLE IF NOT EXISTS parlay_paper_trade_factors (
+    id                SERIAL PRIMARY KEY,
+    paper_trade_id    TEXT NOT NULL,
+    factor_key        TEXT NOT NULL,
+    factor_label      TEXT NOT NULL,
+    score             REAL,
+    weight            REAL NOT NULL,
+    status            TEXT NOT NULL,
+    supports_selected BOOLEAN,
+    detail            TEXT NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trade_factors_trade_factor_idx ON parlay_paper_trade_factors (paper_trade_id, factor_key)`,
+
+  `
+  CREATE TABLE IF NOT EXISTS parlay_paper_trade_snapshots (
+    id                    SERIAL PRIMARY KEY,
+    pair_id               TEXT NOT NULL,
+    effective_ceiling     TIMESTAMPTZ NOT NULL,
+    player1_match_rows    JSONB NOT NULL,
+    player2_match_rows    JSONB NOT NULL,
+    h2h_rows              JSONB NOT NULL,
+    market_odds_raw       JSONB,
+    injury_research_raw   JSONB,
+    matchstat_raw         JSONB,
+    fingerprint           TEXT NOT NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS parlay_paper_trade_snapshots_pair_id_idx ON parlay_paper_trade_snapshots (pair_id)`,
+
+  // Immutability:
+  //   parlay_paper_trades — identity fields locked from insert; once frozen_at is set, every
+  //     decision/evidence/lineage field is permanently locked; only status, match_started_at,
+  //     outcome_attached_at, graded_at, and the outcome/grading columns may still change, and
+  //     each only as a one-time NULL -> value transition (mirrors
+  //     parlay_builder_research_v1_results_immutable's outcome-attachment pattern above).
+  //   parlay_paper_trade_pairs — cross-side fields settable once (NULL -> value), nothing else
+  //     ever changes after insert.
+  //   parlay_paper_trade_factors, parlay_paper_trade_snapshots — pure append-only.
+  `
+  CREATE OR REPLACE FUNCTION parlay_paper_trades_prevent_mutation()
+  RETURNS trigger AS $BODY4$
+  BEGIN
+    IF TG_OP = 'DELETE' THEN
+      RAISE EXCEPTION 'parlay_paper_trades row % cannot be deleted', OLD.id;
+    END IF;
+
+    IF NEW.paper_trade_id IS DISTINCT FROM OLD.paper_trade_id
+       OR NEW.pair_id IS DISTINCT FROM OLD.pair_id
+       OR NEW.external_fixture_id IS DISTINCT FROM OLD.external_fixture_id
+       OR NEW.evaluated_side IS DISTINCT FROM OLD.evaluated_side
+       OR NEW.selected_player_id IS DISTINCT FROM OLD.selected_player_id
+       OR NEW.opposing_player_id IS DISTINCT FROM OLD.opposing_player_id
+       OR NEW.discovered_at IS DISTINCT FROM OLD.discovered_at
+    THEN
+      RAISE EXCEPTION 'parlay_paper_trades row % identity fields are immutable from insert', OLD.id;
+    END IF;
+
+    IF OLD.frozen_at IS NOT NULL THEN
+      IF NEW.frozen_at IS DISTINCT FROM OLD.frozen_at
+         OR NEW.decision_cutoff_at IS DISTINCT FROM OLD.decision_cutoff_at
+         OR NEW.scheduled_start_at IS DISTINCT FROM OLD.scheduled_start_at
+         OR NEW.decision_at IS DISTINCT FROM OLD.decision_at
+         OR NEW.builder_version IS DISTINCT FROM OLD.builder_version
+         OR NEW.builder_config_fingerprint IS DISTINCT FROM OLD.builder_config_fingerprint
+         OR NEW.builder_lineage_status IS DISTINCT FROM OLD.builder_lineage_status
+         OR NEW.builder_lineage_reason IS DISTINCT FROM OLD.builder_lineage_reason
+         OR NEW.calibration_model_id IS DISTINCT FROM OLD.calibration_model_id
+         OR NEW.lineage_key IS DISTINCT FROM OLD.lineage_key
+         OR NEW.decision IS DISTINCT FROM OLD.decision
+         OR NEW.selected_player_score IS DISTINCT FROM OLD.selected_player_score
+         OR NEW.selected_player_risk_score IS DISTINCT FROM OLD.selected_player_risk_score
+         OR NEW.builder_picked_player_id IS DISTINCT FROM OLD.builder_picked_player_id
+         OR NEW.builder_calibrated_probability IS DISTINCT FROM OLD.builder_calibrated_probability
+         OR NEW.raw_validation_score IS DISTINCT FROM OLD.raw_validation_score
+         OR NEW.data_coverage IS DISTINCT FROM OLD.data_coverage
+         OR NEW.source_commit IS DISTINCT FROM OLD.source_commit
+         OR NEW.snapshot_fingerprint IS DISTINCT FROM OLD.snapshot_fingerprint
+         OR (OLD.match_started_at IS NOT NULL AND NEW.match_started_at IS DISTINCT FROM OLD.match_started_at)
+         OR (OLD.outcome_attached_at IS NOT NULL AND NEW.outcome_attached_at IS DISTINCT FROM OLD.outcome_attached_at)
+         OR (OLD.graded_at IS NOT NULL AND NEW.graded_at IS DISTINCT FROM OLD.graded_at)
+         OR (OLD.actual_winner_id IS NOT NULL AND NEW.actual_winner_id IS DISTINCT FROM OLD.actual_winner_id)
+         OR (OLD.result_type IS NOT NULL AND NEW.result_type IS DISTINCT FROM OLD.result_type)
+         OR (OLD.included_in_accuracy IS NOT NULL AND NEW.included_in_accuracy IS DISTINCT FROM OLD.included_in_accuracy)
+         OR (OLD.graded_correct IS NOT NULL AND NEW.graded_correct IS DISTINCT FROM OLD.graded_correct)
+         OR (OLD.status = 'GRADED' AND NEW.status IS DISTINCT FROM OLD.status)
+      THEN
+        RAISE EXCEPTION 'parlay_paper_trades row % is frozen; only one-time outcome/grading transitions are permitted', OLD.id;
+      END IF;
+    END IF;
+
+    RETURN NEW;
+  END;
+  $BODY4$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_paper_trades_immutable ON parlay_paper_trades;
+
+  CREATE TRIGGER parlay_paper_trades_immutable
+    BEFORE UPDATE OR DELETE ON parlay_paper_trades
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_paper_trades_prevent_mutation();
+
+  CREATE OR REPLACE FUNCTION parlay_paper_trade_pairs_prevent_mutation()
+  RETURNS trigger AS $BODY5$
+  BEGIN
+    IF TG_OP = 'DELETE' THEN
+      RAISE EXCEPTION 'parlay_paper_trade_pairs row % cannot be deleted', OLD.id;
+    END IF;
+    IF NEW.pair_id IS DISTINCT FROM OLD.pair_id
+       OR NEW.external_fixture_id IS DISTINCT FROM OLD.external_fixture_id
+       OR NEW.lineage_key IS DISTINCT FROM OLD.lineage_key
+       OR NEW.created_at IS DISTINCT FROM OLD.created_at
+       OR (OLD.player1_trade_id IS NOT NULL AND NEW.player1_trade_id IS DISTINCT FROM OLD.player1_trade_id)
+       OR (OLD.player2_trade_id IS NOT NULL AND NEW.player2_trade_id IS DISTINCT FROM OLD.player2_trade_id)
+       OR (OLD.cross_side_agreement IS NOT NULL AND NEW.cross_side_agreement IS DISTINCT FROM OLD.cross_side_agreement)
+       OR (OLD.cross_side_disagreement_reason IS NOT NULL AND NEW.cross_side_disagreement_reason IS DISTINCT FROM OLD.cross_side_disagreement_reason)
+       OR (OLD.cross_side_checked_at IS NOT NULL AND NEW.cross_side_checked_at IS DISTINCT FROM OLD.cross_side_checked_at)
+    THEN
+      RAISE EXCEPTION 'parlay_paper_trade_pairs row % fields may only be set once (NULL -> value)', OLD.id;
+    END IF;
+    RETURN NEW;
+  END;
+  $BODY5$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_paper_trade_pairs_immutable ON parlay_paper_trade_pairs;
+
+  CREATE TRIGGER parlay_paper_trade_pairs_immutable
+    BEFORE UPDATE OR DELETE ON parlay_paper_trade_pairs
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_paper_trade_pairs_prevent_mutation();
+
+  CREATE OR REPLACE FUNCTION parlay_paper_trade_factors_prevent_mutation()
+  RETURNS trigger AS $BODY6$
+  BEGIN
+    RAISE EXCEPTION 'parlay_paper_trade_factors row % is append-only and cannot be modified or deleted', COALESCE(OLD.id, NEW.id);
+  END;
+  $BODY6$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_paper_trade_factors_immutable ON parlay_paper_trade_factors;
+
+  CREATE TRIGGER parlay_paper_trade_factors_immutable
+    BEFORE UPDATE OR DELETE ON parlay_paper_trade_factors
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_paper_trade_factors_prevent_mutation();
+
+  CREATE OR REPLACE FUNCTION parlay_paper_trade_snapshots_prevent_mutation()
+  RETURNS trigger AS $BODY7$
+  BEGIN
+    RAISE EXCEPTION 'parlay_paper_trade_snapshots row % is append-only and cannot be modified or deleted', COALESCE(OLD.id, NEW.id);
+  END;
+  $BODY7$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS parlay_paper_trade_snapshots_immutable ON parlay_paper_trade_snapshots;
+
+  CREATE TRIGGER parlay_paper_trade_snapshots_immutable
+    BEFORE UPDATE OR DELETE ON parlay_paper_trade_snapshots
+    FOR EACH ROW
+    EXECUTE FUNCTION parlay_paper_trade_snapshots_prevent_mutation();
+  `,
 ];
 
 let ensured = false;

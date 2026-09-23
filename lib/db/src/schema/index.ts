@@ -32,3 +32,4 @@ export * from "./truthEngine";
 export * from "./marketSnapshots";
 export * from "./builderVersioning";
 export * from "./parlayBuilderResearchV1";
+export * from "./parlayPaperTrading";
