@@ -192,69 +192,91 @@ export async function discoverAndDecidePaperTrade(
   const player1TradeId = randomUUID();
   const player2TradeId = randomUUID();
 
-  await db.transaction(async (tx) => {
-    await tx.insert(parlayPaperTradeSnapshotsTable).values({
-      pairId,
-      effectiveCeiling: evaluation.evidence.effectiveCeiling,
-      player1MatchRows: evaluation.evidence.matches1 as unknown as object,
-      player2MatchRows: evaluation.evidence.matches2 as unknown as object,
-      h2hRows: evaluation.evidence.h2hMatches as unknown as object,
-      marketOddsRaw: { player1DecimalOdds: evaluation.evidence.player1MarketOdds, player2DecimalOdds: evaluation.evidence.player2MarketOdds },
-      injuryResearchRaw: { player1: evaluation.evidence.webResearch1, player2: evaluation.evidence.webResearch2, confidence: evaluation.evidence.webResearchConfidence },
-      matchstatRaw: { player1: evaluation.evidence.matchstat1, player2: evaluation.evidence.matchstat2 },
-      fingerprint: snapshotFingerprint,
-    });
-
-    for (const [side, tradeId, result] of [
-      ["PLAYER_1", player1TradeId, evaluation.resultPlayer1],
-      ["PLAYER_2", player2TradeId, evaluation.resultPlayer2],
-    ] as const) {
-      await tx.insert(parlayPaperTradesTable).values({
-        ...commonFixtureColumns,
-        paperTradeId: tradeId,
-        evaluatedSide: side,
-        selectedPlayerId: side === "PLAYER_1" ? commonFixtureColumns.player1Id : commonFixtureColumns.player2Id,
-        opposingPlayerId: side === "PLAYER_1" ? commonFixtureColumns.player2Id : commonFixtureColumns.player1Id,
-        status: finalStatus,
-        noDecisionReason,
-        decisionCutoffAt: eligibility.decisionCutoffAt,
-        decisionAt: now,
-        frozenAt: now,
-        decision: result.decision,
-        selectedPlayerScore: result.validationScore,
-        selectedPlayerRiskScore: result.riskScore,
-        builderPickedPlayerId: result.builderPickedPlayerId,
-        builderCalibratedProbability: result.builderCalibratedProbability,
-        rawValidationScore: result.rawValidationScore,
-        dataCoverage: result.dataCoverage,
-        snapshotFingerprint,
+  // Race safety: duplicateExists() above is a plain SELECT-before-INSERT check, which has a
+  // textbook TOCTOU gap -- two truly concurrent calls for the SAME fixture can both pass it
+  // (neither has committed yet) and both reach this point, both having already done a full,
+  // real evidence acquisition. The actual linearization point is the UNIQUE index on
+  // parlay_paper_trade_pairs(external_fixture_id, lineage_key): inserting the pairs row FIRST,
+  // inside this transaction, means the loser's insert fails fast on that exact constraint and
+  // the WHOLE transaction (including its snapshot/trades/factors inserts, none of which have
+  // been attempted yet) rolls back atomically -- so the persisted end state is always exactly
+  // one pair, one snapshot, two trade rows, never a partial or duplicate set, even though the
+  // losing side did (harmlessly, since none of it is kept) redo the evidence acquisition.
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(parlayPaperTradePairsTable).values({
+        pairId,
+        externalFixtureId: fixture.externalFixtureId,
+        lineageKey: lineage.lineageKey,
+        player1TradeId,
+        player2TradeId,
+        crossSideAgreement: crossSide.agreement,
+        crossSideDisagreementReason: crossSide.agreement ? null : crossSide.detail,
+        crossSideCheckedAt: now,
       });
 
-      for (const factor of result.factorScores) {
-        await tx.insert(parlayPaperTradeFactorsTable).values({
-          paperTradeId: tradeId,
-          factorKey: factor.key,
-          factorLabel: factor.label,
-          score: factor.score,
-          weight: factor.weight,
-          status: factor.status,
-          supportsSelected: factor.supportsSelected,
-          detail: factor.detail,
-        });
-      }
-    }
+      await tx.insert(parlayPaperTradeSnapshotsTable).values({
+        pairId,
+        effectiveCeiling: evaluation.evidence.effectiveCeiling,
+        player1MatchRows: evaluation.evidence.matches1 as unknown as object,
+        player2MatchRows: evaluation.evidence.matches2 as unknown as object,
+        h2hRows: evaluation.evidence.h2hMatches as unknown as object,
+        marketOddsRaw: { player1DecimalOdds: evaluation.evidence.player1MarketOdds, player2DecimalOdds: evaluation.evidence.player2MarketOdds },
+        injuryResearchRaw: { player1: evaluation.evidence.webResearch1, player2: evaluation.evidence.webResearch2, confidence: evaluation.evidence.webResearchConfidence },
+        matchstatRaw: { player1: evaluation.evidence.matchstat1, player2: evaluation.evidence.matchstat2 },
+        fingerprint: snapshotFingerprint,
+      });
 
-    await tx.insert(parlayPaperTradePairsTable).values({
-      pairId,
-      externalFixtureId: fixture.externalFixtureId,
-      lineageKey: lineage.lineageKey,
-      player1TradeId,
-      player2TradeId,
-      crossSideAgreement: crossSide.agreement,
-      crossSideDisagreementReason: crossSide.agreement ? null : crossSide.detail,
-      crossSideCheckedAt: now,
+      for (const [side, tradeId, result] of [
+        ["PLAYER_1", player1TradeId, evaluation.resultPlayer1],
+        ["PLAYER_2", player2TradeId, evaluation.resultPlayer2],
+      ] as const) {
+        await tx.insert(parlayPaperTradesTable).values({
+          ...commonFixtureColumns,
+          paperTradeId: tradeId,
+          evaluatedSide: side,
+          selectedPlayerId: side === "PLAYER_1" ? commonFixtureColumns.player1Id : commonFixtureColumns.player2Id,
+          opposingPlayerId: side === "PLAYER_1" ? commonFixtureColumns.player2Id : commonFixtureColumns.player1Id,
+          status: finalStatus,
+          noDecisionReason,
+          decisionCutoffAt: eligibility.decisionCutoffAt,
+          decisionAt: now,
+          frozenAt: now,
+          decision: result.decision,
+          selectedPlayerScore: result.validationScore,
+          selectedPlayerRiskScore: result.riskScore,
+          builderPickedPlayerId: result.builderPickedPlayerId,
+          builderCalibratedProbability: result.builderCalibratedProbability,
+          rawValidationScore: result.rawValidationScore,
+          dataCoverage: result.dataCoverage,
+          snapshotFingerprint,
+        });
+
+        for (const factor of result.factorScores) {
+          await tx.insert(parlayPaperTradeFactorsTable).values({
+            paperTradeId: tradeId,
+            factorKey: factor.key,
+            factorLabel: factor.label,
+            score: factor.score,
+            weight: factor.weight,
+            status: factor.status,
+            supportsSelected: factor.supportsSelected,
+            detail: factor.detail,
+          });
+        }
+      }
     });
-  });
+  } catch (err) {
+    const pgErr = err as { code?: string; constraint?: string };
+    if (pgErr.code === "23505" && pgErr.constraint === "parlay_paper_trade_pairs_fixture_lineage_idx") {
+      // Lost a genuine concurrent race for this exact fixture+lineage -- the winner's
+      // transaction is already fully committed. Nothing of this transaction's work survives
+      // (the whole thing rolled back), which is exactly the desired outcome: never a second
+      // pair, snapshot, or trade for the same fixture.
+      return { kind: "ineligible", reason: "DUPLICATE_FIXTURE", pairId: null };
+    }
+    throw err;
+  }
 
   if (finalStatus !== "FROZEN") {
     return { kind: "data_error", pairId, detail: noDecisionReason ?? "unknown" };
