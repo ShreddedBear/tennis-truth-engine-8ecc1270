@@ -379,14 +379,63 @@ function fixturePlayerId(player: LiveTennisPlayer): string {
 }
 
 /**
+ * PRESERVED EXACTLY as it was before the discovery-normalizer investigation (bit-for-bit
+ * identical to commit 78e76db, before 8ab9c9f touched this file) -- this is what
+ * `getUpcomingFixturesRange`/`getUpcomingFixtures` (the `TennisDataProvider` interface methods)
+ * still use below, so the Prediction Engine's live paper-trading fixture-discovery contract
+ * (`services/evaluation/paperTrading.ts`) is byte-for-byte unchanged, bug included. It reads a
+ * nested `players.p1/p2` + `scheduled_time` shape that the real `/fixtures` endpoint does NOT
+ * actually have (see normalizeLiveFixtureRow's doc comment below for the real shape) -- which is
+ * exactly why this always returns zero fixtures for `/fixtures` rows, unchanged from before.
+ * Left in place deliberately rather than "fixed", because fixing it would change a
+ * production-critical Prediction Engine behavior that was never authorized to change.
+ */
+function normalizeLiveFixture(row: LiveTennisMatch): Fixture | null {
+  const p1 = row.players?.p1;
+  const p2 = row.players?.p2;
+  const scheduledTime = asString(row.scheduled_time);
+  const timestamp = scheduledTime ? Date.parse(scheduledTime) : NaN;
+  if (!p1?.name || !p2?.name || !Number.isFinite(timestamp)) return null;
+  const tournament = tournamentFields(row, new Map());
+  const indoor = row.indoor == null ? null : row.indoor === true || row.indoor === 1;
+  const status = normalizeToken(row.status ?? row.event_status ?? "");
+  return {
+    id: asString(row.id) ?? `lta-match-${fixturePlayerId(p1)}-${fixturePlayerId(p2)}-${timestamp}`,
+    date: new Date(timestamp).toISOString().slice(0, 10),
+    scheduledStart: new Date(timestamp).toISOString(),
+    timeConfirmed: true,
+    isLive: status === "live",
+    tournamentName: tournament.tournamentName,
+    tournamentLevel: mapCategory(tournament.category, mapTour(row.tour ?? p1.tour)),
+    round: asString(row.round_code) ?? asString(row.round),
+    surface: mapSurface(asString(row.surface), indoor),
+    indoor,
+    matchFormat: mapFormat(asString(row.format)),
+    player1Id: fixturePlayerId(p1),
+    player1Name: p1.name,
+    player2Id: fixturePlayerId(p2),
+    player2Name: p2.name,
+  };
+}
+
+/**
  * The `/fixtures` endpoint's row shape is structurally DIFFERENT from `/history/matches` and
  * `/matches` (which both use a nested `players: { p1, p2 }` object plus `scheduled_time` --
  * confirmed by direct live-API inspection: `/fixtures` returns FLAT `player1_id`/`player1_name`/
  * `player2_id`/`player2_name` and a `start_time` field, never a `players` object or
- * `scheduled_time`). `matchFromRow`'s `players.p1/p2` construction is specific to those other two
- * endpoints and must never be applied here -- doing so previously caused every `/fixtures` row to
- * normalize to `null` (both `p1`/`p2` and the timestamp always came back empty/NaN), silently
- * discarding 100% of real upcoming fixtures. This function reads the raw JSON row directly instead.
+ * `scheduled_time`, and never a `format`/matchFormat field at all).
+ *
+ * DELIBERATELY NOT wired into `getUpcomingFixtures`/`getUpcomingFixturesRange` (the
+ * `TennisDataProvider` interface methods) -- those are shared with the Prediction Engine's live
+ * paper-trading discovery (`services/evaluation/paperTrading.ts`), which requires
+ * `fixture.matchFormat` to lock a prediction. Since `/fixtures` never supplies matchFormat, wiring
+ * this normalizer into the interface methods would not fabricate a value (this function never
+ * does), but it WOULD change Prediction Engine's fixture-discovery behavior from "always empty" to
+ * "populated but always skipped at the matchFormat gate" -- a real behavior change to a
+ * production-critical path that was never authorized. `getUpcomingFixturesForBuilder`/
+ * `getUpcomingFixturesRangeForBuilder` below are the ONLY callers of this function -- a separate,
+ * Builder-only entry point on this same class, reusing the same HTTP client/auth but never
+ * touching the shared interface methods Prediction Engine depends on.
  */
 interface LiveTennisFixtureRow {
   id?: number | string | null;
@@ -548,14 +597,38 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
     };
   }
 
+  // TennisDataProvider interface methods -- shared with the Prediction Engine's live
+  // paper-trading discovery (paperTrading.ts). Deliberately UNCHANGED from before the discovery
+  // investigation (uses the old nested-shape normalizeLiveFixture, matchFromRow) -- see that
+  // function's doc comment. Builder must use getUpcomingFixturesForBuilder(Range) below instead.
   async getUpcomingFixturesRange(dateStart: string, dateStop: string): Promise<Fixture[]> {
     const rows = listData(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: 200, offset: 0 }));
-    return rows.map(normalizeLiveFixtureRow).filter((fixture): fixture is Fixture => fixture !== null)
+    return rows.map(matchFromRow).map(normalizeLiveFixture).filter((fixture): fixture is Fixture => fixture !== null)
       .filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
   }
 
   async getUpcomingFixtures(date: string): Promise<Fixture[]> {
     return this.getUpcomingFixturesRange(date, date);
+  }
+
+  /**
+   * Builder-only entry point (NOT part of the TennisDataProvider interface, so Prediction
+   * Engine's paperTrading.ts -- which only ever holds a TennisDataProvider-typed reference from
+   * getTennisDataProvider() -- has no way to reach this, even accidentally). Same `/fixtures`
+   * request as getUpcomingFixturesRange above, but normalized with normalizeLiveFixtureRow, which
+   * reads the endpoint's REAL flat row shape correctly instead of the nested shape that endpoint
+   * never actually returns. Callers must be obtained via getLiveTennisProvider() (a fresh,
+   * uncached LiveTennisHistoricalProvider instance), never via getTennisDataProvider()'s shared
+   * singleton, to keep this fully unreachable from the Prediction Engine's code path.
+   */
+  async getUpcomingFixturesRangeForBuilder(dateStart: string, dateStop: string): Promise<Fixture[]> {
+    const rows = listData(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: 200, offset: 0 }));
+    return rows.map(normalizeLiveFixtureRow).filter((fixture): fixture is Fixture => fixture !== null)
+      .filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
+  }
+
+  async getUpcomingFixturesForBuilder(date: string): Promise<Fixture[]> {
+    return this.getUpcomingFixturesRangeForBuilder(date, date);
   }
 
   async getLiveScores(fixtureIds: string[]): Promise<Map<string, LiveScore>> {

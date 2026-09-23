@@ -327,6 +327,56 @@ describe("normalizeLiveFixtureRow (the real /fixtures endpoint's flat row shape)
   });
 });
 
+describe("Builder/Prediction-Engine fixture-discovery isolation", () => {
+  function fixturesProvider(rows: unknown[]) {
+    const fetchImpl = async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path === "/api/public/v1/fixtures") return { ok: true, status: 200, json: async () => ({ data: rows }) };
+      throw new Error(`unexpected test endpoint ${path}`);
+    };
+    return new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl });
+  }
+
+  test("Prediction Engine's getUpcomingFixturesRange returns [] for the real flat shape -- contract unchanged", async () => {
+    const p = fixturesProvider([fixtureRow(), fixtureRow({ id: 2, player1_id: 5, player2_id: 6 })]);
+    const fixtures = await p.getUpcomingFixturesRange("2026-09-21", "2026-09-21");
+    assert.deepEqual(fixtures, []);
+  });
+
+  test("Builder's getUpcomingFixturesRangeForBuilder correctly parses the identical real flat shape", async () => {
+    const p = fixturesProvider([fixtureRow({ start_time: "2026-09-21T12:00:00Z" })]);
+    const fixtures = await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.equal(fixtures.length, 1);
+    assert.equal(fixtures[0]!.player1Name, "Alpha Player");
+  });
+
+  test("both methods hit the identical /fixtures request (same endpoint, same params) -- only normalization differs", async () => {
+    const calls: string[] = [];
+    const fetchImpl = async (url: string) => {
+      calls.push(new URL(url).pathname + new URL(url).search);
+      return { ok: true, status: 200, json: async () => ({ data: [fixtureRow()] }) };
+    };
+    const p = new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl });
+    await p.getUpcomingFixturesRange("2026-09-21", "2026-09-21");
+    await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.equal(calls[0], calls[1]);
+  });
+
+  test("Builder's path never fabricates matchFormat, even though matchFormat gates Prediction Engine's lock step", async () => {
+    const p = fixturesProvider([fixtureRow()]);
+    const fixtures = await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.equal(fixtures[0]!.matchFormat, null);
+  });
+
+  test("Prediction Engine's path still parses the OLD history-shaped mock exactly as before (bit-for-bit unchanged)", async () => {
+    const p = fixturesProvider([row({ id: 99, scheduled_time: "2026-09-21T12:00:00Z" })]);
+    const fixtures = await p.getUpcomingFixturesRange("2026-09-21", "2026-09-21");
+    assert.equal(fixtures.length, 1);
+    assert.equal(fixtures[0]!.id, "99");
+    assert.equal(fixtures[0]!.player1Name, "Alpha Player");
+  });
+});
+
 test("implements the runtime provider endpoints without guessing missing values", async () => {
   const calls: string[] = [];
   const fixturesEndpointRow = fixtureRow({
@@ -374,7 +424,13 @@ test("implements the runtime provider endpoints without guessing missing values"
   const p = new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl });
   assert.deepEqual((await p.searchPlayers("Alpha")).map((player) => player.id), ["101"]);
   assert.equal((await p.getPlayer("101"))?.name, "Alpha Player");
-  assert.equal((await p.getUpcomingFixtures("2026-09-21"))[0].id, "77");
+  // Prediction Engine's contract: getUpcomingFixtures (the TennisDataProvider interface method)
+  // still cannot parse the real flat /fixtures shape -- unchanged from before the discovery
+  // investigation, deliberately, since Prediction Engine's live paper trading depends on this
+  // exact method never changing behavior underneath it.
+  assert.deepEqual(await p.getUpcomingFixtures("2026-09-21"), []);
+  // Builder's own entry point DOES correctly parse the identical real response.
+  assert.equal((await p.getUpcomingFixturesForBuilder("2026-09-21"))[0]?.id, "77");
   assert.equal((await p.getLiveScores(["77"])).get("77")?.sets.length, 1);
   assert.equal((await p.getHeadToHead("101", "202")).meetings[0].winnerId, "101");
   assert.equal((await p.getPlayerMatches("101"))[0].opponentId, "202");

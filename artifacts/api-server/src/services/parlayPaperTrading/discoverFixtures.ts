@@ -1,7 +1,16 @@
 /**
- * Phase 1+2 of the lifecycle: discover upcoming singles fixtures (reusing the existing shared
- * Live Tennis API provider -- no second fixture system, per the architecture map), then attempt
- * to create/finalize a paper trade for each one.
+ * Phase 1+2 of the lifecycle: discover upcoming singles fixtures, then attempt to create/finalize
+ * a paper trade for each one.
+ *
+ * Deliberately uses `getLiveTennisProvider()` (a fresh, uncached `LiveTennisHistoricalProvider`
+ * instance) and its Builder-only `getUpcomingFixturesForBuilder` method -- NOT
+ * `getTennisDataProvider()`'s shared singleton and NOT the `TennisDataProvider` interface's
+ * `getUpcomingFixtures`. That singleton/interface pair is also used by the Prediction Engine's
+ * live paper-trading discovery (`services/evaluation/paperTrading.ts`), which depends on
+ * `getUpcomingFixtures`'s exact existing (nested-row-shape) behavior never changing. Builder gets
+ * its own entry point specifically so a correctness fix here can never leak into that
+ * production-critical path -- see `getUpcomingFixturesForBuilder`'s doc comment in
+ * `liveTennisHistoricalProvider.ts` for the full reasoning.
  *
  * Deliberately two loosely-coupled steps inside one function, not two jobs: fetching the
  * fixture LIST is one provider call (or two, for today+tomorrow, mirroring
@@ -11,7 +20,7 @@
  * resolving one player's history, say) never blocks any other fixture in the same cycle --
  * exactly the "one failed provider request must not interrupt the entire lifecycle" requirement.
  */
-import { getTennisDataProvider, ProviderUnavailableError, type Fixture } from "../tennisData/index.js";
+import { getLiveTennisProvider, ProviderUnavailableError, type Fixture } from "../tennisData/index.js";
 import { discoverAndDecidePaperTrade, type PaperTradeOutcome } from "./persistPaperTrade.js";
 
 function todayPlus(days: number): string {
@@ -34,12 +43,17 @@ export async function discoverAndDecideFixtures(sourceCommit: string): Promise<D
     fixturesConsidered: 0, frozen: 0, ineligible: {}, dataError: 0, skippedNoSchedule: 0, errors: [],
   };
 
-  const provider = getTennisDataProvider();
+  const provider = getLiveTennisProvider();
+  if (!provider) {
+    summary.errors.push("Fixture discovery: provider unavailable -- Live Tennis API key not configured");
+    return summary;
+  }
+
   let fixtures: Fixture[];
   try {
     const [today, tomorrow] = await Promise.all([
-      provider.getUpcomingFixtures(todayPlus(0)),
-      provider.getUpcomingFixtures(todayPlus(1)),
+      provider.getUpcomingFixturesForBuilder(todayPlus(0)),
+      provider.getUpcomingFixturesForBuilder(todayPlus(1)),
     ]);
     fixtures = [...today, ...tomorrow];
   } catch (err) {
