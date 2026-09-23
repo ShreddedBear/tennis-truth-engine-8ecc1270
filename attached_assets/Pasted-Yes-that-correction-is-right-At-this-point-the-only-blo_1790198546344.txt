@@ -1,0 +1,78 @@
+Yes — that correction is right.
+
+At this point, the only blocker is manual Replit deployment setup in your account. Neither Claude nor the Replit Agent can create or configure the Scheduled Deployment with the tools they have.
+
+So the current state is:
+
+* Builder code: ready
+* Pagination: fixed
+* Canonical probability: fixed
+* Prediction Engine isolation: verified
+* One real Builder trade: verified
+* Scheduler cadence: defined at every 15 minutes
+* Recurring Builder live paper trading: not active yet
+* Remaining blocker: manual Scheduled Deployment creation in Replit
+
+Use exactly:
+
+Build
+
+pnpm --filter @workspace/api-server run build
+
+Run
+
+pnpm --filter @workspace/api-server run job:parlay-paper-trading
+
+Cron
+
+*/15 * * * *
+
+After you create it manually, send Claude:
+
+The Builder Scheduled Deployment has now been created manually in Replit.
+Continue at PART 4 only.
+Do not change code.
+Do not create another scheduler.
+Do not manually trigger extra cycles.
+Observe the first real scheduled cycle and verify:
+- fixtures discovered
+- distinct fixtures
+- eligible fixtures
+- new pairs
+- new trades
+- new snapshots
+- new factors
+- duplicates skipped
+- data errors
+- ineligibility reasons
+For every new pair verify:
+- exactly 1 pair
+- exactly 2 directional rows
+- exactly 1 shared evidence snapshot
+- exactly 36 factors
+- cross_side_agreement = true
+- same builderPickedPlayerId on both sides
+- canonical probability comes from the picked player's own directional row
+- cutoff occurred before scheduled start
+- valid frozen lifecycle
+- immutable freeze preserved
+Prediction Engine firewall:
+- no Builder-caused Prediction Engine row changes
+- paperTrading.ts unchanged
+- Prediction Engine discovery path unchanged
+- no Builder-only methods referenced by Prediction Engine
+Also verify:
+- Research V1 untouched
+- historical_matches untouched
+- calibration untouched
+- TEST-* fixtures untouched
+- no duplicate Builder scheduler behavior
+If all checks pass, leave the Scheduled Deployment enabled.
+Final result must be one of:
+SUCCESS — RECURRING BUILDER PAPER TRADING ACTIVE
+ACTIVATION_INTEGRITY_FAILURE
+PREDICTION_ENGINE_BOUNDARY_VIOLATION
+ACTIVATION_FAILED
+STOP after the report.
+
+Once that first scheduled cycle passes, this Builder live-paper-trading phase is complete.
