@@ -38,7 +38,25 @@ export type PaperTradeOutcome =
   | { kind: "skipped_no_schedule" }
   | { kind: "ineligible"; reason: PaperTradeEligibilityReason; pairId: string | null }
   | { kind: "data_error"; pairId: string; detail: string }
+  | { kind: "no_decision"; pairId: string; detail: string }
   | { kind: "frozen"; pairId: string; player1TradeId: string; player2TradeId: string };
+
+/**
+ * Maps deriveFinalStatus's three possible terminal states to the outcome kind reported up to
+ * discoverAndDecidePaperTrade's caller. Kept as its own pure function (rather than inlined) so
+ * the mapping is directly unit-testable without a full DB-backed discoverAndDecidePaperTrade
+ * call -- this is the exact site of a real first-production-cycle bug: NO_DECISION (the
+ * BUILDER_DATA_UNAVAILABLE case) was previously collapsed into "data_error" by a blind
+ * `finalStatus !== "FROZEN"` check, even though the persisted row status was correctly
+ * NO_DECISION -- inflating discoverFixtures.ts's dataError summary count above the actual
+ * number of DATA_ERROR-status pairs ever written (confirmed live: run 696 reported dataError=6
+ * while only 5 pairs were persisted with status DATA_ERROR; the 6th was a genuine NO_DECISION).
+ */
+export function deriveOutcomeKind(finalStatus: "FROZEN" | "DATA_ERROR" | "NO_DECISION"): "frozen" | "data_error" | "no_decision" {
+  if (finalStatus === "FROZEN") return "frozen";
+  if (finalStatus === "DATA_ERROR") return "data_error";
+  return "no_decision";
+}
 
 function canonicalFingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -298,8 +316,9 @@ export async function discoverAndDecidePaperTrade(
     throw err;
   }
 
-  if (finalStatus !== "FROZEN") {
-    return { kind: "data_error", pairId, detail: noDecisionReason ?? "unknown" };
+  const kind = deriveOutcomeKind(finalStatus);
+  if (kind === "frozen") {
+    return { kind: "frozen", pairId, player1TradeId, player2TradeId };
   }
-  return { kind: "frozen", pairId, player1TradeId, player2TradeId };
+  return { kind, pairId, detail: noDecisionReason ?? "unknown" };
 }

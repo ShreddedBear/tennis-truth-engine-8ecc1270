@@ -33,14 +33,17 @@ export interface DiscoverAndDecideSummary {
   fixturesConsidered: number;
   frozen: number;
   ineligible: Record<string, number>;
+  /** Pairs where deriveFinalStatus classified a genuine cross-side pick disagreement (MODEL_DISAGREEMENT/TIE_BOUNDARY) -- never includes NO_DECISION outcomes. */
   dataError: number;
+  /** Pairs where deriveFinalStatus classified NO_DECISION (e.g. BUILDER_DATA_UNAVAILABLE) -- kept structurally distinct from dataError so the summary count matches the persisted DATA_ERROR-status pair count exactly. */
+  noDecision: number;
   skippedNoSchedule: number;
   errors: string[];
 }
 
 export async function discoverAndDecideFixtures(sourceCommit: string): Promise<DiscoverAndDecideSummary> {
   const summary: DiscoverAndDecideSummary = {
-    fixturesConsidered: 0, frozen: 0, ineligible: {}, dataError: 0, skippedNoSchedule: 0, errors: [],
+    fixturesConsidered: 0, frozen: 0, ineligible: {}, dataError: 0, noDecision: 0, skippedNoSchedule: 0, errors: [],
   };
 
   const provider = getLiveTennisProvider();
@@ -102,6 +105,7 @@ export async function discoverAndDecideFixtures(sourceCommit: string): Promise<D
 
       if (outcome.kind === "frozen") summary.frozen++;
       else if (outcome.kind === "data_error") summary.dataError++;
+      else if (outcome.kind === "no_decision") summary.noDecision++;
       else if (outcome.kind === "skipped_no_schedule") summary.skippedNoSchedule++;
       else summary.ineligible[outcome.reason] = (summary.ineligible[outcome.reason] ?? 0) + 1;
     } catch (err) {
