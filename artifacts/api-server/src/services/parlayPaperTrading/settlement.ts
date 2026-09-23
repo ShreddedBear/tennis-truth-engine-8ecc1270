@@ -16,7 +16,7 @@
 import { db, parlayPaperTradesTable, parlayPaperTradePairsTable } from "@workspace/db";
 import { pool } from "@workspace/db";
 import { and, eq, inArray, isNull, lte } from "drizzle-orm";
-import { deriveResultType, gradePaperTrade, hasMatchStarted, type ResultType } from "./settlementLogic.js";
+import { deriveResultType, gradePaperTrade, type ResultType } from "./settlementLogic.js";
 
 export interface MarkStartedSummary {
   pairsMarkedStarted: number;
@@ -84,22 +84,23 @@ async function findSettledMatch(
   return rows[0] ?? null;
 }
 
-export interface SettleAndGradeSummary {
+export interface SettleSummary {
   settled: number;
-  graded: number;
   stillPending: number;
   errors: string[];
 }
 
 /**
- * One cycle: for every pair whose trades are FROZEN/STARTED and not yet settled, look for a
- * real match result; when found, attach the outcome and grade BOTH sibling rows in one
- * transaction (same real match, so actual_winner_id/result_type are identical across the pair;
- * gradedCorrect is per-row since it depends on that row's own builder_picked_player_id).
- * Safe to call repeatedly -- only touches rows with actual_winner_id still null.
+ * Phase 4 of the lifecycle (deliberately separate from grading, phase 5): for every pair whose
+ * trades are FROZEN/STARTED and not yet settled, look for a real match result; when found,
+ * attach ONLY the outcome (actual_winner_id, result_type, outcome_attached_at) and advance to
+ * COMPLETED -- no grading math here. A failed provider/DB lookup for one pair is caught and
+ * recorded per-pair, never aborting the rest of the batch or blocking grading of OTHER
+ * already-completed pairs. Safe to call repeatedly -- only touches rows with actual_winner_id
+ * still null.
  */
-export async function settleAndGradePendingTrades(): Promise<SettleAndGradeSummary> {
-  const summary: SettleAndGradeSummary = { settled: 0, graded: 0, stillPending: 0, errors: [] };
+export async function settlePendingTrades(): Promise<SettleSummary> {
+  const summary: SettleSummary = { settled: 0, stillPending: 0, errors: [] };
 
   const pending = await db
     .select()
@@ -139,30 +140,76 @@ export async function settleAndGradePendingTrades(): Promise<SettleAndGradeSumma
 
       await db.transaction(async (tx) => {
         for (const row of rows) {
-          const grading = gradePaperTrade({
-            builderPickedPlayerId: row.builderPickedPlayerId ?? "",
-            actualWinnerId,
-            resultType,
-          });
           await tx
             .update(parlayPaperTradesTable)
             .set({
               actualWinnerId,
               resultType,
               outcomeAttachedAt: now,
-              includedInAccuracy: grading.includedInAccuracy,
-              gradedCorrect: grading.gradedCorrect,
-              gradedAt: now,
-              status: "GRADED",
+              status: "COMPLETED",
             })
             .where(eq(parlayPaperTradesTable.id, row.id));
         }
       });
 
       summary.settled++;
-      summary.graded += 2;
     } catch (err) {
       summary.errors.push(`pair ${pairId}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return summary;
+}
+
+export interface GradeSummary {
+  graded: number;
+  errors: string[];
+}
+
+/**
+ * Phase 5 of the lifecycle: for every COMPLETED row not yet graded, compute
+ * actual_winner_id === builder_picked_player_id (never selected_player_id, never `decision` --
+ * see settlementLogic.ts's gradePaperTrade and its wrong-side-trap test) and advance to GRADED.
+ * Deliberately reads ALREADY-attached outcome columns rather than re-querying
+ * historical_matches, so a settlement-phase failure can never corrupt or duplicate grading, and
+ * a grading-phase failure never needs to re-fetch match data. Safe to call repeatedly -- only
+ * touches rows with graded_at still null (the immutability trigger would reject a second write
+ * to an already-graded row's grading columns regardless).
+ */
+export async function gradeSettledTrades(): Promise<GradeSummary> {
+  const summary: GradeSummary = { graded: 0, errors: [] };
+
+  const completed = await db
+    .select()
+    .from(parlayPaperTradesTable)
+    .where(and(
+      eq(parlayPaperTradesTable.status, "COMPLETED"),
+      isNull(parlayPaperTradesTable.gradedAt),
+    ));
+
+  for (const row of completed) {
+    try {
+      if (row.resultType == null) {
+        summary.errors.push(`trade ${row.paperTradeId}: status COMPLETED but resultType is null -- skipped`);
+        continue;
+      }
+      const grading = gradePaperTrade({
+        builderPickedPlayerId: row.builderPickedPlayerId ?? "",
+        actualWinnerId: row.actualWinnerId,
+        resultType: row.resultType as ResultType,
+      });
+      await db
+        .update(parlayPaperTradesTable)
+        .set({
+          includedInAccuracy: grading.includedInAccuracy,
+          gradedCorrect: grading.gradedCorrect,
+          gradedAt: new Date(),
+          status: "GRADED",
+        })
+        .where(eq(parlayPaperTradesTable.id, row.id));
+      summary.graded++;
+    } catch (err) {
+      summary.errors.push(`trade ${row.paperTradeId}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

@@ -23,6 +23,8 @@
     "test:job-smoke": "pnpm run build && tsx --test src/jobs/runPaperTradingJob.smoke.test.ts src/jobs/runCalibrationRefitJob.smoke.test.ts src/jobs/runHistoricalBackfillJob.smoke.test.ts",
     "job:paper-trading": "export PAPER_TRADING_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runPaperTradingJob.mjs",
     "job:paper-trading:dev": "export PAPER_TRADING_JOB_STANDALONE=1 && tsx src/jobs/runPaperTradingJob.ts",
+    "job:parlay-paper-trading": "export PARLAY_PAPER_TRADING_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runParlayPaperTradingJob.mjs",
+    "job:parlay-paper-trading:dev": "export PARLAY_PAPER_TRADING_JOB_STANDALONE=1 && tsx src/jobs/runParlayPaperTradingJob.ts",
     "job:calibration-refit": "export CALIBRATION_REFIT_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runCalibrationRefitJob.mjs",
     "job:calibration-refit:dev": "export CALIBRATION_REFIT_JOB_STANDALONE=1 && tsx src/jobs/runCalibrationRefitJob.ts",
     "job:historical-backfill": "export HISTORICAL_BACKFILL_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runHistoricalBackfillJob.mjs",
