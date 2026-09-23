@@ -378,31 +378,67 @@ function fixturePlayerId(player: LiveTennisPlayer): string {
   return asString(player.id) ?? `lta-unresolved-${(player.name ?? "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
 
-function normalizeLiveFixture(row: LiveTennisMatch): Fixture | null {
-  const p1 = row.players?.p1;
-  const p2 = row.players?.p2;
-  const scheduledTime = asString(row.scheduled_time);
+/**
+ * The `/fixtures` endpoint's row shape is structurally DIFFERENT from `/history/matches` and
+ * `/matches` (which both use a nested `players: { p1, p2 }` object plus `scheduled_time` --
+ * confirmed by direct live-API inspection: `/fixtures` returns FLAT `player1_id`/`player1_name`/
+ * `player2_id`/`player2_name` and a `start_time` field, never a `players` object or
+ * `scheduled_time`). `matchFromRow`'s `players.p1/p2` construction is specific to those other two
+ * endpoints and must never be applied here -- doing so previously caused every `/fixtures` row to
+ * normalize to `null` (both `p1`/`p2` and the timestamp always came back empty/NaN), silently
+ * discarding 100% of real upcoming fixtures. This function reads the raw JSON row directly instead.
+ */
+interface LiveTennisFixtureRow {
+  id?: number | string | null;
+  player1_id?: number | string | null;
+  player1_name?: string | null;
+  player2_id?: number | string | null;
+  player2_name?: string | null;
+  start_time?: string | null;
+  round?: string | null;
+  round_code?: string | null;
+  status?: string | null;
+  surface?: string | null;
+  tour?: string | null;
+  tournament?: string | { name?: string | null; category?: string | null; [key: string]: unknown } | null;
+  tournament_id?: string | number | null;
+  [key: string]: unknown;
+}
+
+export function normalizeLiveFixtureRow(value: unknown): Fixture | null {
+  const row = asRecord(value) as LiveTennisFixtureRow;
+  const id = asString(row.id);
+  const player1Name = asString(row.player1_name);
+  const player2Name = asString(row.player2_name);
+  const scheduledTime = asString(row.start_time);
   const timestamp = scheduledTime ? Date.parse(scheduledTime) : NaN;
-  if (!p1?.name || !p2?.name || !Number.isFinite(timestamp)) return null;
-  const tournament = tournamentFields(row, new Map());
-  const indoor = row.indoor == null ? null : row.indoor === true || row.indoor === 1;
-  const status = normalizeToken(row.status ?? row.event_status ?? "");
+  // Never fabricate identity or a timestamp when the provider didn't supply a real one -- a
+  // missing/malformed field means this row is excluded, not guessed at.
+  if (!id || !player1Name || !player2Name || !Number.isFinite(timestamp)) return null;
+
+  const tournament = tournamentFields(row as unknown as LiveTennisMatch, new Map());
+  const tour = mapTour(row.tour);
+  // `/fixtures` rows never carry an explicit {name, category} tournament object (unlike
+  // history rows) -- `row.tour` (e.g. "challenger") is the only category-shaped signal available,
+  // and mapCategory already treats "challenger" as a real category value.
+  const status = normalizeToken(asString(row.status) ?? "");
+
   return {
-    id: asString(row.id) ?? `lta-match-${fixturePlayerId(p1)}-${fixturePlayerId(p2)}-${timestamp}`,
+    id,
     date: new Date(timestamp).toISOString().slice(0, 10),
     scheduledStart: new Date(timestamp).toISOString(),
     timeConfirmed: true,
     isLive: status === "live",
     tournamentName: tournament.tournamentName,
-    tournamentLevel: mapCategory(tournament.category, mapTour(row.tour ?? p1.tour)),
+    tournamentLevel: mapCategory(tournament.category ?? row.tour, tour),
     round: asString(row.round_code) ?? asString(row.round),
-    surface: mapSurface(asString(row.surface), indoor),
-    indoor,
-    matchFormat: mapFormat(asString(row.format)),
-    player1Id: fixturePlayerId(p1),
-    player1Name: p1.name,
-    player2Id: fixturePlayerId(p2),
-    player2Name: p2.name,
+    surface: mapSurface(asString(row.surface), null),
+    indoor: null,
+    matchFormat: null,
+    player1Id: fixturePlayerId({ id: row.player1_id, name: player1Name }),
+    player1Name,
+    player2Id: fixturePlayerId({ id: row.player2_id, name: player2Name }),
+    player2Name,
   };
 }
 
@@ -514,7 +550,7 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
 
   async getUpcomingFixturesRange(dateStart: string, dateStop: string): Promise<Fixture[]> {
     const rows = listData(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: 200, offset: 0 }));
-    return rows.map(matchFromRow).map(normalizeLiveFixture).filter((fixture): fixture is Fixture => fixture !== null)
+    return rows.map(normalizeLiveFixtureRow).filter((fixture): fixture is Fixture => fixture !== null)
       .filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
   }
 

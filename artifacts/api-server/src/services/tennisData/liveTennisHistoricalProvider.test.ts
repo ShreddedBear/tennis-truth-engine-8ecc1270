@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { describe } from "node:test";
 import {
   compareHistoricalFixtures,
   LiveTennisHistoricalProvider,
   normalizeLiveTennisHistoricalMatch,
+  normalizeLiveFixtureRow,
   type LiveTennisHistoricalProviderOptions,
 } from "./liveTennisHistoricalProvider.js";
 
@@ -29,6 +30,37 @@ function row(overrides: Record<string, unknown> = {}) {
     tournament: { name: "Example Open", category: "atp_500" },
     tournament_id: "500",
     winner: 1,
+    ...overrides,
+  };
+}
+
+/**
+ * The REAL /fixtures endpoint's row shape (confirmed by direct live-API inspection during the
+ * discovery-normalizer investigation): flat player1_id/player1_name/player2_id/player2_name and
+ * a start_time field -- structurally different from row()'s nested players.p1/p2 + scheduled_time
+ * shape, which is specific to /history/matches and /matches. Using row() here (as the previous
+ * version of this test did) was itself the bug: it validated against the wrong schema and gave
+ * false confidence while the real endpoint silently returned zero normalized fixtures in production.
+ */
+function fixtureRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 35875,
+    match_id: 194778,
+    gender: "men",
+    is_qualifying: false,
+    player1_id: 101,
+    player1_name: "Alpha Player",
+    player2_id: 202,
+    player2_name: "Beta Player",
+    reason: null,
+    round: "St. Tropez - Quarter-finals",
+    round_code: "QF",
+    start_time: "2026-09-21T12:00:00Z",
+    status: "scheduled",
+    surface: "hard",
+    tour: "atp",
+    tournament: "St. Tropez",
+    updated_at: "2026-09-21T00:00:00Z",
     ...overrides,
   };
 }
@@ -212,18 +244,99 @@ test("uses scheduled timestamp as the historical source cutoff and does not use 
   assert.equal((fixture.raw as { fieldProvenance: { scheduledTime: string } }).fieldProvenance.scheduledTime, "match.scheduled_time");
 });
 
+describe("normalizeLiveFixtureRow (the real /fixtures endpoint's flat row shape)", () => {
+  test("A: a valid real-shaped fixture normalizes", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow());
+    assert.ok(fixture);
+  });
+
+  test("B: player 1 ID/name are correct", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ player1_id: 555, player1_name: "T. Droguet" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.player1Id, "555");
+    assert.equal(fixture!.player1Name, "T. Droguet");
+  });
+
+  test("C: player 2 ID/name are correct", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ player2_id: 140, player2_name: "B. Gojo" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.player2Id, "140");
+    assert.equal(fixture!.player2Name, "B. Gojo");
+  });
+
+  test("D: start_time becomes the scheduled timestamp", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ start_time: "2026-09-23T15:30:00Z" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.scheduledStart, "2026-09-23T15:30:00.000Z");
+    assert.equal(fixture!.timeConfirmed, true);
+  });
+
+  test("E: event_date is preserved where the normalized model exposes it (fixture.date)", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ event_date: "2026-09-23", start_time: "2026-09-23T15:30:00Z" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.date, "2026-09-23");
+  });
+
+  test("F: missing player 1 fails safely (returns null, never a fabricated player)", () => {
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ player1_name: null })), null);
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ player1_id: null, player1_name: undefined })), null);
+  });
+
+  test("G: missing player 2 fails safely", () => {
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ player2_name: null })), null);
+  });
+
+  test("H: missing start_time fails safely", () => {
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ start_time: null })), null);
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ start_time: undefined })), null);
+  });
+
+  test("I: malformed timestamps fail safely", () => {
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ start_time: "not-a-real-timestamp" })), null);
+  });
+
+  test("J: a history-match row shape (nested players.p1/p2, scheduled_time) does NOT accidentally normalize as a fixture", () => {
+    // row() is the /history/matches-shaped helper -- it has no player1_id/player1_name/start_time
+    // fields at all, only nested players.p1/p2 and scheduled_time. This is the exact confusion
+    // that caused the original bug (reused in the wrong direction); this proves it cannot recur.
+    assert.equal(normalizeLiveFixtureRow(row()), null);
+  });
+
+  test("never fabricates a fixture ID when the provider omits one", () => {
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ id: null })), null);
+    assert.equal(normalizeLiveFixtureRow(fixtureRow({ id: undefined })), null);
+  });
+
+  test("resolves tournamentLevel from the tour field when no explicit tournament category object exists (Challenger)", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ tour: "challenger" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.tournamentLevel, "Challenger");
+  });
+
+  test("prefers round_code over round, and maps surface", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ round: "1/8-finals", round_code: "R16", surface: "clay" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.round, "R16");
+    assert.equal(fixture!.surface, "Clay");
+  });
+
+  test("preserves the real tournament name (a plain string on /fixtures rows, not an object)", () => {
+    const fixture = normalizeLiveFixtureRow(fixtureRow({ tournament: "St. Tropez" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.tournamentName, "St. Tropez");
+  });
+});
+
 test("implements the runtime provider endpoints without guessing missing values", async () => {
   const calls: string[] = [];
-  const fixtureRow = row({
+  const fixturesEndpointRow = fixtureRow({
     id: 77,
-    status: "upcoming",
-    outcome: null,
-    event_status: null,
-    scheduled_time: "2026-09-21T12:00:00Z",
-    players: {
-      p1: { id: 101, name: "Alpha Player", ranking: 10, tour: "atp", is_doubles_team: false },
-      p2: { id: 202, name: "Beta Player", ranking: 20, tour: "atp", is_doubles_team: false },
-    },
+    status: "scheduled",
+    player1_id: 101,
+    player1_name: "Alpha Player",
+    player2_id: 202,
+    player2_name: "Beta Player",
+    start_time: "2026-09-21T12:00:00Z",
   });
   const fetchImpl = async (url: string) => {
     calls.push(url);
@@ -245,7 +358,7 @@ test("implements the runtime provider endpoints without guessing missing values"
       return { ok: true, status: 200, json: async () => ({ id: second ? 202 : 101, name: second ? "Beta Player" : "Alpha Player", country: "USA", ranking: second ? 20 : 10, tour: "atp" }) };
     }
     if (path === "/api/public/v1/fixtures") {
-      return { ok: true, status: 200, json: async () => ({ data: [fixtureRow] }) };
+      return { ok: true, status: 200, json: async () => ({ data: [fixturesEndpointRow] }) };
     }
     if (path === "/api/public/v1/matches/77/score") {
       return { ok: true, status: 200, json: async () => ({ score: { games: [[6], [4]] }, status: "live" }) };
