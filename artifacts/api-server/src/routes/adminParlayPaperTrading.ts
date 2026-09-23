@@ -22,8 +22,9 @@ import {
   parlayPaperTradeFactorsTable,
   parlayPaperTradeSnapshotsTable,
 } from "@workspace/db";
-import { parsePagination, parsePairListFilters, isSyntheticTestFixture, type PairListFilters } from "../services/parlayPaperTrading/adminQueryParams.js";
+import { parsePagination, parsePairListFilters, parseStatsFilters, isSyntheticTestFixture, type PairListFilters, type StatsFilters } from "../services/parlayPaperTrading/adminQueryParams.js";
 import { shapePairSummary, shapePairDetail, withCrossSideIntegrity } from "../services/parlayPaperTrading/adminShaping.js";
+import { computeParlayPaperTradingStatistics, type StatsTradeRow, type StatsPairRow } from "../services/parlayPaperTrading/statistics.js";
 
 const router: IRouter = Router();
 const LABEL = "LIVE_PRODUCTION_PAPER_TRADING" as const;
@@ -175,6 +176,89 @@ router.get("/admin/parlay-paper-trading/summary", requireAdmin, async (_req, res
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : "Failed to compute paper-trading summary" });
+  }
+});
+
+// A defensive cap, not an expected volume -- prospective paper trading produces at most a
+// handful of pairs per day, so this is many multiples of any realistic history. Documented
+// explicitly per the "no huge unbounded historical scans" requirement.
+const STATS_ROW_CAP = 20_000;
+
+function buildStatsConditions(filters: StatsFilters) {
+  // Always excludes synthetic acceptance/test fixtures (see isSyntheticTestFixture's doc
+  // comment) -- production prospective statistics must never include a TEST-* row.
+  const conditions = [sql`${parlayPaperTradesTable.externalFixtureId} NOT LIKE 'TEST-%'`];
+  if (filters.dateFrom) conditions.push(gte(parlayPaperTradesTable.scheduledStartAt, filters.dateFrom));
+  if (filters.dateTo) conditions.push(lte(parlayPaperTradesTable.scheduledStartAt, filters.dateTo));
+  if (filters.builderVersion) conditions.push(eq(parlayPaperTradesTable.builderVersion, filters.builderVersion));
+  if (filters.builderConfigFingerprint) conditions.push(eq(parlayPaperTradesTable.builderConfigFingerprint, filters.builderConfigFingerprint));
+  if (filters.calibrationModelId != null) conditions.push(eq(parlayPaperTradesTable.calibrationModelId, filters.calibrationModelId));
+  return conditions;
+}
+
+// GET /admin/parlay-paper-trading/stats — PRODUCTION PROSPECTIVE PARLAY BUILDER PAPER TRADING
+// statistics. The ONLY authoritative source is parlay_paper_trades / parlay_paper_trade_pairs
+// (see statisticsBoundary.test.ts for the static proof this route never references Research V1,
+// the Prediction Engine, or the legacy builder_decision_log/parlay_leg_outcomes tables). All
+// actual aggregation happens in the pure, DB-free statistics.ts module -- this handler only
+// fetches two narrow, filtered, indexed-column-bounded row sets and hands them off.
+router.get("/admin/parlay-paper-trading/stats", requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const filters = parseStatsFilters(req.query as Record<string, unknown>);
+    const conditions = buildStatsConditions(filters);
+
+    const tradeRows = await db
+      .select({
+        pairId: parlayPaperTradesTable.pairId,
+        evaluatedSide: parlayPaperTradesTable.evaluatedSide,
+        player1Id: parlayPaperTradesTable.player1Id,
+        player1Name: parlayPaperTradesTable.player1Name,
+        player2Id: parlayPaperTradesTable.player2Id,
+        player2Name: parlayPaperTradesTable.player2Name,
+        status: parlayPaperTradesTable.status,
+        noDecisionReason: parlayPaperTradesTable.noDecisionReason,
+        decision: parlayPaperTradesTable.decision,
+        builderPickedPlayerId: parlayPaperTradesTable.builderPickedPlayerId,
+        builderCalibratedProbability: parlayPaperTradesTable.builderCalibratedProbability,
+        dataCoverage: parlayPaperTradesTable.dataCoverage,
+        resultType: parlayPaperTradesTable.resultType,
+        includedInAccuracy: parlayPaperTradesTable.includedInAccuracy,
+        gradedCorrect: parlayPaperTradesTable.gradedCorrect,
+        scheduledStartAt: parlayPaperTradesTable.scheduledStartAt,
+        builderVersion: parlayPaperTradesTable.builderVersion,
+        builderConfigFingerprint: parlayPaperTradesTable.builderConfigFingerprint,
+        calibrationModelId: parlayPaperTradesTable.calibrationModelId,
+      })
+      .from(parlayPaperTradesTable)
+      .where(and(...conditions))
+      .limit(STATS_ROW_CAP);
+
+    const pairIds = [...new Set(tradeRows.map((r) => r.pairId))];
+    const pairRows = pairIds.length === 0 ? [] : await db
+      .select({
+        pairId: parlayPaperTradePairsTable.pairId,
+        crossSideAgreement: parlayPaperTradePairsTable.crossSideAgreement,
+        crossSideDisagreementReason: parlayPaperTradePairsTable.crossSideDisagreementReason,
+      })
+      .from(parlayPaperTradePairsTable)
+      .where(and(inArray(parlayPaperTradePairsTable.pairId, pairIds), sql`${parlayPaperTradePairsTable.externalFixtureId} NOT LIKE 'TEST-%'`))
+      .limit(STATS_ROW_CAP);
+
+    const statistics = computeParlayPaperTradingStatistics(tradeRows as StatsTradeRow[], pairRows as StatsPairRow[]);
+
+    res.json({
+      label: LABEL,
+      filters: {
+        dateFrom: filters.dateFrom?.toISOString() ?? null,
+        dateTo: filters.dateTo?.toISOString() ?? null,
+        builderVersion: filters.builderVersion ?? null,
+        builderConfigFingerprint: filters.builderConfigFingerprint ?? null,
+        calibrationModelId: filters.calibrationModelId ?? null,
+      },
+      statistics,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : "Failed to compute paper-trading statistics" });
   }
 });
 

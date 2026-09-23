@@ -74,6 +74,28 @@ export function parsePairListFilters(query: Record<string, unknown>): PairListFi
   return filters;
 }
 
+export interface StatsFilters {
+  dateFrom?: Date;
+  dateTo?: Date;
+  builderVersion?: string;
+  builderConfigFingerprint?: string;
+  calibrationModelId?: number;
+}
+
+/** Filters for GET /admin/parlay-paper-trading/stats -- date range is over scheduled_start_at (the frozen fixture's own time), never settlement/grading time. Lineage filters keep different Builder configurations from being silently merged. */
+export function parseStatsFilters(query: Record<string, unknown>): StatsFilters {
+  const filters: StatsFilters = {};
+  const dateFrom = parseDate(query.dateFrom);
+  if (dateFrom) filters.dateFrom = dateFrom;
+  const dateTo = parseDate(query.dateTo);
+  if (dateTo) filters.dateTo = dateTo;
+  if (typeof query.builderVersion === "string") filters.builderVersion = query.builderVersion;
+  if (typeof query.builderConfigFingerprint === "string") filters.builderConfigFingerprint = query.builderConfigFingerprint;
+  const calibrationModelId = Number.parseInt(String(query.calibrationModelId ?? ""), 10);
+  if (Number.isFinite(calibrationModelId)) filters.calibrationModelId = calibrationModelId;
+  return filters;
+}
+
 /**
  * Synthetic test/acceptance fixtures are tagged by a well-established, non-overlapping naming
  * convention (external_fixture_id starting with "TEST-") established across every acceptance

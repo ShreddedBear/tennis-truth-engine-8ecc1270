@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parsePagination, parsePairListFilters, isSyntheticTestFixture, MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE } from "./adminQueryParams.js";
+import { parsePagination, parsePairListFilters, parseStatsFilters, isSyntheticTestFixture, MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE } from "./adminQueryParams.js";
 
 describe("parsePagination", () => {
   it("defaults when no params given", () => {
@@ -65,6 +65,26 @@ describe("parsePairListFilters", () => {
     assert.strictEqual(filters.builderVersion, "1.0.0");
     assert.strictEqual(filters.builderConfigFingerprint, "abc123");
     assert.strictEqual(filters.resultType, "normal");
+  });
+});
+
+describe("parseStatsFilters", () => {
+  it("empty query yields no filters", () => {
+    assert.deepStrictEqual(parseStatsFilters({}), {});
+  });
+  it("parses date range over scheduled_start_at", () => {
+    const filters = parseStatsFilters({ dateFrom: "2026-09-01", dateTo: "2026-09-30" });
+    assert.strictEqual(filters.dateFrom?.toISOString().slice(0, 10), "2026-09-01");
+    assert.strictEqual(filters.dateTo?.toISOString().slice(0, 10), "2026-09-30");
+  });
+  it("invalid date is silently omitted", () => {
+    assert.strictEqual(parseStatsFilters({ dateFrom: "garbage" }).dateFrom, undefined);
+  });
+  it("parses lineage filters (builderVersion/configFingerprint/calibrationModelId)", () => {
+    const filters = parseStatsFilters({ builderVersion: "1.0.0", builderConfigFingerprint: "fp-a", calibrationModelId: "3" });
+    assert.strictEqual(filters.builderVersion, "1.0.0");
+    assert.strictEqual(filters.builderConfigFingerprint, "fp-a");
+    assert.strictEqual(filters.calibrationModelId, 3);
   });
 });
 
