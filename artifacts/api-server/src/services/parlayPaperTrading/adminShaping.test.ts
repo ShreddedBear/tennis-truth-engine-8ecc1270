@@ -87,6 +87,47 @@ describe("shapePairSummary", () => {
     assert.strictEqual(summary.builderPickedPlayerName, "Player Two");
   });
 
+  // Regression: builderCalibratedProbability is stored per-side as "P(this row's own
+  // selectedPlayerId wins)", NOT "P(builderPickedPlayerId wins)" -- only builderPickedPlayerId
+  // itself is guaranteed identical on both sibling rows. Reading p1's raw value unconditionally
+  // (the old behavior) silently returns "P(player1 wins)" even when the pick is player2 -- e.g.
+  // the real fixture 35781 case: P1 eval stored 39 (P(Basiletti wins)), P2 eval stored 63
+  // (P(Ristic wins)), pick = Ristic. The correct canonical number is 63, never 39.
+  it("canonical probability reads the SIDE WHOSE OWN selectedPlayerId equals the pick, not always PLAYER_1's stored value", () => {
+    const p1 = makeTrade({
+      evaluatedSide: "PLAYER_1", selectedPlayerId: "p1",
+      builderPickedPlayerId: "p2", builderCalibratedProbability: 39,
+    });
+    const p2 = makeTrade({
+      evaluatedSide: "PLAYER_2", selectedPlayerId: "p2",
+      builderPickedPlayerId: "p2", builderCalibratedProbability: 63,
+    });
+    const summary = shapePairSummary(p1, p2);
+    assert.strictEqual(summary.builderPickedPlayerId, "p2");
+    assert.strictEqual(summary.builderCalibratedProbability, 63);
+    assert.notStrictEqual(summary.builderCalibratedProbability, 39);
+  });
+
+  it("canonical probability reads PLAYER_1's own value when the pick IS player1 (the already-correct case stays correct)", () => {
+    const p1 = makeTrade({
+      evaluatedSide: "PLAYER_1", selectedPlayerId: "p1",
+      builderPickedPlayerId: "p1", builderCalibratedProbability: 74,
+    });
+    const p2 = makeTrade({
+      evaluatedSide: "PLAYER_2", selectedPlayerId: "p2",
+      builderPickedPlayerId: "p1", builderCalibratedProbability: 26,
+    });
+    const summary = shapePairSummary(p1, p2);
+    assert.strictEqual(summary.builderCalibratedProbability, 74);
+  });
+
+  it("canonical probability is null when there is no pick (e.g. NO_DECISION), never a stale number", () => {
+    const p1 = makeTrade({ evaluatedSide: "PLAYER_1", builderPickedPlayerId: null, builderCalibratedProbability: 0 });
+    const p2 = makeTrade({ evaluatedSide: "PLAYER_2", builderPickedPlayerId: null, builderCalibratedProbability: 0 });
+    const summary = shapePairSummary(p1, p2);
+    assert.strictEqual(summary.builderCalibratedProbability, null);
+  });
+
   it("null builderPickedPlayerId (e.g. NO_DECISION) yields null name, not a crash", () => {
     const p1 = makeTrade({ evaluatedSide: "PLAYER_1", builderPickedPlayerId: null, status: "NO_DECISION" });
     const p2 = makeTrade({ evaluatedSide: "PLAYER_2", builderPickedPlayerId: null, status: "NO_DECISION" });
@@ -143,6 +184,21 @@ describe("shapePairDetail", () => {
     // Neither side's `decision` string ever equals the prediction's player-id shape --
     // structurally distinct fields, not just conventionally different values.
     assert.ok(!("builderPickedPlayerId" in detail.directionalEvaluations.player1));
+  });
+
+  // Same regression as shapePairSummary's canonical-probability test, but for the detail shape --
+  // the real fixture 35781 numbers (P1=39, P2=63, pick=Ristic/p2).
+  it("autonomousPrediction.builderCalibratedProbability reads the picked side's own value, not always PLAYER_1's", () => {
+    const p1 = makeTrade({
+      evaluatedSide: "PLAYER_1", selectedPlayerId: "p1",
+      builderPickedPlayerId: "p2", builderCalibratedProbability: 39,
+    });
+    const p2 = makeTrade({
+      evaluatedSide: "PLAYER_2", selectedPlayerId: "p2",
+      builderPickedPlayerId: "p2", builderCalibratedProbability: 63,
+    });
+    const detail = shapePairDetail(p1, p2, null, null, [], []);
+    assert.strictEqual(detail.autonomousPrediction.builderCalibratedProbability, 63);
   });
 
   it("surfaces lineage, integrity, and outcome sections completely", () => {

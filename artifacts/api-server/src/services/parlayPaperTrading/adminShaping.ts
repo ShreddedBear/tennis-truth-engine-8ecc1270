@@ -50,6 +50,27 @@ export interface PairSummary {
   gradedCorrect: boolean | null;
 }
 
+/**
+ * `builderCalibratedProbability` is stored per-side as "P(this row's own selectedPlayerId wins)"
+ * -- NOT "P(builderPickedPlayerId wins)", despite builderPickedPlayerId itself being the one
+ * field that's genuinely identical on both sibling rows. The two sides' stored probabilities are
+ * NOT interchangeable (e.g. a P1 evaluation of 39 and a P2 evaluation of 63 for the same pick):
+ * reading p1's raw value unconditionally silently returns "P(player1 wins)" even when the pick is
+ * player2. This picks whichever side's own selectedPlayerId equals the agreed pick, so the
+ * returned number always means "P(builderPickedPlayerId wins)" -- exactly one of the two rows
+ * satisfies that by construction whenever a pick exists.
+ */
+function canonicalCalibratedProbability(
+  p1: Pick<ParlayPaperTradeRow, "selectedPlayerId" | "builderCalibratedProbability">,
+  p2: Pick<ParlayPaperTradeRow, "selectedPlayerId" | "builderCalibratedProbability">,
+  builderPickedPlayerId: string | null,
+): number | null {
+  if (builderPickedPlayerId == null) return null;
+  if (p1.selectedPlayerId === builderPickedPlayerId) return p1.builderCalibratedProbability;
+  if (p2.selectedPlayerId === builderPickedPlayerId) return p2.builderCalibratedProbability;
+  return null;
+}
+
 function toSideSummary(trade: ParlayPaperTradeRow): SideSummary {
   const isPlayer1 = trade.evaluatedSide === "PLAYER_1";
   return {
@@ -99,7 +120,7 @@ export function shapePairSummary(trade1: ParlayPaperTradeRow, trade2: ParlayPape
     noDecisionReason: p1.noDecisionReason,
     builderPickedPlayerId,
     builderPickedPlayerName,
-    builderCalibratedProbability: p1.builderCalibratedProbability,
+    builderCalibratedProbability: canonicalCalibratedProbability(p1, p2, builderPickedPlayerId),
     crossSideAgreement: null, // populated from parlay_paper_trade_pairs by the route (pure function has no DB access)
     crossSideDisagreementReason: null,
     sides: { player1: toSideSummary(p1), player2: toSideSummary(p2) },
@@ -183,7 +204,10 @@ export function shapePairDetail(
       matchStartedAt: p1.matchStartedAt?.toISOString() ?? null, outcomeAttachedAt: p1.outcomeAttachedAt?.toISOString() ?? null,
       gradedAt: p1.gradedAt?.toISOString() ?? null, noDecisionReason: p1.noDecisionReason,
     },
-    autonomousPrediction: { builderPickedPlayerId, builderPickedPlayerName, builderCalibratedProbability: p1.builderCalibratedProbability },
+    autonomousPrediction: {
+      builderPickedPlayerId, builderPickedPlayerName,
+      builderCalibratedProbability: canonicalCalibratedProbability(p1, p2, builderPickedPlayerId),
+    },
     directionalEvaluations: {
       player1: { ...toSideSummary(p1), rawValidationScore: p1.rawValidationScore, dataCoverage: p1.dataCoverage, factors: factors1 },
       player2: { ...toSideSummary(p2), rawValidationScore: p2.rawValidationScore, dataCoverage: p2.dataCoverage, factors: factors2 },
