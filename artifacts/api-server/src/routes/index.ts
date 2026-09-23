@@ -18,6 +18,7 @@ import supportRouter from "./support";
 import adminUsersRouter from "./adminUsers";
 import adminParlayRouter from "./adminParlay";
 import adminParlayResearchV1Router from "./adminParlayResearchV1";
+import adminParlayPaperTradingRouter from "./adminParlayPaperTrading";
 import savedCardsRouter from "./savedCards";
 import truthEngineRouter from "./truthEngine";
 
@@ -42,6 +43,7 @@ router.use(supportRouter);
 router.use(adminUsersRouter);
 router.use(adminParlayRouter);
 router.use(adminParlayResearchV1Router);
+router.use(adminParlayPaperTradingRouter);
 router.use(savedCardsRouter);
 router.use(truthEngineRouter);
 
