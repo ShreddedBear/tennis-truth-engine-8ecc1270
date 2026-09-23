@@ -36,7 +36,7 @@ export interface PaperTradeFixtureInput extends EligibilityFixtureInput {
 
 export type PaperTradeOutcome =
   | { kind: "skipped_no_schedule" }
-  | { kind: "ineligible"; reason: PaperTradeEligibilityReason; pairId: string }
+  | { kind: "ineligible"; reason: PaperTradeEligibilityReason; pairId: string | null }
   | { kind: "data_error"; pairId: string; detail: string }
   | { kind: "frozen"; pairId: string; player1TradeId: string; player2TradeId: string };
 
@@ -127,9 +127,18 @@ export async function discoverAndDecidePaperTrade(
   };
 
   if (!eligibility.eligible) {
-    // A rejected fixture still gets two sibling rows (kept structurally identical to a real
-    // pair) so "always two rows per pair, never a bespoke single-row shape" holds everywhere --
-    // both immediately frozen, since there is no decision in progress to protect.
+    if (eligibility.reason === "DUPLICATE_FIXTURE") {
+      // A row (or pair of rows) already exists for this exact (external_fixture_id,
+      // evaluated_side, lineage_key) -- that IS the duplicate-protection unique index.
+      // Inserting anything else keyed the same way would collide with it directly (confirmed
+      // by the acceptance test: attempting this threw a raw Postgres 23505 instead of failing
+      // gracefully). Nothing new to record; the original row already carries the real outcome.
+      return { kind: "ineligible", reason: "DUPLICATE_FIXTURE", pairId: null };
+    }
+    // Every other rejection reason is for a fixture that has never been written before, so it
+    // gets two sibling rows (kept structurally identical to a real pair, so "always two rows
+    // per pair" holds everywhere) -- both immediately frozen, since there is no decision in
+    // progress to protect.
     const now = new Date();
     await db.transaction(async (tx) => {
       for (const side of ["PLAYER_1", "PLAYER_2"] as const) {
@@ -139,7 +148,7 @@ export async function discoverAndDecidePaperTrade(
           evaluatedSide: side,
           selectedPlayerId: side === "PLAYER_1" ? commonFixtureColumns.player1Id : commonFixtureColumns.player2Id,
           opposingPlayerId: side === "PLAYER_1" ? commonFixtureColumns.player2Id : commonFixtureColumns.player1Id,
-          status: eligibility.reason === "MATCH_ALREADY_STARTED" || eligibility.reason === "DUPLICATE_FIXTURE" ? "NO_DECISION" : "INELIGIBLE",
+          status: eligibility.reason === "MATCH_ALREADY_STARTED" ? "NO_DECISION" : "INELIGIBLE",
           noDecisionReason: eligibility.reason,
           decisionCutoffAt: new Date(fixture.scheduledStart!.getTime() - 1),
           frozenAt: now,
