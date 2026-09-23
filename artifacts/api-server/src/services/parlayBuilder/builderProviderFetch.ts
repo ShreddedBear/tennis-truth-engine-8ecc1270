@@ -549,6 +549,33 @@ export async function attemptOddsApi(
   }
 }
 
+/**
+ * Same provider chain and skip-logic as `attemptOddsApi`, but returns BOTH sides' decimal
+ * odds from the SAME quote (a real market's player2 price is not simply the no-vig
+ * reciprocal of player1's, so this does one shared fetch rather than deriving player2's
+ * price from player1's). Used by double-sided evaluation (acquireBuilderEvidence) so both
+ * directional scoring passes see the exact same odds instant instead of two live fetches.
+ *
+ * Always skipped in backfill mode (asOfDate != null), mirroring attemptOddsApi exactly.
+ */
+export async function attemptOddsApiBothSides(
+  player1Name: string,
+  player2Name: string,
+  scheduledStart: Date | null,
+  asOfDate?: Date,
+  _fetchFn: typeof fetchMarketOdds = fetchMarketOdds,
+): Promise<{ player1DecimalOdds: number; player2DecimalOdds: number } | null> {
+  if (asOfDate != null) return null; // never call live APIs in backfill mode
+  try {
+    const quote = await _fetchFn(player1Name, player2Name, scheduledStart);
+    if (quote == null) return null;
+    if (!(quote.player1DecimalOdds > 1) || !(quote.player2DecimalOdds > 1)) return null;
+    return { player1DecimalOdds: quote.player1DecimalOdds, player2DecimalOdds: quote.player2DecimalOdds };
+  } catch {
+    return null; // non-fatal — market odds are supplemental
+  }
+}
+
 // ─── Provider injection interface (tests override; production uses env-key singletons) ──
 
 export interface BuilderProviders {

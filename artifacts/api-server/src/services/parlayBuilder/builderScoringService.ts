@@ -22,10 +22,11 @@ import {
 import {
   fetchPlayerMatchesFromProviders,
   attemptOddsApi,
+  attemptOddsApiBothSides,
   type LiveFetchDiagnostics,
   type ResolutionOutcome,
 } from "./builderProviderFetch.js";
-import { researchPlayerMatchup } from "./webResearchService.js";
+import { researchPlayerMatchup, type MatchupResearch } from "./webResearchService.js";
 import { scrapeMatchstatPlayer, type MatchstatPlayerData } from "./matchstatScraper.js";
 import type { MatchRecord, Surface } from "../tennisData/types.js";
 import type { CalibrationKnot } from "../evaluation/types.js";
@@ -1051,194 +1052,248 @@ function generateReasons(factors: FactorScore[], sel: PlayerStats, opp: PlayerSt
 // Main entry point
 // ---------------------------------------------------------------------------
 
-export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<BuilderResult> {
+// ---------------------------------------------------------------------------
+// Shared evidence acquisition (fixture-level, role-independent)
+// ---------------------------------------------------------------------------
+//
+// Everything computeBuilderScore fetches -- DB match history (5-layer resolution), H2H,
+// market odds, injury research, matchstat enrichment -- is a function of WHICH TWO PLAYERS
+// are playing, not of which one is being "evaluated" as selected. This section splits that
+// fetch out from the pure factor-scoring math so a caller that needs BOTH directional
+// evaluations of the same fixture (double-sided paper trading) can acquire evidence ONCE
+// and score it TWICE from one frozen snapshot, instead of running two independent (and
+// potentially inconsistent, and double-cost) live fetches.
+//
+// computeBuilderScore(snapshot) below is unchanged in behavior: it calls
+// acquireBuilderEvidence() framing snapshot.selectedPlayerId as "player1" -- exactly how the
+// odds/web-research calls were always framed (selectedPlayerName first, opponentName
+// second) -- then scoreBuilderEvidence() with selectedIsPlayer1=true. This reproduces prior
+// behavior exactly; none of the scoring formulas, weights, thresholds, or factor
+// definitions have changed.
+
+type PlayerResearchInfo = MatchupResearch["selected"];
+
+export interface BuilderEvidenceBundle {
+  player1Id: string;
+  player1Name: string;
+  player2Id: string;
+  player2Name: string;
+  surface: string | null;
+  tournamentName: string | null;
+  scheduledStart: Date | null;
+  asOfDate: Date | undefined;
+  effectiveCeiling: Date;
+  matchIsLive: boolean;
+  resolution1: PlayerResolution;
+  resolution2: PlayerResolution;
+  resolvedId1: string;
+  resolvedId2: string;
+  matches1: MatchRow[];
+  matches2: MatchRow[];
+  stats1: PlayerStats;
+  stats2: PlayerStats;
+  h2hMatches: MatchRow[];
+  matchstat1: MatchstatPlayerData | null;
+  matchstat2: MatchstatPlayerData | null;
+  canRunModules: boolean;
+  moduleRecords1: MatchRecord[];
+  moduleRecords2: MatchRecord[];
+  /** Decimal odds for player1/player2 from ONE shared odds fetch (or a supplied override for player1). */
+  player1MarketOdds: number | null;
+  player2MarketOdds: number | null;
+  webResearch1: PlayerResearchInfo | null;
+  webResearch2: PlayerResearchInfo | null;
+  webResearchConfidence: number;
+  noEvidence1: boolean;
+  noEvidence2: boolean;
+  noEvidenceOutcome1?: ResolutionOutcome;
+  noEvidenceOutcome2?: ResolutionOutcome;
+}
+
+export interface AcquireBuilderEvidenceInput {
+  player1Id: string;
+  player1Name: string;
+  player2Id: string;
+  player2Name: string;
+  surface: string | null;
+  tournamentName: string | null;
+  scheduledStart?: Date | null;
+  asOfDate?: Date;
+  /** Caller-supplied pre-match odds for player1 (mirrors BuilderSnapshot.marketOdds). Live fetch skipped when set. */
+  suppliedPlayer1MarketOdds?: number | null;
+}
+
+const NO_EVIDENCE_OUTCOMES = new Set<ResolutionOutcome>([
+  "SOURCE_UNAVAILABLE", "DATA_UNAVAILABLE", "PLAYER_NOT_FOUND", "NO_MATCH_HISTORY",
+]);
+
+export async function acquireBuilderEvidence(input: AcquireBuilderEvidenceInput): Promise<BuilderEvidenceBundle> {
   const {
-    selectedPlayerId, selectedPlayerName, opponentId, opponentName, surface, tournamentName,
-    marketOdds: suppliedMarketOdds, asOfDate,
-  } = snapshot;
-
-  // Detect live/in-play state. Once a match has started, betting market odds mechanically
-  // reflect the current score rather than pre-match handicapping evidence. Feeding live odds
-  // into marketConsensus, the risk adjustments, and the closeness signal would treat a
-  // score artifact as if it were genuine pre-match disagreement.
-  //
-  // When scheduledStart is unknown (null/undefined) we conservatively assume pre-match so
-  // that the lack of a commence time never silently disables market scoring.
-  const scheduledStart = snapshot.scheduledStart ?? null;
+    player1Id, player1Name, player2Id, player2Name, surface, tournamentName, asOfDate,
+    suppliedPlayer1MarketOdds,
+  } = input;
+  const scheduledStart = input.scheduledStart ?? null;
   const matchIsLive = scheduledStart != null && new Date() > scheduledStart;
-
-  // ── Gap 2 fix: derive effectiveCeiling for live scoring ──────────────────
-  //
-  // In live mode (asOfDate is null), we still need an upper bound so that rows
-  // from after the current match cannot reach Elo or Serve/Return modules.
-  // Use the match's scheduled start when known; otherwise use the current time.
-  // This ceiling is passed to resolvePlayerMatchRows so provider rows are also
-  // post-filtered (Gap 1 fix), and used directly to post-filter DB rows before
-  // passing to any module (Gap 2 fix).
   const effectiveCeiling: Date = asOfDate ?? (scheduledStart ?? new Date());
 
-  // ── 1. Resolve both players' match history with multi-source fallback ────────
-  //
-  // The identity index + alias expansion + name search ensure that even when
-  // the fixture's player_key differs from what's stored in historical_matches
-  // (different provider namespace, abbreviated name, fragmented ID), we still
-  // find the player's matches rather than returning an empty result set.
-  //
-  // Each layer is tried in order; the first one that returns rows wins:
-  //   1. Direct ID exact match
-  //   2. Identity-index canonical ID + all provider aliases  (IN clause)
-  //   3. Name resolution via identity index                  (IN clause)
-  //   4. Direct DB surname ILIKE search + initial filter
-  //   5. Live provider fetch (skipped when asOfDate is set — backfill mode)
   const index = await getCachedPlayerIdentityIndex();
 
-  // Resolve both players + kick off Tier 5 web research + live market odds in parallel.
-  // Web research and odds fetching are both skipped in backfill mode (asOfDate set).
-  // Market odds: selectedPlayerName is "player1" so quote.player1DecimalOdds is theirs directly.
-  //
-  // Live-match guard: when matchIsLive is true, skip the odds fetch entirely. The caller is
-  // expected to supply the last-known pre-match odds via snapshot.marketOdds (frozen value).
-  // If no pre-match odds were ever captured before the match went live, suppliedMarketOdds
-  // will be null, fetchedMarketOdds will be null, and marketOdds falls through to the
-  // existing "No market odds provided" neutral path (score 50) — never a live-score number.
-  //
-  // effectiveCeiling is passed so provider-fetched rows (Layer 5 and 4b supplement) are
-  // date-filtered after fetch, closing Gap 1.
-  const [selResolution, oppResolution, webResearch, fetchedMarketOdds] = await Promise.all([
-    resolvePlayerMatchRows(selectedPlayerId, selectedPlayerName, index, asOfDate, effectiveCeiling),
-    resolvePlayerMatchRows(opponentId, opponentName, index, asOfDate, effectiveCeiling),
+  const [resolution1, resolution2, webResearch, fetchedOdds] = await Promise.all([
+    resolvePlayerMatchRows(player1Id, player1Name, index, asOfDate, effectiveCeiling),
+    resolvePlayerMatchRows(player2Id, player2Name, index, asOfDate, effectiveCeiling),
     asOfDate == null
-      ? researchPlayerMatchup(selectedPlayerName, opponentName).catch(() => null)
+      ? researchPlayerMatchup(player1Name, player2Name).catch(() => null)
       : Promise.resolve(null),
-    // Skip when: (a) backfill mode, (b) user supplied odds, or (c) match has already started.
-    (!matchIsLive && suppliedMarketOdds == null)
-      ? attemptOddsApi(selectedPlayerName, opponentName, scheduledStart, asOfDate)
+    (!matchIsLive && suppliedPlayer1MarketOdds == null)
+      ? attemptOddsApiBothSides(player1Name, player2Name, scheduledStart, asOfDate)
       : Promise.resolve(null),
   ]);
 
-  // Use user-supplied odds when present; fall back to the live fetch result.
-  // For a live match with no prior odds, both are null → neutral path applies.
-  const marketOdds = suppliedMarketOdds ?? fetchedMarketOdds;
+  const player1MarketOdds = suppliedPlayer1MarketOdds ?? fetchedOdds?.player1DecimalOdds ?? null;
+  const player2MarketOdds = fetchedOdds?.player2DecimalOdds ?? null;
 
-  const selResolvedId = selResolution.resolvedId;
-  const oppResolvedId = oppResolution.resolvedId;
+  const resolvedId1 = resolution1.resolvedId;
+  const resolvedId2 = resolution2.resolvedId;
 
-  // ── Ceiling applied to ALL rows, not just module inputs ──────────────────────
-  //
-  // Every downstream factor (computePlayerStats, H2H, fatigue, module records) must
-  // use the same ceiling-bounded row set so no future-dated match can contaminate
-  // any factor in any code path.  The filter is applied here once, not re-applied
-  // per-consumer, so there is a single source of truth.
-  //
-  // Row with null scheduled_start_at → kept (date unknown, cannot confirm future).
-  const selMatches = selResolution.rows.filter(
-    r => r.scheduled_start_at == null || r.scheduled_start_at < effectiveCeiling
-  );
-  const oppMatches = oppResolution.rows.filter(
-    r => r.scheduled_start_at == null || r.scheduled_start_at < effectiveCeiling
-  );
+  const matches1 = resolution1.rows.filter(r => r.scheduled_start_at == null || r.scheduled_start_at < effectiveCeiling);
+  const matches2 = resolution2.rows.filter(r => r.scheduled_start_at == null || r.scheduled_start_at < effectiveCeiling);
 
-  // Matchstat enrichment — scraped aggregate surface/form data from matchstat.com.
-  // Only attempted in live mode (not backfill) when a player has sparse match history.
-  // Feeds surfaceAdvantage and recentForm factor fallbacks below.
   const MIN_FOR_MATCHSTAT = 5;
-  const needsMatchstat =
-    asOfDate == null &&
-    (selMatches.length < MIN_FOR_MATCHSTAT || oppMatches.length < MIN_FOR_MATCHSTAT);
-  const [selMatchstat, oppMatchstat]: [MatchstatPlayerData | null, MatchstatPlayerData | null] =
-    needsMatchstat
-      ? await Promise.all([
-          scrapeMatchstatPlayer(selectedPlayerName).catch(() => null),
-          scrapeMatchstatPlayer(opponentName).catch(() => null),
-        ])
-      : [null, null];
+  const needsMatchstat = asOfDate == null && (matches1.length < MIN_FOR_MATCHSTAT || matches2.length < MIN_FOR_MATCHSTAT);
+  const [matchstat1, matchstat2]: [MatchstatPlayerData | null, MatchstatPlayerData | null] = needsMatchstat
+    ? await Promise.all([
+        scrapeMatchstatPlayer(player1Name).catch(() => null),
+        scrapeMatchstatPlayer(player2Name).catch(() => null),
+      ])
+    : [null, null];
 
-  // H2H: query using all known alias IDs for both players so we catch cross-
-  // provider match records where one player is stored under a different key.
-  const selH2hIds = selResolution.aliasIds;
-  const oppH2hIds = oppResolution.aliasIds;
-  const h2hParams = [...selH2hIds, ...oppH2hIds];
-  const s = selH2hIds.length;
-  const o = oppH2hIds.length;
-  const selIN = selH2hIds.map((_, i) => `$${i + 1}`).join(", ");
-  const oppIN = oppH2hIds.map((_, i) => `$${s + i + 1}`).join(", ");
-
-  // Always bound H2H by effectiveCeiling (backfill = asOfDate, live = scheduledStart or now()).
-  // The old pattern (only apply when asOfDate != null) left live-mode H2H unbounded, so a
-  // future match result could leak into the H2H factor during live scoring.
+  const h2h1Ids = resolution1.aliasIds;
+  const h2h2Ids = resolution2.aliasIds;
+  const h2hParams = [...h2h1Ids, ...h2h2Ids];
+  const n1 = h2h1Ids.length;
+  const in1 = h2h1Ids.map((_, i) => `$${i + 1}`).join(", ");
+  const in2 = h2h2Ids.map((_, i) => `$${n1 + i + 1}`).join(", ");
   const h2hDateParamIdx = h2hParams.length + 1;
   const h2hQueryParams: unknown[] = [...h2hParams, effectiveCeiling];
-  const h2hDateCond = `AND scheduled_start_at < $${h2hDateParamIdx}`;
-
   const h2hRawRes = await pool.query<MatchRow>(`
     SELECT player1_id, player2_id, winner_id, player1_rank, player2_rank,
            surface, tournament_name, scheduled_start_at, retired, walkover,
            game_margins_player1
     FROM historical_matches
-    WHERE ((player1_id IN (${selIN}) AND player2_id IN (${oppIN}))
-        OR (player1_id IN (${oppIN}) AND player2_id IN (${selIN})))
+    WHERE ((player1_id IN (${in1}) AND player2_id IN (${in2}))
+        OR (player1_id IN (${in2}) AND player2_id IN (${in1})))
       AND (cancelled IS NULL OR cancelled = false)
-      ${h2hDateCond}
+      AND scheduled_start_at < $${h2hDateParamIdx}
     ORDER BY scheduled_start_at DESC
     LIMIT 15
   `, h2hQueryParams);
-
-  // Normalise H2H winner_id so the H2H factor can check m.winner_id === selResolvedId
-  const selAliasSet = new Set(selH2hIds);
-  const oppAliasSet = new Set(oppH2hIds);
+  const aliasSet1 = new Set(h2h1Ids);
+  const aliasSet2 = new Set(h2h2Ids);
   const h2hMatches = h2hRawRes.rows.map(r => ({
     ...r,
     winner_id: r.winner_id == null ? null
-      : selAliasSet.has(r.winner_id) ? selResolvedId
-      : oppAliasSet.has(r.winner_id) ? oppResolvedId
+      : aliasSet1.has(r.winner_id) ? resolvedId1
+      : aliasSet2.has(r.winner_id) ? resolvedId2
       : r.winner_id,
   }));
 
-  // ── No-evidence guard ────────────────────────────────────────────────────
-  //
-  // If a player is absent from the local DB AND the live-fetch returned a
-  // no-data outcome, we have zero real evidence. Computing any grade from
-  // zero matches is actively misleading — return DATA_UNAVAILABLE instead.
-  //
-  // No-data outcomes (in live mode only — backfill skips Layer 5 entirely
-  // and intentionally scores thin-data rows to build calibration data):
-  //   SOURCE_UNAVAILABLE  — providers timed out or errored
-  //   DATA_UNAVAILABLE    — no provider API keys configured
-  //   PLAYER_NOT_FOUND    — providers responded but don't know this player
-  //   NO_MATCH_HISTORY    — player found; no completed pro match records
-
-  const NO_EVIDENCE_OUTCOMES = new Set<ResolutionOutcome>([
-    "SOURCE_UNAVAILABLE", "DATA_UNAVAILABLE", "PLAYER_NOT_FOUND", "NO_MATCH_HISTORY",
-  ]);
-
-  // Only applies in live mode (asOfDate = null); backfill mode never calls Layer 5.
   const isLiveMode = asOfDate == null;
+  const outcome1 = resolution1.liveFetchDiagnostics?.outcome;
+  const outcome2 = resolution2.liveFetchDiagnostics?.outcome;
+  const noEvidence1 = isLiveMode && matches1.length === 0 && (outcome1 == null || NO_EVIDENCE_OUTCOMES.has(outcome1));
+  const noEvidence2 = isLiveMode && matches2.length === 0 && (outcome2 == null || NO_EVIDENCE_OUTCOMES.has(outcome2));
 
-  const selNoEvidenceOutcome = selResolution.liveFetchDiagnostics?.outcome;
-  const oppNoEvidenceOutcome = oppResolution.liveFetchDiagnostics?.outcome;
+  const stats1 = computePlayerStats(matches1, resolvedId1, surface, tournamentName);
+  const stats2 = computePlayerStats(matches2, resolvedId2, surface, tournamentName);
 
-  const selIsNoEvidence = isLiveMode && selMatches.length === 0 &&
-    (selNoEvidenceOutcome == null || NO_EVIDENCE_OUTCOMES.has(selNoEvidenceOutcome));
-  const oppIsNoEvidence = isLiveMode && oppMatches.length === 0 &&
-    (oppNoEvidenceOutcome == null || NO_EVIDENCE_OUTCOMES.has(oppNoEvidenceOutcome));
+  const builderSurface = toBuilderSurface(surface);
+  const canRunModules = builderSurface != null && matches1.length >= 3 && matches2.length >= 3;
+  let moduleRecords1: MatchRecord[] = [];
+  let moduleRecords2: MatchRecord[] = [];
+  if (canRunModules) {
+    moduleRecords1 = matches1.map(r => matchRowToMatchRecord(r, resolvedId1));
+    moduleRecords2 = matches2.map(r => matchRowToMatchRecord(r, resolvedId2));
+  }
+
+  return {
+    player1Id, player1Name, player2Id, player2Name, surface, tournamentName,
+    scheduledStart, asOfDate, effectiveCeiling, matchIsLive,
+    resolution1, resolution2, resolvedId1, resolvedId2,
+    matches1, matches2, stats1, stats2, h2hMatches,
+    matchstat1, matchstat2, canRunModules, moduleRecords1, moduleRecords2,
+    player1MarketOdds, player2MarketOdds,
+    webResearch1: webResearch?.selected ?? null,
+    webResearch2: webResearch?.opponent ?? null,
+    webResearchConfidence: webResearch?.confidence ?? 0,
+    noEvidence1, noEvidence2, noEvidenceOutcome1: outcome1, noEvidenceOutcome2: outcome2,
+  };
+}
+
+/**
+ * Pure(ish) scoring pass over a frozen BuilderEvidenceBundle: every factor computation,
+ * risk score, grade, and decision, exactly as computeBuilderScore always computed them --
+ * this code is relocated verbatim, not rewritten. `selectedIsPlayer1` picks which side of
+ * the evidence bundle plays "selected" vs "opponent" for this pass; calling this twice
+ * (true, then false) against the SAME evidence bundle is what makes double-sided
+ * evaluation apples-to-apples -- no new DB query, live fetch, or provider call happens here.
+ */
+export async function scoreBuilderEvidence(
+  evidence: BuilderEvidenceBundle,
+  selectedIsPlayer1: boolean,
+): Promise<BuilderResult> {
+  const selectedPlayerId = selectedIsPlayer1 ? evidence.player1Id : evidence.player2Id;
+  const selectedPlayerName = selectedIsPlayer1 ? evidence.player1Name : evidence.player2Name;
+  const opponentId = selectedIsPlayer1 ? evidence.player2Id : evidence.player1Id;
+  const opponentName = selectedIsPlayer1 ? evidence.player2Name : evidence.player1Name;
+  const surface = evidence.surface;
+  const tournamentName = evidence.tournamentName;
+  const scheduledStart = evidence.scheduledStart;
+  const asOfDate = evidence.asOfDate;
+  const matchIsLive = evidence.matchIsLive;
+  const effectiveCeiling = evidence.effectiveCeiling;
+
+  const selResolution = selectedIsPlayer1 ? evidence.resolution1 : evidence.resolution2;
+  const oppResolution = selectedIsPlayer1 ? evidence.resolution2 : evidence.resolution1;
+  const selResolvedId = selectedIsPlayer1 ? evidence.resolvedId1 : evidence.resolvedId2;
+  const oppResolvedId = selectedIsPlayer1 ? evidence.resolvedId2 : evidence.resolvedId1;
+  const selMatches = selectedIsPlayer1 ? evidence.matches1 : evidence.matches2;
+  const oppMatches = selectedIsPlayer1 ? evidence.matches2 : evidence.matches1;
+  const h2hMatches = evidence.h2hMatches;
+  const selMatchstat = selectedIsPlayer1 ? evidence.matchstat1 : evidence.matchstat2;
+  const oppMatchstat = selectedIsPlayer1 ? evidence.matchstat2 : evidence.matchstat1;
+  const marketOdds = selectedIsPlayer1 ? evidence.player1MarketOdds : evidence.player2MarketOdds;
+  const webResearch: MatchupResearch | null =
+    (selectedIsPlayer1 ? evidence.webResearch1 : evidence.webResearch2) != null &&
+    (selectedIsPlayer1 ? evidence.webResearch2 : evidence.webResearch1) != null
+      ? {
+          selected: (selectedIsPlayer1 ? evidence.webResearch1 : evidence.webResearch2)!,
+          opponent: (selectedIsPlayer1 ? evidence.webResearch2 : evidence.webResearch1)!,
+          confidence: evidence.webResearchConfidence,
+          researchedAt: new Date(),
+        }
+      : null;
+  const canRunModules = evidence.canRunModules;
+  const selModuleRecords = selectedIsPlayer1 ? evidence.moduleRecords1 : evidence.moduleRecords2;
+  const oppModuleRecords = selectedIsPlayer1 ? evidence.moduleRecords2 : evidence.moduleRecords1;
+  const builderSurface = toBuilderSurface(surface);
+
+  const selNoEvidenceOutcome = selectedIsPlayer1 ? evidence.noEvidenceOutcome1 : evidence.noEvidenceOutcome2;
+  const oppNoEvidenceOutcome = selectedIsPlayer1 ? evidence.noEvidenceOutcome2 : evidence.noEvidenceOutcome1;
+  const selIsNoEvidence = selectedIsPlayer1 ? evidence.noEvidence1 : evidence.noEvidence2;
+  const oppIsNoEvidence = selectedIsPlayer1 ? evidence.noEvidence2 : evidence.noEvidence1;
 
   if (selIsNoEvidence || oppIsNoEvidence) {
     const noEvidencePlayers = [
       ...(selIsNoEvidence ? [selectedPlayerName] : []),
       ...(oppIsNoEvidence ? [opponentName] : []),
     ];
-
-    // Pick the most specific cause for messaging (prefer the cause of the selected player,
-    // then opponent, since we can only surface one primary note to the user).
     const primaryOutcome = selNoEvidenceOutcome ?? oppNoEvidenceOutcome;
-
     const noDataReason: DataSourceDiagnostics["noDataReason"] =
       primaryOutcome === "SOURCE_UNAVAILABLE" ? "provider-unreachable"
       : primaryOutcome === "DATA_UNAVAILABLE" ? "not-configured"
       : primaryOutcome === "PLAYER_NOT_FOUND" ? "player-not-found"
       : primaryOutcome === "NO_MATCH_HISTORY" ? "no-history"
-      : "provider-unreachable"; // fallback (null outcome = Layer 5 skipped unexpectedly)
-
+      : "provider-unreachable";
     const dataConfidenceNote =
       noDataReason === "provider-unreachable"
         ? `External data providers could not be reached for ${noEvidencePlayers.join(" and ")}. Validation is unavailable — try again when providers are online.`
@@ -1246,9 +1301,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
           ? `No data providers are configured for ${noEvidencePlayers.join(" and ")}. Check that Live_Tennis_Api is set.`
           : noDataReason === "player-not-found"
             ? `${noEvidencePlayers.join(" and ")} could not be found in any configured data provider. Check spelling and try again.`
-            : /* no-history */
-              `${noEvidencePlayers.join(" and ")} was identified in provider records but has no completed professional match history. Cannot produce a meaningful grade.`;
-
+            : `${noEvidencePlayers.join(" and ")} was identified in provider records but has no completed professional match history. Cannot produce a meaningful grade.`;
     const criticalFlagMessage =
       noDataReason === "provider-unreachable"
         ? `Data unavailable — providers unreachable for: ${noEvidencePlayers.join(", ")}`
@@ -1257,12 +1310,10 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
           : noDataReason === "player-not-found"
             ? `Player not found in any provider — check name for: ${noEvidencePlayers.join(", ")}`
             : `No professional match records found for: ${noEvidencePlayers.join(", ")}`;
-
     const failureReasons =
       selResolution.liveFetchDiagnostics?.failureReasons.length
         ? selResolution.liveFetchDiagnostics.failureReasons
         : oppResolution.liveFetchDiagnostics?.failureReasons ?? [];
-
     const reasons = failureReasons.length > 0
       ? failureReasons
       : noDataReason === "provider-unreachable"
@@ -1272,7 +1323,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
           : noDataReason === "player-not-found"
             ? [`${noEvidencePlayers.join(" and ")} could not be found in any provider. Verify the player name and try again.`]
             : [`${noEvidencePlayers.join(" and ")} has no completed professional match records on file.`];
-
     const dataSourceDiagnostics: DataSourceDiagnostics = {
       selectedPlayerStatus: "player_not_found",
       opponentStatus: "player_not_found",
@@ -1285,7 +1335,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       opponentProviderDiag: oppResolution.liveFetchDiagnostics,
       dataConfidenceNote,
     };
-
     return {
       validationScore: 0,
       riskScore: 0,
@@ -1313,43 +1362,15 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     };
   }
 
-  const sel = computePlayerStats(selMatches, selResolvedId, surface, tournamentName);
-  const opp = computePlayerStats(oppMatches, oppResolvedId, surface, tournamentName);
+  const sel = selectedIsPlayer1 ? evidence.stats1 : evidence.stats2;
+  const opp = selectedIsPlayer1 ? evidence.stats2 : evidence.stats1;
 
-  // ── Module pre-computation: ceiling-bounded row sets for Elo + Serve/Return ────
-  //
-  // selMatches / oppMatches are already ceiling-filtered (applied immediately after
-  // resolution, before any factor computation).  Module records are a direct alias so
-  // that the canRunModules guard and module calls use the same bounded set as every
-  // other factor.  No second filter needed.
   const selMatchesForModules = selMatches;
   const oppMatchesForModules = oppMatches;
 
-  // Convert MatchRow arrays to MatchRecord format used by prediction-engine modules.
-  const builderSurface = toBuilderSurface(surface);
-  // Minimum 3 rows per player required before passing to Elo/ServeReturn modules.
-  const canRunModules = builderSurface != null &&
-    selMatchesForModules.length >= 3 &&
-    oppMatchesForModules.length >= 3;
-
-  let selModuleRecords: MatchRecord[] = [];
-  let oppModuleRecords: MatchRecord[] = [];
-  if (canRunModules) {
-    selModuleRecords = selMatchesForModules.map(r => matchRowToMatchRecord(r, selResolvedId));
-    oppModuleRecords = oppMatchesForModules.map(r => matchRowToMatchRecord(r, oppResolvedId));
-  }
-
-  // ── 2. Compute factor scores ──────────────────────────────────────────────
-
   const factors: FactorScore[] = [];
 
-  function addFactor(
-    key: string,
-    label: string,
-    score: number,
-    detail: string,
-    limited = false,
-  ): void {
+  function addFactor(key: string, label: string, score: number, detail: string, limited = false): void {
     const status = limited ? "limited" : "available";
     factors.push({
       key, label, score,
@@ -1359,22 +1380,13 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       detail,
     });
   }
-
   function addUnavailable(key: string, label: string): void {
-    factors.push({
-      key, label, score: 50,
-      weight: DEFAULT_WEIGHTS[key] ?? 0.01,
-      status: "unavailable",
-      supportsSelected: null,
-      detail: "",
-    });
+    factors.push({ key, label, score: 50, weight: DEFAULT_WEIGHTS[key] ?? 0.01, status: "unavailable", supportsSelected: null, detail: "" });
   }
 
   // Factor: Surface Elo (primary Elo-based win probability)
-  // Uses the same computeSurfaceEloModule the Prediction Engine uses, fed with date-bounded rows.
   if (canRunModules) {
     const eloResult = computeSurfaceEloModule(selModuleRecords, oppModuleRecords, builderSurface!);
-    // eloWinProbabilityPlayer1 is already in 0–100 percentage space (Percentage branded type)
     const eloScore = clamp(Math.round(eloResult.eloWinProbabilityPlayer1 as unknown as number), 5, 95);
     const eloLabel = eloScore > 55 ? "favors" : eloScore < 45 ? "favors opponent over" : "is neutral for";
     addFactor("surfaceElo", "Surface Elo",
@@ -1392,7 +1404,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
 
   // Factor: Overall Advantage (rank-adjusted win rate, secondary signal)
   if (sel.total >= 5 && opp.total >= 5) {
-    // Rank-adjust: lower avg opp rank (harder SOS) boosts win rate
     const sosBoostSel = sel.avgOppRank < 80 ? 0.04 : sel.avgOppRank < 150 ? 0.02 : 0;
     const sosBoostOpp = opp.avgOppRank < 80 ? 0.04 : opp.avgOppRank < 150 ? 0.02 : 0;
     const adjSel = sel.winRate + sosBoostSel;
@@ -1422,7 +1433,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     );
   } else {
     const limited = (surface && (sel.surfaceTotal < 3 || opp.surfaceTotal < 3));
-    // Matchstat enrichment fallback — use scraped surface records when raw data is sparse
     const selMs = surface ? selMatchstat?.surfaceRecords[surface as keyof typeof selMatchstat.surfaceRecords] : null;
     const oppMs = surface ? oppMatchstat?.surfaceRecords[surface as keyof typeof oppMatchstat.surfaceRecords] : null;
     if (surface && selMs && oppMs && (selMs.wins + selMs.losses) >= 2 && (oppMs.wins + oppMs.losses) >= 2) {
@@ -1450,7 +1460,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       `Recent form (last 10): ${selectedPlayerName} ${selR}/10 wins vs ${opponentName} ${oppR}/10 wins`
     );
   } else {
-    // Matchstat enrichment fallback — use scraped recent record when match history is sparse
     const selMsR = selMatchstat?.recentRecord;
     const oppMsR = oppMatchstat?.recentRecord;
     if (selMsR && oppMsR && (selMsR.wins + selMsR.losses) >= 3 && (oppMsR.wins + oppMsR.losses) >= 3) {
@@ -1477,24 +1486,13 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     addFactor("surfaceRecord", "Surface Record", 50, "Insufficient surface data", true);
   }
 
-  // Factors: Serve and Return — computed from match rows via computeServeReturnModule.
-  // The module uses set-score game margins (populated from game_margins_player1) as the proxy path.
-  //
-  // When `srResult.defaulted` is true, neither player has any set-score margin data — the module
-  // cannot produce a meaningful rating. In that case we mark the factors UNAVAILABLE (excluded
-  // from the weighted blend) rather than LIMITED (which would add neutral 50 at full weight with
-  // no real evidence behind it).
-  //
-  // Hold/Break still unavailable — no point-level data available from historical_matches.
+  // Factors: Serve and Return
   if (canRunModules) {
     const srResult = computeServeReturnModule(selModuleRecords, oppModuleRecords, builderSurface!);
     if (srResult.defaulted) {
-      // No set-score margin data available for at least one player → genuinely unavailable,
-      // not a neutral guess. Weight redistributes to other available factors.
       addUnavailable("serveAdvantage", "Serve Advantage");
       addUnavailable("returnAdvantage", "Return Advantage");
     } else {
-      // player1ServeRating / returnRating are 0–100, 50 = tour average
       const serveScore = clamp(
         Math.round(50 + (srResult.player1ServeRating - srResult.player2ServeRating) / 2),
         5, 95
@@ -1528,11 +1526,8 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   }
   // Factor: Strength of Schedule
   if (sel.total >= 10 && opp.total >= 10) {
-    // Better SOS + higher win rate = more impressive record
-    // If both beat top opponents at similar rates, the one who beat harder opponents is favored
-    const selSOS = sel.avgOppRank > 0 ? 1 / sel.avgOppRank : 0;  // lower rank = harder = higher value
+    const selSOS = sel.avgOppRank > 0 ? 1 / sel.avgOppRank : 0;
     const oppSOS = opp.avgOppRank > 0 ? 1 / opp.avgOppRank : 0;
-    // Combine: if selected beats tougher opponents, that's positive
     const selAdj = sel.winRate * (1 + selSOS * 100);
     const oppAdj = opp.winRate * (1 + oppSOS * 100);
     const score = diffScore(selAdj, oppAdj, 30);
@@ -1562,7 +1557,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   const selRank = sel.currentRank;
   const oppRank = opp.currentRank;
   if (selRank != null && oppRank != null) {
-    // Lower rank number = better ranked; score inverts
     const score = diffScore(oppRank, selRank, 0.5);
     addFactor("currentRanking", "Current Ranking",
       score,
@@ -1580,7 +1574,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     const h2hWins = h2hMatches.filter(m => m.winner_id === selResolvedId).length;
     const h2hTotal = h2hMatches.length;
     const h2hRate = h2hWins / h2hTotal;
-    // Recency weight: more recent matches count more
     const recentH2h = h2hMatches.slice(0, 5);
     const recentWins = recentH2h.filter(m => m.winner_id === selResolvedId).length;
     const blended = (h2hRate * 0.4 + (recentWins / recentH2h.length) * 0.6);
@@ -1606,7 +1599,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     ? Math.floor((Date.now() - opp.lastMatchDate.getTime()) / 86_400_000)
     : null;
   if (selDaysRest != null && oppDaysRest != null) {
-    // 1-3 days rest = ideal, <1 = fatigued, >14 = rust concern
     const restScore = (d: number) => d < 1 ? 0.3 : d === 1 ? 0.7 : d <= 3 ? 1.0 : d <= 7 ? 0.9 : d <= 14 ? 0.7 : 0.5;
     const score = diffScore(restScore(selDaysRest), restScore(oppDaysRest), 60);
     addFactor("travelFatigue", "Rest & Fatigue",
@@ -1617,8 +1609,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     addFactor("travelFatigue", "Rest & Fatigue", 50, "Match schedule data unavailable", true);
   }
 
-  // Factor: Injury Risk — Tier 5 web research via Gemini Google Search grounding.
-  // Skipped in backfill mode (webResearch is null when asOfDate is set).
+  // Factor: Injury Risk
   if (webResearch && webResearch.confidence >= 0.3) {
     const selFit = 100 - webResearch.selected.riskLevel;
     const oppFit = 100 - webResearch.opponent.riskLevel;
@@ -1668,11 +1659,10 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       tournamentName ? "Insufficient tournament history" : "No tournament specified", true);
   }
 
-  // Factor: Historical Consistency (lower stddev in quarterly win rates = more consistent)
+  // Factor: Historical Consistency
   const selStd = stddev(sel.quarterWinRates);
   const oppStd = stddev(opp.quarterWinRates);
   if (sel.quarterWinRates.length >= 2 && opp.quarterWinRates.length >= 2) {
-    // Lower stddev = more consistent = favored (inverse relationship)
     const score = diffScore(oppStd, selStd, 150);
     addFactor("historicalConsistency", "Historical Consistency",
       score,
@@ -1682,9 +1672,8 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     addFactor("historicalConsistency", "Historical Consistency", 50, "Insufficient history for consistency analysis", true);
   }
 
-  // Factor: Historical Volatility (retirement/walkover rate)
+  // Factor: Historical Volatility
   if (sel.total >= 10 && opp.total >= 10) {
-    // Lower retirement rate = lower volatility = favored
     const score = diffScore(opp.retirementRate, sel.retirementRate, 200);
     const selPct = Math.round(sel.retirementRate * 100);
     const oppPct = Math.round(opp.retirementRate * 100);
@@ -1696,14 +1685,7 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     addFactor("historicalVolatility", "Historical Volatility", 50, "Insufficient data for volatility analysis", true);
   }
 
-  // Factor: Data Quality (% of expected matches available)
-  //
-  // BUG A FIX: This factor measures the AVERAGE data coverage for BOTH players combined.
-  // Swapping sel and opp produces an identical score — it is NOT a directional sel-vs-opp
-  // comparison and must never vote in the agreement count. supportsSelected is always null
-  // (data-quality gate, not a predictive signal). Using addFactor() here would silently set
-  // supportsSelected=true whenever dqScore>52, injecting a phantom +1 into every matchup
-  // regardless of which player is selected.
+  // Factor: Data Quality
   const expectedMatches = 30;
   const selCoverage = Math.min(100, Math.round((sel.total / expectedMatches) * 100));
   const oppCoverage = Math.min(100, Math.round((opp.total / expectedMatches) * 100));
@@ -1715,26 +1697,15 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     score: dqScore,
     weight: DEFAULT_WEIGHTS.dataQuality ?? 0.02,
     status: "available",
-    supportsSelected: null, // intentionally non-directional: measures combined coverage for BOTH players
+    supportsSelected: null,
     detail: `Data coverage: ${selectedPlayerName} ${selCoverage}%, ${opponentName} ${oppCoverage}% of expected match history available`,
   });
 
-  // ── 3. Source Agreement (computed after all other factors) ────────────────
-  //
-  // IMPORTANT: only count factors that actively took a side (supportsSelected !== null).
-  // Neutral factors (score ≈ 50, supportsSelected = null) are legitimately undecided —
-  // including them in the denominator would make 0/13 appear when actually 0 factors had
-  // enough data to form an opinion. The displayed "X of Y sources agree" should mean
-  // "X of the Y factors that could take a side agree", not "X of all factors".
-
+  // ── 3. Source Agreement ────────────────────────────────────────────────
   const decisiveFacters = factors.filter(f => f.status !== "unavailable" && f.key !== "sourceAgreement");
-  // Only opinionated factors (those that actually support or oppose) count in agreement math
   const opinionatedFactors = decisiveFacters.filter(f => f.supportsSelected !== null);
   const agreeing = opinionatedFactors.filter(f => f.supportsSelected === true).length;
   const available = opinionatedFactors.length;
-  // Edge-weighted: each factor's vote counts in proportion to its validated predictive edge,
-  // not as a flat +1. Weak/negative-edge factors (e.g. historicalVolatility) can no longer
-  // outvote high-signal ones. Falls back to raw-count (0.5) when no factors are opinionated.
   const agreementRate = edgeWeightedAgreementRate(opinionatedFactors);
   const agreementScore = Math.round(agreementRate * 100);
   const saFactor: FactorScore = {
@@ -1748,146 +1719,72 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   };
   factors.push(saFactor);
 
-  // ── 4. Compute Validation Score (weighted avg of available factors) ────────
-
+  // ── 4. Compute Validation Score ────────────────────────────────
   const availFactors = factors.filter(f => f.status !== "unavailable");
   const totalAvailWeight = availFactors.reduce((s, f) => s + f.weight, 0);
   const validationScore = Math.round(
     availFactors.reduce((s, f) => s + f.score * (f.weight / totalAvailWeight), 0)
   );
-
-  // Coverage % normalised against achievable maximum.
-  // utr and holdBreak removed from factor set entirely (2026-08-11); all remaining factors
-  // are at least theoretically computable given data. dataCoverage = 100 when all factors
-  // have data; genuinely unavailable factors (e.g. serveAdvantage without set-score rows) drag it down.
   const unavailWeight = factors.filter(f => f.status === "unavailable").reduce((s, f) => s + f.weight, 0);
   const dataCoverage = clamp(Math.round((1 - unavailWeight) * 100), 0, 100);
 
-  // ── 5. Risk Score (independent calculation) ───────────────────────────────
-
-  let risk = 35; // baseline
-
-  // Raise risk for negative signals — continuous versions replace the old binary on/off
-  // switches so adjacent values (e.g. recentWinRate 0.39 vs 0.41) differ by ~1 point
-  // of risk rather than a hard 12-point cliff.
+  // ── 5. Risk Score ───────────────────────────────
+  let risk = 35;
   risk += Math.round(Math.max(0, (0.4 - sel.recentWinRate) / 0.4) * 12);
   if (surface && sel.surfaceTotal >= 5)
     risk += Math.round(Math.max(0, (0.4 - sel.surfaceWinRate) / 0.4) * 10);
   if (marketOdds != null && 1 / marketOdds < 0.42) risk += 18;
-  // Same-day fatigue carries a higher penalty than same-day-previous: playing twice in one
-  // day is meaningfully more risky than having played yesterday.  These are mutually exclusive
-  // branches so the penalties don't stack.
   if (selDaysRest != null) {
-    if (selDaysRest === 0) risk += 18;       // played today — same-day fatigue
-    else if (selDaysRest <= 1) risk += 10;   // played yesterday
+    if (selDaysRest === 0) risk += 18;
+    else if (selDaysRest <= 1) risk += 10;
   }
   if (sel.retirementRate > 0.12) risk += 8;
   risk += Math.round(Math.max(0, (opp.recentWinRate - 0.7) / 0.3) * 8);
-  // Data-scarcity penalty: 0 at n≥10, full 15 at n=0 — thin data is penalised
-  // proportionally so a 1-match player differs meaningfully from a 9-match one.
   risk += Math.round((1 - Math.min(1, sel.total / 10)) * 15);
   risk += Math.round((1 - Math.min(1, opp.total / 10)) * 15);
   if (dataCoverage < 60) risk += 10;
-
-  // Lower risk for positive signals
   if (sel.winRate > 0.65 && sel.total >= 15) risk -= 10;
   if (surface && sel.surfaceWinRate > 0.65 && sel.surfaceTotal >= 8) risk -= 10;
-  if (agreementRate > 0.75 && available >= 5) risk -= 8;  // BUG C FIX: minimum sample gate
-                                                           // (previously no floor — a 3/3 collapsed
-                                                           // set got a stronger bonus than 7/8 full)
+  if (agreementRate > 0.75 && available >= 5) risk -= 8;
   if (marketOdds != null && 1 / marketOdds > 0.60) risk -= 12;
   if (selRank != null && oppRank != null && selRank < oppRank * 0.5) risk -= 8;
 
   const preClosenessRisk = clamp(Math.round(risk), 0, 100);
 
   // ── 5b. Matchup Closeness Floor ─────────────────────────────────────────
-  //
-  // Bug found 2026-07 (K. Day vs. M. Hontama, WTA 125 Vancouver): the risk formula above only
-  // rewards "conventional favorite" stats (win rate, market odds, source agreement) and never
-  // asks how far apart the two players actually are. A player can clear several of the
-  // risk-reducing bonuses above and still be in a genuine coin-flip matchup, producing an
-  // unearned near-zero risk score. This section computes an independent closeness signal from
-  // data this service already has (win rate gap, surface win rate gap, market-implied
-  // probability, ranking gap) and uses it as a FLOOR — not an offsettable addition — so a
-  // genuinely close matchup can never be scored as low-risk no matter how favorable the other
-  // signals look.
-  //
-  // Threshold constants validated 2026-07-31 against 1,500 graded backfill legs (2022–2026).
-  // See src/scripts/analyzeClosenessFloors.ts for the full reproducible analysis.
-  //
-  //   Reconstructed closeness band │  n   │ accuracy │ verdict
-  //   ─────────────────────────────┼──────┼──────────┼────────────────────────────────
-  //   ≥ 80  (very close / c-flip)  │ 1404 │  52.9 %  │ riskFloor=55 ✓ (genuine coin-flip)
-  //   65–79 (close)                │   44 │  56.8 %  │ riskFloor=40 ✓ (above coin-flip)
-  //   50–64 (moderate separation)  │   47 │  57.4 %  │ no floor     ✓
-  //   < 50  (clearly separated)    │    5 │  80.0 %  │ no floor     ✓
-  //
-  //   Floor impact (cs ≥ 80): 430 rows had pre-closeness risk < 55; the floor prevented
-  //   those from being scored "moderate risk" on matchups that were genuinely near-50/50.
-  //   No constant adjustment is required — thresholds are confirmed by graded outcomes.
-
   const closenessSignals: number[] = [];
-
-  // Win rate gap: 0 gap = maximally close (100), 0.4+ gap = clearly separated (0).
-  // ONLY included when both players have enough data for winRate to be meaningful —
-  // a 0.5 vs 0.5 gap from two thin-data defaults is absence-of-signal, not a real
-  // even matchup, and should not trigger the closeness floor.
   const winRateSignalConf = Math.min(sel.winRateConfidence, opp.winRateConfidence);
   if (winRateSignalConf > 0) {
     const winRateGap = Math.abs(sel.winRate - opp.winRate);
     const rawSignal = clamp(Math.round((1 - winRateGap / 0.4) * 100), 0, 100);
     closenessSignals.push(Math.round(rawSignal * winRateSignalConf));
   }
-
-  // Surface win rate gap, only when both players have a real surface sample
   if (surface && sel.surfaceTotal >= 5 && opp.surfaceTotal >= 5) {
     const surfaceGap = Math.abs(sel.surfaceWinRate - opp.surfaceWinRate);
     closenessSignals.push(clamp(Math.round((1 - surfaceGap / 0.4) * 100), 0, 100));
   }
-
-  // Market-implied probability distance from a coin flip: 50% implied = maximally close (100)
   if (marketOdds != null) {
     const impliedProb = 1 / marketOdds;
     closenessSignals.push(clamp(Math.round((1 - Math.abs(impliedProb - 0.5) * 2) * 100), 0, 100));
   }
-
-  // Ranking gap, relative to the lower (better) rank so the scale is comparable across tiers
   if (selRank != null && oppRank != null) {
     const relGap = Math.abs(selRank - oppRank) / Math.max(selRank, oppRank);
     closenessSignals.push(clamp(Math.round((1 - relGap) * 100), 0, 100));
   }
-
   const closenessScore = closenessSignals.length > 0
     ? Math.round(closenessSignals.reduce((s, v) => s + v, 0) / closenessSignals.length)
-    : 50; // no independent signals available — neutral, no floor applied beyond the default below
+    : 50;
 
   const riskFloor = closenessRiskFloor(closenessScore);
   const postClosenessRisk = clamp(Math.max(preClosenessRisk, riskFloor), 0, 100);
 
   // ── 5c. Thin-data risk floor ──────────────────────────────────────────────
-  //
-  // When either player has < 5 matches the risk is fundamentally unknown — not
-  // low.  Two players sharing identical sparse win rates produce a closeness
-  // signal of ~0 gap, which the closeness floor translates to ~0 added risk.
-  // That is absence-of-signal, not evidence of a safe pick.
-  //
-  // The floor is a smooth ramp keyed on the minimum match count across both
-  // players (thinDataRiskFloor above).  See the comment on THIN_DATA_RISK_FLOOR
-  // for the walk-forward data that justifies each level.
   const _thinDataMinMatches = Math.min(sel.total, opp.total);
   const _thinDataFloor = thinDataRiskFloor(_thinDataMinMatches);
   const _thinDataFloorFired = _thinDataFloor > 0 && postClosenessRisk < _thinDataFloor;
   const riskScore = _thinDataFloorFired ? _thinDataFloor : postClosenessRisk;
 
   // ── 6. Critical flags & data source diagnostics ──────────────────────────────
-  //
-  // Three distinct states that must NOT be conflated:
-  //   player_not_found  — 0 DB rows; ID mismatch or player has no professional record
-  //   insufficient_data — 1–4 rows; player IS in DB but with minimal history
-  //   data_available    — ≥5 rows; enough to compute real factor scores
-  //
-  // "I don't know" (player_not_found) ≠ "this is a bad bet" (negative score).
-
   const toPlayerStatus = (total: number): PlayerDataStatus =>
     total === 0 ? "player_not_found" : total < 5 ? "insufficient_data" : "data_available";
 
@@ -1899,16 +1796,12 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     h2hMatchCount: h2hMatches.length,
     selectedPlayerResolvedVia: selResolution.resolvedVia !== "direct" ? selResolution.resolvedVia : undefined,
     opponentResolvedVia: oppResolution.resolvedVia !== "direct" ? oppResolution.resolvedVia : undefined,
-    // Include live-fetch diagnostics when the DB had no data and providers were tried
     selectedPlayerProviderDiag: selResolution.liveFetchDiagnostics,
     opponentProviderDiag: oppResolution.liveFetchDiagnostics,
   };
 
   const criticalFlags: string[] = [];
 
-  // Helper: build a provider-aware "not found" message based on what the
-  // live fetch actually reported (no provider called at all vs. called but
-  // returned nothing vs. searched but player not recognised).
   const notFoundMessage = (name: string, diag?: LiveFetchDiagnostics): string => {
     if (!diag || diag.outcome === "CACHE_MISS") {
       return `No match history found for ${name} in any configured source`;
@@ -1925,7 +1818,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     return `No match history found for ${name} across all configured sources`;
   };
 
-  // Helper: human-readable source annotation for thin-data critical flags.
   const resolvedViaSource = (via: PlayerResolution["resolvedVia"]): string => {
     if (via === "provider-fetch") return " (live provider)";
     if (via === "cache-hit-supplemented") return " (stale cache — refreshed from live provider)";
@@ -1939,7 +1831,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   } else if (sel.total < 5) {
     criticalFlags.push(`Very limited match history for ${selectedPlayerName} — ${sel.total} match${sel.total !== 1 ? "es" : ""} found${resolvedViaSource(selResolution.resolvedVia)}`);
   } else if (selResolution.resolvedVia === "cache-hit-supplemented") {
-    // Non-critical info: stale cache was replaced with fresh provider data.
     dataSourceDiagnostics.dataConfidenceNote =
       (dataSourceDiagnostics.dataConfidenceNote ?? "") +
       (dataSourceDiagnostics.dataConfidenceNote ? " " : "") +
@@ -1963,7 +1854,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       `${opponentName}: stale local cache refreshed from live provider (${oppResolution.liveFetchDiagnostics?.sourcesSuccessful?.join(", ") ?? "provider"}).`;
   }
 
-  // Log when the thin-data risk floor was applied so it's visible in the admin diagnostics panel.
   if (_thinDataFloorFired) {
     const thinPlayers = [
       ...(sel.total < 5 ? [selectedPlayerName] : []),
@@ -1974,7 +1864,6 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
     );
   }
 
-  // Only flag missing surface data when the player IS found (not-found gets its own message)
   if (surface && sel.surfaceTotal === 0 && sel.total > 0) {
     criticalFlags.push(`No ${surface} court matches found for ${selectedPlayerName}`);
   }
@@ -1986,20 +1875,12 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   }
 
   // ── 7. Grades and decision ────────────────────────────────────────────────
-
   const reliabilityGrade = toReliabilityGrade(validationScore, dataCoverage);
   let parlayGrade = toParlayGrade(validationScore, riskScore, reliabilityGrade);
   const decision = toDecision(validationScore, riskScore, reliabilityGrade, dataCoverage, criticalFlags);
   const removalProbability = clamp(Math.round((100 - validationScore) * 0.55 + riskScore * 0.45), 0, 100);
 
   // ── 7b. Consistency guard ─────────────────────────────────────────────────
-  //
-  // Elite tier is structurally incompatible with missing or thin player data: Elite requires
-  // genuine, well-supported evidence for a high-confidence directional pick. When any player
-  // has player_not_found or insufficient_data status AND the tier resolved to Elite (possible
-  // when thin data happens to collapse factors into a unanimous but tiny sample), force the
-  // grade down and record the caught inconsistency in criticalFlags for the admin diagnostics
-  // panel. Modelled on the prediction engine's finalConsistencyCheck.ts.
   const _hasDataGap =
     dataSourceDiagnostics.selectedPlayerStatus !== "data_available" ||
     dataSourceDiagnostics.opponentStatus !== "data_available";
@@ -2016,27 +1897,15 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
   }
 
   // ── 8. Reasons ────────────────────────────────────────────────────────────
-
   const reasons = generateReasons(factors, sel, opp, surface);
 
   // ── 9. Calibration + independent winner selection ─────────────────────────
-  //
-  // Apply the same calibration function the Prediction Engine uses to convert the
-  // raw validation score (a weighted average) into a calibrated probability.
-  // If no active calibration model exists, fall back to the raw score.
-  //
-  // Live mode (asOfDate == null): resolveBuilderCalibrationForScoring delegates straight to
-  // getActiveCalibration(), so behavior here is unchanged from before this lineage layer existed.
-  // Backfill mode (asOfDate set): resolves the calibration that was GENUINELY active as of
-  // asOfDate rather than today's — see builderVersioning.ts. When lineage isn't
-  // VALID_HISTORICAL_LINEAGE, mapping is null and builderLineageStatus/Reason record exactly why,
-  // instead of the raw-score fallback looking identical to "calibration was never configured".
   const rawValidationScore = validationScore;
-  let builderCalibratedProbability = validationScore; // fallback: raw score
+  let builderCalibratedProbability = validationScore;
   let builderLineageStatus: BuilderLineageStatus = "VALID_HISTORICAL_LINEAGE";
   let builderLineageReason = "Live scoring always uses the currently active calibration; PIT-correctness is trivial for 'now'.";
   try {
-    const { mapping, lineageStatus, lineageReason } = await resolveBuilderCalibrationForScoring(asOfDate);
+    const { mapping, lineageStatus, lineageReason } = await resolveBuilderCalibrationForScoringSync(asOfDate);
     builderLineageStatus = lineageStatus;
     builderLineageReason = lineageReason;
     if (mapping && mapping.length > 0) {
@@ -2045,24 +1914,19 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       builderCalibratedProbability = Math.round(calibrated01 * 100);
     }
   } catch {
-    // Calibration lookup unavailable — raw score is the fallback
     builderLineageStatus = "CALIBRATION_UNAVAILABLE";
     builderLineageReason = "Calibration lookup threw; raw score used as fallback.";
   }
 
-  // Independent winner selection: the engine picks the player it favors on its own,
-  // independently of the caller's selection. Used to measure engine accuracy over time.
   const builderPickedPlayerId = builderCalibratedProbability >= 50 ? selectedPlayerId : opponentId;
   const callerAgreesWithEngine = builderPickedPlayerId === selectedPlayerId;
 
-  // Observability only -- a pure read of values already computed above (5b/5c), plus one
-  // trivial derived comparison. Nothing here influences riskScore or decision.
   const closenessFloorFired = riskFloor > preClosenessRisk;
 
   return {
     validationScore,
     riskScore,
-    matchupCloseness: closenessScore, // new -- surface this on the card so it's not a silent internal-only number
+    matchupCloseness: closenessScore,
     reliabilityGrade,
     parlayGrade,
     removalProbability,
@@ -2092,6 +1956,61 @@ export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<Bu
       thinDataFloorFired: _thinDataFloorFired,
     },
   };
+}
+
+/**
+ * Synchronous-looking wrapper retained only so scoreBuilderEvidence's calibration step reads
+ * identically to the original inline code. Delegates straight to resolveBuilderCalibrationForScoring.
+ */
+async function resolveBuilderCalibrationForScoringSync(asOfDate: Date | undefined) {
+  return resolveBuilderCalibrationForScoring(asOfDate);
+}
+
+/**
+ * Acquires evidence once (see acquireBuilderEvidence) and scores BOTH directional
+ * evaluations of the same fixture from that single frozen snapshot -- no second live
+ * fetch, no second DB round-trip for anything already captured in the evidence bundle.
+ *
+ * `builderPickedPlayerId` must physically agree between the two evaluations (evaluation
+ * A's pick is either both players' shared favorite or the tie boundary) since it derives
+ * from the same underlying, symmetric evidence; the caller is expected to check this
+ * (crossSideAgreement) rather than assume it blindly -- see paperTrading job logic.
+ */
+export interface BothSidesEvaluation {
+  evidence: BuilderEvidenceBundle;
+  resultPlayer1: BuilderResult;
+  resultPlayer2: BuilderResult;
+}
+
+export async function computeBuilderScoreBothSides(
+  input: AcquireBuilderEvidenceInput,
+): Promise<BothSidesEvaluation> {
+  const evidence = await acquireBuilderEvidence(input);
+  const [resultPlayer1, resultPlayer2] = await Promise.all([
+    scoreBuilderEvidence(evidence, true),
+    scoreBuilderEvidence(evidence, false),
+  ]);
+  return { evidence, resultPlayer1, resultPlayer2 };
+}
+
+export async function computeBuilderScore(snapshot: BuilderSnapshot): Promise<BuilderResult> {
+  // Thin wrapper: acquireBuilderEvidence() below is called framing snapshot.selectedPlayerId
+  // as "player1" -- exactly how the old inline fetch always framed the odds/web-research calls
+  // (selectedPlayerName first, opponentName second) -- so this reproduces prior behavior
+  // exactly. scoreBuilderEvidence(evidence, true) then runs the identical factor/risk/decision
+  // logic that used to be inlined here. See "Shared evidence acquisition" above.
+  const evidence = await acquireBuilderEvidence({
+    player1Id: snapshot.selectedPlayerId,
+    player1Name: snapshot.selectedPlayerName,
+    player2Id: snapshot.opponentId,
+    player2Name: snapshot.opponentName,
+    surface: snapshot.surface,
+    tournamentName: snapshot.tournamentName,
+    scheduledStart: snapshot.scheduledStart,
+    asOfDate: snapshot.asOfDate,
+    suppliedPlayer1MarketOdds: snapshot.marketOdds,
+  });
+  return await scoreBuilderEvidence(evidence, true);
 }
 
 export function computeCrossEngineAgreement(
