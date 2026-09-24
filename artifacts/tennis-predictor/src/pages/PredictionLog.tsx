@@ -16,6 +16,14 @@ const RUN_KIND_LABEL: Record<string, string> = {
   live: "Live",
 }
 
+const PROVENANCE_LABEL: Record<string, string> = {
+  paper_trade: "Live paper trading only",
+  historical_test: "Historical walk-forward test only",
+  live: "Live only",
+  paper_trade_shadow: "Shadow replay only",
+  mixed: "Mixed -- combines historical test, live paper trading, and shadow replay rows",
+}
+
 function RunKindBadge({ runKind }: { runKind: string }) {
   const Icon = runKind === "historical_test" ? FlaskConical : Radio
   return (
@@ -129,7 +137,11 @@ function PredictionRow({ prediction }: { prediction: EvaluationPrediction }) {
 }
 
 export default function PredictionLogPage() {
-  const [runKind, setRunKind] = useState<"all" | "historical_test" | "paper_trade">("all")
+  // Defaults to the live paper-trading population specifically -- this page's headline stats must
+  // never silently mix in 500k+ historical walk-forward test rows, which would otherwise dominate
+  // and make genuine live behavior look misleadingly clustered or weak. "All" stays available but
+  // is explicitly labeled as mixed provenance (see PROVENANCE_LABEL) rather than being the default.
+  const [runKind, setRunKind] = useState<"all" | "historical_test" | "paper_trade">("paper_trade")
 
   const statsParams = runKind === "all" ? undefined : { runKind }
   const { data: predictions, isLoading } = useListEvaluationPredictions({
@@ -154,12 +166,21 @@ export default function PredictionLogPage() {
         </div>
 
         <PredictionStatsCards stats={stats} isLoading={statsLoading} />
+        {stats?.provenance && (
+          <p className="text-xs text-muted-foreground font-mono">
+            {stats.provenance === "mixed" ? (
+              <span className="text-warning font-bold">⚠ {PROVENANCE_LABEL.mixed}</span>
+            ) : (
+              PROVENANCE_LABEL[stats.provenance] ?? stats.provenance
+            )}
+          </p>
+        )}
 
         <Tabs value={runKind} onValueChange={(v) => setRunKind(v as typeof runKind)} className="w-full md:w-auto">
           <TabsList className="w-full h-11 bg-secondary/50 border border-border/50 p-1">
-            <TabsTrigger value="all" className="flex-1 font-mono text-xs uppercase tracking-widest">All</TabsTrigger>
-            <TabsTrigger value="historical_test" className="flex-1 font-mono text-xs uppercase tracking-widest">Historical Test</TabsTrigger>
             <TabsTrigger value="paper_trade" className="flex-1 font-mono text-xs uppercase tracking-widest">Paper Trade</TabsTrigger>
+            <TabsTrigger value="historical_test" className="flex-1 font-mono text-xs uppercase tracking-widest">Historical Test</TabsTrigger>
+            <TabsTrigger value="all" className="flex-1 font-mono text-xs uppercase tracking-widest">All (Mixed)</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

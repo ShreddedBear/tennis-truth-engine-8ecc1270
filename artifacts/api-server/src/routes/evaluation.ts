@@ -73,7 +73,7 @@ import {
   ListHistoricalBackfillJobRunsQueryParams,
   ListHistoricalBackfillJobRunsResponse,
   GetHistoricalDataFreshnessResponse,
-  GetPredictionStatsResponse,
+  GetEvaluationPredictionStatsResponse,
   RunOptimizerBody,
   GetLatestPatternAnalysisResponse,
   GetLatestThresholdEvaluationResponse,
@@ -94,7 +94,7 @@ import { getLatestThresholdEvaluation } from "../services/evaluation/thresholdEv
 import { getOptimizerAccuracySummary } from "../services/evaluation/optimizerSummary";
 import { runCalibrationRefitJob, checkRefitCooldown } from "../jobs/runCalibrationRefitJob";
 import { refitCalibrationFromExistingEvaluationData } from "../services/evaluation/calibrationRefitFromExisting";
-import { computeRecommendation, type Recommendation } from "../services/predictionEngine/recommendation";
+import { getEvaluationPredictionStats } from "../services/evaluation/predictionStats";
 import { enforceEntitlement } from "../lib/entitlements";
 import { requireAdmin } from "../lib/adminAuth";
 import {
@@ -122,23 +122,6 @@ function withEvaluationHistoricalMatchFallbackFlag<T extends { featureSnapshot: 
 ): T & { usedHistoricalMatchFallback: boolean } {
   const snapshot = row.featureSnapshot as { engine?: { warnings?: unknown } } | null;
   return { ...row, usedHistoricalMatchFallback: usedHistoricalMatchFallback(snapshot?.engine?.warnings) };
-}
-
-function deriveRecommendationFromEvaluationRow(row: {
-  calibratedProbability: number | null;
-  dataQuality: number | null;
-  tieBreakerApplied: boolean | null;
-  modelAgreement: string | null;
-  upsetRiskTier: string | null;
-}): Recommendation | null {
-  if (typeof row.calibratedProbability !== "number" || !Number.isFinite(row.calibratedProbability)) return null;
-  if (typeof row.modelAgreement !== "string" || typeof row.upsetRiskTier !== "string") return null;
-  if (typeof row.dataQuality !== "number" || !Number.isFinite(row.dataQuality)) return null;
-
-  const dataQuality = row.dataQuality;
-  const dataQualityLabel = dataQuality >= 85 ? "Excellent" : dataQuality >= 65 ? "Strong" : dataQuality >= 45 ? "Acceptable" : dataQuality >= 25 ? "Limited" : "Poor";
-  const tieBreakerApplied = row.tieBreakerApplied === true;
-  return computeRecommendation(row.calibratedProbability, dataQuality, dataQualityLabel, row.modelAgreement as Parameters<typeof computeRecommendation>[3], tieBreakerApplied);
 }
 
 router.get("/evaluation/runs", async (_req, res): Promise<void> => {
@@ -594,57 +577,8 @@ router.get("/evaluation/predictions/stats", async (req, res): Promise<void> => {
     return;
   }
 
-  const conditions = [];
-  if (parsed.data.runKind) conditions.push(eq(evaluationPredictionsTable.runKind, parsed.data.runKind));
-
-  const [totals] = await db
-    .select({
-      totalPredictions: sql<number>`count(*)`.mapWith(Number),
-      resolvedPredictions: sql<number>`count(*) filter (where ${evaluationPredictionsTable.actualWinnerId} is not null)`.mapWith(Number),
-      correctPredictions: sql<number>`count(*) filter (where ${evaluationPredictionsTable.actualWinnerId} = ${evaluationPredictionsTable.predictedWinnerId})`.mapWith(Number),
-    })
-    .from(evaluationPredictionsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-  // Phase 9 perf fix: extract only the two scalar fields we need from featureSnapshot via
-  // PostgreSQL JSONB operators instead of loading the entire blob for all 40k+ rows into Node.
-  // This avoids the previous O(n) full-table JSONB load that caused ~19s page load times.
-  const recommendationInputs = await db
-    .select({
-      calibratedProbability: evaluationPredictionsTable.calibratedProbability,
-      dataQuality: sql<number | null>`(${evaluationPredictionsTable.featureSnapshot}->>'dataQuality')::real`,
-      tieBreakerApplied: sql<boolean | null>`((${evaluationPredictionsTable.featureSnapshot}->'engine'->>'tieBreakerApplied'))::boolean`,
-      modelAgreement: evaluationPredictionsTable.modelAgreement,
-      upsetRiskTier: evaluationPredictionsTable.upsetRiskTier,
-    })
-    .from(evaluationPredictionsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-  const byRecommendationCounts = new Map<Recommendation, number>();
-  for (const row of recommendationInputs) {
-    const recommendation = deriveRecommendationFromEvaluationRow(row);
-    if (!recommendation) continue;
-    byRecommendationCounts.set(recommendation, (byRecommendationCounts.get(recommendation) ?? 0) + 1);
-  }
-
-  const byRecommendationRows = Array.from(byRecommendationCounts.entries()).map(([recommendation, count]) => ({ recommendation, count }));
-
-  const { totalPredictions, resolvedPredictions, correctPredictions } = totals ?? {
-    totalPredictions: 0,
-    resolvedPredictions: 0,
-    correctPredictions: 0,
-  };
-  const accuracy = resolvedPredictions > 0 ? Math.round((correctPredictions / resolvedPredictions) * 1000) / 10 : null;
-
-  res.json(
-    GetPredictionStatsResponse.parse({
-      totalPredictions,
-      resolvedPredictions,
-      correctPredictions,
-      accuracy,
-      byRecommendation: byRecommendationRows,
-    }),
-  );
+  const result = await getEvaluationPredictionStats(parsed.data.runKind);
+  res.json(GetEvaluationPredictionStatsResponse.parse(result));
 });
 
 router.get("/evaluation/predictions/:predictionId", async (req, res): Promise<void> => {

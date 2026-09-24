@@ -511,7 +511,43 @@ export const PaymentsWebhookResponse = zod.object({
 });
 
 export const GetEvaluationPredictionStatsQueryParams = zod.object({
-  runKind: zod.enum(["historical_test", "paper_trade", "live"]).optional(),
+  runKind: zod.enum(["historical_test", "paper_trade", "live", "paper_trade_shadow"]).optional(),
+});
+
+/**
+ * Richer replacement for the generated GetPredictionStatsResponse (kept in manual.ts, not
+ * generated/api.ts, so it survives Orval regeneration -- see that file's header). Adds explicit
+ * provenance and raw status counts so a caller can never confuse a mixed historical_test+paper_trade
+ * aggregate for genuine live paper-trading performance: `provenance` is the exact runKind the
+ * request was scoped to, or "mixed" when no runKind filter was applied (i.e. every population in
+ * evaluation_predictions was aggregated together). `pending`/`missed`/`graded`/`void` are raw status
+ * counts -- `accuracy`/`resolvedPredictions`/`correctPredictions` keep their original, already-correct
+ * semantics (computed only over graded rows with a non-null actualWinnerId, so pending/missed rows
+ * were never counted as losses even before this change). `logLoss`/`brier` are populated only when
+ * the request was scoped to a small, bounded population (paper_trade/paper_trade_shadow/live) --
+ * omitted (not fabricated as null-meaning-zero) for "mixed" or historical_test requests, which can
+ * span 500k+ rows and would otherwise force a full-table row fetch this endpoint was specifically
+ * optimized to avoid (see the route's own perf comment).
+ */
+export const GetEvaluationPredictionStatsResponse = zod.object({
+  provenance: zod.enum(["historical_test", "paper_trade", "live", "paper_trade_shadow", "mixed"]),
+  totalPredictions: zod.number(),
+  resolvedPredictions: zod.number(),
+  correctPredictions: zod.number(),
+  accuracy: zod.number().nullable(),
+  pending: zod.number(),
+  missed: zod.number(),
+  graded: zod.number(),
+  void: zod.number(),
+  avgConfidence: zod.number().nullable(),
+  logLoss: zod.number().nullable().optional(),
+  brier: zod.number().nullable().optional(),
+  byRecommendation: zod.array(
+    zod.object({
+      recommendation: zod.enum(["STRONG_RECOMMENDATION", "MODERATE_LEAN", "HIGH_RISK", "NO_STRONG_SIGNAL", "DO_NOT_RECOMMEND"]),
+      count: zod.number(),
+    }),
+  ),
 });
 
 // ── Parlay Builder: Cross-Engine Agreement (Feature) ──────────────────────────

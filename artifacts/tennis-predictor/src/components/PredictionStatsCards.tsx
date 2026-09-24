@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Target, TrendingUp } from "lucide-react"
+import { AlertTriangle, Clock, Gauge, Target, TrendingUp, XCircle } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,6 +9,10 @@ export interface PredictionStatsSummary {
   resolvedPredictions: number
   correctPredictions: number
   accuracy: number | null
+  /** Present once the backend returns the richer, provenance-aware stats shape. */
+  pending?: number
+  missed?: number
+  avgConfidence?: number | null
   byRecommendation?: Array<{ recommendation: string; count: number }>
 }
 
@@ -56,6 +60,20 @@ export function PredictionStatsCards({ stats, isLoading }: { stats?: PredictionS
         subtext="Highest-confidence tier -- not yet proven better than other tiers"
         icon={AlertTriangle}
       />
+      {stats.pending !== undefined && (
+        <PredictionStatCard title="PENDING" value={stats.pending} subtext="Locked, awaiting result" icon={Clock} />
+      )}
+      {stats.missed !== undefined && (
+        <PredictionStatCard title="MISSED CUTOFF" value={stats.missed} subtext="Never backfilled" icon={XCircle} />
+      )}
+      {stats.avgConfidence !== undefined && (
+        <PredictionStatCard
+          title="AVG CONFIDENCE"
+          value={stats.avgConfidence !== null ? `${stats.avgConfidence.toFixed(1)}%` : "--"}
+          subtext="Across locked predictions"
+          icon={Gauge}
+        />
+      )}
     </div>
   )
 }

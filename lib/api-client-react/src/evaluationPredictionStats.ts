@@ -21,14 +21,24 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 export interface EvaluationPredictionStatsParams {
-  runKind?: "historical_test" | "paper_trade" | "live";
+  runKind?: "historical_test" | "paper_trade" | "live" | "paper_trade_shadow";
 }
 
 export interface EvaluationPredictionStats {
+  /** The exact population these numbers reflect -- "mixed" only when no runKind filter was requested. */
+  provenance: "historical_test" | "paper_trade" | "live" | "paper_trade_shadow" | "mixed";
   totalPredictions: number;
   resolvedPredictions: number;
   correctPredictions: number;
   accuracy: number | null;
+  pending: number;
+  missed: number;
+  graded: number;
+  void: number;
+  avgConfidence: number | null;
+  /** Only present for a request scoped to a small, bounded population (paper_trade/paper_trade_shadow/live). */
+  logLoss?: number | null;
+  brier?: number | null;
   byRecommendation: Array<{
     recommendation: "STRONG_RECOMMENDATION" | "MODERATE_LEAN" | "HIGH_RISK" | "NO_STRONG_SIGNAL" | "DO_NOT_RECOMMEND";
     count: number;
