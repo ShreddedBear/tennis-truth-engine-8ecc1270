@@ -28,3 +28,45 @@ mtime_ms = 1790260668277
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/2bc5d0cb-3e46-41a9-b790-e5979b43c7d5/84a1905d-c9d8-42dd-a925-d356fc963918"
 storage_version_token = "1790260864545197"
 content_type = "text/plain"
+
+[[outputs]]
+id = "g5t4yQLX-Fx-wYw0jIKKY"
+uri = "file://.local/outputs/cohort-verification/db-backed-after-boot.txt"
+type = "text"
+title = "Matched-cohort DB tests — full failed run"
+description = "Complete verbatim output after the table was created; 1 pass, 15 cleanup failures."
+logical_id = "69749985-2841-4dd6-84c6-0605c0193645"
+content_hash = "sha256:27acca4b8027761c9267ddac2bcfaf21143c9ccca8091aee20b590f6ff14adc2"
+size = 42077
+mtime_ms = 1790263121236
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/69749985-2841-4dd6-84c6-0605c0193645/0820e43c-b67a-471e-83fe-8d2ada0c6604"
+storage_version_token = "1790263144368198"
+content_type = "text/plain"
+
+[[outputs]]
+id = "VE_eab2EpZ53zhCgUhHcC"
+uri = "file://.local/outputs/cohort-verification/evaluation-timeout.txt"
+type = "text"
+title = "Evaluation suite — captured output until timeout"
+description = "Complete captured stdout/stderr up to the five-minute timeout; no final test totals."
+logical_id = "f97e0ce6-91e4-4a4e-830b-ea6a540d5ed8"
+content_hash = "sha256:335f7c9bf31c9e16d186a81bf693222d3958ca7a2ff350ccf501c4f5ee150d1e"
+size = 591874
+mtime_ms = 1790263121239
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/f97e0ce6-91e4-4a4e-830b-ea6a540d5ed8/1ddbc3da-60a9-4c73-94ca-7fd7511ad328"
+storage_version_token = "1790263144984875"
+content_type = "text/plain"
+
+[[outputs]]
+id = "2s_XZGxMc3p1jRa2qbthb"
+uri = "file://.local/outputs/cohort-verification/db-backed-before-boot-partial.txt"
+type = "text"
+title = "Matched-cohort DB tests — initial partial log"
+description = "Initial run before schema creation; the shell capture began mid-output, so this file is explicitly partial."
+logical_id = "515acf14-cabe-49a1-9020-dc2191809957"
+content_hash = "sha256:206b66a4b557b3a703e254e7cd2bebe5e79a4610946d77a1d8ac889e08678306"
+size = 66978
+mtime_ms = 1790263121247
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/515acf14-cabe-49a1-9020-dc2191809957/d12ce59f-4578-41c3-80d4-15a302173131"
+storage_version_token = "1790263145624065"
+content_type = "text/plain"
