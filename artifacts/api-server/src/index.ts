@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runPaperTradingJob } from "./jobs/runPaperTradingJob";
 import { startHistoricalBackfillScheduler } from "./jobs/historicalBackfillScheduler";
+import { startMatchedCohortSyncScheduler } from "./jobs/matchedCohortSyncScheduler";
 import { runDegradedPredictionRecomputeJob } from "./jobs/runDegradedPredictionRecomputeJob";
 import { runCalibrationRefitJob } from "./jobs/runCalibrationRefitJob";
 import { startParlayPaperTradingScheduler } from "./jobs/parlayPaperTradingScheduler";
@@ -155,6 +156,13 @@ async function bootstrap(): Promise<void> {
   };
   setInterval(triggerDegradedRecompute, DEGRADED_RECOMPUTE_INTERVAL_MS);
   setTimeout(triggerDegradedRecompute, 30_000);
+
+  // Prospective, leak-proof comparison layer between the Prediction Engine's and the Parlay
+  // Builder's independently-frozen paper-trading predictions -- structurally separate from both
+  // engines' own schedulers (own in-flight guard, own interval, never merged into either). See
+  // matchedCohortSyncScheduler.ts and services/matchedCohort/syncMatchedCohort.ts for the full
+  // design, join-key verification, and leakage-firewall proof.
+  startMatchedCohortSyncScheduler();
   });
 }
 
