@@ -40,7 +40,7 @@ export interface EvaluationPredictionStats {
   logLoss?: number | null;
   brier?: number | null;
   byRecommendation: Array<{
-    recommendation: "STRONG_RECOMMENDATION" | "MODERATE_LEAN" | "HIGH_RISK" | "NO_STRONG_SIGNAL" | "DO_NOT_RECOMMEND";
+    recommendation: "HIGHEST_CONFIDENCE" | "HIGH_CONFIDENCE" | "MODERATE_CONFIDENCE" | "LOW_CONFIDENCE" | "INSUFFICIENT_EDGE" | "DATA_INCOMPLETE";
     count: number;
   }>;
 }

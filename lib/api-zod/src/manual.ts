@@ -544,7 +544,7 @@ export const GetEvaluationPredictionStatsResponse = zod.object({
   brier: zod.number().nullable().optional(),
   byRecommendation: zod.array(
     zod.object({
-      recommendation: zod.enum(["STRONG_RECOMMENDATION", "MODERATE_LEAN", "HIGH_RISK", "NO_STRONG_SIGNAL", "DO_NOT_RECOMMEND"]),
+      recommendation: zod.enum(["HIGHEST_CONFIDENCE", "HIGH_CONFIDENCE", "MODERATE_CONFIDENCE", "LOW_CONFIDENCE", "INSUFFICIENT_EDGE", "DATA_INCOMPLETE"]),
       count: zod.number(),
     }),
   ),
