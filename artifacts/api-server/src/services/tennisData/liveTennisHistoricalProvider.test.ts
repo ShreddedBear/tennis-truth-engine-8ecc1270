@@ -7,6 +7,7 @@ import {
   normalizeLiveFixtureRow,
   normalizePeLiveFixtureRow,
   resolvePredictionEngineMatchFormat,
+  classifySpecialEvent,
   type LiveTennisHistoricalProviderOptions,
 } from "./liveTennisHistoricalProvider.js";
 
@@ -521,9 +522,14 @@ describe("resolvePredictionEngineMatchFormat (real ATP/WTA/Grand-Slam rules only
     );
   });
 
-  test("team/special event (e.g. Davis Cup) returns null unless explicitly proven -- name is not a known Grand Slam and tour is not a recognized singles tour", () => {
+  // Superseded by the matchFormat-hardening task's classifySpecialEvent tests below: Davis Cup is
+  // now explicitly classified (BestOf3, a real, sourced, current-era rule), not left as an
+  // unrecognized team event. A still-genuinely-unrecognized team/exhibition event (no explicit
+  // rule, no recognized tour) must still return null -- proven here with a name/tour that matches
+  // neither a known Grand Slam nor any explicit special-event rule.
+  test("a genuinely unrecognized team/special event returns null -- name is not a known Grand Slam or explicit special event, and tour is not a recognized singles tour", () => {
     assert.equal(
-      resolvePredictionEngineMatchFormat({ tour: "davis_cup", gender: "men", isQualifying: false, tournamentName: "Davis Cup" }),
+      resolvePredictionEngineMatchFormat({ tour: "exhibition_team", gender: "men", isQualifying: false, tournamentName: "Regional Invitational Team Event" }),
       null,
     );
   });
@@ -555,6 +561,112 @@ describe("resolvePredictionEngineMatchFormat (real ATP/WTA/Grand-Slam rules only
       null,
     );
   });
+});
+
+describe("classifySpecialEvent (explicit, named, auditable team/special-event detection -- runs before generic tour classification)", () => {
+  test("Billie Jean King Cup -- real observed provider name, tour=wta -- resolves BestOf3 via the explicit rule, not the generic WTA branch", () => {
+    const result = classifySpecialEvent({ tournamentName: "WTA Billie Jean King Cup - World Group", gender: "women" });
+    assert.ok(result);
+    assert.equal(result!.format, "BestOf3");
+    assert.match(result!.reason, /Billie Jean King Cup/);
+  });
+
+  test("Davis Cup -- all 6 real observed provider name variants resolve BestOf3", () => {
+    const realObservedNames = [
+      "ATP Davis Cup - World Group",
+      "ATP Davis Cup - World Group I",
+      "ATP Davis Cup - World Group II",
+      "Davis Cup - World Group Teams",
+      "Davis Cup - World Group I Teams",
+      "Davis Cup - World Group II Teams",
+    ];
+    for (const tournamentName of realObservedNames) {
+      const result = classifySpecialEvent({ tournamentName, gender: "men" });
+      assert.ok(result, `expected a classification for "${tournamentName}"`);
+      assert.equal(result!.format, "BestOf3", `expected BestOf3 for "${tournamentName}"`);
+    }
+  });
+
+  test("United Cup -- standard best-of-3 singles rubbers", () => {
+    const result = classifySpecialEvent({ tournamentName: "United Cup", gender: "men" });
+    assert.ok(result);
+    assert.equal(result!.format, "BestOf3");
+  });
+
+  test("Laver Cup -- non-standard scoring, fails closed rather than guessing Bo3", () => {
+    const result = classifySpecialEvent({ tournamentName: "Laver Cup", gender: "men" });
+    assert.ok(result);
+    assert.equal(result!.format, null);
+  });
+
+  test("Olympics -- format has varied by round/Games historically, fails closed", () => {
+    const result = classifySpecialEvent({ tournamentName: "Olympic Games Tennis", gender: "men" });
+    assert.ok(result);
+    assert.equal(result!.format, null);
+  });
+
+  test("Hopman Cup and ATP Cup -- discontinued competitions, fail closed even if an archival row somehow reaches this path", () => {
+    assert.equal(classifySpecialEvent({ tournamentName: "Hopman Cup", gender: "men" })!.format, null);
+    assert.equal(classifySpecialEvent({ tournamentName: "ATP Cup", gender: "men" })!.format, null);
+  });
+
+  test("gender inconsistency fails closed: Davis Cup tagged women, Billie Jean King Cup tagged men", () => {
+    assert.equal(classifySpecialEvent({ tournamentName: "ATP Davis Cup - World Group", gender: "women" })!.format, null);
+    assert.equal(classifySpecialEvent({ tournamentName: "WTA Billie Jean King Cup - World Group", gender: "men" })!.format, null);
+  });
+
+  test("a genuinely unrecognized team/exhibition event is not classified here at all -- falls through to the caller's generic logic (null)", () => {
+    assert.equal(classifySpecialEvent({ tournamentName: "Some Regional Exhibition Team Event", gender: "men" }), null);
+  });
+
+  test("a regular individual tournament with 'Cup' in its own name is NOT misclassified as a team event", () => {
+    // Real historical example: "Kremlin Cup" was an individual ATP/WTA tour event, not a team
+    // competition -- proves the matcher requires the full multi-word special-event name, not a
+    // bare 'cup' substring.
+    assert.equal(classifySpecialEvent({ tournamentName: "Kremlin Cup", gender: "men" }), null);
+  });
+
+  test("end-to-end via resolvePredictionEngineMatchFormat: special-event detection runs before the generic tour branch", () => {
+    // Same shape as the real production fixture that exposed this gap: tour=wta looks like a
+    // normal WTA event, but the name must route through the explicit Davis-Cup-family rule, not
+    // the generic isRecognizedNonSlamTour("wta") branch.
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "wta", gender: "women", isQualifying: false, tournamentName: "WTA Billie Jean King Cup - World Group" }),
+      "BestOf3",
+    );
+    // Laver Cup with tour=atp must NOT fall through to the generic ATP branch's BestOf3.
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "atp", gender: "men", isQualifying: false, tournamentName: "Laver Cup" }),
+      null,
+    );
+  });
+});
+
+describe("resolvePredictionEngineMatchFormat -- full STEP 4 matrix (every category the hardening task requires)", () => {
+  const CASES: Array<{ label: string; input: Parameters<typeof resolvePredictionEngineMatchFormat>[0]; expected: "BestOf3" | "BestOf5" | null }> = [
+    { label: "Billie Jean King Cup", input: { tour: "wta", gender: "women", isQualifying: false, tournamentName: "WTA Billie Jean King Cup - World Group" }, expected: "BestOf3" },
+    { label: "Davis Cup", input: { tour: "atp", gender: "men", isQualifying: false, tournamentName: "ATP Davis Cup - World Group I" }, expected: "BestOf3" },
+    { label: "United Cup", input: { tour: "atp", gender: "men", isQualifying: false, tournamentName: "United Cup" }, expected: "BestOf3" },
+    { label: "Laver Cup", input: { tour: "atp", gender: "men", isQualifying: false, tournamentName: "Laver Cup" }, expected: null },
+    { label: "Olympics", input: { tour: "atp", gender: "men", isQualifying: false, tournamentName: "Olympic Games Tennis" }, expected: null },
+    { label: "Grand Slam men's main draw", input: { tour: "atp", gender: "men", isQualifying: false, tournamentName: "Wimbledon" }, expected: "BestOf5" },
+    { label: "Grand Slam men's qualifying", input: { tour: "atp", gender: "men", isQualifying: true, tournamentName: "US Open" }, expected: "BestOf3" },
+    { label: "Grand Slam women's singles", input: { tour: "wta", gender: "women", isQualifying: false, tournamentName: "Roland Garros" }, expected: "BestOf3" },
+    { label: "regular ATP", input: { tour: "atp", gender: "men", isQualifying: false, tournamentName: "Buenos Aires 3" }, expected: "BestOf3" },
+    { label: "regular WTA", input: { tour: "wta", gender: "women", isQualifying: false, tournamentName: "W50 Plovdiv" }, expected: "BestOf3" },
+    { label: "ATP Challenger", input: { tour: "challenger", gender: "men", isQualifying: false, tournamentName: "Challenger Metz" }, expected: "BestOf3" },
+    { label: "ITF men", input: { tour: "itf_men", gender: "men", isQualifying: false, tournamentName: "M25 Antalya" }, expected: "BestOf3" },
+    { label: "ITF women", input: { tour: "itf_women", gender: "women", isQualifying: false, tournamentName: "W50 Nanao" }, expected: "BestOf3" },
+    { label: "juniors", input: { tour: "juniors", gender: "men", isQualifying: false, tournamentName: "Junior Open" }, expected: null },
+    { label: "unknown exhibition", input: { tour: "exhibition", gender: "men", isQualifying: false, tournamentName: "Some Exo Event" }, expected: null },
+    { label: "unknown team event", input: { tour: "team", gender: "men", isQualifying: false, tournamentName: "Some Regional Team Event" }, expected: null },
+  ];
+
+  for (const { label, input, expected } of CASES) {
+    test(`${label} -> ${expected ?? "null"}`, () => {
+      assert.equal(resolvePredictionEngineMatchFormat(input), expected);
+    });
+  }
 });
 
 describe("normalizePeLiveFixtureRow (Prediction-Engine-only: real flat /fixtures shape + real matchFormat resolution)", () => {

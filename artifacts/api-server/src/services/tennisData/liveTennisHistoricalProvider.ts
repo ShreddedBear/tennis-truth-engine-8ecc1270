@@ -513,9 +513,19 @@ export function normalizeLiveFixtureRow(value: unknown): Fixture | null {
  *  - Every other recognized professional singles tour (ATP non-Slam, WTA non-Slam, Challenger,
  *    ITF) is best-of-3 at every level, for both genders -- the universal current-era rule, not a
  *    per-match guess.
- *  - Team/exhibition events (Davis Cup, Laver Cup, United Cup, ...), juniors, and any
- *    unrecognized/ambiguous tour token return null -- format is not derivable from tour alone and
- *    must never be assumed for them.
+ *  - Team/special events (Davis Cup, Billie Jean King Cup, United Cup, Laver Cup, Olympics, ...)
+ *    are classified EXPLICITLY, by name, BEFORE the generic tour check below ever runs -- see
+ *    classifySpecialEvent's own doc comment. A production fixture ("WTA Billie Jean King Cup -
+ *    World Group", tour="wta") exposed why this ordering matters: without an explicit check, a
+ *    team event tagged with an ordinary-looking tour value silently falls into the generic
+ *    ATP/WTA/Challenger/ITF branch below and gets classified as if it were a normal tour match --
+ *    the *output* happened to be correct that one time (Billie Jean King Cup genuinely is
+ *    best-of-3), but the resolver never actually verified that, and a different team/exhibition
+ *    event with the same tour tagging could just as easily get the wrong answer. Explicit
+ *    detection makes every special-event classification traceable to a specific, named,
+ *    documented rule instead of an accidental byproduct of generic tour matching.
+ *  - Juniors, and any unrecognized/ambiguous tour token, return null -- format is not derivable
+ *    from tour alone and must never be assumed for them.
  *
  * Grand Slam identity is matched against the 4 real, fixed tournament names (normalized) -- never
  * a partial/fuzzy match -- so an unfamiliar or misspelled name safely falls through to the
@@ -529,6 +539,92 @@ export function normalizeLiveFixtureRow(value: unknown): Fixture | null {
  * fixture has been observed to resolve correctly.
  */
 const KNOWN_GRAND_SLAM_TOKENS = new Set(["australian_open", "french_open", "roland_garros", "wimbledon", "us_open"]);
+
+/**
+ * Explicit, named, auditable classification for team/special competitions -- runs BEFORE any
+ * generic tour-based classification (see resolvePredictionEngineMatchFormat), so a team event can
+ * never be silently swallowed by an "it happens to say tour=wta/atp" branch the way Billie Jean
+ * King Cup was before this function existed.
+ *
+ * Matching is by REAL, OBSERVED tournament-name substring (normalized), not a bare "contains
+ * 'cup'" check -- a regular ATP/WTA tour event can legitimately have "Cup" in its own name (e.g.
+ * the historical "Kremlin Cup"), so matching requires the full multi-word event name ("davis cup",
+ * "billie jean king cup", ...) as a substring, which is not a plausible false positive for an
+ * unrelated individual tournament.
+ *
+ * Every branch either cites the specific rule that makes its answer safe, or explicitly returns
+ * null with the reason it cannot be made safe -- there is no branch that defaults to BestOf3
+ * "because it's probably a normal event."
+ */
+export interface SpecialEventClassification {
+  format: MatchFormat | null;
+  /** Human-readable justification, kept alongside the format for auditability -- never itself used for scoring. */
+  reason: string;
+}
+
+export function classifySpecialEvent(input: { tournamentName: string | null; gender: string | null }): SpecialEventClassification | null {
+  if (!input.tournamentName) return null;
+  const name = normalizeToken(input.tournamentName);
+  const gender = input.gender ? normalizeToken(input.gender) : null;
+  const isMen = gender === "men" || gender === "male";
+  const isWomen = gender === "women" || gender === "female";
+
+  // Real observed tournament_name strings for this event on this provider include "ATP Davis Cup
+  // - World Group", "ATP Davis Cup - World Group I/II", and "Davis Cup - World Group [I/II] Teams"
+  // -- confirmed via stored production rows. Davis Cup is a men's-only competition; if gender is
+  // supplied and says otherwise, that's a data inconsistency worth failing closed on rather than
+  // trusting the name alone.
+  if (name.includes(normalizeToken("Davis Cup"))) {
+    if (isWomen) return { format: null, reason: "Davis Cup: gender field says women, contradicting a men's-only competition -- data inconsistency, fail closed" };
+    // Best-of-3 for every rubber (World Group, World Group I/II, and the Finals) under the ITF's
+    // 2016 format reform. This resolver only ever processes prospective/live fixtures, never
+    // historical ties, so the pre-2016 best-of-5 format is never the correct current answer here.
+    return { format: "BestOf3", reason: "Davis Cup: best-of-3 under the current (post-2016) format" };
+  }
+
+  // Real observed tournament_name string: "WTA Billie Jean King Cup - World Group" (confirmed live
+  // in production, fixture 36434). Women's-only competition, always best-of-3 throughout its
+  // history (formerly the Fed Cup) -- no format-era distinction like Davis Cup's needed.
+  if (name.includes(normalizeToken("Billie Jean King Cup")) || name.includes(normalizeToken("BJK Cup"))) {
+    if (isMen) return { format: null, reason: "Billie Jean King Cup: gender field says men, contradicting a women's-only competition -- data inconsistency, fail closed" };
+    return { format: "BestOf3", reason: "Billie Jean King Cup: always best-of-3" };
+  }
+
+  // United Cup (mixed ATP+WTA team event, running since 2023): singles rubbers use standard
+  // best-of-3 with no special tiebreak rules -- a real, documented, established competition rule.
+  // NOT observed in real live provider data during this investigation (no United Cup fixture was
+  // in the live /fixtures feed at the time), so the exact tournament-name string this provider
+  // uses is inferred from the same "<Event Name> - <round>" convention already confirmed for Davis
+  // Cup/Billie Jean King Cup, not independently verified. Flagged here rather than silently trusted.
+  if (name.includes(normalizeToken("United Cup"))) {
+    return { format: "BestOf3", reason: "United Cup: standard best-of-3 singles rubbers (rule confirmed; exact provider naming unverified against live data)" };
+  }
+
+  // Laver Cup (exhibition team event): uses a match tiebreak in place of a third set, not a
+  // standard best-of-3 -- structurally different scoring that doesn't cleanly map to either
+  // resolver output, so this never resolves to a fabricated Bo3/Bo5 value.
+  if (name.includes(normalizeToken("Laver Cup"))) {
+    return { format: null, reason: "Laver Cup: non-standard scoring (match tiebreak replaces 3rd set), not a clean Bo3/Bo5 fit" };
+  }
+
+  // Olympics: singles match format has varied by round and by Games (e.g. a best-of-5 men's gold
+  // medal match at some past Olympics vs best-of-3 in earlier rounds and at other Games) -- this
+  // resolver has no reliable, safe way to distinguish "which round, which Games" from the fields
+  // it's given, so it never guesses here.
+  if (name.includes(normalizeToken("Olympic"))) {
+    return { format: null, reason: "Olympics: format has historically varied by round/Games -- not safely derivable from available fields" };
+  }
+
+  // Hopman Cup (discontinued 2019) and ATP Cup (discontinued 2023, superseded by United Cup): no
+  // live/prospective fixture can genuinely exist under either name today. Documented explicitly,
+  // rather than left to fall through silently, so an unexpected archival/mis-dated row can never
+  // resolve to a fabricated format under either name.
+  if (name.includes(normalizeToken("Hopman Cup")) || name.includes(normalizeToken("ATP Cup"))) {
+    return { format: null, reason: "Hopman Cup / ATP Cup: discontinued competitions, format not defensible for a live fixture" };
+  }
+
+  return null; // not a recognized special event -- fall through to Grand Slam / generic tour classification
+}
 
 function isKnownGrandSlamName(tournamentName: string | null): boolean {
   if (!tournamentName) return false;
@@ -550,6 +646,11 @@ export function resolvePredictionEngineMatchFormat(input: {
   isQualifying: boolean | null;
   tournamentName: string | null;
 }): MatchFormat | null {
+  // Special-event detection runs FIRST, before any generic tour-based classification -- see
+  // classifySpecialEvent's own doc comment for why this ordering is load-bearing.
+  const special = classifySpecialEvent({ tournamentName: input.tournamentName, gender: input.gender });
+  if (special) return special.format;
+
   const gender = input.gender ? normalizeToken(input.gender) : null;
   const isMen = gender === "men" || gender === "male";
   const isWomen = gender === "women" || gender === "female";
