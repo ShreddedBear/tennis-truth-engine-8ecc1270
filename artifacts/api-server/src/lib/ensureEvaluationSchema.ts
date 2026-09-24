@@ -1169,6 +1169,57 @@ const STATEMENTS: string[] = [
     FOR EACH ROW
     EXECUTE FUNCTION parlay_paper_trade_snapshots_prevent_mutation();
   `,
+
+  `
+  CREATE TABLE IF NOT EXISTS matched_engine_cohort (
+    id                                       SERIAL PRIMARY KEY,
+    external_fixture_id                      TEXT NOT NULL,
+    player1_id                               TEXT NOT NULL,
+    player1_name                             TEXT NOT NULL,
+    player2_id                               TEXT NOT NULL,
+    player2_name                             TEXT NOT NULL,
+    tournament_name                          TEXT,
+    surface                                  TEXT,
+    match_format                             TEXT,
+    pe_evaluation_prediction_id              INTEGER NOT NULL REFERENCES evaluation_predictions(id),
+    pe_provider                              TEXT NOT NULL,
+    pe_scheduled_start_at                    TIMESTAMPTZ NOT NULL,
+    pe_locked_at                             TIMESTAMPTZ NOT NULL,
+    pe_predicted_winner_id                   TEXT NOT NULL,
+    pe_predicted_winner_name                 TEXT NOT NULL,
+    pe_calibrated_probability_for_pick       REAL NOT NULL,
+    pe_status                                TEXT NOT NULL,
+    pe_actual_winner_id                      TEXT,
+    pe_result_type                           TEXT,
+    pe_graded_at                             TIMESTAMPTZ,
+    builder_pair_id                          TEXT NOT NULL,
+    builder_provider                         TEXT NOT NULL,
+    builder_scheduled_start_at               TIMESTAMPTZ NOT NULL,
+    builder_frozen_at                        TIMESTAMPTZ NOT NULL,
+    builder_picked_player_id                 TEXT NOT NULL,
+    builder_cross_side_agreement             BOOLEAN NOT NULL,
+    builder_calibrated_probability_for_pick  INTEGER,
+    builder_status                           TEXT NOT NULL,
+    builder_actual_winner_id                 TEXT,
+    builder_result_type                      TEXT,
+    builder_graded_at                        TIMESTAMPTZ,
+    canonical_actual_winner_id               TEXT,
+    canonical_graded_at                      TIMESTAMPTZ,
+    native_grading_agrees                    BOOLEAN,
+    engines_agreed_on_pick                   BOOLEAN NOT NULL,
+    pe_correct                               BOOLEAN,
+    builder_correct                          BOOLEAN,
+    both_correct                             BOOLEAN,
+    both_wrong                               BOOLEAN,
+    only_pe_correct                          BOOLEAN,
+    only_builder_correct                     BOOLEAN,
+    first_matched_at                         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_synced_at                           TIMESTAMPTZ NOT NULL DEFAULT now()
+  )
+  `,
+  `CREATE UNIQUE INDEX IF NOT EXISTS matched_engine_cohort_fixture_idx ON matched_engine_cohort (external_fixture_id)`,
+  `CREATE INDEX IF NOT EXISTS matched_engine_cohort_canonical_graded_idx ON matched_engine_cohort (canonical_graded_at)`,
+  `CREATE INDEX IF NOT EXISTS matched_engine_cohort_pe_prediction_idx ON matched_engine_cohort (pe_evaluation_prediction_id)`,
 ];
 
 let ensured = false;
