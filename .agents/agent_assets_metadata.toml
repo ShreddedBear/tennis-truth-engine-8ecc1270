@@ -98,3 +98,17 @@ mtime_ms = 1790265468500
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/b889fd47-729c-43e1-9da3-d3b1e6d3c035/c9afe8b6-45ed-4537-9a7c-2b468bfaeb15"
 storage_version_token = "1790265472660501"
 content_type = "text/plain"
+
+[[outputs]]
+id = "dmoPoLMagvOY91qA4OVdS"
+uri = "file://.local/outputs/cohort-verification/84463d3-first-test-failure-captured.txt"
+type = "text"
+title = "First cohort test attempt: captured failure output"
+description = "Captured diagnostic output from the pre-schema-restart failure; the command-output tool truncated the beginning/middle of this 68 KB capture. Successful full rerun is pasted in the reply."
+logical_id = "d2984bc5-68e7-4654-923f-05da1f88f7db"
+content_hash = "sha256:a823ebe626e810e335243d32c5df46ba5b2e5eaaf85b2ea5e5145e53588a2703"
+size = 68419
+mtime_ms = 1790274571502
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/d2984bc5-68e7-4654-923f-05da1f88f7db/2b9d5b50-278f-4f59-a143-f78ae04bfbe5"
+storage_version_token = "1790274577749825"
+content_type = "text/plain"
