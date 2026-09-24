@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "X-T2FRuap59gInL1zLABZ"
+uri = "file://reports/auditMatchedCohortOverlap-output.txt"
+type = "text"
+title = "Matched cohort overlap diagnostic — full output"
+description = "Complete verbatim 374-line output from the read-only audit, including all 352 overlap rows and SERVER_NOW."
+logical_id = "81c80106-48d6-4aad-b38b-a7f02f16c824"
+content_hash = "sha256:172effa94695a4c4e2921cdb106bff2c48b2e271af3a4c2e519f19c97b43294e"
+size = 129330
+mtime_ms = 1790260423724
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/81c80106-48d6-4aad-b38b-a7f02f16c824/eb18d30b-61ba-45dc-b00e-9b07cb6991cb"
+storage_version_token = "1790260431162894"
+content_type = "text/plain"
