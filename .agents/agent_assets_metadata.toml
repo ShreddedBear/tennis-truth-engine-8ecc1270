@@ -14,3 +14,17 @@ mtime_ms = 1790260423724
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/81c80106-48d6-4aad-b38b-a7f02f16c824/eb18d30b-61ba-45dc-b00e-9b07cb6991cb"
 storage_version_token = "1790260431162894"
 content_type = "text/plain"
+
+[[outputs]]
+id = "A-E6h5ttjE_jJKqUQ6C_h"
+uri = "file://reports/auditMatchedCohortOverlap-revised-output.txt"
+type = "text"
+title = "Matched cohort overlap — complete revised output"
+description = "Verbatim 380-line output from the revised read-only audit, including all 352 joined rows and the database SERVER_NOW."
+logical_id = "2bc5d0cb-3e46-41a9-b790-e5979b43c7d5"
+content_hash = "sha256:ac97abe249f21ba02f6d5725f4aca111e6e51133300aed0014788e3b44a182dc"
+size = 129773
+mtime_ms = 1790260668277
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/2bc5d0cb-3e46-41a9-b790-e5979b43c7d5/e39e8e57-29f0-4e3f-847d-40169311de75"
+storage_version_token = "1790260672934142"
+content_type = "text/plain"
