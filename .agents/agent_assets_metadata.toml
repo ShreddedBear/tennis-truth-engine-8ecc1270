@@ -70,3 +70,17 @@ mtime_ms = 1790263121247
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/515acf14-cabe-49a1-9020-dc2191809957/d12ce59f-4578-41c3-80d4-15a302173131"
 storage_version_token = "1790263145624065"
 content_type = "text/plain"
+
+[[outputs]]
+id = "aYzsTLVAKwUh-BR_vwdbj"
+uri = "file://.local/outputs/cohort-verification/evaluation-f9e8a80.txt"
+type = "text"
+title = "Evaluation test run — full verbatim log"
+description = "Detached test:evaluation stdout/stderr (4.7 MB), including final 62-pass/3-fail/1-skip summary and heap abort."
+logical_id = "f63917d0-2cfe-4dd3-b1fd-cea5680a62ba"
+content_hash = "sha256:3cc4ba2dfa5be5de7dd38ec144cbebcc2620f84d9fafda1f48dbde8f703730ee"
+size = 4690700
+mtime_ms = 1790264220012
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/f63917d0-2cfe-4dd3-b1fd-cea5680a62ba/f1e4bd25-da21-4dc4-94e2-a5515d86eb74"
+storage_version_token = "1790264226117141"
+content_type = "text/plain"
