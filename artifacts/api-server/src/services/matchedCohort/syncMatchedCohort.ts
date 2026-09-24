@@ -160,14 +160,9 @@ async function findCanonicalResult(
   if (candidateCountBeforeFilter === 0) {
     return { accepted: null, ambiguous: false, candidateCountBeforeFilter: 0, candidateCountAfterFilter: 0 };
   }
-  if (candidateCountBeforeFilter === 1) {
-    return { accepted: candidates[0]!, ambiguous: false, candidateCountBeforeFilter: 1, candidateCountAfterFilter: 1 };
-  }
 
-  // More than one plausible candidate -- narrow using deterministic metadata already available on
-  // both sides. A candidate is rejected only when the SAME field is present and normalizable on
-  // both the anchor and the candidate and they genuinely disagree; a field missing on either side
-  // is never used to reject (never a guess).
+  // Apply comparable metadata even to a lone candidate: one contradictory tournament or surface
+  // is still the wrong match. Missing fields on either side never reject a candidate.
   const anchorTournament = normalizeForComparison(anchorTournamentName);
   const anchorSurfaceNorm = normalizeForComparison(anchorSurface);
   const filtered = candidates.filter((c) => {
