@@ -108,9 +108,24 @@ export function getTennisDataProvider(): TennisDataProvider {
 }
 
 /**
- * Returns the active Live Tennis API provider for historical jobs.
+ * Returns the active Live Tennis API provider for historical jobs (also the Builder's own fixture
+ * discovery entry point -- see getUpcomingFixturesForBuilder's doc comment).
  */
 export function getLiveTennisProvider(): LiveTennisHistoricalProvider | null {
+  const key = process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API_KEY;
+  return key ? new LiveTennisHistoricalProvider({ apiKey: key }) : null;
+}
+
+/**
+ * Returns a fresh, uncached Live Tennis API provider dedicated to the Prediction Engine's live
+ * paper-trading fixture discovery (services/evaluation/paperTrading.ts) -- its own entry point,
+ * structurally separate from both getTennisDataProvider()'s shared singleton (whose
+ * getUpcomingFixtures/getUpcomingFixturesRange stay unchanged for every other consumer) and
+ * Builder's own getLiveTennisProvider() above. Exposes only
+ * getUpcomingFixturesForPredictionEngine/getUpcomingFixturesRangeForPredictionEngine -- never
+ * Builder's *ForBuilder methods.
+ */
+export function getLiveTennisProviderForPredictionEngine(): LiveTennisHistoricalProvider | null {
   const key = process.env.Live_Tennis_Api ?? process.env.LIVE_TENNIS_API_KEY;
   return key ? new LiveTennisHistoricalProvider({ apiKey: key }) : null;
 }

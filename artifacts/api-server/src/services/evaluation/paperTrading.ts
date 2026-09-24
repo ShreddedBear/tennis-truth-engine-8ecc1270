@@ -1,6 +1,6 @@
 import { db, evaluationPredictionsTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
-import { getTennisDataProvider, ProviderUnavailableError, type TennisDataProvider } from "../tennisData";
+import { getTennisDataProvider, getLiveTennisProviderForPredictionEngine, ProviderUnavailableError, type Fixture, type TennisDataProvider } from "../tennisData";
 import { getPredictionSettings, settleEvaluationPrediction } from "./settle";
 import { LIVE_MODEL_VERSION, type LiveFeatureSnapshot } from "./types";
 import { computeVigAdjustedImpliedProbability } from "../oddsData/impliedProbability";
@@ -50,16 +50,39 @@ export interface PaperTradingCycleSummary {
 }
 
 /**
+ * The minimal capability paper-trading's fixture-discovery step needs. Deliberately NOT
+ * `TennisDataProvider` (which includes the shared, byte-for-byte-preserved
+ * getUpcomingFixtures/getUpcomingFixturesRange this file used to call, and which other consumers
+ * -- e.g. routes/fixtures.ts -- still depend on unchanged) and deliberately NOT any Builder-typed
+ * handle -- see getLiveTennisProviderForPredictionEngine's doc comment for the full boundary
+ * reasoning. A test double only needs to implement this narrow shape.
+ */
+export interface PredictionEngineFixtureDiscoveryProvider {
+  readonly name: string;
+  getUpcomingFixturesForPredictionEngine(date: string): Promise<Fixture[]>;
+}
+
+/**
  * One paper-trading cycle: (1) lock predictions for real upcoming fixtures whose cutoff has just
  * arrived, (2) mark fixtures whose cutoff passed unlocked as 'missed' (never backfilled), (3)
  * grade any pending predictions whose real result is now available. Safe to call repeatedly
  * (e.g. on a timer) -- every step is idempotent via the unique (runKind, provider,
  * externalFixtureId) index and the pending-only settlement guard.
+ *
+ * `fixtureProviderOverride` is a second, independent override from `providerOverride`: the latter
+ * still supplies everything else in this cycle (engine input, grading's match-history lookups,
+ * the `provider` value stored on each row), while fixture discovery specifically always goes
+ * through the Prediction-Engine-only adapter (real provider default:
+ * getLiveTennisProviderForPredictionEngine(); tests inject their own fake here).
  */
-export async function runPaperTradingCycle(providerOverride?: TennisDataProvider): Promise<PaperTradingCycleSummary> {
+export async function runPaperTradingCycle(
+  providerOverride?: TennisDataProvider,
+  fixtureProviderOverride?: PredictionEngineFixtureDiscoveryProvider,
+): Promise<PaperTradingCycleSummary> {
   const summary: PaperTradingCycleSummary = { locked: 0, missed: 0, graded: 0, errors: [] };
   const settings = await getPredictionSettings();
   const provider = providerOverride ?? getTennisDataProvider();
+  const fixtureProvider = fixtureProviderOverride ?? getLiveTennisProviderForPredictionEngine();
   const currentProductionIdentity = await getCurrentProductionStrategyIdentity();
   const fallbackProductionIdentity = derivePredictionStrategyIdentity({
     predictionMode: defaultPredictionMode("paper_trade"),
@@ -72,9 +95,17 @@ export async function runPaperTradingCycle(providerOverride?: TennisDataProvider
     strategyFingerprint: currentProductionIdentity.strategyFingerprint ?? LIVE_MODEL_VERSION,
   };
 
+  if (!fixtureProvider) {
+    summary.errors.push("Provider unavailable while fetching fixtures: Live Tennis API key not configured");
+    return summary;
+  }
+
   let fixtures;
   try {
-    const [today, tomorrow] = await Promise.all([provider.getUpcomingFixtures(todayPlus(0)), provider.getUpcomingFixtures(todayPlus(1))]);
+    const [today, tomorrow] = await Promise.all([
+      fixtureProvider.getUpcomingFixturesForPredictionEngine(todayPlus(0)),
+      fixtureProvider.getUpcomingFixturesForPredictionEngine(todayPlus(1)),
+    ]);
     fixtures = [...today, ...tomorrow];
   } catch (err) {
     if (err instanceof ProviderUnavailableError) {

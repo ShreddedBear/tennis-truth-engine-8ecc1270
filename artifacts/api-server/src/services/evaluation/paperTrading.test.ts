@@ -40,6 +40,13 @@ class FakeProvider implements TennisDataProvider {
   async getUpcomingFixturesRange(dateStart: string, dateStop: string): Promise<Fixture[]> {
     return this.fixtures.filter((f) => f.date.slice(0, 10) >= dateStart && f.date.slice(0, 10) <= dateStop);
   }
+  // Fixture discovery now goes through the separate PredictionEngineFixtureDiscoveryProvider
+  // parameter (see paperTrading.ts) rather than this class's own getUpcomingFixtures above --
+  // this test double implements it identically so the existing PIT-boundary assertions below stay
+  // exercised exactly as before.
+  async getUpcomingFixturesForPredictionEngine(date: string): Promise<Fixture[]> {
+    return this.fixtures.filter((f) => f.date.slice(0, 10) === date);
+  }
   async getHeadToHead(player1Id: string, player2Id: string): Promise<HeadToHeadRecord> {
     return { player1Id, player2Id, meetings: [] };
   }
@@ -102,7 +109,7 @@ test("paper trading cycle: locks at cutoff, misses once the lock-grace window el
     await db.delete(evaluationPredictionsTable).where(eq(evaluationPredictionsTable.provider, PROVIDER_NAME));
   });
 
-  const summary = await runPaperTradingCycle(provider);
+  const summary = await runPaperTradingCycle(provider, provider);
 
   const rows = await db
     .select()
@@ -148,7 +155,7 @@ test("paper trading cycle blocks duplicate fixture ids with conflicting player p
     await db.delete(evaluationPredictionsTable).where(eq(evaluationPredictionsTable.provider, PROVIDER_NAME));
   });
 
-  const summary = await runPaperTradingCycle(provider);
+  const summary = await runPaperTradingCycle(provider, provider);
 
   const rows = await db
     .select()

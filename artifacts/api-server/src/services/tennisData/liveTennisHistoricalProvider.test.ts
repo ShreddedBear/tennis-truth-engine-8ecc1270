@@ -5,6 +5,8 @@ import {
   LiveTennisHistoricalProvider,
   normalizeLiveTennisHistoricalMatch,
   normalizeLiveFixtureRow,
+  normalizePeLiveFixtureRow,
+  resolvePredictionEngineMatchFormat,
   type LiveTennisHistoricalProviderOptions,
 } from "./liveTennisHistoricalProvider.js";
 
@@ -447,6 +449,250 @@ describe("Builder fixture pagination (/fixtures can report has_more beyond one p
     const fixtures = await p.getUpcomingFixturesRange("2026-09-21", "2026-09-21");
     assert.deepEqual(fixtures, []);
     assert.equal(urls.length, 1);
+  });
+});
+
+describe("resolvePredictionEngineMatchFormat (real ATP/WTA/Grand-Slam rules only, never a per-match guess)", () => {
+  test("recognized Bo3: ATP non-Slam tour", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "atp", gender: "men", isQualifying: false, tournamentName: "Buenos Aires 3" }),
+      "BestOf3",
+    );
+  });
+
+  test("recognized Bo5: men's Grand Slam main draw", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "atp", gender: "men", isQualifying: false, tournamentName: "Wimbledon" }),
+      "BestOf5",
+    );
+  });
+
+  test("Grand Slam qualifying (men's) is Bo3, not Bo5", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "atp", gender: "men", isQualifying: true, tournamentName: "US Open" }),
+      "BestOf3",
+    );
+  });
+
+  test("women's fixture: WTA non-Slam is Bo3", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "wta", gender: "women", isQualifying: false, tournamentName: "W50 Plovdiv" }),
+      "BestOf3",
+    );
+  });
+
+  test("women's Grand Slam (main draw or qualifying) is always Bo3 -- gender alone decides once Slam identity is confirmed", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "wta", gender: "women", isQualifying: false, tournamentName: "Roland Garros" }),
+      "BestOf3",
+    );
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "wta", gender: "women", isQualifying: true, tournamentName: "Roland Garros" }),
+      "BestOf3",
+    );
+  });
+
+  test("Challenger fixture is Bo3", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "challenger", gender: "men", isQualifying: false, tournamentName: "Challenger Metz" }),
+      "BestOf3",
+    );
+  });
+
+  test("ITF fixture is Bo3 (tour token variants like itf_women/itf_men)", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "itf_women", gender: "women", isQualifying: false, tournamentName: "W50 Plovdiv" }),
+      "BestOf3",
+    );
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "itf_men", gender: "men", isQualifying: false, tournamentName: "M25 Antalya" }),
+      "BestOf3",
+    );
+  });
+
+  test("unknown/unrecognized tour returns null -- never defaults to Bo3", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "exhibition", gender: "men", isQualifying: false, tournamentName: "Some Exo Event" }),
+      null,
+    );
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: null, gender: "men", isQualifying: false, tournamentName: "Unnamed Event" }),
+      null,
+    );
+  });
+
+  test("team/special event (e.g. Davis Cup) returns null unless explicitly proven -- name is not a known Grand Slam and tour is not a recognized singles tour", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "davis_cup", gender: "men", isQualifying: false, tournamentName: "Davis Cup" }),
+      null,
+    );
+  });
+
+  test("juniors are explicitly excluded, not assumed Bo3", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "juniors", gender: "men", isQualifying: false, tournamentName: "Junior Open" }),
+      null,
+    );
+  });
+
+  test("men's Grand Slam with unknown qualifying status fails closed (never guesses main draw vs qualifying)", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "atp", gender: "men", isQualifying: null, tournamentName: "Australian Open" }),
+      null,
+    );
+  });
+
+  test("Grand Slam with unresolved gender fails closed -- gender is never inferred", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "atp", gender: null, isQualifying: false, tournamentName: "French Open" }),
+      null,
+    );
+  });
+
+  test("Grand Slam name matching requires an exact known name, not a fuzzy/partial match -- an unrecognized tour with a Slam-adjacent name must not resolve via the Slam branch", () => {
+    assert.equal(
+      resolvePredictionEngineMatchFormat({ tour: "exhibition", gender: "men", isQualifying: false, tournamentName: "Australian Open Exhibition Series" }),
+      null,
+    );
+  });
+});
+
+describe("normalizePeLiveFixtureRow (Prediction-Engine-only: real flat /fixtures shape + real matchFormat resolution)", () => {
+  test("a valid real-shaped fixture normalizes with a resolved matchFormat", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ tour: "atp" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.matchFormat, "BestOf3");
+  });
+
+  test("player 1 ID/name map correctly", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ player1_id: 555, player1_name: "T. Droguet" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.player1Id, "555");
+    assert.equal(fixture!.player1Name, "T. Droguet");
+  });
+
+  test("player 2 ID/name map correctly", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ player2_id: 140, player2_name: "B. Gojo" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.player2Id, "140");
+    assert.equal(fixture!.player2Name, "B. Gojo");
+  });
+
+  test("start_time maps to scheduledStart", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ start_time: "2026-09-23T15:30:00Z" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.scheduledStart, "2026-09-23T15:30:00.000Z");
+    assert.equal(fixture!.timeConfirmed, true);
+  });
+
+  test("event_date is preserved where the normalized model exposes it (fixture.date)", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ event_date: "2026-09-23", start_time: "2026-09-23T15:30:00Z" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.date, "2026-09-23");
+  });
+
+  test("surface maps correctly", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ surface: "clay" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.surface, "Clay");
+  });
+
+  test("tournament/tour/round are preserved", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ tournament: "St. Tropez", tour: "atp", round: "1/8-finals", round_code: "R16" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.tournamentName, "St. Tropez");
+    assert.equal(fixture!.round, "R16");
+  });
+
+  test("malformed/missing players fail safely (returns null, never a fabricated player)", () => {
+    assert.equal(normalizePeLiveFixtureRow(fixtureRow({ player1_name: null })), null);
+    assert.equal(normalizePeLiveFixtureRow(fixtureRow({ player2_id: null, player2_name: undefined })), null);
+  });
+
+  test("malformed start_time fails safely", () => {
+    assert.equal(normalizePeLiveFixtureRow(fixtureRow({ start_time: "not-a-real-timestamp" })), null);
+    assert.equal(normalizePeLiveFixtureRow(fixtureRow({ start_time: null })), null);
+  });
+
+  test("a history-match row shape (nested players.p1/p2, scheduled_time) does NOT accidentally normalize as a live fixture", () => {
+    assert.equal(normalizePeLiveFixtureRow(row()), null);
+  });
+
+  test("never fabricates matchFormat for a fixture the resolver cannot prove (unrecognized tour)", () => {
+    const fixture = normalizePeLiveFixtureRow(fixtureRow({ tour: "exhibition" }));
+    assert.ok(fixture);
+    assert.equal(fixture!.matchFormat, null);
+  });
+});
+
+describe("Prediction Engine fixture pagination (getUpcomingFixturesRangeForPredictionEngine) -- mirrors Builder's own pagination fix", () => {
+  function fixturesPageProvider(pages: unknown[], seenUrls: string[] = [], options: Partial<LiveTennisHistoricalProviderOptions> = {}) {
+    let index = 0;
+    const fetchImpl = async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path !== "/api/public/v1/fixtures") throw new Error(`unexpected test endpoint ${path}`);
+      seenUrls.push(url);
+      const body = pages[Math.min(index++, pages.length - 1)];
+      return { ok: true, status: 200, json: async () => body };
+    };
+    return new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl, ...options });
+  }
+
+  test("follows has_more across multiple pages and returns every fixture", async () => {
+    const urls: string[] = [];
+    const pages = [
+      { data: [fixtureRow({ id: 1, player1_id: 11, player2_id: 12 })], meta: { has_more: true, count: 1, limit: 200, offset: 0 } },
+      { data: [fixtureRow({ id: 2, player1_id: 21, player2_id: 22 })], meta: { has_more: true, count: 1, limit: 200, offset: 1 } },
+      { data: [fixtureRow({ id: 3, player1_id: 31, player2_id: 32 })], meta: { has_more: false, count: 1, limit: 200, offset: 2 } },
+    ];
+    const p = fixturesPageProvider(pages, urls);
+    const fixtures = await p.getUpcomingFixturesRangeForPredictionEngine("2026-09-21", "2026-09-21");
+    assert.deepEqual(fixtures.map((f) => f.id), ["1", "2", "3"]);
+    assert.equal(urls.length, 3);
+  });
+
+  test("stops deterministically when pagination exceeds the configured page guard", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider(
+      [{ data: [fixtureRow()], meta: { has_more: true, count: 1, limit: 200, offset: 0 } }],
+      urls,
+      { maxPages: 1 },
+    );
+    await assert.rejects(
+      () => p.getUpcomingFixturesRangeForPredictionEngine("2026-09-21", "2026-09-21"),
+      /Prediction Engine fixture pagination exceeded maxPages=1/,
+    );
+  });
+
+  test("stops deterministically when a page reports has_more but returns zero rows (no progress)", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider([{ data: [], meta: { has_more: true, count: 0, limit: 200, offset: 0 } }], urls);
+    await assert.rejects(
+      () => p.getUpcomingFixturesRangeForPredictionEngine("2026-09-21", "2026-09-21"),
+      /Prediction Engine fixture pagination made no progress/,
+    );
+  });
+
+  test("Builder's own pagination method is completely unaffected -- still normalizes with matchFormat always null", async () => {
+    const urls: string[] = [];
+    const p = fixturesPageProvider(
+      [{ data: [fixtureRow({ tour: "atp" })], meta: { has_more: false, count: 1, limit: 200, offset: 0 } }],
+      urls,
+    );
+    const fixtures = await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.equal(fixtures[0]!.matchFormat, null);
+  });
+
+  test("Prediction Engine's new adapter and Builder's adapter hit the identical /fixtures request -- only normalization differs", async () => {
+    const calls: string[] = [];
+    const fetchImpl = async (url: string) => {
+      calls.push(new URL(url).pathname + new URL(url).search);
+      return { ok: true, status: 200, json: async () => ({ data: [fixtureRow()] }) };
+    };
+    const p = new LiveTennisHistoricalProvider({ apiKey: "test-key", fetchImpl });
+    await p.getUpcomingFixturesRangeForPredictionEngine("2026-09-21", "2026-09-21");
+    await p.getUpcomingFixturesRangeForBuilder("2026-09-21", "2026-09-21");
+    assert.equal(calls[0], calls[1]);
   });
 });
 

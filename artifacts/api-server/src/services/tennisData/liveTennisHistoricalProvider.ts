@@ -451,6 +451,10 @@ interface LiveTennisFixtureRow {
   tour?: string | null;
   tournament?: string | { name?: string | null; category?: string | null; [key: string]: unknown } | null;
   tournament_id?: string | number | null;
+  /** "men" | "women", when the provider supplies it. Never used alone to resolve matchFormat -- see resolvePredictionEngineMatchFormat. */
+  gender?: string | null;
+  /** Whether this fixture is a qualifying-round match. Only meaningful combined with a confirmed Grand Slam + men's singles identity. */
+  is_qualifying?: boolean | null;
   [key: string]: unknown;
 }
 
@@ -484,6 +488,130 @@ export function normalizeLiveFixtureRow(value: unknown): Fixture | null {
     surface: mapSurface(asString(row.surface), null),
     indoor: null,
     matchFormat: null,
+    player1Id: fixturePlayerId({ id: row.player1_id, name: player1Name }),
+    player1Name,
+    player2Id: fixturePlayerId({ id: row.player2_id, name: player2Name }),
+    player2Name,
+  };
+}
+
+/**
+ * Prediction-Engine-only pre-match BestOf/format resolver.
+ *
+ * Live inspection of every pre-match Live Tennis API surface this app calls (`/fixtures`,
+ * `/tournaments`, `findTournamentSurfaceByName`'s `bestOf` slot) confirmed none of them ever
+ * supplies a format value before a match starts -- only the post-match `/matches`/`/history/matches`
+ * endpoints carry one (`row.format`, read by `mapFormat` above), and post-match data can never be
+ * used as pre-match evidence. This resolver therefore never reads a provider-supplied format field
+ * at all. It derives BestOf3/BestOf5 ONLY from a small set of real, fixed ATP/WTA/Grand Slam rules,
+ * and returns null (never a default) for anything it cannot prove:
+ *
+ *  - Grand Slam men's singles MAIN DRAW (not qualifying) is the only category played best-of-5
+ *    under current ATP/Grand Slam rules.
+ *  - Grand Slam men's QUALIFYING, and Grand Slam women's singles (main draw or qualifying) at
+ *    every Grand Slam, are best-of-3.
+ *  - Every other recognized professional singles tour (ATP non-Slam, WTA non-Slam, Challenger,
+ *    ITF) is best-of-3 at every level, for both genders -- the universal current-era rule, not a
+ *    per-match guess.
+ *  - Team/exhibition events (Davis Cup, Laver Cup, United Cup, ...), juniors, and any
+ *    unrecognized/ambiguous tour token return null -- format is not derivable from tour alone and
+ *    must never be assumed for them.
+ *
+ * Grand Slam identity is matched against the 4 real, fixed tournament names (normalized) -- never
+ * a partial/fuzzy match -- so an unfamiliar or misspelled name safely falls through to the
+ * non-Slam branch rather than being silently treated as a Slam. gender and isQualifying are never
+ * used in isolation to pick Bo3 vs Bo5 -- both are only ever consulted together with a confirmed
+ * Grand Slam identity; outside a Grand Slam, the result never depends on gender at all.
+ *
+ * NOTE: the Grand Slam name-matching branch has not been exercised against a live Grand Slam
+ * fixture in production (no Slam was in season during this investigation) -- it is verified only
+ * against this file's own unit tests. Treat it as unverified-in-production until a real Grand Slam
+ * fixture has been observed to resolve correctly.
+ */
+const KNOWN_GRAND_SLAM_TOKENS = new Set(["australian_open", "french_open", "roland_garros", "wimbledon", "us_open"]);
+
+function isKnownGrandSlamName(tournamentName: string | null): boolean {
+  if (!tournamentName) return false;
+  return KNOWN_GRAND_SLAM_TOKENS.has(normalizeToken(tournamentName));
+}
+
+const RECOGNIZED_NON_SLAM_TOUR_TOKENS = ["atp", "wta", "challenger", "itf"];
+
+function isRecognizedNonSlamTour(tour: string | null): boolean {
+  if (!tour) return false;
+  const token = normalizeToken(tour);
+  if (token === "juniors") return false; // format not proven for junior events -- excluded, not assumed
+  return RECOGNIZED_NON_SLAM_TOUR_TOKENS.some((known) => token === known || token.startsWith(`${known}_`) || token.endsWith(`_${known}`));
+}
+
+export function resolvePredictionEngineMatchFormat(input: {
+  tour: string | null;
+  gender: string | null;
+  isQualifying: boolean | null;
+  tournamentName: string | null;
+}): MatchFormat | null {
+  const gender = input.gender ? normalizeToken(input.gender) : null;
+  const isMen = gender === "men" || gender === "male";
+  const isWomen = gender === "women" || gender === "female";
+
+  if (isKnownGrandSlamName(input.tournamentName)) {
+    if (isWomen) return "BestOf3";
+    if (isMen) {
+      if (input.isQualifying === true) return "BestOf3";
+      if (input.isQualifying === false) return "BestOf5";
+      return null; // qualifying status unknown -- never guess main draw vs qualifying
+    }
+    return null; // gender unresolved at a Grand Slam -- cannot determine Bo3 vs Bo5
+  }
+
+  if (isRecognizedNonSlamTour(input.tour)) return "BestOf3";
+
+  return null; // unrecognized tour, team/exhibition event, or juniors -- format not derivable
+}
+
+/**
+ * Prediction-Engine-only fixture normalizer (NOT reachable via Builder's
+ * getUpcomingFixturesForBuilder/getUpcomingFixturesRangeForBuilder, and NOT wired into the shared
+ * TennisDataProvider interface methods getUpcomingFixtures/getUpcomingFixturesRange that other,
+ * unrelated consumers -- e.g. routes/fixtures.ts -- still rely on unchanged). Reads the real flat
+ * /fixtures row shape exactly like normalizeLiveFixtureRow (same id/name/time/surface/tournament
+ * field mapping -- that part is pure schema parsing, not Builder-specific logic), but additionally
+ * resolves matchFormat via resolvePredictionEngineMatchFormat instead of always returning null.
+ * paperTrading.ts's matchFormat gate can only ever lock a live prediction once this returns a
+ * non-null Fixture.matchFormat.
+ */
+export function normalizePeLiveFixtureRow(value: unknown): Fixture | null {
+  const row = asRecord(value) as LiveTennisFixtureRow;
+  const id = asString(row.id);
+  const player1Name = asString(row.player1_name);
+  const player2Name = asString(row.player2_name);
+  const scheduledTime = asString(row.start_time);
+  const timestamp = scheduledTime ? Date.parse(scheduledTime) : NaN;
+  if (!id || !player1Name || !player2Name || !Number.isFinite(timestamp)) return null;
+
+  const tournament = tournamentFields(row as unknown as LiveTennisMatch, new Map());
+  const tour = mapTour(row.tour);
+  const status = normalizeToken(asString(row.status) ?? "");
+  const gender = asString(row.gender);
+  const isQualifying = typeof row.is_qualifying === "boolean" ? row.is_qualifying : null;
+
+  return {
+    id,
+    date: new Date(timestamp).toISOString().slice(0, 10),
+    scheduledStart: new Date(timestamp).toISOString(),
+    timeConfirmed: true,
+    isLive: status === "live",
+    tournamentName: tournament.tournamentName,
+    tournamentLevel: mapCategory(tournament.category ?? row.tour, tour),
+    round: asString(row.round_code) ?? asString(row.round),
+    surface: mapSurface(asString(row.surface), null),
+    indoor: null,
+    matchFormat: resolvePredictionEngineMatchFormat({
+      tour: row.tour ?? null,
+      gender,
+      isQualifying,
+      tournamentName: tournament.tournamentName,
+    }),
     player1Id: fixturePlayerId({ id: row.player1_id, name: player1Name }),
     player1Name,
     player2Id: fixturePlayerId({ id: row.player2_id, name: player2Name }),
@@ -652,6 +780,44 @@ export class LiveTennisHistoricalProvider implements TennisDataProvider {
 
   async getUpcomingFixturesForBuilder(date: string): Promise<Fixture[]> {
     return this.getUpcomingFixturesRangeForBuilder(date, date);
+  }
+
+  /**
+   * Prediction-Engine-only entry point, structurally separate from getUpcomingFixturesForBuilder
+   * above -- same /fixtures request and pagination shape (maxPages guard, no-progress guard;
+   * `/fixtures` can report `total` well beyond one page, identical reasoning to Builder's own
+   * pagination fix), but normalized with normalizePeLiveFixtureRow instead of
+   * normalizeLiveFixtureRow, so matchFormat is resolved via real ATP/WTA/Grand-Slam rules rather
+   * than always null. Callers must be obtained via getLiveTennisProviderForPredictionEngine()
+   * (services/tennisData/index.ts) -- never getLiveTennisProvider() (Builder's own factory) and
+   * never getTennisDataProvider()'s shared singleton, whose getUpcomingFixtures/
+   * getUpcomingFixturesRange stay byte-for-byte unchanged for every other consumer.
+   */
+  async getUpcomingFixturesRangeForPredictionEngine(dateStart: string, dateStop: string): Promise<Fixture[]> {
+    const rows: JsonRecord[] = [];
+    let offset = 0;
+    for (let page = 0; page < this.maxPages; page++) {
+      const body = asRecord(await this.request("/fixtures", { tour: undefined, draw: "singles", limit: PAGE_SIZE, offset }));
+      const pageRows = listData(body);
+      rows.push(...pageRows);
+      const meta = asRecord(body.meta);
+      const hasMore = meta.has_more === true;
+      if (!hasMore) break;
+      if (page === this.maxPages - 1) {
+        throw new ProviderUnavailableError(`${this.name} Prediction Engine fixture pagination exceeded maxPages=${this.maxPages}`);
+      }
+      if (pageRows.length === 0) {
+        throw new ProviderUnavailableError(`${this.name} Prediction Engine fixture pagination made no progress`);
+      }
+      const nextOffset = Number(meta.offset) + Number(meta.count ?? pageRows.length);
+      offset = Number.isFinite(nextOffset) && nextOffset > offset ? nextOffset : offset + pageRows.length;
+    }
+    return rows.map(normalizePeLiveFixtureRow).filter((fixture): fixture is Fixture => fixture !== null)
+      .filter((fixture) => fixture.date >= dateStart && fixture.date <= dateStop);
+  }
+
+  async getUpcomingFixturesForPredictionEngine(date: string): Promise<Fixture[]> {
+    return this.getUpcomingFixturesRangeForPredictionEngine(date, date);
   }
 
   async getLiveScores(fixtureIds: string[]): Promise<Map<string, LiveScore>> {
