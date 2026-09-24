@@ -86,10 +86,32 @@ describe("checkPaperTradeEligibility", () => {
     if (!result.eligible) assert.strictEqual(result.reason, "PLAYER_IDENTITY_UNRESOLVED");
   });
 
-  it("DUPLICATE_FIXTURE when a trade already exists", () => {
+  it("1: DUPLICATE_FIXTURE when a trade already exists and the match has NOT started", () => {
     const result = check(baseFixture(), { duplicateExists: true });
     assert.strictEqual(result.eligible, false);
     if (!result.eligible) assert.strictEqual(result.reason, "DUPLICATE_FIXTURE");
+  });
+
+  // Regression test for a real recurring-production bug: a fixture already decided in an
+  // earlier cycle, whose scheduled start has since passed, must NEVER be reclassified as a
+  // new MATCH_ALREADY_STARTED fixture and sent back through persistence -- that previously
+  // collided with parlay_paper_trades_fixture_side_lineage_idx (23505) on every subsequent
+  // cycle, confirmed live for fixtures 35880/35816/36169/36206.
+  it("2: DUPLICATE_FIXTURE takes priority over MATCH_ALREADY_STARTED -- an already-persisted fixture that has since started must never be reclassified as a new started fixture", () => {
+    const result = check(baseFixture({ scheduledStart: new Date(NOW.getTime() - 1) }), { duplicateExists: true });
+    assert.strictEqual(result.eligible, false);
+    if (!result.eligible) assert.strictEqual(result.reason, "DUPLICATE_FIXTURE");
+  });
+
+  it("3: a genuinely NEW (never-before-seen) fixture that has already started is unaffected -- still MATCH_ALREADY_STARTED, not silently treated as a duplicate", () => {
+    const result = check(baseFixture({ scheduledStart: new Date(NOW.getTime() - 1) }), { duplicateExists: false });
+    assert.strictEqual(result.eligible, false);
+    if (!result.eligible) assert.strictEqual(result.reason, "MATCH_ALREADY_STARTED");
+  });
+
+  it("4: normal eligibility for a genuinely new, valid upcoming fixture is unchanged", () => {
+    const result = check(baseFixture(), { duplicateExists: false });
+    assert.strictEqual(result.eligible, true);
   });
 
   it("INSUFFICIENT_PIT_EVIDENCE when the decision lead window has already elapsed", () => {

@@ -64,10 +64,24 @@ export type EligibilityResult =
 
 /**
  * Evaluates the checks in a fixed, deliberate order: cheapest / most decisive rejections first
- * (provider outage, missing time, already started) before the ones that require the caller to
- * have already done real work (duplicate lookup, identity resolution). This keeps the common
- * "provider just doesn't have this fixture's time yet" case cheap to reject without needing a
- * DB round-trip first.
+ * (provider outage, missing time) before the ones that require the caller to have already done
+ * real work (duplicate lookup, identity resolution). This keeps the common "provider just
+ * doesn't have this fixture's time yet" case cheap to reject without needing a DB round-trip
+ * first.
+ *
+ * `duplicateExists` is checked immediately after the time-confirmed gate, BEFORE
+ * `MATCH_ALREADY_STARTED` -- deliberately, not incidentally. A fixture already decided in an
+ * earlier cycle keeps its own real scheduled_start_at, so by the time a later cycle re-discovers
+ * it, that start time has very plausibly already passed; checking MATCH_ALREADY_STARTED first
+ * (the original order) would misclassify an already-persisted fixture as a *new* started fixture
+ * every single subsequent cycle -- and the caller's downstream handling for every non-duplicate
+ * rejection reason attempts a fresh INSERT, which then collides with the row that already exists
+ * (parlay_paper_trades_fixture_side_lineage_idx, confirmed live in production: fixtures 35880,
+ * 35816, 36169, 36206 hit this exact 23505 on every recurring cycle). DUPLICATE_FIXTURE's own
+ * caller-side handling never attempts an insert at all, so checking it first is strictly safer,
+ * not just differently ordered. A genuinely new (never-before-seen) fixture that has already
+ * started is unaffected: duplicateExists is false for it, so it falls through to the unchanged
+ * MATCH_ALREADY_STARTED check exactly as before.
  */
 export function checkPaperTradeEligibility(input: EligibilityCheckInput): EligibilityResult {
   const { fixture, now } = input;
@@ -85,6 +99,10 @@ export function checkPaperTradeEligibility(input: EligibilityCheckInput): Eligib
     return { eligible: false, reason: "SCHEDULED_TIME_MISSING", detail: "Provider has not confirmed a real per-fixture start time yet." };
   }
 
+  if (input.duplicateExists) {
+    return { eligible: false, reason: "DUPLICATE_FIXTURE", detail: "A paper trade already exists for this fixture under the current Builder lineage." };
+  }
+
   if (now.getTime() >= fixture.scheduledStart.getTime()) {
     return { eligible: false, reason: "MATCH_ALREADY_STARTED", detail: "Scheduled start is at or before the current time; no new decision may be generated for a started match." };
   }
@@ -95,10 +113,6 @@ export function checkPaperTradeEligibility(input: EligibilityCheckInput): Eligib
 
   if (fixture.player1Id === fixture.player2Id) {
     return { eligible: false, reason: "PLAYER_IDENTITY_UNRESOLVED", detail: "Fixture lists the same player id for both sides -- corrupt fixture data." };
-  }
-
-  if (input.duplicateExists) {
-    return { eligible: false, reason: "DUPLICATE_FIXTURE", detail: "A paper trade already exists for this fixture under the current Builder lineage." };
   }
 
   const decisionCutoffAt = new Date(fixture.scheduledStart.getTime() - decisionLeadMinutes * 60_000);
