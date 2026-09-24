@@ -84,3 +84,17 @@ mtime_ms = 1790264220012
 storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/f63917d0-2cfe-4dd3-b1fd-cea5680a62ba/f1e4bd25-da21-4dc4-94e2-a5515d86eb74"
 storage_version_token = "1790264226117141"
 content_type = "text/plain"
+
+[[outputs]]
+id = "siimNJTD-MI28rm28CZ6R"
+uri = "file://.local/outputs/cohort-verification/live-api-restart-20260924.txt"
+type = "text"
+title = "API restart and natural scheduler logs"
+description = "Complete captured API workflow output from restart through the matched-cohort natural tick and PE startup cycle (87 KB). Includes provider rate-limit warnings."
+logical_id = "b889fd47-729c-43e1-9da3-d3b1e6d3c035"
+content_hash = "sha256:94b49db7c15bc55983c8bf4756656ddd8ad81d9b31a077b716b8db8c3719ba39"
+size = 87222
+mtime_ms = 1790265468500
+storage_uri = "gcs://replit-rams-assets-reed/rams/assets/repl:4a9cb790-9567-448c-9b41-69926a8d688e/b889fd47-729c-43e1-9da3-d3b1e6d3c035/c9afe8b6-45ed-4537-9a7c-2b468bfaeb15"
+storage_version_token = "1790265472660501"
+content_type = "text/plain"
