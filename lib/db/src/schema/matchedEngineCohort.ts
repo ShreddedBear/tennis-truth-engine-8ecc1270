@@ -2,6 +2,7 @@ import { pgTable, serial, text, integer, real, boolean, timestamp, uniqueIndex, 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { evaluationPredictionsTable } from "./evaluation";
+import { historicalMatchesTable } from "./historicalMatches";
 
 /**
  * Prospective, leak-proof comparison layer between the Prediction Engine's and the Parlay
@@ -39,11 +40,15 @@ import { evaluationPredictionsTable } from "./evaluation";
  *   - PE side: an evaluation_predictions row (run_kind='paper_trade') with lockedAt IS NOT NULL
  *     AND predictedWinnerId IS NOT NULL (status 'missed' never satisfies this -- a missed cutoff
  *     means no prediction was ever generated, and none is backfilled).
- *   - Builder side: a parlay_paper_trades row with frozenAt IS NOT NULL AND
- *     builderPickedPlayerId IS NOT NULL (the immutability trigger only allows frozenAt to be set
- *     once a real decision was made; disagreement/ineligibility/data-error paths never reach
- *     frozenAt with a picked player, so this gate alone already excludes them without needing to
- *     separately re-check crossSideAgreement here).
+ *   - Builder side: a parlay_paper_trades row with frozenAt IS NOT NULL, builderPickedPlayerId IS
+ *     NOT NULL, AND status IN ('FROZEN','STARTED','COMPLETED','GRADED','VOID') -- a real
+ *     decision-bearing state. Correction (found via a real production integrity audit,
+ *     2026-09-24, fixture 35909): frozenAt/builderPickedPlayerId alone are NOT a safe eligibility
+ *     gate -- a genuine DATA_ERROR row (Builder's sibling-disagreement fail-closed path) can still
+ *     carry a non-null frozenAt and a per-side builderPickedPlayerId as a forensic record of what
+ *     each side individually computed, even though no real accepted decision exists. The status
+ *     whitelist is the authoritative "was this a genuine decision" signal; the pair's own
+ *     crossSideAgreement is still separately re-checked in the sync job as defense in depth.
  *
  * The sync job (`services/matchedCohort/syncMatchedCohort.ts`) is the only writer. It is
  * idempotent (upsert on externalFixtureId) and runs on its own schedule
@@ -111,25 +116,39 @@ export const matchedEngineCohortTable = pgTable(
     builderGradedAt: timestamp("builder_graded_at", { withTimezone: true }),
 
     // ── Canonical outcome ───────────────────────────────────────────────────────────────────
-    // Populated ONLY once both engines have independently, natively graded this fixture
-    // (peStatus IN ('graded','void') AND builderStatus IN ('GRADED','VOID')). Never re-derived
-    // from historical_matches or any other third source -- this table is never a second,
-    // competing source of truth for "what actually happened"; it only cross-checks the two
-    // engines' own already-computed results against each other.
+    // Derived independently from historical_matches -- the SAME completed-result store Builder's
+    // own native settlement (parlayPaperTrading/settlement.ts's findSettledMatch) already reads,
+    // using the SAME established technique (canonical player-ID pair, either orientation, within
+    // a scheduled-time window -- NOT fuzzy name matching, and NOT external_fixture_id equality:
+    // empirically verified 2026-09-24 that historical_matches.external_id and a live fixture's
+    // externalFixtureId are DIFFERENT Live Tennis API resource ID spaces -- "/fixtures" vs
+    // "/history/matches" -- with zero overlap in either direction across the 12 real cohort rows
+    // and 3 sampled historical_matches rows checked). This lookup is written independently in
+    // syncMatchedCohort.ts -- it does NOT call into or import parlayPaperTrading/settlement.ts --
+    // so a bug in Builder's own settlement code cannot silently propagate into the cohort's
+    // canonical result. Populated as soon as a terminal historical_matches row is found,
+    // regardless of whether either engine has graded natively yet -- NEVER derived from or gated
+    // on PE's or Builder's own actualWinnerId.
     canonicalActualWinnerId: text("canonical_actual_winner_id"),
+    /** The historical_matches row this canonical result came from -- auditability, never a giant snapshot copy. */
+    canonicalSourceHistoricalMatchId: integer("canonical_source_historical_match_id").references(() => historicalMatchesTable.id),
+    /** normal | retired | walkover | cancelled -- from historical_matches, independent of either engine's own resultType. */
+    canonicalResultType: text("canonical_result_type"),
     canonicalGradedAt: timestamp("canonical_graded_at", { withTimezone: true }),
     /**
-     * True once both sides have graded and their actualWinnerId (and cancelled/non-cancelled
-     * status) genuinely agree. False -- never left null once both sides have graded -- means the
-     * two engines' independent real-result lookups disagreed: a CANONICAL_RESULT_MISMATCH,
-     * surfaced explicitly rather than silently resolved by preferring one side.
+     * Cross-checks ONLY -- computed after the canonical result is already known, never used to
+     * establish it. True/false only once canonicalActualWinnerId is set AND that side has
+     * natively graded; null otherwise (unresolved, not "matches"). A false value is a real,
+     * surfaced integrity signal (that engine's own grading pipeline disagrees with the
+     * independently-sourced historical_matches result) -- never silently resolved.
      */
-    nativeGradingAgrees: boolean("native_grading_agrees"),
+    peNativeGradeMatchesCanonical: boolean("pe_native_grade_matches_canonical"),
+    builderNativeGradeMatchesCanonical: boolean("builder_native_grade_matches_canonical"),
 
     // ── Derived comparison booleans ─────────────────────────────────────────────────────────
     /** Set as soon as both pre-match predictions exist -- independent of any result. */
     enginesAgreedOnPick: boolean("engines_agreed_on_pick").notNull(),
-    /** Everything below is null until canonicalActualWinnerId is set (i.e. both sides graded and agreed). */
+    /** Everything below is null until canonicalActualWinnerId is set (i.e. a terminal historical_matches result was found). */
     peCorrect: boolean("pe_correct"),
     builderCorrect: boolean("builder_correct"),
     bothCorrect: boolean("both_correct"),

@@ -11,10 +11,10 @@
 // real frozen Builder decisions. This means test rows inserted into those two tables can NEVER be
 // deleted afterwards; they are left behind permanently, namespaced with a TEST- prefix (mirroring
 // parlayPaperTrading/statisticsBoundary.test.ts's established "NOT LIKE 'TEST-%'" exclusion
-// convention) so they're identifiable and harmless. Only evaluation_predictions and
-// matched_engine_cohort (neither of which has such a trigger) are actually deleted in cleanup --
-// and matched_engine_cohort must be deleted BEFORE evaluation_predictions, since its
-// peEvaluationPredictionId column is a real foreign key.
+// convention) so they're identifiable and harmless. evaluation_predictions, historical_matches, and
+// matched_engine_cohort (none of which have such a trigger) are actually deleted in cleanup -- and
+// matched_engine_cohort must be deleted BEFORE evaluation_predictions/historical_matches, since its
+// peEvaluationPredictionId and canonicalSourceHistoricalMatchId columns are real foreign keys.
 //
 // See syncMatchedCohort.boundary.test.ts for the separate static leakage-firewall proof (neither
 // engine may ever import/reference this layer, and this layer may never touch live scoring).
@@ -26,10 +26,12 @@ import {
   evaluationPredictionsTable,
   parlayPaperTradesTable,
   parlayPaperTradePairsTable,
+  historicalMatchesTable,
   matchedEngineCohortTable,
   type InsertEvaluationPrediction,
   type InsertParlayPaperTrade,
   type InsertParlayPaperTradePair,
+  type InsertHistoricalMatch,
 } from "@workspace/db";
 import { syncMatchedCohort } from "./syncMatchedCohort";
 
@@ -114,13 +116,42 @@ async function insertTrades(rows: InsertParlayPaperTrade[]): Promise<number[]> {
   return inserted.map((r) => r.id);
 }
 
-async function cleanupAll(fixtureIds: string[], peIds: number[]) {
-  // matched_engine_cohort MUST be deleted first -- peEvaluationPredictionId is a real foreign key
-  // into evaluation_predictions, so deleting the PE row first would violate that constraint.
+/**
+ * A terminal (winner known, or cancelled/walkover) historical_matches row, independent of the
+ * PE/Builder rows for the same real fixture -- this is the canonical-result source under test.
+ * scheduledStartAt defaults inside the sync job's ±24h matching window of the standard
+ * 2026-02-01T12:00:00Z fixture time used throughout this file's other helpers.
+ */
+function historicalMatchRow(
+  overrides: Partial<InsertHistoricalMatch> & { player1Id: string; player2Id: string },
+): InsertHistoricalMatch {
+  const scheduledStartAt = overrides.scheduledStartAt ?? new Date("2026-02-01T12:00:00Z");
+  return {
+    externalId: `${RUN_TAG}-hm-${Math.random().toString(36).slice(2)}`,
+    provider: "Live Tennis API",
+    player1Name: "HM Player One",
+    player2Name: "HM Player Two",
+    scheduledStartAt,
+    cutoffMinutes: 30,
+    cutoffAt: new Date(scheduledStartAt.getTime() - 30 * 60_000),
+    rawSource: {},
+    ...overrides,
+  } satisfies InsertHistoricalMatch;
+}
+async function insertHistoricalMatches(rows: InsertHistoricalMatch[]): Promise<number[]> {
+  const inserted = await db.insert(historicalMatchesTable).values(rows).returning({ id: historicalMatchesTable.id });
+  return inserted.map((r) => r.id);
+}
+
+async function cleanupAll(fixtureIds: string[], peIds: number[], historicalMatchIds: number[] = []) {
+  // matched_engine_cohort MUST be deleted first -- peEvaluationPredictionId and
+  // canonicalSourceHistoricalMatchId are both real foreign keys, so deleting either referenced
+  // row first would violate a constraint.
   if (fixtureIds.length) {
     await db.delete(matchedEngineCohortTable).where(inArray(matchedEngineCohortTable.externalFixtureId, fixtureIds));
   }
   if (peIds.length) await db.delete(evaluationPredictionsTable).where(inArray(evaluationPredictionsTable.id, peIds));
+  if (historicalMatchIds.length) await db.delete(historicalMatchesTable).where(inArray(historicalMatchesTable.id, historicalMatchIds));
   // parlay_paper_trades / parlay_paper_trade_pairs rows are deliberately never deleted here --
   // both are protected by a real append-only immutability trigger (see file header comment).
 }
@@ -296,75 +327,181 @@ test("10: idempotent re-sync -- running syncMatchedCohort twice never creates a 
   assert.ok(secondRow!.lastSyncedAt.getTime() >= firstRow!.lastSyncedAt.getTime(), "lastSyncedAt should advance (or stay equal) on re-sync");
 });
 
-test("11: canonical result -- both sides independently graded and agreeing produces a canonical outcome and correct derived booleans", async (t) => {
+test("11: canonical result comes from historical_matches directly, even when NEITHER engine has graded natively yet", async (t) => {
   const fixtureId = nextFixtureId();
   const p1 = `${RUN_TAG}-p1-${fixtureId}`;
   const p2 = `${RUN_TAG}-p2-${fixtureId}`;
-  const peIds = await insertPe([
-    peRow(fixtureId, {
-      status: "graded", predictedWinnerId: p1, calibratedProbability: 70,
-      actualWinnerId: p1, resultType: "normal", gradedAt: new Date("2026-02-01T15:00:00Z"),
-    }),
-  ]);
+  const peIds = await insertPe([peRow(fixtureId, { status: "pending", predictedWinnerId: p1, calibratedProbability: 70 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([
-    builderTrade(fixtureId, "PLAYER_1", { status: "GRADED", actualWinnerId: p1, resultType: "normal", gradedAt: new Date("2026-02-01T15:05:00Z") }),
-    builderTrade(fixtureId, "PLAYER_2", { status: "GRADED", actualWinnerId: p1, resultType: "normal", gradedAt: new Date("2026-02-01T15:05:00Z"), builderPickedPlayerId: p1 }),
+    builderTrade(fixtureId, "PLAYER_1", { status: "STARTED" }),
+    builderTrade(fixtureId, "PLAYER_2", { status: "STARTED" }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds));
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
-  assert.equal(row!.nativeGradingAgrees, true);
-  assert.equal(row!.canonicalActualWinnerId, p1);
+  assert.equal(row!.canonicalActualWinnerId, p1, "canonical winner must come from historical_matches, not from either engine's own (absent) native grade");
+  assert.equal(row!.canonicalSourceHistoricalMatchId, hmIds[0]);
+  assert.equal(row!.canonicalResultType, "normal");
   assert.equal(row!.peCorrect, true);
   assert.equal(row!.builderCorrect, true);
-  assert.equal(row!.bothCorrect, true);
-  assert.equal(row!.bothWrong, false);
+  assert.equal(row!.peNativeGradeMatchesCanonical, null, "PE hasn't graded natively yet -- the cross-check must stay unresolved, not false");
+  assert.equal(row!.builderNativeGradeMatchesCanonical, null, "Builder hasn't graded natively yet -- the cross-check must stay unresolved, not false");
 });
 
-test("12: CANONICAL_RESULT_MISMATCH -- both sides graded but disagree on the winner leaves canonicalActualWinnerId null and flags nativeGradingAgrees=false, never silently resolved", async (t) => {
+test("12: PE's own native grade is NOT used to establish the canonical winner -- historical_matches wins when they disagree", async (t) => {
   const fixtureId = nextFixtureId();
   const p1 = `${RUN_TAG}-p1-${fixtureId}`;
   const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  // PE natively graded this as a win for p1 -- but the independent result source says p2 won.
   const peIds = await insertPe([
-    peRow(fixtureId, { status: "graded", predictedWinnerId: p1, calibratedProbability: 55, actualWinnerId: p1, resultType: "normal" }),
-  ]);
-  const pairIds = await insertPair([builderPair(fixtureId)]);
-  const tradeIds = await insertTrades([
-    // Builder's independent lookup disagrees on who actually won.
-    builderTrade(fixtureId, "PLAYER_1", { status: "GRADED", actualWinnerId: p2, resultType: "normal" }),
-    builderTrade(fixtureId, "PLAYER_2", { status: "GRADED", actualWinnerId: p2, resultType: "normal", builderPickedPlayerId: p1 }),
-  ]);
-  t.after(() => cleanupAll([fixtureId], peIds));
-
-  await syncMatchedCohort();
-  const row = await cohortRow(fixtureId);
-  assert.equal(row!.nativeGradingAgrees, false, "disagreeing native results must be flagged, not hidden");
-  assert.equal(row!.canonicalActualWinnerId, null, "a disagreement must never fabricate a canonical winner by preferring one side");
-  assert.equal(row!.peCorrect, null, "correctness must stay unresolved when there is no agreed canonical result");
-});
-
-test("13: only one side graded so far -- canonical outcome stays null/unresolved rather than being inferred from partial information", async (t) => {
-  const fixtureId = nextFixtureId();
-  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
-  const peIds = await insertPe([
-    peRow(fixtureId, { status: "graded", predictedWinnerId: p1, calibratedProbability: 55, actualWinnerId: p1, resultType: "normal" }),
+    peRow(fixtureId, { status: "graded", predictedWinnerId: p1, calibratedProbability: 70, actualWinnerId: p1, resultType: "normal" }),
   ]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([
     builderTrade(fixtureId, "PLAYER_1", { status: "STARTED" }),
     builderTrade(fixtureId, "PLAYER_2", { status: "STARTED" }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds));
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
-  assert.equal(row!.nativeGradingAgrees, null, "must not compute agreement until BOTH sides have graded");
-  assert.equal(row!.canonicalActualWinnerId, null);
+  assert.equal(row!.canonicalActualWinnerId, p2, "the independent historical_matches result must win, not PE's own already-written actualWinnerId");
+  assert.equal(row!.peCorrect, false, "PE's canonical correctness is now false, since it predicted p1 but the real canonical winner is p2");
+  assert.equal(row!.peNativeGradeMatchesCanonical, false, "PE's own native grade (p1) disagrees with the canonical result (p2) -- must be surfaced, not hidden");
 });
 
-test("14: historical firewall -- a non-'paper_trade' PE row (e.g. historical_test) sharing the same externalFixtureId as a real Builder fixture is never matched", async (t) => {
+test("13: Builder's own native grade is NOT used to establish the canonical winner -- historical_matches wins when they disagree", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { status: "pending", predictedWinnerId: p2, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  // Builder natively graded this as a win for p1 -- but the independent result source says p2 won.
+  const tradeIds = await insertTrades([
+    builderTrade(fixtureId, "PLAYER_1", { status: "GRADED", actualWinnerId: p1, resultType: "normal" }),
+    builderTrade(fixtureId, "PLAYER_2", { status: "GRADED", actualWinnerId: p1, resultType: "normal", builderPickedPlayerId: p1 }),
+  ]);
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, p2, "the independent historical_matches result must win, not Builder's own already-written actualWinnerId");
+  assert.equal(row!.builderCorrect, false, "Builder's canonical correctness is now false, since it picked p1 but the real canonical winner is p2");
+  assert.equal(row!.builderNativeGradeMatchesCanonical, false, "Builder's own native grade (p1) disagrees with the canonical result (p2) -- must be surfaced, not hidden");
+});
+
+test("14: the canonical winner grades both engines independently -- both-correct case", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 70 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.bothCorrect, true);
+  assert.equal(row!.bothWrong, false);
+  assert.equal(row!.onlyPeCorrect, false);
+  assert.equal(row!.onlyBuilderCorrect, false);
+});
+
+test("15: a native-grade mismatch is detectable on both sides simultaneously, independent of each other", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([
+    peRow(fixtureId, { status: "graded", predictedWinnerId: p1, calibratedProbability: 55, actualWinnerId: p1, resultType: "normal" }),
+  ]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([
+    builderTrade(fixtureId, "PLAYER_1", { status: "GRADED", actualWinnerId: p1, resultType: "normal" }),
+    builderTrade(fixtureId, "PLAYER_2", { status: "GRADED", actualWinnerId: p1, resultType: "normal", builderPickedPlayerId: p1 }),
+  ]);
+  // Both engines' native grading agrees with EACH OTHER (both say p1) -- but the independent
+  // canonical source says p2 actually won. Under the old (corrected) design this would have been
+  // silently accepted as "agreement"; it must now be caught by BOTH cross-check flags.
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, p2);
+  assert.equal(row!.peNativeGradeMatchesCanonical, false);
+  assert.equal(row!.builderNativeGradeMatchesCanonical, false);
+  assert.equal(row!.bothWrong, true, "both engines predicted p1 pre-match, and the real canonical winner is p2");
+});
+
+test("16: cohort can still grade when one native grading pipeline lags -- PE graded, Builder still in-progress", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([
+    peRow(fixtureId, { status: "graded", predictedWinnerId: p1, calibratedProbability: 65, actualWinnerId: p1, resultType: "normal" }),
+  ]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([
+    builderTrade(fixtureId, "PLAYER_1", { status: "STARTED" }),
+    builderTrade(fixtureId, "PLAYER_2", { status: "STARTED" }),
+  ]);
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, p1, "the canonical result must resolve from historical_matches regardless of Builder's own grading lag");
+  assert.equal(row!.peCorrect, true);
+  assert.equal(row!.builderCorrect, true, "builderCorrect is graded from the canonical result even though Builder itself has not natively graded yet");
+  assert.equal(row!.peNativeGradeMatchesCanonical, true);
+  assert.equal(row!.builderNativeGradeMatchesCanonical, null, "Builder hasn't graded natively (still STARTED) -- its cross-check must stay unresolved, not false");
+});
+
+test("17: a non-terminal historical_matches row (no winner, not cancelled/walkover) cannot grade the cohort", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  const hmIds = await insertHistoricalMatches([
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: null, cancelled: false, walkover: false }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, null, "a non-terminal historical_matches row must never grade the cohort");
+  assert.equal(row!.canonicalSourceHistoricalMatchId, null);
+  assert.equal(row!.peCorrect, null);
+});
+
+test("18: result identity must match the exact fixture -- a same-player-pair historical_matches row OUTSIDE the scheduled-time window is not picked as canonical", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  // Same two players met once before, 90 days earlier -- well outside the +/-24h matching window
+  // around this fixture's own 2026-02-01T12:00:00Z scheduled start.
+  const hmIds = await insertHistoricalMatches([
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2, scheduledStartAt: new Date("2025-11-03T12:00:00Z") }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, null, "a prior meeting between the same two players outside the time window must never be mistaken for this fixture's result");
+});
+
+test("19: historical firewall -- a non-'paper_trade' PE row (e.g. historical_test) sharing the same externalFixtureId as a real Builder fixture is never matched", async (t) => {
   const fixtureId = nextFixtureId();
   const peIds = await insertPe([peRow(fixtureId, { runKind: "historical_test", predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
@@ -376,7 +513,7 @@ test("14: historical firewall -- a non-'paper_trade' PE row (e.g. historical_tes
   assert.equal(row, null, "only run_kind='paper_trade' PE rows may ever feed the matched cohort -- never historical_test/shadow reconstruction");
 });
 
-test("15: ambiguous PE rows for the same fixture (should never happen given evaluation_predictions' own unique index, but defensively) are skipped rather than picking one arbitrarily", async (t) => {
+test("20: ambiguous PE rows for the same fixture (should never happen given evaluation_predictions' own unique index, but defensively) are skipped rather than picking one arbitrarily", async (t) => {
   const fixtureId = nextFixtureId();
   const p1a = `${RUN_TAG}-p1a-${fixtureId}`;
   const p1b = `${RUN_TAG}-p1b-${fixtureId}`;
@@ -394,7 +531,27 @@ test("15: ambiguous PE rows for the same fixture (should never happen given eval
   assert.ok(summary.skipped.some((s) => s.includes(fixtureId)), "the ambiguity must be surfaced in the sync summary");
 });
 
-test("16: PE and Builder eligible-population counts in the sync summary reflect this run's inserted rows", async (t) => {
+test("21: a Builder DATA_ERROR row (real sibling-disagreement, e.g. fixture 35909's shape) is excluded by the eligibility status whitelist even though frozenAt/builderPickedPlayerId are both non-null", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  // Mirrors real production fixture 35909: both sibling rows are DATA_ERROR/MODEL_DISAGREEMENT,
+  // each with frozenAt set and its OWN builderPickedPlayerId (each side picked itself) as a
+  // forensic record -- the pair's crossSideAgreement is false.
+  const pairIds = await insertPair([builderPair(fixtureId, { crossSideAgreement: false, crossSideDisagreementReason: "MODEL_DISAGREEMENT" })]);
+  const tradeIds = await insertTrades([
+    builderTrade(fixtureId, "PLAYER_1", { status: "DATA_ERROR", noDecisionReason: "MODEL_DISAGREEMENT", decision: "BORDERLINE", builderPickedPlayerId: p1 }),
+    builderTrade(fixtureId, "PLAYER_2", { status: "DATA_ERROR", noDecisionReason: "MODEL_DISAGREEMENT", decision: "BORDERLINE", builderPickedPlayerId: p2 }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row, null, "a DATA_ERROR pair must never enter the cohort even though frozenAt and builderPickedPlayerId are both populated");
+});
+
+test("22: PE and Builder eligible-population counts in the sync summary reflect this run's inserted rows", async (t) => {
   const fixtureId = nextFixtureId();
   const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);

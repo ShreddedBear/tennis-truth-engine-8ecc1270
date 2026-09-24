@@ -1204,8 +1204,11 @@ const STATEMENTS: string[] = [
     builder_result_type                      TEXT,
     builder_graded_at                        TIMESTAMPTZ,
     canonical_actual_winner_id               TEXT,
+    canonical_source_historical_match_id     INTEGER REFERENCES historical_matches(id),
+    canonical_result_type                    TEXT,
     canonical_graded_at                      TIMESTAMPTZ,
-    native_grading_agrees                    BOOLEAN,
+    pe_native_grade_matches_canonical        BOOLEAN,
+    builder_native_grade_matches_canonical   BOOLEAN,
     engines_agreed_on_pick                   BOOLEAN NOT NULL,
     pe_correct                               BOOLEAN,
     builder_correct                          BOOLEAN,
@@ -1220,6 +1223,20 @@ const STATEMENTS: string[] = [
   `CREATE UNIQUE INDEX IF NOT EXISTS matched_engine_cohort_fixture_idx ON matched_engine_cohort (external_fixture_id)`,
   `CREATE INDEX IF NOT EXISTS matched_engine_cohort_canonical_graded_idx ON matched_engine_cohort (canonical_graded_at)`,
   `CREATE INDEX IF NOT EXISTS matched_engine_cohort_pe_prediction_idx ON matched_engine_cohort (pe_evaluation_prediction_id)`,
+
+  // Correction (2026-09-24): canonical grading was found to be deriving actualWinnerId by
+  // cross-checking PE's and Builder's own already-graded native results against each other --
+  // meaning the comparison layer depended on the very two grading systems it was supposed to
+  // audit. Replaced with an independently-sourced canonical result read directly from
+  // historical_matches (see matchedEngineCohort.ts's doc comment for the full design and the
+  // empirical ID-space investigation this is based on). These ALTERs correct the table already
+  // created by the first deploy of this feature; CREATE TABLE above already reflects the final
+  // shape for any future fresh deployment.
+  `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS canonical_source_historical_match_id INTEGER REFERENCES historical_matches(id)`,
+  `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS canonical_result_type TEXT`,
+  `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS pe_native_grade_matches_canonical BOOLEAN`,
+  `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS builder_native_grade_matches_canonical BOOLEAN`,
+  `ALTER TABLE matched_engine_cohort DROP COLUMN IF EXISTS native_grading_agrees`,
 ];
 
 let ensured = false;
