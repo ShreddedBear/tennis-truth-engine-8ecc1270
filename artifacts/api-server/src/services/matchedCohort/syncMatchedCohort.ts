@@ -34,6 +34,15 @@
  * downstream cross-check against this independently-sourced canonical result -- never to establish
  * it, and never required to agree before a canonical result can be recorded.
  *
+ * AMBIGUITY (hardened 2026-09-24): two players CAN plausibly meet more than once inside a broad
+ * window, and provider scheduling can drift substantially, so `findCanonicalResult` never picks
+ * "nearest in time" when more than one terminal historical_matches candidate matches the player
+ * pair. It tries deterministic tournament/surface consistency checks to narrow the set (rejecting
+ * a candidate only when a comparable field exists on both sides and genuinely disagrees -- never a
+ * missing-field guess, never fuzzy name matching); if that still leaves more than one plausible
+ * candidate, it fails closed (`canonicalResultAmbiguous=true`, no winner recorded) rather than ever
+ * guessing.
+ *
  * Idempotent: upserts on `externalFixtureId` (the proven-safe canonical join key), so re-running
  * this job never creates duplicate rows and safely picks up newly-available canonical results and
  * newly-graded native results on later syncs.
@@ -79,19 +88,43 @@ interface CanonicalResultCandidate {
   retired: boolean;
   walkover: boolean;
   scheduledStartAt: Date;
+  tournamentName: string | null;
+  surface: string | null;
+}
+
+export interface CanonicalResultLookup {
+  /** Null unless exactly one candidate survived (either immediately, or after metadata narrowing). */
+  accepted: CanonicalResultCandidate | null;
+  /** True iff more than one plausible candidate remained even after metadata narrowing. */
+  ambiguous: boolean;
+  candidateCountBeforeFilter: number;
+  candidateCountAfterFilter: number;
+}
+
+function normalizeForComparison(value: string | null): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 /**
  * Independently re-implemented (not imported) version of the player-pair + scheduled-time-window
  * lookup Builder's own `findSettledMatch` (parlayPaperTrading/settlement.ts) already uses against
- * historical_matches. Returns the terminal (winner known, cancelled, or walkover) row nearest in
- * time to `anchorScheduledStartAt`, or null if none exists in the window yet.
+ * historical_matches. Unlike that function (which always picks the single nearest-in-time row --
+ * a fine default for Builder's own settlement, where a misattribution only affects Builder's own
+ * grade), this resolver must never silently guess when the canonical result is shared by BOTH
+ * engines: see the module doc comment's AMBIGUITY section for the exact narrow-then-fail-closed
+ * algorithm. tour/round are deliberately NOT used as consistency checks -- evaluation_predictions
+ * has no `tour` column, and only Builder (not PE) stores `round`, so neither field is safely
+ * comparable against the PE-anchored metadata this function is called with.
  */
 async function findCanonicalResult(
   player1Id: string,
   player2Id: string,
   anchorScheduledStartAt: Date,
-): Promise<CanonicalResultCandidate | null> {
+  anchorTournamentName: string | null,
+  anchorSurface: string | null,
+): Promise<CanonicalResultLookup> {
   const windowStart = new Date(anchorScheduledStartAt.getTime() - CANONICAL_RESULT_WINDOW_MS);
   const windowEnd = new Date(anchorScheduledStartAt.getTime() + CANONICAL_RESULT_WINDOW_MS);
 
@@ -103,6 +136,8 @@ async function findCanonicalResult(
       retired: historicalMatchesTable.retired,
       walkover: historicalMatchesTable.walkover,
       scheduledStartAt: historicalMatchesTable.scheduledStartAt,
+      tournamentName: historicalMatchesTable.tournamentName,
+      surface: historicalMatchesTable.surface,
     })
     .from(historicalMatchesTable)
     .where(
@@ -121,14 +156,40 @@ async function findCanonicalResult(
       ),
     );
 
-  if (candidates.length === 0) return null;
+  const candidateCountBeforeFilter = candidates.length;
+  if (candidateCountBeforeFilter === 0) {
+    return { accepted: null, ambiguous: false, candidateCountBeforeFilter: 0, candidateCountAfterFilter: 0 };
+  }
+  if (candidateCountBeforeFilter === 1) {
+    return { accepted: candidates[0]!, ambiguous: false, candidateCountBeforeFilter: 1, candidateCountAfterFilter: 1 };
+  }
 
-  candidates.sort(
-    (a, b) =>
-      Math.abs(a.scheduledStartAt.getTime() - anchorScheduledStartAt.getTime()) -
-      Math.abs(b.scheduledStartAt.getTime() - anchorScheduledStartAt.getTime()),
-  );
-  return candidates[0]!;
+  // More than one plausible candidate -- narrow using deterministic metadata already available on
+  // both sides. A candidate is rejected only when the SAME field is present and normalizable on
+  // both the anchor and the candidate and they genuinely disagree; a field missing on either side
+  // is never used to reject (never a guess).
+  const anchorTournament = normalizeForComparison(anchorTournamentName);
+  const anchorSurfaceNorm = normalizeForComparison(anchorSurface);
+  const filtered = candidates.filter((c) => {
+    const candidateTournament = normalizeForComparison(c.tournamentName);
+    if (anchorTournament && candidateTournament && anchorTournament !== candidateTournament) return false;
+    const candidateSurface = normalizeForComparison(c.surface);
+    if (anchorSurfaceNorm && candidateSurface && anchorSurfaceNorm !== candidateSurface) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    // Metadata contradicted every candidate -- reject outright rather than falling back to the
+    // unfiltered set.
+    return { accepted: null, ambiguous: false, candidateCountBeforeFilter, candidateCountAfterFilter: 0 };
+  }
+  if (filtered.length === 1) {
+    return { accepted: filtered[0]!, ambiguous: false, candidateCountBeforeFilter, candidateCountAfterFilter: 1 };
+  }
+
+  // Still more than one plausible candidate after metadata narrowing -- fail closed. Never picks
+  // nearest-in-time silently.
+  return { accepted: null, ambiguous: true, candidateCountBeforeFilter, candidateCountAfterFilter: filtered.length };
 }
 
 export async function syncMatchedCohort(): Promise<MatchedCohortSyncSummary> {
@@ -234,16 +295,31 @@ export async function syncMatchedCohort(): Promise<MatchedCohortSyncSummary> {
         : 100 - peRow.calibratedProbability;
 
     // Canonical result: sourced independently from historical_matches, never from either engine's
-    // own actualWinnerId. Anchored on PE's scheduledStartAt (both sides' values are within a few
-    // hours of each other -- see the schema doc comment -- so either would work equally well).
-    const canonicalMatch = await findCanonicalResult(peRow.player1Id, peRow.player2Id, peRow.scheduledStartAt);
+    // own actualWinnerId. Anchored on PE's scheduledStartAt/tournamentName/surface (both sides'
+    // values are within a few hours of each other -- see the schema doc comment -- so either
+    // would work equally well as the anchor).
+    const canonicalLookup = await findCanonicalResult(
+      peRow.player1Id,
+      peRow.player2Id,
+      peRow.scheduledStartAt,
+      peRow.tournamentName,
+      peRow.surface,
+    );
 
     let canonicalActualWinnerId: string | null = null;
     let canonicalSourceHistoricalMatchId: number | null = null;
     let canonicalResultType: string | null = null;
     let canonicalGradedAt: Date | null = null;
+    const canonicalResultAmbiguous = canonicalLookup.ambiguous;
 
-    if (canonicalMatch) {
+    if (canonicalResultAmbiguous) {
+      summary.skipped.push(
+        `Fixture ${fixtureId}: CANONICAL_RESULT_AMBIGUOUS -- ${canonicalLookup.candidateCountAfterFilter} plausible historical_matches candidates remained after metadata narrowing (${canonicalLookup.candidateCountBeforeFilter} before) -- no canonical winner recorded`,
+      );
+    }
+
+    if (canonicalLookup.accepted) {
+      const canonicalMatch = canonicalLookup.accepted;
       canonicalSourceHistoricalMatchId = canonicalMatch.id;
       canonicalResultType = canonicalMatch.cancelled
         ? "cancelled"
@@ -326,6 +402,7 @@ export async function syncMatchedCohort(): Promise<MatchedCohortSyncSummary> {
       canonicalSourceHistoricalMatchId,
       canonicalResultType,
       canonicalGradedAt,
+      canonicalResultAmbiguous,
       peNativeGradeMatchesCanonical,
       builderNativeGradeMatchesCanonical,
 
@@ -374,6 +451,7 @@ export async function syncMatchedCohort(): Promise<MatchedCohortSyncSummary> {
           canonicalSourceHistoricalMatchId: sql`excluded.canonical_source_historical_match_id`,
           canonicalResultType: sql`excluded.canonical_result_type`,
           canonicalGradedAt: sql`excluded.canonical_graded_at`,
+          canonicalResultAmbiguous: sql`excluded.canonical_result_ambiguous`,
           peNativeGradeMatchesCanonical: sql`excluded.pe_native_grade_matches_canonical`,
           builderNativeGradeMatchesCanonical: sql`excluded.builder_native_grade_matches_canonical`,
 

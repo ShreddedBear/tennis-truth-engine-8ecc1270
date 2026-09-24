@@ -1207,6 +1207,7 @@ const STATEMENTS: string[] = [
     canonical_source_historical_match_id     INTEGER REFERENCES historical_matches(id),
     canonical_result_type                    TEXT,
     canonical_graded_at                      TIMESTAMPTZ,
+    canonical_result_ambiguous               BOOLEAN NOT NULL DEFAULT false,
     pe_native_grade_matches_canonical        BOOLEAN,
     builder_native_grade_matches_canonical   BOOLEAN,
     engines_agreed_on_pick                   BOOLEAN NOT NULL,
@@ -1237,6 +1238,12 @@ const STATEMENTS: string[] = [
   `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS pe_native_grade_matches_canonical BOOLEAN`,
   `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS builder_native_grade_matches_canonical BOOLEAN`,
   `ALTER TABLE matched_engine_cohort DROP COLUMN IF EXISTS native_grading_agrees`,
+  // Correction (2026-09-24, second pass): the historical_matches identity resolver was found to
+  // silently accept the nearest-in-time candidate when more than one plausible match existed for
+  // a player pair within the scheduled-time window. Never used in production yet (no real fixture
+  // had aged into historical_matches at the time this was found), but hardened before that could
+  // happen -- see matchedEngineCohort.ts's doc comment and syncMatchedCohort.ts's findCanonicalResult.
+  `ALTER TABLE matched_engine_cohort ADD COLUMN IF NOT EXISTS canonical_result_ambiguous BOOLEAN NOT NULL DEFAULT false`,
 ];
 
 let ensured = false;

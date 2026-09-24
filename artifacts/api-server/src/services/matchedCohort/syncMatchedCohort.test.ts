@@ -501,7 +501,153 @@ test("18: result identity must match the exact fixture -- a same-player-pair his
   assert.equal(row!.canonicalActualWinnerId, null, "a prior meeting between the same two players outside the time window must never be mistaken for this fixture's result");
 });
 
-test("19: historical firewall -- a non-'paper_trade' PE row (e.g. historical_test) sharing the same externalFixtureId as a real Builder fixture is never matched", async (t) => {
+test("19: exact player pair with exactly one valid terminal candidate is accepted as canonical", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, p1);
+  assert.equal(row!.canonicalResultAmbiguous, false);
+});
+
+test("20: reversed player orientation in historical_matches (player1/player2 swapped relative to the cohort's own player1/player2) still matches", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  // historical_matches stores this same real match with player1/player2 in the OPPOSITE order.
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: p2, player2Id: p1, winnerId: p1 })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, p1, "orientation must not matter -- the same real match is found either way");
+});
+
+test("21: zero historical_matches candidates in the window leaves the canonical result pending, not ambiguous or failed", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  t.after(() => cleanupAll([fixtureId], peIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, null);
+  assert.equal(row!.canonicalResultAmbiguous, false, "no candidates at all is 'pending', not 'ambiguous'");
+});
+
+test("22: CANONICAL_RESULT_AMBIGUOUS -- two plausible candidates with no distinguishing metadata fail closed, no winner is ever recorded", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60, tournamentName: null, surface: null })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  // Two genuinely distinct real matches between the same pair, both inside the +/-24h window,
+  // disagreeing on the winner -- and no PE-side tournament/surface to narrow with.
+  const hmIds = await insertHistoricalMatches([
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1, scheduledStartAt: new Date("2026-02-01T10:00:00Z") }),
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2, scheduledStartAt: new Date("2026-02-01T14:00:00Z") }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  const summary = await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalResultAmbiguous, true, "must be flagged ambiguous, not silently resolved by picking the nearest one");
+  assert.equal(row!.canonicalActualWinnerId, null, "an ambiguous candidate set must never populate a winner");
+  assert.equal(row!.canonicalSourceHistoricalMatchId, null);
+  assert.equal(row!.peCorrect, null, "correctness must stay unresolved -- never graded from an ambiguous candidate");
+  assert.ok(summary.skipped.some((s) => s.includes("CANONICAL_RESULT_AMBIGUOUS")), "the ambiguity must be surfaced in the sync summary");
+});
+
+test("23: a historical_matches row with completely different player IDs is never a candidate, regardless of timing", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60 })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  // Same scheduled time, but two entirely different players -- an unrelated match that happens to
+  // be a coincidental time neighbor.
+  const otherA = `${RUN_TAG}-other-a-${fixtureId}`;
+  const otherB = `${RUN_TAG}-other-b-${fixtureId}`;
+  const hmIds = await insertHistoricalMatches([historicalMatchRow({ player1Id: otherA, player2Id: otherB, winnerId: otherA })]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, null, "wrong player IDs must never contribute a candidate, even at the exact same scheduled time");
+});
+
+test("24: contradictory tournament metadata rejects an otherwise time-plausible candidate when both sides have a comparable value", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60, tournamentName: "US Open" })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  // Same player pair, same time window, but a genuinely different (and comparable) tournament name.
+  const hmIds = await insertHistoricalMatches([
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2, tournamentName: "Wimbledon" }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalActualWinnerId, null, "a contradicting tournament name on a comparable field must reject the candidate outright, not accept it anyway");
+});
+
+test("25: tournament metadata correctly narrows two same-pair, same-window candidates down to exactly one accepted result", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60, tournamentName: "US Open" })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  const hmIds = await insertHistoricalMatches([
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1, tournamentName: "US Open", scheduledStartAt: new Date("2026-02-01T10:00:00Z") }),
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2, tournamentName: "A Different Event", scheduledStartAt: new Date("2026-02-01T14:00:00Z") }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalResultAmbiguous, false, "tournament metadata should have narrowed this to a single defensible candidate");
+  assert.equal(row!.canonicalActualWinnerId, p1, "must accept the candidate whose tournament matches, not the other one");
+});
+
+test("26: a missing tournament/surface on either side never causes a false rejection -- ambiguity between two candidates is not silently resolved by a field neither side actually has", async (t) => {
+  const fixtureId = nextFixtureId();
+  const p1 = `${RUN_TAG}-p1-${fixtureId}`;
+  const p2 = `${RUN_TAG}-p2-${fixtureId}`;
+  // PE side has no tournamentName -- nothing to compare against, so metadata can never narrow this.
+  const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: p1, calibratedProbability: 60, tournamentName: null })]);
+  const pairIds = await insertPair([builderPair(fixtureId)]);
+  const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
+  const hmIds = await insertHistoricalMatches([
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p1, tournamentName: "US Open", scheduledStartAt: new Date("2026-02-01T10:00:00Z") }),
+    historicalMatchRow({ player1Id: p1, player2Id: p2, winnerId: p2, tournamentName: "Wimbledon", scheduledStartAt: new Date("2026-02-01T14:00:00Z") }),
+  ]);
+  t.after(() => cleanupAll([fixtureId], peIds, hmIds));
+
+  await syncMatchedCohort();
+  const row = await cohortRow(fixtureId);
+  assert.equal(row!.canonicalResultAmbiguous, true, "with no comparable field on the PE side, neither candidate can be rejected -- this must stay genuinely ambiguous, not guessed");
+  assert.equal(row!.canonicalActualWinnerId, null);
+});
+
+test("27: historical firewall -- a non-'paper_trade' PE row (e.g. historical_test) sharing the same externalFixtureId as a real Builder fixture is never matched", async (t) => {
   const fixtureId = nextFixtureId();
   const peIds = await insertPe([peRow(fixtureId, { runKind: "historical_test", predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
@@ -513,7 +659,7 @@ test("19: historical firewall -- a non-'paper_trade' PE row (e.g. historical_tes
   assert.equal(row, null, "only run_kind='paper_trade' PE rows may ever feed the matched cohort -- never historical_test/shadow reconstruction");
 });
 
-test("20: ambiguous PE rows for the same fixture (should never happen given evaluation_predictions' own unique index, but defensively) are skipped rather than picking one arbitrarily", async (t) => {
+test("28: ambiguous PE rows for the same fixture (should never happen given evaluation_predictions' own unique index, but defensively) are skipped rather than picking one arbitrarily", async (t) => {
   const fixtureId = nextFixtureId();
   const p1a = `${RUN_TAG}-p1a-${fixtureId}`;
   const p1b = `${RUN_TAG}-p1b-${fixtureId}`;
@@ -531,7 +677,7 @@ test("20: ambiguous PE rows for the same fixture (should never happen given eval
   assert.ok(summary.skipped.some((s) => s.includes(fixtureId)), "the ambiguity must be surfaced in the sync summary");
 });
 
-test("21: a Builder DATA_ERROR row (real sibling-disagreement, e.g. fixture 35909's shape) is excluded by the eligibility status whitelist even though frozenAt/builderPickedPlayerId are both non-null", async (t) => {
+test("29: a Builder DATA_ERROR row (real sibling-disagreement, e.g. fixture 35909's shape) is excluded by the eligibility status whitelist even though frozenAt/builderPickedPlayerId are both non-null", async (t) => {
   const fixtureId = nextFixtureId();
   const p1 = `${RUN_TAG}-p1-${fixtureId}`;
   const p2 = `${RUN_TAG}-p2-${fixtureId}`;
@@ -551,7 +697,7 @@ test("21: a Builder DATA_ERROR row (real sibling-disagreement, e.g. fixture 3590
   assert.equal(row, null, "a DATA_ERROR pair must never enter the cohort even though frozenAt and builderPickedPlayerId are both populated");
 });
 
-test("22: PE and Builder eligible-population counts in the sync summary reflect this run's inserted rows", async (t) => {
+test("30: PE and Builder eligible-population counts in the sync summary reflect this run's inserted rows", async (t) => {
   const fixtureId = nextFixtureId();
   const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);

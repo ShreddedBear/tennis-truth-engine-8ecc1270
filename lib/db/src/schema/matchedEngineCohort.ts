@@ -126,15 +126,32 @@ export const matchedEngineCohortTable = pgTable(
     // and 3 sampled historical_matches rows checked). This lookup is written independently in
     // syncMatchedCohort.ts -- it does NOT call into or import parlayPaperTrading/settlement.ts --
     // so a bug in Builder's own settlement code cannot silently propagate into the cohort's
-    // canonical result. Populated as soon as a terminal historical_matches row is found,
+    // canonical result. Populated as soon as a UNIQUE terminal historical_matches row is found,
     // regardless of whether either engine has graded natively yet -- NEVER derived from or gated
-    // on PE's or Builder's own actualWinnerId.
+    // on PE's or Builder's own actualWinnerId. AMBIGUITY (hardened 2026-09-24): a player pair can
+    // plausibly meet more than once within a broad window, so when MORE THAN ONE terminal
+    // candidate exists, the resolver first tries deterministic tournament/surface consistency
+    // checks to narrow to exactly one (rejecting a candidate only when a comparable field is
+    // present on both sides and genuinely disagrees -- never guessed, never fuzzy name matching);
+    // if that still leaves more than one plausible candidate, it fails closed
+    // (canonicalResultAmbiguous=true, canonicalActualWinnerId stays null) rather than ever
+    // silently picking the nearest-in-time one.
     canonicalActualWinnerId: text("canonical_actual_winner_id"),
     /** The historical_matches row this canonical result came from -- auditability, never a giant snapshot copy. */
     canonicalSourceHistoricalMatchId: integer("canonical_source_historical_match_id").references(() => historicalMatchesTable.id),
     /** normal | retired | walkover | cancelled -- from historical_matches, independent of either engine's own resultType. */
     canonicalResultType: text("canonical_result_type"),
     canonicalGradedAt: timestamp("canonical_graded_at", { withTimezone: true }),
+    /**
+     * True when the historical_matches identity resolver found MORE THAN ONE plausible candidate
+     * (same player-ID pair, within the scheduled-time window) that deterministic metadata
+     * (tournament/surface) could not narrow down to exactly one -- the resolver fails closed in
+     * this case rather than silently picking the nearest-in-time candidate. Never left null once
+     * ambiguity was detected; canonicalActualWinnerId stays null whenever this is true, so an
+     * ambiguous fixture is never mistaken for a genuinely still-pending one by a caller that only
+     * checks canonicalActualWinnerId.
+     */
+    canonicalResultAmbiguous: boolean("canonical_result_ambiguous").notNull().default(false),
     /**
      * Cross-checks ONLY -- computed after the canonical result is already known, never used to
      * establish it. True/false only once canonicalActualWinnerId is set AND that side has
