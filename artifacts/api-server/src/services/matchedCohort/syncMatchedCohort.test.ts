@@ -2,8 +2,19 @@
 // throwaway rows (externalFixtureId/player ids namespaced to this test run) inserted directly into
 // evaluation_predictions / parlay_paper_trades / parlay_paper_trade_pairs, then asserts on the
 // resulting matched_engine_cohort row(s) -- never asserting on exact counts against the shared
-// production tables, only on rows this run itself created (see .agents/memory/test-isolation-
-// against-live-tables.md, same convention predictionStats.test.ts already follows).
+// production tables, only on rows this run itself created (same convention predictionStats.test.ts
+// already follows).
+//
+// IMPORTANT: parlay_paper_trades and parlay_paper_trade_pairs are each protected by a real
+// production DB trigger (parlay_paper_trades_immutable / parlay_paper_trade_pairs_immutable) that
+// rejects ANY update or delete once a row exists -- the same append-only guarantee that protects
+// real frozen Builder decisions. This means test rows inserted into those two tables can NEVER be
+// deleted afterwards; they are left behind permanently, namespaced with a TEST- prefix (mirroring
+// parlayPaperTrading/statisticsBoundary.test.ts's established "NOT LIKE 'TEST-%'" exclusion
+// convention) so they're identifiable and harmless. Only evaluation_predictions and
+// matched_engine_cohort (neither of which has such a trigger) are actually deleted in cleanup --
+// and matched_engine_cohort must be deleted BEFORE evaluation_predictions, since its
+// peEvaluationPredictionId column is a real foreign key.
 //
 // See syncMatchedCohort.boundary.test.ts for the separate static leakage-firewall proof (neither
 // engine may ever import/reference this layer, and this layer may never touch live scoring).
@@ -22,7 +33,7 @@ import {
 } from "@workspace/db";
 import { syncMatchedCohort } from "./syncMatchedCohort";
 
-const RUN_TAG = `matched-cohort-test-${Date.now()}`;
+const RUN_TAG = `TEST-matched-cohort-${Date.now()}`;
 let fixtureCounter = 0;
 function nextFixtureId(): string {
   fixtureCounter += 1;
@@ -103,13 +114,15 @@ async function insertTrades(rows: InsertParlayPaperTrade[]): Promise<number[]> {
   return inserted.map((r) => r.id);
 }
 
-async function cleanupAll(fixtureIds: string[], peIds: number[], pairIds: number[], tradeIds: number[]) {
-  if (tradeIds.length) await db.delete(parlayPaperTradesTable).where(inArray(parlayPaperTradesTable.id, tradeIds));
-  if (pairIds.length) await db.delete(parlayPaperTradePairsTable).where(inArray(parlayPaperTradePairsTable.id, pairIds));
-  if (peIds.length) await db.delete(evaluationPredictionsTable).where(inArray(evaluationPredictionsTable.id, peIds));
+async function cleanupAll(fixtureIds: string[], peIds: number[]) {
+  // matched_engine_cohort MUST be deleted first -- peEvaluationPredictionId is a real foreign key
+  // into evaluation_predictions, so deleting the PE row first would violate that constraint.
   if (fixtureIds.length) {
     await db.delete(matchedEngineCohortTable).where(inArray(matchedEngineCohortTable.externalFixtureId, fixtureIds));
   }
+  if (peIds.length) await db.delete(evaluationPredictionsTable).where(inArray(evaluationPredictionsTable.id, peIds));
+  // parlay_paper_trades / parlay_paper_trade_pairs rows are deliberately never deleted here --
+  // both are protected by a real append-only immutability trigger (see file header comment).
 }
 
 async function cohortRow(fixtureId: string) {
@@ -125,7 +138,7 @@ test("1: both sides eligible pre-match -> exactly one matched_engine_cohort row 
     builderTrade(fixtureId, "PLAYER_1"),
     builderTrade(fixtureId, "PLAYER_2"),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -139,7 +152,7 @@ test("2: PE 'missed' status (no real prediction) never matches even if the Build
   const peIds = await insertPe([peRow(fixtureId, { status: "missed", predictedWinnerId: null, calibratedProbability: null })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -150,7 +163,7 @@ test("3: Builder-only fixture (no PE row exists) never matches", async (t) => {
   const fixtureId = nextFixtureId();
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
-  t.after(() => cleanupAll([fixtureId], [], pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], []));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -160,7 +173,7 @@ test("3: Builder-only fixture (no PE row exists) never matches", async (t) => {
 test("4: PE-only fixture (no Builder decision exists) never matches", async (t) => {
   const fixtureId = nextFixtureId();
   const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
-  t.after(() => cleanupAll([fixtureId], peIds, [], []));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -175,7 +188,7 @@ test("5: Builder rows that never froze (frozenAt null, e.g. NO_DECISION) never m
     builderTrade(fixtureId, "PLAYER_1", { status: "NO_DECISION", noDecisionReason: "TIE_BOUNDARY", frozenAt: null, builderPickedPlayerId: null }),
     builderTrade(fixtureId, "PLAYER_2", { status: "NO_DECISION", noDecisionReason: "TIE_BOUNDARY", frozenAt: null, builderPickedPlayerId: null }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -190,7 +203,7 @@ test("6: membership does NOT depend on the match result -- both sides pre-match/
     builderTrade(fixtureId, "PLAYER_1", { status: "FROZEN" }),
     builderTrade(fixtureId, "PLAYER_2", { status: "FROZEN" }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -209,7 +222,7 @@ test("7: membership does NOT depend on whether the two engines agreed -- a disag
     builderTrade(fixtureId, "PLAYER_1", { builderPickedPlayerId: p2 }),
     builderTrade(fixtureId, "PLAYER_2", { builderPickedPlayerId: p2, builderCalibratedProbability: 58 }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -236,8 +249,8 @@ test("8: PE calibratedProbability is reprojected to be pick-relative, not left p
 
   t.after(() => {
     return Promise.all([
-      cleanupAll([fixtureA], peIdsA, pairIdsA, tradeIdsA),
-      cleanupAll([fixtureB], peIdsB, pairIdsB, tradeIdsB),
+      cleanupAll([fixtureA], peIdsA),
+      cleanupAll([fixtureB], peIdsB),
     ]);
   });
 
@@ -257,7 +270,7 @@ test("9: Builder's picked-relative probability is read from the sibling row whos
     builderTrade(fixtureId, "PLAYER_1", { builderPickedPlayerId: p1, builderCalibratedProbability: 81 }),
     builderTrade(fixtureId, "PLAYER_2", { builderPickedPlayerId: p1, builderCalibratedProbability: 19 }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -269,7 +282,7 @@ test("10: idempotent re-sync -- running syncMatchedCohort twice never creates a 
   const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const firstRow = await cohortRow(fixtureId);
@@ -298,7 +311,7 @@ test("11: canonical result -- both sides independently graded and agreeing produ
     builderTrade(fixtureId, "PLAYER_1", { status: "GRADED", actualWinnerId: p1, resultType: "normal", gradedAt: new Date("2026-02-01T15:05:00Z") }),
     builderTrade(fixtureId, "PLAYER_2", { status: "GRADED", actualWinnerId: p1, resultType: "normal", gradedAt: new Date("2026-02-01T15:05:00Z"), builderPickedPlayerId: p1 }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -323,7 +336,7 @@ test("12: CANONICAL_RESULT_MISMATCH -- both sides graded but disagree on the win
     builderTrade(fixtureId, "PLAYER_1", { status: "GRADED", actualWinnerId: p2, resultType: "normal" }),
     builderTrade(fixtureId, "PLAYER_2", { status: "GRADED", actualWinnerId: p2, resultType: "normal", builderPickedPlayerId: p1 }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -343,7 +356,7 @@ test("13: only one side graded so far -- canonical outcome stays null/unresolved
     builderTrade(fixtureId, "PLAYER_1", { status: "STARTED" }),
     builderTrade(fixtureId, "PLAYER_2", { status: "STARTED" }),
   ]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -356,7 +369,7 @@ test("14: historical firewall -- a non-'paper_trade' PE row (e.g. historical_tes
   const peIds = await insertPe([peRow(fixtureId, { runKind: "historical_test", predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -373,7 +386,7 @@ test("15: ambiguous PE rows for the same fixture (should never happen given eval
   ]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   const summary = await syncMatchedCohort();
   const row = await cohortRow(fixtureId);
@@ -386,7 +399,7 @@ test("16: PE and Builder eligible-population counts in the sync summary reflect 
   const peIds = await insertPe([peRow(fixtureId, { predictedWinnerId: `${RUN_TAG}-p1-${fixtureId}`, calibratedProbability: 60 })]);
   const pairIds = await insertPair([builderPair(fixtureId)]);
   const tradeIds = await insertTrades([builderTrade(fixtureId, "PLAYER_1"), builderTrade(fixtureId, "PLAYER_2")]);
-  t.after(() => cleanupAll([fixtureId], peIds, pairIds, tradeIds));
+  t.after(() => cleanupAll([fixtureId], peIds));
 
   const summary = await syncMatchedCohort();
   assert.ok(summary.peEligibleCount >= 1, "eligible PE population must include this run's row");
