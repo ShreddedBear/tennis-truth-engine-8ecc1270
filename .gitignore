@@ -57,3 +57,6 @@ Thumbs.db
 
 # Claude Code agent-isolation worktrees (scratch, never part of the project)
 .claude/worktrees/
+
+# Temporary read-only PE diagnostic; remove this rule after the script is deleted.
+/artifacts/api-server/src/scripts/peDiscoveryAudit.ts
