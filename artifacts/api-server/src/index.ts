@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runPaperTradingJob } from "./jobs/runPaperTradingJob";
-import { runHistoricalBackfillJob } from "./jobs/runHistoricalBackfillJob";
+import { startHistoricalBackfillScheduler } from "./jobs/historicalBackfillScheduler";
 import { runDegradedPredictionRecomputeJob } from "./jobs/runDegradedPredictionRecomputeJob";
 import { runCalibrationRefitJob } from "./jobs/runCalibrationRefitJob";
 import { startParlayPaperTradingScheduler } from "./jobs/parlayPaperTradingScheduler";
@@ -135,35 +135,14 @@ async function bootstrap(): Promise<void> {
   // re-ran the CLI backfill with new dates, and silently stopped doing that over a year ago.
   // `runHistoricalBackfillJob` is self-advancing (always picks up from wherever the table already
   // reaches) and has its own standalone entry (`src/jobs/runHistoricalBackfillJob.ts`, intended
-  // for a once-daily Replit Scheduled Deployment running `job:historical-backfill`, same cadence
-  // as calibration-refit). Mirroring the paper-trading job's in-process fallback (see its comment
-  // above for the full rationale): firing it here too means the record keeps advancing today even
-  // before that Scheduled Deployment is configured, at the cost of pausing across a server
-  // restart -- an acceptable tradeoff given the alternative is silently going stale again.
-  const HISTORICAL_BACKFILL_INTERVAL_MS = 24 * 60 * 60_000;
-  let historicalBackfillInFlight = false;
-
-  function triggerHistoricalBackfillCycle(): void {
-    if (historicalBackfillInFlight) {
-      logger.warn("Skipping historical-backfill cycle tick: previous cycle is still running");
-      return;
-    }
-    historicalBackfillInFlight = true;
-    runHistoricalBackfillJob()
-      .catch((err) => {
-        // runHistoricalBackfillJob already records failures to job_runs; this catch only guards
-        // against a truly unexpected throw escaping that, so it can never crash the server process.
-        logger.error({ err }, "Historical-backfill cycle threw unexpectedly outside its own error handling");
-      })
-      .finally(() => {
-        historicalBackfillInFlight = false;
-      });
-  }
-
-  setInterval(triggerHistoricalBackfillCycle, HISTORICAL_BACKFILL_INTERVAL_MS);
-  // Fire once shortly after startup too, offset from the paper-trading/calibration startup
-  // triggers so they don't all hit the provider at once.
-  setTimeout(triggerHistoricalBackfillCycle, 20_000);
+  // for a Replit Scheduled Deployment). Mirroring the paper-trading job's in-process fallback (see
+  // its comment above for the full rationale): firing it here too means the record keeps advancing
+  // today even before that Scheduled Deployment is configured, at the cost of pausing across a
+  // server restart -- an acceptable tradeoff given the alternative is silently going stale again.
+  // Cadence (30 minutes, not the previous 24 hours) and the overlap guard live in
+  // `historicalBackfillScheduler.ts` -- see that file's own doc comment for the full result-
+  // ingestion cadence audit this hardening was based on.
+  startHistoricalBackfillScheduler();
 
   const DEGRADED_RECOMPUTE_INTERVAL_MS = 6 * 60 * 60_000;
   let degradedRecomputeInFlight = false;
