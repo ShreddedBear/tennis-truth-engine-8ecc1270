@@ -29,6 +29,8 @@
  */
 import { logger } from "../lib/logger.js";
 import { runHistoricalBackfillJob } from "./runHistoricalBackfillJob.js";
+import { isExternalSchedulingMode } from "./backgroundJobMode.js";
+import type { JobTriggerType } from "./jobTriggerType.js";
 
 export const HISTORICAL_BACKFILL_INTERVAL_MS = 30 * 60_000;
 const INITIAL_DELAY_MS = 20_000;
@@ -39,18 +41,22 @@ const INITIAL_DELAY_MS = 20_000;
  * as a factory, not a module-level singleton, so tests can construct independent instances with
  * independent in-flight state, and so a fake `runJob` can be injected instead of hitting the real
  * provider/database.
+ *
+ * The returned trigger takes the triggerType PER CALL so the SAME in-flight flag is shared between
+ * the startup setTimeout and the steady-state setInterval -- see parlayPaperTradingScheduler.ts's
+ * identical note for why two separately-constructed triggers would silently reopen the overlap.
  */
 export function createHistoricalBackfillCycleTrigger(
-  runJob: () => Promise<{ ok: boolean }> = runHistoricalBackfillJob,
-): () => void {
+  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runHistoricalBackfillJob,
+): (triggerType: JobTriggerType) => void {
   let inFlight = false;
-  return function triggerHistoricalBackfillCycle(): void {
+  return function triggerHistoricalBackfillCycle(triggerType: JobTriggerType): void {
     if (inFlight) {
       logger.warn("Skipping historical-backfill cycle tick: previous cycle is still running");
       return;
     }
     inFlight = true;
-    runJob()
+    runJob(triggerType)
       .catch((err) => {
         // runHistoricalBackfillJob already records failures to job_runs; this catch only guards
         // against a truly unexpected throw escaping that, so it can never crash the server process.
@@ -63,24 +69,32 @@ export function createHistoricalBackfillCycleTrigger(
 }
 
 export interface HistoricalBackfillSchedulerHandle {
-  intervalHandle: ReturnType<typeof setInterval>;
-  initialTimeoutHandle: ReturnType<typeof setTimeout>;
+  intervalHandle: ReturnType<typeof setInterval> | null;
+  initialTimeoutHandle: ReturnType<typeof setTimeout> | null;
 }
 
 /**
  * Called exactly once from index.ts's bootstrap(), which itself only runs once per process start
  * (app.listen's callback fires once) -- the same non-multiplying guarantee every other in-process
  * scheduler in this file already relies on; no additional guard invented here. Unlike the Builder
- * paper-trading scheduler, this job has no enable/disable flag -- it has run unconditionally since
- * Task #144, and this change doesn't introduce one.
+ * paper-trading scheduler, this job has no enable/disable flag of its own -- it has run
+ * unconditionally since Task #144 -- but it DOES honor the shared BACKGROUND_JOB_MODE
+ * double-scheduling firewall (see backgroundJobMode.ts): once external scheduling is enabled, this
+ * timer must never register at all.
  */
 export function startHistoricalBackfillScheduler(
-  runJob: () => Promise<{ ok: boolean }> = runHistoricalBackfillJob,
+  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runHistoricalBackfillJob,
+  env: NodeJS.ProcessEnv = process.env,
 ): HistoricalBackfillSchedulerHandle {
+  if (isExternalSchedulingMode(env)) {
+    logger.info("Historical-backfill scheduler: DISABLED (BACKGROUND_JOB_MODE=external)");
+    return { intervalHandle: null, initialTimeoutHandle: null };
+  }
+
   const trigger = createHistoricalBackfillCycleTrigger(runJob);
-  const intervalHandle = setInterval(trigger, HISTORICAL_BACKFILL_INTERVAL_MS);
+  const intervalHandle = setInterval(() => trigger("interval"), HISTORICAL_BACKFILL_INTERVAL_MS);
   // Fire once shortly after startup too, offset from the paper-trading/calibration startup
   // triggers so they don't all hit the provider at once -- unchanged from before this hardening.
-  const initialTimeoutHandle = setTimeout(trigger, INITIAL_DELAY_MS);
+  const initialTimeoutHandle = setTimeout(() => trigger("startup"), INITIAL_DELAY_MS);
   return { intervalHandle, initialTimeoutHandle };
 }

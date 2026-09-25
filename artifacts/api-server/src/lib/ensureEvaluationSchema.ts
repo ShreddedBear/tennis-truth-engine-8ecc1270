@@ -139,6 +139,11 @@ const STATEMENTS: string[] = [
   )
   `,
   `ALTER TABLE job_runs ALTER COLUMN finished_at DROP NOT NULL`,
+  // Observability for the background-job uptime-independence work: distinguishes an in-process
+  // scheduler's startup/interval fire from an external-scheduler (Replit Scheduled Deployment or
+  // equivalent) invocation of the same job's standalone CLI entry, rather than inferring it after
+  // the fact from timing. See jobs/jobTriggerType.ts.
+  `ALTER TABLE job_runs ADD COLUMN IF NOT EXISTS trigger_type TEXT`,
   `
   CREATE TABLE IF NOT EXISTS candidate_configs (
     id SERIAL PRIMARY KEY,

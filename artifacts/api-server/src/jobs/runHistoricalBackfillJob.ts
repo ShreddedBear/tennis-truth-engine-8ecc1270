@@ -37,6 +37,7 @@ import { getTennisDataProvider } from "../services/tennisData";
 import { runIncrementalHistoricalBackfill, type IncrementalBackfillResult } from "../services/historicalData/backfill";
 import { logger } from "../lib/logger";
 import { HISTORICAL_BACKFILL_JOB_NAME } from "./historicalBackfillJobName";
+import type { JobTriggerType } from "./jobTriggerType";
 
 export { HISTORICAL_BACKFILL_JOB_NAME };
 
@@ -65,7 +66,7 @@ async function runWithRetry(): Promise<{ attempts: number; result: IncrementalBa
   return { attempts: MAX_ATTEMPTS, error: lastError };
 }
 
-export async function runHistoricalBackfillJob(): Promise<{ ok: boolean }> {
+export async function runHistoricalBackfillJob(triggerType: JobTriggerType = "unknown"): Promise<{ ok: boolean }> {
   const startedAt = new Date();
   const outcome = await runWithRetry();
   const finishedAt = new Date();
@@ -79,6 +80,7 @@ export async function runHistoricalBackfillJob(): Promise<{ ok: boolean }> {
       attempts: outcome.attempts,
       summary: outcome.result,
       errorMessage: null,
+      triggerType,
     });
     logger.info({ ...outcome.result, attempts: outcome.attempts }, "Historical-backfill cycle completed");
     return { ok: true };
@@ -93,6 +95,7 @@ export async function runHistoricalBackfillJob(): Promise<{ ok: boolean }> {
     attempts: outcome.attempts,
     summary: null,
     errorMessage,
+    triggerType,
   });
   logger.error({ err: outcome.error, attempts: outcome.attempts }, "Historical-backfill cycle failed after exhausting retries");
   return { ok: false };
@@ -103,7 +106,7 @@ export async function runHistoricalBackfillJob(): Promise<{ ok: boolean }> {
 // incident (API server crashing ~10s after every startup) that comparison caused once this file's
 // code ended up bundled into both `dist/index.mjs` and its own standalone entry point.
 if (process.env["HISTORICAL_BACKFILL_JOB_STANDALONE"] === "1") {
-  runHistoricalBackfillJob()
+  runHistoricalBackfillJob("external_schedule")
     .then(({ ok }) => process.exit(ok ? 0 : 1))
     .catch((err) => {
       logger.error({ err }, "Unhandled error running historical-backfill job");

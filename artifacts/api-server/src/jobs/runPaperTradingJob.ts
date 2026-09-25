@@ -56,6 +56,7 @@ import {
 import { getTennisDataProvider } from "../services/tennisData";
 import { logger } from "../lib/logger";
 import { PAPER_TRADING_JOB_NAME } from "./paperTradingJobName";
+import type { JobTriggerType } from "./jobTriggerType";
 
 export { PAPER_TRADING_JOB_NAME };
 
@@ -147,7 +148,7 @@ async function runWithRetry(): Promise<
   return { attempts: MAX_ATTEMPTS, error: lastError };
 }
 
-export async function runPaperTradingJob(): Promise<{ ok: boolean }> {
+export async function runPaperTradingJob(triggerType: JobTriggerType = "unknown"): Promise<{ ok: boolean }> {
   const startedAt = new Date();
   const outcome = await runWithRetry();
   const finishedAt = new Date();
@@ -161,6 +162,7 @@ export async function runPaperTradingJob(): Promise<{ ok: boolean }> {
       attempts: outcome.attempts,
       summary: outcome.summary,
       errorMessage: null,
+      triggerType,
     });
     logger.info(
       {
@@ -184,6 +186,7 @@ export async function runPaperTradingJob(): Promise<{ ok: boolean }> {
     attempts: outcome.attempts,
     summary: null,
     errorMessage,
+    triggerType,
   });
   logger.error({ err: outcome.error, attempts: outcome.attempts }, "Paper-trading cycle failed after exhausting retries");
   return { ok: false };
@@ -200,7 +203,7 @@ export async function runPaperTradingJob(): Promise<{ ok: boolean }> {
 // An explicit env var set only by the standalone CLI scripts (`job:paper-trading` /
 // `job:paper-trading:dev`) is immune to that bundling collision.
 if (process.env["PAPER_TRADING_JOB_STANDALONE"] === "1") {
-  runPaperTradingJob()
+  runPaperTradingJob("external_schedule")
     .then(({ ok }) => process.exit(ok ? 0 : 1))
     .catch((err) => {
       logger.error({ err }, "Unhandled error running paper-trading job");

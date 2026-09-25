@@ -5,6 +5,7 @@ import {
   createMatchedCohortSyncCycleTrigger,
   startMatchedCohortSyncScheduler,
 } from "./matchedCohortSyncScheduler.js";
+import type { JobTriggerType } from "./jobTriggerType.js";
 
 describe("MATCHED_COHORT_SYNC_INTERVAL_MS", () => {
   it("is configured to 30 minutes", () => {
@@ -22,8 +23,24 @@ describe("createMatchedCohortSyncCycleTrigger", () => {
       return { ok: true };
     };
     const trigger = createMatchedCohortSyncCycleTrigger(runJob);
-    trigger();
-    trigger(); // second tick while the first is still awaiting -- must be a same-process no-op
+    trigger("interval");
+    trigger("interval"); // second tick while the first is still awaiting -- must be a same-process no-op
+    assert.equal(callCount, 1);
+    resolveFirst!();
+    await new Promise((r) => setImmediate(r));
+  });
+
+  it("in-flight guard is shared between startup and interval calls -- a startup fire in progress blocks an interval fire, not just another startup fire", async () => {
+    let callCount = 0;
+    let resolveFirst: (() => void) | null = null;
+    const runJob = async () => {
+      callCount++;
+      await new Promise<void>((resolve) => { resolveFirst = resolve; });
+      return { ok: true };
+    };
+    const trigger = createMatchedCohortSyncCycleTrigger(runJob);
+    trigger("startup");
+    trigger("interval");
     assert.equal(callCount, 1);
     resolveFirst!();
     await new Promise((r) => setImmediate(r));
@@ -36,10 +53,10 @@ describe("createMatchedCohortSyncCycleTrigger", () => {
       return { ok: true };
     };
     const trigger = createMatchedCohortSyncCycleTrigger(runJob);
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
     assert.equal(callCount, 2);
@@ -53,10 +70,10 @@ describe("createMatchedCohortSyncCycleTrigger", () => {
       return { ok: true };
     };
     const trigger = createMatchedCohortSyncCycleTrigger(runJob);
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
     assert.equal(call, 2);
@@ -69,24 +86,45 @@ describe("createMatchedCohortSyncCycleTrigger", () => {
       return { ok: false };
     };
     const trigger = createMatchedCohortSyncCycleTrigger(runJob);
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     assert.equal(call, 2);
+  });
+
+  it("passes the exact triggerType given to trigger() through to runJob, unmodified", async () => {
+    const seen: JobTriggerType[] = [];
+    const runJob = async (triggerType: JobTriggerType) => {
+      seen.push(triggerType);
+      return { ok: true };
+    };
+    const trigger = createMatchedCohortSyncCycleTrigger(runJob);
+    trigger("startup");
+    await new Promise((r) => setImmediate(r));
+    trigger("interval");
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(seen, ["startup", "interval"]);
   });
 });
 
 describe("startMatchedCohortSyncScheduler", () => {
   it("registers exactly one interval and one initial timeout at the configured cadence (never multiplies)", () => {
     const runJob = async () => ({ ok: true });
-    const handle = startMatchedCohortSyncScheduler(runJob);
+    const handle = startMatchedCohortSyncScheduler(runJob, {});
     try {
       assert.ok(handle.intervalHandle != null);
       assert.ok(handle.initialTimeoutHandle != null);
     } finally {
-      clearInterval(handle.intervalHandle);
-      clearTimeout(handle.initialTimeoutHandle);
+      if (handle.intervalHandle) clearInterval(handle.intervalHandle);
+      if (handle.initialTimeoutHandle) clearTimeout(handle.initialTimeoutHandle);
     }
+  });
+
+  it("registers no timers at all when BACKGROUND_JOB_MODE=external -- the double-scheduling firewall", () => {
+    const runJob = async () => ({ ok: true });
+    const handle = startMatchedCohortSyncScheduler(runJob, { BACKGROUND_JOB_MODE: "external" });
+    assert.equal(handle.intervalHandle, null);
+    assert.equal(handle.initialTimeoutHandle, null);
   });
 });

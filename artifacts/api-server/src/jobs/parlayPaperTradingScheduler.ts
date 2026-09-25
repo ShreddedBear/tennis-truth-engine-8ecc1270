@@ -28,6 +28,8 @@ import { pool } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import { runParlayPaperTradingJob, resolveSourceCommit } from "./runParlayPaperTradingJob.js";
 import { runWithAdvisoryLock } from "./advisoryLock.js";
+import { isExternalSchedulingMode } from "./backgroundJobMode.js";
+import type { JobTriggerType } from "./jobTriggerType.js";
 
 /**
  * Fixed, arbitrary bigint reserved exclusively for the Builder paper-trading cycle's
@@ -44,8 +46,8 @@ export function isParlayPaperTradingSchedulerEnabled(env: NodeJS.ProcessEnv = pr
 }
 
 /** Real DB-backed run, used by the actual server. Not itself unit-tested against a live DB -- the lock semantics it delegates to (runWithAdvisoryLock) are, and this is a thin, direct wire-up. */
-export async function runParlayPaperTradingCycleWithLock(sourceCommit: string) {
-  return runWithAdvisoryLock(pool, PARLAY_PAPER_TRADING_ADVISORY_LOCK_KEY, () => runParlayPaperTradingJob(sourceCommit));
+export async function runParlayPaperTradingCycleWithLock(sourceCommit: string, triggerType: JobTriggerType) {
+  return runWithAdvisoryLock(pool, PARLAY_PAPER_TRADING_ADVISORY_LOCK_KEY, () => runParlayPaperTradingJob(sourceCommit, triggerType));
 }
 
 /**
@@ -53,19 +55,24 @@ export async function runParlayPaperTradingCycleWithLock(sourceCommit: string) {
  * attempting the DB round-trip when this same process is already mid-cycle) wrapping the
  * DB-backed advisory-lock guard (cross-instance). Exported as a factory, not a module-level
  * singleton, so tests can construct independent instances with independent in-flight state.
+ *
+ * Returns a function that takes the triggerType PER CALL (rather than baking one triggerType into
+ * the closure) so the SAME in-flight flag is shared between the startup setTimeout and the
+ * steady-state setInterval -- using two separately-constructed triggers here would give each its
+ * own independent inFlight flag, silently reopening the exact overlap this guard exists to close.
  */
 export function createParlayPaperTradingCycleTrigger(
   sourceCommit: string,
-  runWithLock: (sourceCommit: string) => ReturnType<typeof runParlayPaperTradingCycleWithLock> = runParlayPaperTradingCycleWithLock,
-): () => void {
+  runWithLock: (sourceCommit: string, triggerType: JobTriggerType) => ReturnType<typeof runParlayPaperTradingCycleWithLock> = runParlayPaperTradingCycleWithLock,
+): (triggerType: JobTriggerType) => void {
   let inFlight = false;
-  return function triggerParlayPaperTradingCycle(): void {
+  return function triggerParlayPaperTradingCycle(triggerType: JobTriggerType): void {
     if (inFlight) {
       logger.warn("Skipping Builder paper-trading cycle tick: previous cycle is still running in this process");
       return;
     }
     inFlight = true;
-    runWithLock(sourceCommit)
+    runWithLock(sourceCommit, triggerType)
       .then((outcome) => {
         if (outcome.kind === "lock_skipped") {
           logger.info("Builder paper-trading cycle: advisory lock held by another instance, skipped cleanly");
@@ -101,16 +108,24 @@ export function startParlayPaperTradingScheduler(
     logger.info("Builder paper trading scheduler: DISABLED");
     return { enabled: false, intervalHandle: null, initialTimeoutHandle: null };
   }
+  // Double-scheduling firewall: once BACKGROUND_JOB_MODE=external is set (an external scheduler
+  // now invokes runParlayPaperTradingJob's own standalone CLI entry on its own cadence), this
+  // in-process timer must never register at all -- not merely skip running -- so there is no
+  // in-process trigger left to race the external one. See backgroundJobMode.ts.
+  if (isExternalSchedulingMode(env)) {
+    logger.info("Builder paper trading scheduler: DISABLED (BACKGROUND_JOB_MODE=external)");
+    return { enabled: false, intervalHandle: null, initialTimeoutHandle: null };
+  }
 
   const sourceCommit = resolveSourceCommit();
   logger.info({ cadence: "15m", sourceCommit }, "Builder paper trading scheduler: ENABLED cadence=15m");
   const trigger = createParlayPaperTradingCycleTrigger(sourceCommit);
 
-  const intervalHandle = setInterval(trigger, PARLAY_PAPER_TRADING_SCHEDULER_INTERVAL_MS);
+  const intervalHandle = setInterval(() => trigger("interval"), PARLAY_PAPER_TRADING_SCHEDULER_INTERVAL_MS);
   // Fire once shortly after startup rather than waiting a full interval, so a server restart
   // doesn't add up to 15 minutes of extra silent gap on top of its own downtime -- identical
   // reasoning to the Prediction Engine's own scheduler.
-  const initialTimeoutHandle = setTimeout(trigger, INITIAL_DELAY_MS);
+  const initialTimeoutHandle = setTimeout(() => trigger("startup"), INITIAL_DELAY_MS);
 
   return { enabled: true, intervalHandle, initialTimeoutHandle };
 }

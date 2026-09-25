@@ -30,6 +30,8 @@
     "job:historical-backfill": "export HISTORICAL_BACKFILL_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runHistoricalBackfillJob.mjs",
     "job:degraded-recompute": "export DEGRADED_PREDICTION_RECOMPUTE_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runDegradedPredictionRecomputeJob.mjs",
     "job:historical-backfill:dev": "export HISTORICAL_BACKFILL_JOB_STANDALONE=1 && tsx src/jobs/runHistoricalBackfillJob.ts",
+    "job:matched-cohort-sync": "export MATCHED_COHORT_SYNC_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runMatchedCohortSyncJob.mjs",
+    "job:matched-cohort-sync:dev": "export MATCHED_COHORT_SYNC_JOB_STANDALONE=1 && tsx src/jobs/runMatchedCohortSyncJob.ts",
     "run:stage1-2": "tsx scripts/runStage1And2.ts"
   },
   "dependencies": {

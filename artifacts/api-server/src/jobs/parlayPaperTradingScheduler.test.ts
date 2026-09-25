@@ -5,6 +5,7 @@ import {
   createParlayPaperTradingCycleTrigger,
   startParlayPaperTradingScheduler,
 } from "./parlayPaperTradingScheduler.js";
+import type { JobTriggerType } from "./jobTriggerType.js";
 
 describe("isParlayPaperTradingSchedulerEnabled", () => {
   it("defaults to disabled when unset", () => {
@@ -32,8 +33,24 @@ describe("createParlayPaperTradingCycleTrigger", () => {
       return { kind: "ran" as const, result: { ok: true } };
     };
     const trigger = createParlayPaperTradingCycleTrigger("test-sha", runWithLock as any);
-    trigger();
-    trigger(); // second tick while the first is still awaiting -- must be a same-process no-op
+    trigger("interval");
+    trigger("interval"); // second tick while the first is still awaiting -- must be a same-process no-op
+    assert.equal(callCount, 1);
+    resolveFirst!();
+    await new Promise((r) => setImmediate(r));
+  });
+
+  it("in-flight guard is shared between startup and interval calls -- a startup fire in progress blocks an interval fire, not just another startup fire", async () => {
+    let callCount = 0;
+    let resolveFirst: (() => void) | null = null;
+    const runWithLock = async (_sourceCommit: string) => {
+      callCount++;
+      await new Promise<void>((resolve) => { resolveFirst = resolve; });
+      return { kind: "ran" as const, result: { ok: true } };
+    };
+    const trigger = createParlayPaperTradingCycleTrigger("test-sha", runWithLock as any);
+    trigger("startup");
+    trigger("interval");
     assert.equal(callCount, 1);
     resolveFirst!();
     await new Promise((r) => setImmediate(r));
@@ -46,10 +63,10 @@ describe("createParlayPaperTradingCycleTrigger", () => {
       return { kind: "ran" as const, result: { ok: true } };
     };
     const trigger = createParlayPaperTradingCycleTrigger("test-sha", runWithLock as any);
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
     assert.equal(callCount, 2);
@@ -61,7 +78,7 @@ describe("createParlayPaperTradingCycleTrigger", () => {
       "test-sha",
       async () => { secondCalled = true; return { kind: "lock_skipped" as const }; },
     );
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     assert.equal(secondCalled, true);
   });
@@ -74,19 +91,43 @@ describe("createParlayPaperTradingCycleTrigger", () => {
       return { kind: "ran" as const, result: { ok: true } };
     };
     const trigger = createParlayPaperTradingCycleTrigger("test-sha", runWithLock as any);
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
-    trigger();
+    trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
     assert.equal(call, 2);
+  });
+
+  it("passes the exact triggerType given to trigger() through to runWithLock, unmodified", async () => {
+    const seen: JobTriggerType[] = [];
+    const runWithLock = async (_sourceCommit: string, triggerType: JobTriggerType) => {
+      seen.push(triggerType);
+      return { kind: "ran" as const, result: { ok: true } };
+    };
+    const trigger = createParlayPaperTradingCycleTrigger("test-sha", runWithLock as any);
+    trigger("startup");
+    await new Promise((r) => setImmediate(r));
+    trigger("interval");
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(seen, ["startup", "interval"]);
   });
 });
 
 describe("startParlayPaperTradingScheduler", () => {
   it("7: scheduler disabled => zero runs -- no interval, no initial timeout, nothing scheduled", () => {
     const handle = startParlayPaperTradingScheduler({});
+    assert.equal(handle.enabled, false);
+    assert.equal(handle.intervalHandle, null);
+    assert.equal(handle.initialTimeoutHandle, null);
+  });
+
+  it("registers no timers when BACKGROUND_JOB_MODE=external even if the scheduler is otherwise enabled -- the double-scheduling firewall", () => {
+    const handle = startParlayPaperTradingScheduler({
+      ENABLE_PARLAY_BUILDER_PAPER_TRADING_SCHEDULER: "true",
+      BACKGROUND_JOB_MODE: "external",
+    });
     assert.equal(handle.enabled, false);
     assert.equal(handle.intervalHandle, null);
     assert.equal(handle.initialTimeoutHandle, null);

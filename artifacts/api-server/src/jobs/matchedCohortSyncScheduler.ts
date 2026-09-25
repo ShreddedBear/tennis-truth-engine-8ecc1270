@@ -12,6 +12,8 @@
  */
 import { logger } from "../lib/logger.js";
 import { runMatchedCohortSyncJob } from "./runMatchedCohortSyncJob.js";
+import { isExternalSchedulingMode } from "./backgroundJobMode.js";
+import type { JobTriggerType } from "./jobTriggerType.js";
 
 export const MATCHED_COHORT_SYNC_INTERVAL_MS = 30 * 60_000;
 const INITIAL_DELAY_MS = 40_000;
@@ -21,18 +23,22 @@ const INITIAL_DELAY_MS = 40_000;
  * while the previous cycle is still running is skipped, never queued or run concurrently. Exported
  * as a factory (not a module-level singleton) so tests can construct independent instances with
  * independent in-flight state and inject a fake `runJob`.
+ *
+ * The returned trigger takes the triggerType PER CALL so the SAME in-flight flag is shared between
+ * the startup setTimeout and the steady-state setInterval -- see parlayPaperTradingScheduler.ts's
+ * identical note for why two separately-constructed triggers would silently reopen the overlap.
  */
 export function createMatchedCohortSyncCycleTrigger(
-  runJob: () => Promise<{ ok: boolean }> = runMatchedCohortSyncJob,
-): () => void {
+  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runMatchedCohortSyncJob,
+): (triggerType: JobTriggerType) => void {
   let inFlight = false;
-  return function triggerMatchedCohortSyncCycle(): void {
+  return function triggerMatchedCohortSyncCycle(triggerType: JobTriggerType): void {
     if (inFlight) {
       logger.warn("Skipping matched-cohort sync cycle tick: previous cycle is still running");
       return;
     }
     inFlight = true;
-    runJob()
+    runJob(triggerType)
       .catch((err) => {
         // runMatchedCohortSyncJob already records failures to job_runs; this catch only guards
         // against a truly unexpected throw escaping that, so it can never crash the server process.
@@ -45,21 +51,29 @@ export function createMatchedCohortSyncCycleTrigger(
 }
 
 export interface MatchedCohortSyncSchedulerHandle {
-  intervalHandle: ReturnType<typeof setInterval>;
-  initialTimeoutHandle: ReturnType<typeof setTimeout>;
+  intervalHandle: ReturnType<typeof setInterval> | null;
+  initialTimeoutHandle: ReturnType<typeof setTimeout> | null;
 }
 
 /**
  * Called exactly once from index.ts's bootstrap(), which itself only runs once per process start
  * -- the same non-multiplying guarantee every other in-process scheduler in this file relies on.
+ * Honors the shared BACKGROUND_JOB_MODE double-scheduling firewall (backgroundJobMode.ts): once
+ * external scheduling is enabled, this timer must never register at all.
  */
 export function startMatchedCohortSyncScheduler(
-  runJob: () => Promise<{ ok: boolean }> = runMatchedCohortSyncJob,
+  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runMatchedCohortSyncJob,
+  env: NodeJS.ProcessEnv = process.env,
 ): MatchedCohortSyncSchedulerHandle {
+  if (isExternalSchedulingMode(env)) {
+    logger.info("Matched-cohort sync scheduler: DISABLED (BACKGROUND_JOB_MODE=external)");
+    return { intervalHandle: null, initialTimeoutHandle: null };
+  }
+
   const trigger = createMatchedCohortSyncCycleTrigger(runJob);
-  const intervalHandle = setInterval(trigger, MATCHED_COHORT_SYNC_INTERVAL_MS);
+  const intervalHandle = setInterval(() => trigger("interval"), MATCHED_COHORT_SYNC_INTERVAL_MS);
   // Offset from the paper-trading/calibration-refit/historical-backfill startup triggers so they
   // don't all hit the database at once on a cold start.
-  const initialTimeoutHandle = setTimeout(trigger, INITIAL_DELAY_MS);
+  const initialTimeoutHandle = setTimeout(() => trigger("startup"), INITIAL_DELAY_MS);
   return { intervalHandle, initialTimeoutHandle };
 }

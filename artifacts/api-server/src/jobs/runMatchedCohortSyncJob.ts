@@ -15,6 +15,7 @@ import { db, jobRunsTable } from "@workspace/db";
 import { syncMatchedCohort, type MatchedCohortSyncSummary } from "../services/matchedCohort/syncMatchedCohort";
 import { logger } from "../lib/logger";
 import { MATCHED_COHORT_SYNC_JOB_NAME } from "./matchedCohortSyncJobName";
+import type { JobTriggerType } from "./jobTriggerType";
 
 export { MATCHED_COHORT_SYNC_JOB_NAME };
 
@@ -42,7 +43,7 @@ async function runWithRetry(): Promise<{ attempts: number; result: MatchedCohort
   return { attempts: MAX_ATTEMPTS, error: lastError };
 }
 
-export async function runMatchedCohortSyncJob(): Promise<{ ok: boolean }> {
+export async function runMatchedCohortSyncJob(triggerType: JobTriggerType = "unknown"): Promise<{ ok: boolean }> {
   const startedAt = new Date();
   const outcome = await runWithRetry();
   const finishedAt = new Date();
@@ -56,6 +57,7 @@ export async function runMatchedCohortSyncJob(): Promise<{ ok: boolean }> {
       attempts: outcome.attempts,
       summary: outcome.result,
       errorMessage: null,
+      triggerType,
     });
     logger.info({ ...outcome.result, attempts: outcome.attempts }, "Matched-cohort sync cycle completed");
     return { ok: true };
@@ -70,6 +72,7 @@ export async function runMatchedCohortSyncJob(): Promise<{ ok: boolean }> {
     attempts: outcome.attempts,
     summary: null,
     errorMessage,
+    triggerType,
   });
   logger.error({ err: outcome.error, attempts: outcome.attempts }, "Matched-cohort sync cycle failed after exhausting retries");
   return { ok: false };
@@ -78,7 +81,7 @@ export async function runMatchedCohortSyncJob(): Promise<{ ok: boolean }> {
 // Guarded by an explicit env var rather than an import.meta.url/process.argv[1] comparison -- see
 // runHistoricalBackfillJob.ts / runPaperTradingJob.ts for why.
 if (process.env["MATCHED_COHORT_SYNC_JOB_STANDALONE"] === "1") {
-  runMatchedCohortSyncJob()
+  runMatchedCohortSyncJob("external_schedule")
     .then(({ ok }) => process.exit(ok ? 0 : 1))
     .catch((err) => {
       logger.error({ err }, "Unhandled error running matched-cohort sync job");

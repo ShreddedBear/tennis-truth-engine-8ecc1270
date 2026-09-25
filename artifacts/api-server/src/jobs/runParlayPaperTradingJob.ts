@@ -26,6 +26,7 @@ import { discoverAndDecideFixtures, type DiscoverAndDecideSummary } from "../ser
 import { markStartedFixtures, settlePendingTrades, gradeSettledTrades, type MarkStartedSummary, type SettleSummary, type GradeSummary } from "../services/parlayPaperTrading/settlement.js";
 import { logger } from "../lib/logger.js";
 import { PARLAY_PAPER_TRADING_JOB_NAME } from "./parlayPaperTradingJobName.js";
+import type { JobTriggerType } from "./jobTriggerType.js";
 
 export { PARLAY_PAPER_TRADING_JOB_NAME };
 
@@ -66,7 +67,10 @@ export async function runParlayPaperTradingCycle(sourceCommit: string): Promise<
   return { discovery, markStarted, settlement, grading };
 }
 
-export async function runParlayPaperTradingJob(sourceCommit: string): Promise<{ ok: boolean }> {
+export async function runParlayPaperTradingJob(
+  sourceCommit: string,
+  triggerType: JobTriggerType = "unknown",
+): Promise<{ ok: boolean }> {
   const startedAt = new Date();
   const summary = await runParlayPaperTradingCycle(sourceCommit);
   const finishedAt = new Date();
@@ -92,6 +96,7 @@ export async function runParlayPaperTradingJob(sourceCommit: string): Promise<{ 
           !summary.grading.ok && `grading: ${summary.grading.error}`,
         ].filter(Boolean).join("; ")}`
       : null,
+    triggerType,
   });
 
   logger.info({ summary, anyPhaseFailed }, "Parlay paper-trading cycle completed");
@@ -112,7 +117,7 @@ export function resolveSourceCommit(): string {
 // separate entry points.
 if (process.env["PARLAY_PAPER_TRADING_JOB_STANDALONE"] === "1") {
   const sourceCommit = resolveSourceCommit();
-  runParlayPaperTradingJob(sourceCommit)
+  runParlayPaperTradingJob(sourceCommit, "external_schedule")
     .then(({ ok }) => process.exit(ok ? 0 : 1))
     .catch((err) => {
       logger.error({ err }, "Unhandled error running parlay paper-trading job");

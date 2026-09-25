@@ -1,19 +1,19 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  HISTORICAL_BACKFILL_INTERVAL_MS,
-  createHistoricalBackfillCycleTrigger,
-  startHistoricalBackfillScheduler,
-} from "./historicalBackfillScheduler.js";
+  PAPER_TRADING_INTERVAL_MS,
+  createPaperTradingCycleTrigger,
+  startPaperTradingScheduler,
+} from "./paperTradingScheduler.js";
 import type { JobTriggerType } from "./jobTriggerType.js";
 
-describe("HISTORICAL_BACKFILL_INTERVAL_MS", () => {
-  it("is configured to 30 minutes (hardened down from the previous 24 hours)", () => {
-    assert.equal(HISTORICAL_BACKFILL_INTERVAL_MS, 30 * 60_000);
+describe("PAPER_TRADING_INTERVAL_MS", () => {
+  it("is configured to 15 minutes", () => {
+    assert.equal(PAPER_TRADING_INTERVAL_MS, 15 * 60_000);
   });
 });
 
-describe("createHistoricalBackfillCycleTrigger", () => {
+describe("createPaperTradingCycleTrigger", () => {
   it("in-flight guard: a tick while the first is still running never invokes runJob concurrently (no overlap)", async () => {
     let callCount = 0;
     let resolveFirst: (() => void) | null = null;
@@ -22,7 +22,7 @@ describe("createHistoricalBackfillCycleTrigger", () => {
       await new Promise<void>((resolve) => { resolveFirst = resolve; });
       return { ok: true };
     };
-    const trigger = createHistoricalBackfillCycleTrigger(runJob);
+    const trigger = createPaperTradingCycleTrigger(runJob);
     trigger("interval");
     trigger("interval"); // second tick while the first is still awaiting -- must be a same-process no-op
     assert.equal(callCount, 1);
@@ -38,9 +38,9 @@ describe("createHistoricalBackfillCycleTrigger", () => {
       await new Promise<void>((resolve) => { resolveFirst = resolve; });
       return { ok: true };
     };
-    const trigger = createHistoricalBackfillCycleTrigger(runJob);
+    const trigger = createPaperTradingCycleTrigger(runJob);
     trigger("startup");
-    trigger("interval"); // different triggerType, same shared in-flight flag -- must still be blocked
+    trigger("interval");
     assert.equal(callCount, 1);
     resolveFirst!();
     await new Promise((r) => setImmediate(r));
@@ -52,7 +52,7 @@ describe("createHistoricalBackfillCycleTrigger", () => {
       callCount++;
       return { ok: true };
     };
-    const trigger = createHistoricalBackfillCycleTrigger(runJob);
+    const trigger = createPaperTradingCycleTrigger(runJob);
     trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
@@ -69,7 +69,7 @@ describe("createHistoricalBackfillCycleTrigger", () => {
       if (call === 1) throw new Error("boom");
       return { ok: true };
     };
-    const trigger = createHistoricalBackfillCycleTrigger(runJob);
+    const trigger = createPaperTradingCycleTrigger(runJob);
     trigger("interval");
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
@@ -85,7 +85,7 @@ describe("createHistoricalBackfillCycleTrigger", () => {
       call++;
       return { ok: false };
     };
-    const trigger = createHistoricalBackfillCycleTrigger(runJob);
+    const trigger = createPaperTradingCycleTrigger(runJob);
     trigger("interval");
     await new Promise((r) => setImmediate(r));
     trigger("interval");
@@ -99,7 +99,7 @@ describe("createHistoricalBackfillCycleTrigger", () => {
       seen.push(triggerType);
       return { ok: true };
     };
-    const trigger = createHistoricalBackfillCycleTrigger(runJob);
+    const trigger = createPaperTradingCycleTrigger(runJob);
     trigger("startup");
     await new Promise((r) => setImmediate(r));
     trigger("interval");
@@ -108,10 +108,10 @@ describe("createHistoricalBackfillCycleTrigger", () => {
   });
 });
 
-describe("startHistoricalBackfillScheduler", () => {
+describe("startPaperTradingScheduler", () => {
   it("registers exactly one interval and one initial timeout at the configured cadence (never multiplies)", () => {
     const runJob = async () => ({ ok: true });
-    const handle = startHistoricalBackfillScheduler(runJob, {});
+    const handle = startPaperTradingScheduler(runJob, {});
     try {
       assert.ok(handle.intervalHandle != null);
       assert.ok(handle.initialTimeoutHandle != null);
@@ -123,7 +123,7 @@ describe("startHistoricalBackfillScheduler", () => {
 
   it("registers no timers at all when BACKGROUND_JOB_MODE=external -- the double-scheduling firewall", () => {
     const runJob = async () => ({ ok: true });
-    const handle = startHistoricalBackfillScheduler(runJob, { BACKGROUND_JOB_MODE: "external" });
+    const handle = startPaperTradingScheduler(runJob, { BACKGROUND_JOB_MODE: "external" });
     assert.equal(handle.intervalHandle, null);
     assert.equal(handle.initialTimeoutHandle, null);
   });

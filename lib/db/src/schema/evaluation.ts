@@ -404,6 +404,10 @@ export const jobRunsTable = pgTable(
     summary: jsonb("summary"),
     // Only set when status = 'failed' -- the final attempt's error message.
     errorMessage: text("error_message"),
+    // 'startup' | 'interval' | 'external_schedule' | 'manual' | 'unknown' (see jobs/jobTriggerType.ts,
+    // api-server-only -- not a DB-level enum, same convention as `status` above). Nullable because
+    // rows written before this column existed have no recorded trigger; never backfilled.
+    triggerType: text("trigger_type"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("job_runs_job_name_started_idx").on(table.jobName, table.startedAt)],
