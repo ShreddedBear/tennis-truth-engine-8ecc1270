@@ -1,0 +1,451 @@
+LIVE PAPER TRADING — COMPLETE PRODUCTION BACKGROUND SCHEDULING
+
+Current verified code commit:
+
+3b84f809
+
+Current result:
+
+BACKGROUND SCHEDULING FAILURE
+
+The application-side safety work is already complete enough for this task:
+
+- Prediction Engine rejects post-start prediction creation.
+- Parlay Builder rejects post-start prediction creation.
+- Recent official-result storage exists separately from historical research ingestion.
+- Both engines grade only from deterministic post-match result evidence.
+- Ambiguous or missing results fail closed.
+- Prediction Engine and Parlay Builder remain independent.
+- A read-only live-paper-trading status command exists.
+- 67 focused tests passed.
+- Typecheck and build passed.
+- Working tree was clean.
+
+DO NOT change model scoring, probabilities, weights, calibration, recommendation logic,
+Builder validation, Builder risk, or KEEP/BORDERLINE/REMOVE thresholds.
+
+The remaining task is production execution reliability.
+
+==================================================
+OBJECTIVE
+==================================================
+
+Make these three production jobs run throughout the entire day even when:
+
+- the interactive Replit workspace is closed
+- the development server is asleep
+- the Autoscale web service has scaled to zero
+- I am not actively using Replit
+
+Required jobs:
+
+1. Prediction Engine live paper trading
+   cadence: every 15 minutes
+
+2. Parlay Builder live paper trading
+   cadence: every 15 minutes
+
+3. Recent official-result ingestion + grading support
+   cadence: every 5 minutes
+
+These jobs must NOT depend on web traffic.
+
+==================================================
+STEP 1 — PUBLISH CURRENT CODE
+==================================================
+
+First confirm the current branch and commit are exactly:
+
+3b84f809
+
+Confirm working tree is clean.
+
+Publish/deploy this exact code before configuring the external schedules.
+
+Do not introduce unrelated changes.
+
+Report the deployed commit SHA.
+
+==================================================
+STEP 2 — IDENTIFY THE EXACT ONE-SHOT COMMANDS
+==================================================
+
+Use the one-shot background-job entry points already implemented.
+
+For each job report the exact production command:
+
+Prediction Engine:
+COMMAND:
+EXPECTED job_runs job name:
+
+Parlay Builder:
+COMMAND:
+EXPECTED job_runs job name:
+
+Recent official results:
+COMMAND:
+EXPECTED job_runs job name:
+
+Each command must:
+
+- run one cycle
+- acquire its existing overlap/advisory lock
+- record normal job_runs observability
+- terminate when complete
+- return failure on genuine failure
+- remain idempotent
+
+Do not duplicate business logic.
+
+==================================================
+STEP 3 — CONFIGURE INDEPENDENT REPLIT SCHEDULED EXECUTION
+==================================================
+
+Create or configure independent scheduled production executions for:
+
+Prediction Engine:
+every 15 minutes
+
+Parlay Builder:
+every 15 minutes
+
+Recent official results:
+every 5 minutes
+
+Use a Replit-supported production scheduling mechanism.
+
+Do NOT use:
+
+- fake HTTP traffic
+- uptime bots
+- self-pings
+- browser polling
+- keep-alive loops
+- requests to the Autoscale web service just to wake it up
+
+If Replit requires manual user action in the interface to create Scheduled
+Deployments, STOP at that specific step and give me exact click-by-click
+instructions including:
+
+- deployment name
+- command
+- schedule
+- environment variables
+- working directory if applicable
+
+Do not pretend it has been configured if it has not.
+
+==================================================
+STEP 4 — DOUBLE-SCHEDULING SAFETY
+==================================================
+
+Do NOT set:
+
+BACKGROUND_JOB_MODE=external
+
+until the independent scheduled jobs have actually been created and verified.
+
+First prove the external schedules are running.
+
+Only after that:
+
+- set production to external scheduling mode
+- disable registration of duplicate in-process timers
+- keep all advisory/in-flight locks active
+
+There must never be a period where we accidentally disable the in-process
+fallback before the external scheduler exists.
+
+==================================================
+STEP 5 — VERIFY NATURAL EXTERNAL RUNS
+==================================================
+
+Do not manually invoke jobs as proof.
+
+Observe natural scheduled executions.
+
+Require at least:
+
+Prediction Engine:
+2 consecutive external scheduled runs
+
+Parlay Builder:
+2 consecutive external scheduled runs
+
+Recent official results:
+3 consecutive external scheduled runs
+
+For each run report:
+
+- job run ID
+- started_at
+- finished_at
+- trigger type
+- status
+- considered
+- created / locked / frozen
+- settled / graded where applicable
+- skipped reason
+- errors
+
+Verify timing intervals are consistent with:
+
+Prediction Engine ≈ 15 minutes
+Parlay Builder ≈ 15 minutes
+Recent results ≈ 5 minutes
+
+==================================================
+STEP 6 — VERIFY WEB SERVER INDEPENDENCE
+==================================================
+
+This is critical.
+
+Prove the background jobs continue to execute while the normal web/API service
+is not receiving traffic.
+
+Do not generate artificial requests to keep the web server awake.
+
+Show job_runs timestamps proving scheduled executions continued independently.
+
+==================================================
+STEP 7 — LIVE PREDICTION PROOF
+==================================================
+
+During the verification window, identify new genuine fixtures automatically
+processed by both systems.
+
+Prediction Engine:
+
+For several real matches report:
+
+- fixture ID
+- players
+- scheduled start
+- prediction lock time
+- predicted winner
+- probability
+- status
+
+Verify:
+
+lock time < scheduled start
+
+Parlay Builder:
+
+For several real matches report:
+
+- fixture ID
+- players
+- scheduled start
+- frozen time
+- Builder-selected winner
+- probability
+- decision
+
+Verify:
+
+frozen time < scheduled start
+
+Do not count missed rows as predictions simply because locked_at is populated.
+
+A genuine Prediction Engine prediction requires an actual frozen predicted
+winner/probability and appropriate live-paper-trade status.
+
+==================================================
+STEP 8 — LIVE GRADING PROOF
+==================================================
+
+Use natural completed matches only.
+
+For at least several genuine previously frozen predictions, show:
+
+MATCH
+- fixture
+- players
+- scheduled start
+
+OFFICIAL RESULT
+- result record ID
+- actual winner
+- result ingestion time
+
+PREDICTION ENGINE
+- predicted winner
+- pre-start lock time
+- correct / incorrect
+- grading time
+
+PARLAY BUILDER
+- predicted winner
+- pre-start frozen time
+- correct / incorrect
+- grading time
+
+Do not reconstruct predictions after the result.
+
+==================================================
+STEP 9 — RESULT INGESTION QUALITY
+==================================================
+
+The previous report identified:
+
+- 866 unconfirmed start times
+- 249 unresolved canonical aliases
+- 30 missing official winners
+- 1 result appearing terminal before its converted scheduled start
+
+Do NOT hide these.
+
+After production scheduling is verified, report how many recent-result rows fall
+into each category.
+
+The safety rule remains:
+
+uncertain start time
+→ do not grade if temporal safety cannot be proven
+
+unresolved identity
+→ remain pending
+
+missing official winner
+→ remain pending
+
+terminal result that appears before scheduled start
+→ reject/fail closed
+
+Do NOT loosen these safeguards just to increase grading counts.
+
+==================================================
+STEP 10 — PROVENANCE
+==================================================
+
+Improve live statistics so autonomous production origin is explicitly provable.
+
+Do not rely only on numeric fixture IDs.
+
+A genuine live production prediction/pair should be traceable to:
+
+- external scheduled execution
+- job run ID
+- creation timestamp
+- source commit
+- production trigger type
+
+Synthetic/test/manual/research rows must remain excluded.
+
+If this requires a small provenance-only schema field, make the smallest
+possible additive change.
+
+Do NOT modify frozen prediction values.
+
+==================================================
+STEP 11 — STATUS COMMAND
+==================================================
+
+After external scheduling is live, run the existing read-only status command.
+
+Its final production report should clearly distinguish:
+
+CERTIFIED GENUINE PRODUCTION
+
+from
+
+PROVENANCE UNVERIFIED
+
+from
+
+TEST / SYNTHETIC / RESEARCH
+
+Do not combine them.
+
+==================================================
+FINAL REPORT
+==================================================
+
+### DEPLOYMENT
+Code deployed:
+Commit:
+Published successfully:
+
+### PREDICTION ENGINE SCHEDULER
+Deployment:
+Command:
+Cadence:
+External runs observed:
+Independent of web server:
+
+### PARLAY BUILDER SCHEDULER
+Deployment:
+Command:
+Cadence:
+External runs observed:
+Independent of web server:
+
+### RECENT RESULT SCHEDULER
+Deployment:
+Command:
+Cadence:
+External runs observed:
+Independent of web server:
+
+### DOUBLE-SCHEDULING
+External mode enabled:
+In-process production timers disabled:
+Locks still active:
+
+### LIVE PREDICTIONS
+Prediction Engine genuine new predictions:
+Parlay Builder genuine new pairs:
+All created before start:
+
+### LIVE GRADING
+Prediction Engine correct:
+Prediction Engine incorrect:
+Parlay Builder correct:
+Parlay Builder incorrect:
+Still pending result:
+
+### RESULT QUALITY
+Unconfirmed start time:
+Unresolved identity:
+Missing winner:
+Temporal contradiction:
+Ambiguous:
+
+### PROVENANCE
+Certified production Prediction Engine rows:
+Certified production Parlay Builder pairs:
+Unverified:
+Synthetic/test/research excluded:
+
+### UPTIME PROOF
+Show background scheduled runs occurring independently of web traffic.
+
+### CODE
+Starting SHA:
+Ending SHA:
+Files changed:
+Tests:
+Working tree clean:
+
+### FINAL RESULT
+
+Use exactly one:
+
+SUCCESS — BOTH LIVE PAPER-TRADING SYSTEMS RUN AND GRADE INDEPENDENTLY ALL DAY
+
+CODE READY — MANUAL REPLIT SCHEDULED DEPLOYMENT SETUP REQUIRED
+
+EXTERNAL SCHEDULER NOT VERIFIED
+
+RESULT INGESTION BLOCKING LIVE GRADING
+
+PROVENANCE NOT YET CERTIFIED
+
+BACKGROUND SCHEDULING FAILURE
+
+Do not report SUCCESS until both Prediction Engine and Parlay Builder have:
+
+1. created genuine real pre-match predictions through external scheduled runs,
+2. continued running independently of the web server,
+3. naturally graded genuine completed matches correct or incorrect.
