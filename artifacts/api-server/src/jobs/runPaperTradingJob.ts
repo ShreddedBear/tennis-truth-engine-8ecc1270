@@ -42,7 +42,7 @@
  * explicit cache-flush or re-aggregation step is required after grading; the next read
  * will automatically reflect newly-graded rows.
  */
-import { db, jobRunsTable } from "@workspace/db";
+import { db, jobRunsTable, pool } from "@workspace/db";
 import { runPaperTradingCycle, type PaperTradingCycleSummary } from "../services/evaluation/paperTrading";
 import {
   gradePendingLedgerPredictionsFromBatch,
@@ -56,9 +56,13 @@ import {
 import { getTennisDataProvider } from "../services/tennisData";
 import { logger } from "../lib/logger";
 import { PAPER_TRADING_JOB_NAME } from "./paperTradingJobName";
+import { runWithAdvisoryLock, type LockPool } from "./advisoryLock.js";
 import type { JobTriggerType } from "./jobTriggerType";
 
 export { PAPER_TRADING_JOB_NAME };
+
+/** One key shared by the in-process scheduler and the standalone production command. */
+export const PAPER_TRADING_ADVISORY_LOCK_KEY = 190734864n;
 
 const MAX_ATTEMPTS = 3;
 const RETRY_BACKOFF_MS = [5_000, 30_000];
@@ -192,6 +196,14 @@ export async function runPaperTradingJob(triggerType: JobTriggerType = "unknown"
   return { ok: false };
 }
 
+export async function runPaperTradingJobWithLock(
+  triggerType: JobTriggerType,
+  lockPool: LockPool = pool,
+  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runPaperTradingJob,
+) {
+  return runWithAdvisoryLock(lockPool, PAPER_TRADING_ADVISORY_LOCK_KEY, () => runJob(triggerType));
+}
+
 // Only run when invoked directly via the standalone CLI (e.g. `pnpm run job:paper-trading`), not
 // when imported as a module. This can't be detected by comparing `import.meta.url` to
 // `process.argv[1]`: `build.mjs` bundles this file's code into TWO separate esbuild entry-point
@@ -203,8 +215,8 @@ export async function runPaperTradingJob(triggerType: JobTriggerType = "unknown"
 // An explicit env var set only by the standalone CLI scripts (`job:paper-trading` /
 // `job:paper-trading:dev`) is immune to that bundling collision.
 if (process.env["PAPER_TRADING_JOB_STANDALONE"] === "1") {
-  runPaperTradingJob("external_schedule")
-    .then(({ ok }) => process.exit(ok ? 0 : 1))
+  runPaperTradingJobWithLock("external_schedule")
+    .then((outcome) => process.exit(outcome.kind === "lock_skipped" || outcome.result.ok ? 0 : 1))
     .catch((err) => {
       logger.error({ err }, "Unhandled error running paper-trading job");
       process.exit(1);

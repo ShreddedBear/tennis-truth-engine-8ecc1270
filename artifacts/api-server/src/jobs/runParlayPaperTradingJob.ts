@@ -21,14 +21,18 @@
  * a redundant settlement lookup.)
  */
 import { execSync } from "node:child_process";
-import { db, jobRunsTable } from "@workspace/db";
+import { db, jobRunsTable, pool } from "@workspace/db";
 import { discoverAndDecideFixtures, type DiscoverAndDecideSummary } from "../services/parlayPaperTrading/discoverFixtures.js";
 import { markStartedFixtures, settlePendingTrades, gradeSettledTrades, type MarkStartedSummary, type SettleSummary, type GradeSummary } from "../services/parlayPaperTrading/settlement.js";
 import { logger } from "../lib/logger.js";
 import { PARLAY_PAPER_TRADING_JOB_NAME } from "./parlayPaperTradingJobName.js";
+import { runWithAdvisoryLock, type LockPool } from "./advisoryLock.js";
 import type { JobTriggerType } from "./jobTriggerType.js";
 
 export { PARLAY_PAPER_TRADING_JOB_NAME };
+
+/** Same key for the Builder's in-process scheduler and standalone command. */
+export const PARLAY_PAPER_TRADING_ADVISORY_LOCK_KEY = 481516234n;
 
 interface PhaseResult<T> {
   ok: boolean;
@@ -70,22 +74,24 @@ export async function runParlayPaperTradingCycle(sourceCommit: string): Promise<
 export async function runParlayPaperTradingJob(
   sourceCommit: string,
   triggerType: JobTriggerType = "unknown",
+  runCycle: (sourceCommit: string) => Promise<ParlayPaperTradingCycleSummary> = runParlayPaperTradingCycle,
+  persist: (values: typeof jobRunsTable.$inferInsert) => Promise<void> = async (values) => {
+    await db.insert(jobRunsTable).values(values);
+  },
 ): Promise<{ ok: boolean }> {
   const startedAt = new Date();
-  const summary = await runParlayPaperTradingCycle(sourceCommit);
+  const summary = await runCycle(sourceCommit);
   const finishedAt = new Date();
 
-  // The cycle as a whole is "success" as long as it completed (each phase already isolates its
-  // own failure) -- job_runs.status='failed' is reserved for a genuinely unhandled exception
-  // escaping runParlayPaperTradingCycle itself, which per-phase try/catch is designed to prevent.
-  // Individual phase failures are still fully visible in summary.<phase>.error, not swallowed.
+  // A required phase can fail without throwing because the other phases still run. Preserve
+  // partial progress in the summary, but never record that cycle as a successful job.
   const anyPhaseFailed = !summary.discovery.ok || !summary.markStarted.ok || !summary.settlement.ok || !summary.grading.ok;
 
-  await db.insert(jobRunsTable).values({
+  await persist({
     jobName: PARLAY_PAPER_TRADING_JOB_NAME,
     startedAt,
     finishedAt,
-    status: "success",
+    status: anyPhaseFailed ? "failed" : "success",
     attempts: 1,
     summary: summary as unknown as object,
     errorMessage: anyPhaseFailed
@@ -103,6 +109,15 @@ export async function runParlayPaperTradingJob(
   return { ok: !anyPhaseFailed };
 }
 
+export async function runParlayPaperTradingCycleWithLock(
+  sourceCommit: string,
+  triggerType: JobTriggerType,
+  lockPool: LockPool = pool,
+  runJob: (sourceCommit: string, triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runParlayPaperTradingJob,
+) {
+  return runWithAdvisoryLock(lockPool, PARLAY_PAPER_TRADING_ADVISORY_LOCK_KEY, () => runJob(sourceCommit, triggerType));
+}
+
 /** Real git SHA of the running checkout, best-effort -- "unknown" rather than a guessed env var when unavailable (e.g. a bundled dist/ deploy with no .git present). Exported for the in-process scheduler (parlayPaperTradingScheduler.ts), which resolves it once at server startup rather than re-shelling out on every cadence tick. */
 export function resolveSourceCommit(): string {
   try {
@@ -117,8 +132,8 @@ export function resolveSourceCommit(): string {
 // separate entry points.
 if (process.env["PARLAY_PAPER_TRADING_JOB_STANDALONE"] === "1") {
   const sourceCommit = resolveSourceCommit();
-  runParlayPaperTradingJob(sourceCommit, "external_schedule")
-    .then(({ ok }) => process.exit(ok ? 0 : 1))
+  runParlayPaperTradingCycleWithLock(sourceCommit, "external_schedule")
+    .then((outcome) => process.exit(outcome.kind === "lock_skipped" || outcome.result.ok ? 0 : 1))
     .catch((err) => {
       logger.error({ err }, "Unhandled error running parlay paper-trading job");
       process.exit(1);

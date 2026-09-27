@@ -24,30 +24,16 @@
  * -- a structurally separate trigger, separate advisory lock key, separate in-flight flag,
  * calling only the existing, untouched five-phase runParlayPaperTradingJob.
  */
-import { pool } from "@workspace/db";
 import { logger } from "../lib/logger.js";
-import { runParlayPaperTradingJob, resolveSourceCommit } from "./runParlayPaperTradingJob.js";
-import { runWithAdvisoryLock } from "./advisoryLock.js";
+import { runParlayPaperTradingCycleWithLock, resolveSourceCommit } from "./runParlayPaperTradingJob.js";
 import { isExternalSchedulingMode } from "./backgroundJobMode.js";
 import type { JobTriggerType } from "./jobTriggerType.js";
-
-/**
- * Fixed, arbitrary bigint reserved exclusively for the Builder paper-trading cycle's
- * cross-instance execution guard. Must never be reused for any other advisory lock in this
- * codebase -- pg_try_advisory_lock keys share one flat namespace per database.
- */
-export const PARLAY_PAPER_TRADING_ADVISORY_LOCK_KEY = 481516234n;
 
 export const PARLAY_PAPER_TRADING_SCHEDULER_INTERVAL_MS = 15 * 60_000;
 const INITIAL_DELAY_MS = 10_000;
 
 export function isParlayPaperTradingSchedulerEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env["ENABLE_PARLAY_BUILDER_PAPER_TRADING_SCHEDULER"] === "true";
-}
-
-/** Real DB-backed run, used by the actual server. Not itself unit-tested against a live DB -- the lock semantics it delegates to (runWithAdvisoryLock) are, and this is a thin, direct wire-up. */
-export async function runParlayPaperTradingCycleWithLock(sourceCommit: string, triggerType: JobTriggerType) {
-  return runWithAdvisoryLock(pool, PARLAY_PAPER_TRADING_ADVISORY_LOCK_KEY, () => runParlayPaperTradingJob(sourceCommit, triggerType));
 }
 
 /**

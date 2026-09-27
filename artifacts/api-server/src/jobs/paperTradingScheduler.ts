@@ -25,7 +25,7 @@
  * stalled pipeline, regardless of which process or trigger actually ran it.
  */
 import { logger } from "../lib/logger.js";
-import { runPaperTradingJob } from "./runPaperTradingJob.js";
+import { runPaperTradingJobWithLock } from "./runPaperTradingJob.js";
 import { isExternalSchedulingMode } from "./backgroundJobMode.js";
 import type { JobTriggerType } from "./jobTriggerType.js";
 
@@ -40,7 +40,7 @@ const INITIAL_DELAY_MS = 10_000;
  * identical note for why two separately-constructed triggers would silently reopen the overlap.
  */
 export function createPaperTradingCycleTrigger(
-  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runPaperTradingJob,
+  runJob: (triggerType: JobTriggerType) => Promise<unknown> = runPaperTradingJobWithLock,
 ): (triggerType: JobTriggerType) => void {
   let inFlight = false;
   return function triggerPaperTradingCycle(triggerType: JobTriggerType): void {
@@ -74,7 +74,7 @@ export interface PaperTradingSchedulerHandle {
  * register at all.
  */
 export function startPaperTradingScheduler(
-  runJob: (triggerType: JobTriggerType) => Promise<{ ok: boolean }> = runPaperTradingJob,
+  runJob: (triggerType: JobTriggerType) => Promise<unknown> = runPaperTradingJobWithLock,
   env: NodeJS.ProcessEnv = process.env,
 ): PaperTradingSchedulerHandle {
   if (isExternalSchedulingMode(env)) {
