@@ -19,11 +19,12 @@
 import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
 import { db, parlayPaperTradesTable, parlayPaperTradePairsTable, parlayPaperTradeFactorsTable, parlayPaperTradeSnapshotsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { computeBuilderScoreBothSides, type BuilderResult, type BuilderEvidenceBundle } from "../parlayBuilder/builderScoringService.js";
 import { checkPaperTradeEligibility, type EligibilityFixtureInput, type PaperTradeEligibilityReason } from "./eligibility.js";
 import { resolveLiveBuilderLineage } from "./builderLineage.js";
 import { deriveCrossSideAgreement } from "./crossSideAgreement.js";
+import { isBeforeScheduledStart } from "./settlementLogic.js";
 
 export interface PaperTradeFixtureInput extends EligibilityFixtureInput {
   fixtureProvider: string;
@@ -166,6 +167,11 @@ export async function discoverAndDecidePaperTrade(
   };
 
   if (!eligibility.eligible) {
+    // A started fixture is reported to the caller, but never receives a post-start paper-trade
+    // row (even a NO_DECISION row with a misleading post-start frozen_at timestamp).
+    if (eligibility.reason === "MATCH_ALREADY_STARTED") {
+      return { kind: "ineligible", reason: eligibility.reason, pairId: null };
+    }
     if (eligibility.reason === "DUPLICATE_FIXTURE") {
       // A row (or pair of rows) already exists for this exact (external_fixture_id,
       // evaluated_side, lineage_key) -- that IS the duplicate-protection unique index.
@@ -224,7 +230,6 @@ export async function discoverAndDecidePaperTrade(
     webResearch2: evaluation.evidence.webResearch2,
   });
 
-  const now = new Date();
   const finalStatus = finalStatusFromResults;
   const noDecisionReason = noDecisionReasonFromResults;
 
@@ -241,8 +246,21 @@ export async function discoverAndDecidePaperTrade(
   // been attempted yet) rolls back atomically -- so the persisted end state is always exactly
   // one pair, one snapshot, two trade rows, never a partial or duplicate set, even though the
   // losing side did (harmlessly, since none of it is kept) redo the evidence acquisition.
+  let blockedByMatchStart = false;
+  const matchStartDeadlineExceeded = new Error("MATCH_ALREADY_STARTED_DURING_PERSIST");
   try {
     await db.transaction(async (tx) => {
+      // Recheck against PostgreSQL's wall clock only after the full evidence/scoring work is
+      // complete. The transaction uses this same authoritative timestamp for the frozen rows,
+      // so an app-server clock skew or a slow scoring request cannot create a hindsight freeze.
+      const clock = await tx.execute(sql`select clock_timestamp() as db_now`);
+      const databaseNow = clock.rows[0]?.db_now;
+      if (!(databaseNow instanceof Date) || !isBeforeScheduledStart(fixture.scheduledStart!, databaseNow)) {
+        blockedByMatchStart = true;
+        return;
+      }
+      const now = databaseNow;
+
       await tx.insert(parlayPaperTradePairsTable).values({
         pairId,
         externalFixtureId: fixture.externalFixtureId,
@@ -304,9 +322,19 @@ export async function discoverAndDecidePaperTrade(
           });
         }
       }
+
+      // A large evidence snapshot/factor set can make persistence itself span the scheduled
+      // start. Recheck at the end of the write transaction and roll back all inserts if so.
+      const finalClock = await tx.execute(sql`select clock_timestamp() as db_now`);
+      const finalDatabaseNow = finalClock.rows[0]?.db_now;
+      if (!(finalDatabaseNow instanceof Date) || !isBeforeScheduledStart(fixture.scheduledStart!, finalDatabaseNow)) {
+        throw matchStartDeadlineExceeded;
+      }
     });
   } catch (err) {
-    if (isUniqueViolationOn(err, "parlay_paper_trade_pairs_fixture_lineage_idx")) {
+    if (err === matchStartDeadlineExceeded) {
+      blockedByMatchStart = true;
+    } else if (isUniqueViolationOn(err, "parlay_paper_trade_pairs_fixture_lineage_idx")) {
       // Lost a genuine concurrent race for this exact fixture+lineage -- the winner's
       // transaction is already fully committed. Nothing of this transaction's work survives
       // (the whole thing rolled back), which is exactly the desired outcome: never a second
@@ -314,6 +342,10 @@ export async function discoverAndDecidePaperTrade(
       return { kind: "ineligible", reason: "DUPLICATE_FIXTURE", pairId: null };
     }
     throw err;
+  }
+
+  if (blockedByMatchStart) {
+    return { kind: "ineligible", reason: "MATCH_ALREADY_STARTED", pairId: null };
   }
 
   const kind = deriveOutcomeKind(finalStatus);

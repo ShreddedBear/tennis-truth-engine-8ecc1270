@@ -45,6 +45,35 @@ describe("canonical ingestion resolver", () => {
     assert.equal(reviews.length, 0);
   });
 
+  it("labels only a pre-existing exact provider-ID mapping as provider-alias", async () => {
+    const { dependencies } = makeDependencies({
+      aliases: [{
+        provider: "Live Tennis API",
+        externalPlayerId: "1001",
+        canonicalPlayerId: "player-novak",
+      }],
+      persistAlias: async () => undefined,
+      enqueueReview: async () => undefined,
+    });
+    const resolver = createCanonicalIngestionResolver("recent-completed-results", dependencies);
+
+    const exactAlias = await resolver.resolve({
+      provider: "Live Tennis API",
+      externalPlayerId: "1001",
+      externalPlayerName: "Provider spelling does not establish identity",
+    });
+    const nameOnly = await resolver.resolve({
+      provider: "Live Tennis API",
+      externalPlayerId: "unmapped-id",
+      externalPlayerName: "Novak Djokovic",
+    });
+
+    assert.equal(exactAlias.canonicalPlayerId, "player-novak");
+    assert.equal(exactAlias.resolutionMethod, "provider-alias");
+    assert.equal(nameOnly.canonicalPlayerId, "player-novak");
+    assert.equal(nameOnly.resolutionMethod, "exact-normalized-name");
+  });
+
   it("queues ambiguous surname-plus-initial matches instead of selecting a player", async () => {
     const { dependencies, aliases, reviews } = makeDependencies();
     const resolver = createCanonicalIngestionResolver("external-csv-bridge", dependencies);

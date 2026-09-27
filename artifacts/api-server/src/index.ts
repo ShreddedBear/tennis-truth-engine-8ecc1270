@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startPaperTradingScheduler } from "./jobs/paperTradingScheduler";
 import { startHistoricalBackfillScheduler } from "./jobs/historicalBackfillScheduler";
+import { startRecentCompletedResultsScheduler } from "./jobs/recentCompletedResultsScheduler";
 import { startMatchedCohortSyncScheduler } from "./jobs/matchedCohortSyncScheduler";
 import { runDegradedPredictionRecomputeJob } from "./jobs/runDegradedPredictionRecomputeJob";
 import { runCalibrationRefitJob } from "./jobs/runCalibrationRefitJob";
@@ -100,6 +101,11 @@ async function bootstrap(): Promise<void> {
   // `historicalBackfillScheduler.ts` -- see that file's own doc comment for the full result-
   // ingestion cadence audit this hardening was based on.
   startHistoricalBackfillScheduler();
+
+  // Prompt post-match settlement uses its own result-only table and five-minute cadence. It
+  // does not extend or alter the 24-hour historical research backfill and never writes features.
+  // A configured external scheduler owns the cadence when BACKGROUND_JOB_MODE=external.
+  startRecentCompletedResultsScheduler();
 
   const DEGRADED_RECOMPUTE_INTERVAL_MS = 6 * 60 * 60_000;
   let degradedRecomputeInFlight = false;

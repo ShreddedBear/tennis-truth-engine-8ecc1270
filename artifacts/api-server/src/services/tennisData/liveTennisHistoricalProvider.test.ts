@@ -89,6 +89,8 @@ test("normalizes a completed singles match with identity, tournament, score, sur
   const fixture = normalizeLiveTennisHistoricalMatch(row());
   assert.ok(fixture);
   assert.equal(fixture.id, "20");
+  assert.equal(fixture.date, "2026-09-19");
+  assert.equal(fixture.time, "23:40");
   assert.equal(fixture.player1Id, "101");
   assert.equal(fixture.player2Id, "202");
   assert.equal(fixture.winnerId, "101");

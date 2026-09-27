@@ -1,0 +1,623 @@
+I need you to audit and fix the live paper-trading systems for BOTH the Prediction Engine and the Parlay Builder so they operate continuously throughout the entire day.
+
+The intended production behavior is:
+
+1. Discover real upcoming tennis matches throughout the day.
+2. Create a Prediction Engine prediction BEFORE each eligible match starts.
+3. Create a Parlay Builder prediction BEFORE each eligible match starts.
+4. Freeze every prediction before the scheduled match start.
+5. Never create or reconstruct a prediction after a match has already started.
+6. After the match finishes and the official result becomes available, automatically grade the frozen Prediction Engine prediction as CORRECT or INCORRECT.
+7. After the match finishes and the official result becomes available, automatically grade the frozen Parlay Builder prediction as CORRECT or INCORRECT.
+8. Continue doing this automatically all day without requiring me to open Replit, restart the server, press a button, or manually trigger a job.
+
+I want this verified and fixed end to end.
+
+==================================================
+IMPORTANT ARCHITECTURE RULE
+==================================================
+
+The Prediction Engine and Parlay Builder must remain completely independent prediction systems.
+
+They may receive the same real upcoming fixture population.
+
+They may use the same neutral provider fixture data.
+
+They may ultimately be graded against the same official match result.
+
+But they must NOT share:
+
+- predicted winner
+- probability
+- recommendation
+- validation score
+- risk score
+- factor scores
+- internal model outputs
+- decisions
+- frozen evidence
+- matched-cohort information
+
+Neither engine may see the other engine's prediction before the match.
+
+==================================================
+PART 1 — VERIFY LIVE MATCH DISCOVERY
+==================================================
+
+Inspect the actual live provider fixture population for the current day and upcoming window.
+
+For every real singles fixture, determine whether it reaches:
+
+Prediction Engine live paper trading
+
+and
+
+Parlay Builder live paper trading.
+
+Report the complete funnel for both systems:
+
+PROVIDER FIXTURES
+→ normalized fixtures
+→ eligible fixtures
+→ already processed
+→ skipped
+→ prediction created
+→ prediction frozen
+
+I want counts for every stage.
+
+For every fixture that is NOT predicted, provide the exact reason.
+
+Examples:
+
+- unsupported match format
+- doubles
+- match already started
+- missing player identity
+- missing required data
+- duplicate fixture
+- insufficient point-in-time evidence
+- provider error
+- data error
+- another explicit reason
+
+Do not silently drop matches.
+
+==================================================
+PART 2 — PREDICTION ENGINE REQUIREMENT
+==================================================
+
+For every eligible real upcoming match:
+
+The Prediction Engine must produce a genuine live paper-trading prediction before the scheduled match start.
+
+Each stored Prediction Engine paper-trade row must include enough information to prove:
+
+- provider fixture identifier
+- player one
+- player two
+- tournament
+- surface
+- match format
+- scheduled start
+- prediction creation time
+- prediction lock time
+- predicted winner
+- probability
+- recommendation
+- data quality
+- model/version lineage
+- market odds and market timestamp when available
+
+Required timing rule:
+
+prediction lock time MUST be earlier than scheduled match start.
+
+If the Prediction Engine encounters a match only after it has started:
+
+DO NOT predict it.
+
+Record it honestly as missed.
+
+Never backfill the prediction afterward.
+
+==================================================
+PART 3 — PARLAY BUILDER REQUIREMENT
+==================================================
+
+For every eligible real upcoming match:
+
+The Parlay Builder must independently create and freeze its live paper-trading prediction before the scheduled match start.
+
+Each genuine Parlay Builder pair must preserve:
+
+- provider fixture identifier
+- both players
+- tournament
+- surface
+- scheduled start
+- creation time
+- frozen time
+- Builder-selected winner
+- calibrated Builder probability
+- validation score
+- risk score
+- decision
+- data coverage
+- source agreement
+- reliability grade
+- parlay grade
+- Builder version
+- configuration fingerprint
+- evidence snapshot identifier
+
+Required timing rule:
+
+frozen time MUST be earlier than scheduled match start.
+
+If the match is already started:
+
+DO NOT create a prediction.
+
+Record the exclusion honestly.
+
+==================================================
+PART 4 — AUTOMATIC START TRANSITION
+==================================================
+
+Once a predicted match reaches its scheduled start time, both systems must correctly transition it into the appropriate in-progress state.
+
+Verify that scheduled start transitions are actually occurring automatically.
+
+Report counts for:
+
+Prediction Engine:
+- future
+- pending
+- started
+- missed
+
+Parlay Builder:
+- frozen
+- started
+- no decision
+- data error
+- ineligible
+
+Find any rows whose state should have advanced but did not.
+
+==================================================
+PART 5 — RESULT INGESTION
+==================================================
+
+After matches finish, official completed results must automatically enter the historical result storage.
+
+Audit the complete result flow:
+
+provider completed results
+→ historical result ingestion
+→ player identity resolution
+→ terminal match result
+→ actual winner
+→ grading resolver
+
+Report:
+
+- most recent completed-result ingestion run
+- newest result timestamp stored
+- number of results added
+- number skipped
+- number unresolved
+- errors
+
+If completed matches are available from the provider but are not entering the database, find and fix the cause.
+
+==================================================
+PART 6 — REMOVE UNNECESSARY GRADING DELAY
+==================================================
+
+The current system has used an approximately twenty-four-hour completed-result delay.
+
+That is NOT the intended live paper-trading experience.
+
+For live prospective paper trading, once a match is genuinely finished and the official result is safely available, it should be graded as soon as practical.
+
+Audit why the twenty-four-hour delay currently exists.
+
+Preserve all point-in-time safety for prediction creation.
+
+But do not unnecessarily delay POST-MATCH grading.
+
+If it is safe to separate:
+
+historical research ingestion
+
+from
+
+live paper-trade result ingestion,
+
+then create a dedicated recent-completed-match result path for live grading.
+
+Requirements:
+
+- only terminal completed results
+- official winner available
+- deterministic player identity
+- no fuzzy guessing
+- fail closed on ambiguous identity
+- no prediction inputs modified after match start
+- no historical backfill used to fabricate predictions
+
+The prediction must remain frozen exactly as it existed before the match.
+
+Only the actual result may be attached afterward.
+
+==================================================
+PART 7 — AUTOMATIC GRADING
+==================================================
+
+Prediction Engine:
+
+After a completed result is uniquely identified:
+
+predicted winner equals actual winner
+→ CORRECT
+
+predicted winner does not equal actual winner
+→ INCORRECT
+
+Parlay Builder:
+
+After a completed result is uniquely identified:
+
+Builder-selected winner equals actual winner
+→ CORRECT
+
+Builder-selected winner does not equal actual winner
+→ INCORRECT
+
+Do not grade using the caller-selected side.
+
+Do not grade using market favorite.
+
+Do not grade using another engine's output.
+
+Use the frozen predicted winner.
+
+==================================================
+PART 8 — RESULT IDENTITY SAFETY
+==================================================
+
+The live fixture identifier and completed-history identifier may use different provider identifier spaces.
+
+Therefore result resolution must remain deterministic.
+
+Use:
+
+- canonical player identifiers
+- scheduled time window
+- tournament consistency when comparable
+- surface consistency when comparable
+- other deterministic metadata when safely comparable
+
+Never use fuzzy player-name guessing to force a result.
+
+Required behavior:
+
+zero defensible candidates
+→ remain pending
+
+exactly one defensible candidate
+→ grade
+
+multiple plausible candidates
+→ fail closed as ambiguous
+
+Never silently select the first result.
+
+==================================================
+PART 9 — ALL-DAY AUTOMATION
+==================================================
+
+This entire system must work even when I am not actively using Replit.
+
+The interactive development server sleeping must NOT stop live paper trading.
+
+The web application scaling to zero must NOT stop live paper trading.
+
+Audit the current production scheduling architecture.
+
+Prediction Engine paper trading should run approximately every fifteen minutes.
+
+Parlay Builder paper trading should run approximately every fifteen minutes.
+
+Recent completed-result ingestion should run frequently enough to grade finished matches promptly.
+
+Matched comparison synchronization may remain separate.
+
+Use a production-safe background scheduling mechanism that does not depend on the web server remaining awake.
+
+Do not use fake traffic, keep-alive requests, browser polling, or external uptime hacks.
+
+Prevent double scheduling.
+
+If external background scheduling is active, disable duplicate in-process timers in production while preserving locking and idempotency.
+
+==================================================
+PART 10 — NO SYNTHETIC CONTAMINATION
+==================================================
+
+Production live statistics must completely exclude:
+
+- test fixtures
+- synthetic acceptance fixtures
+- matched-cohort test fixtures
+- research fixtures
+- backtest fixtures
+- manually-created development fixtures
+
+Every live paper-trading statistic must be derived only from genuine prospective matches created automatically before match start.
+
+==================================================
+PART 11 — RECOVERY AFTER DOWNTIME
+==================================================
+
+If the system was offline while matches were upcoming:
+
+Do NOT recreate predictions after those matches started.
+
+Those must remain honestly missed.
+
+When the system comes back online:
+
+- resume discovery for future fixtures
+- create new pre-match predictions
+- ingest completed results
+- grade legitimate previously frozen predictions
+
+Never use downtime recovery to create hindsight predictions.
+
+==================================================
+PART 12 — OBSERVABILITY
+==================================================
+
+I need a truthful production dashboard or status output for BOTH systems.
+
+Prediction Engine:
+
+- fixtures considered today
+- predictions successfully frozen before start
+- missed
+- pending
+- started
+- graded correct
+- graded incorrect
+- void
+- errors
+- latest successful prediction time
+- latest successful grading time
+
+Parlay Builder:
+
+- fixtures considered today
+- genuine pairs successfully frozen before start
+- started
+- pending result
+- graded correct
+- graded incorrect
+- no decision
+- data error
+- ineligible
+- void
+- latest successful prediction time
+- latest successful grading time
+
+Also show:
+
+- scheduler last run
+- scheduler next expected run
+- result ingestion last run
+- errors
+- background process health
+
+==================================================
+PART 13 — TESTS
+==================================================
+
+Add or verify tests proving:
+
+1. A real upcoming fixture can reach Prediction Engine paper trading.
+2. A real upcoming fixture can reach Parlay Builder paper trading.
+3. Predictions cannot be created after scheduled start.
+4. Prediction Engine predictions are frozen before match start.
+5. Parlay Builder predictions are frozen before match start.
+6. Completed matches can be uniquely resolved.
+7. A winning Prediction Engine prediction grades CORRECT.
+8. A losing Prediction Engine prediction grades INCORRECT.
+9. A winning Parlay Builder prediction grades CORRECT.
+10. A losing Parlay Builder prediction grades INCORRECT.
+11. Ambiguous result identity fails closed.
+12. Missing result remains pending.
+13. Test and synthetic rows are excluded from production statistics.
+14. Prediction Engine cannot read Parlay Builder outputs.
+15. Parlay Builder cannot read Prediction Engine outputs.
+16. Neither engine can read matched-cohort results before prediction.
+17. Automatic schedulers cannot overlap.
+18. Duplicate fixture processing does not create duplicate predictions.
+19. Background jobs can run independently of web-server uptime.
+20. Restarting after downtime cannot create hindsight predictions.
+
+==================================================
+PART 14 — LIVE END-TO-END PROOF
+==================================================
+
+After implementation, prove this with REAL naturally occurring matches.
+
+Do not manually insert test rows as proof.
+
+Show at least several genuine upcoming matches where BOTH systems independently predicted before start.
+
+For each report:
+
+MATCH
+- fixture identifier
+- players
+- tournament
+- scheduled start
+
+PREDICTION ENGINE
+- prediction time
+- lock time
+- predicted winner
+- probability
+
+PARLAY BUILDER
+- creation time
+- frozen time
+- predicted winner
+- probability
+- decision
+
+Then after those matches finish, show:
+
+RESULT
+- actual winner
+- official result source
+- result ingestion time
+
+PREDICTION ENGINE
+- predicted winner
+- correct or incorrect
+- grading time
+
+PARLAY BUILDER
+- predicted winner
+- correct or incorrect
+- grading time
+
+Timing proof must show:
+
+Prediction Engine lock time
+<
+match start
+
+Parlay Builder frozen time
+<
+match start
+
+match completion
+<
+grading time
+
+==================================================
+PART 15 — DO NOT CHANGE MODEL BEHAVIOR
+==================================================
+
+Do not change:
+
+- Prediction Engine weights
+- Prediction Engine calibration
+- Prediction Engine thresholds
+- Prediction Engine probabilities
+- Prediction Engine recommendation logic
+- Parlay Builder weights
+- Parlay Builder validation formula
+- Parlay Builder risk formula
+- Parlay Builder KEEP threshold
+- Parlay Builder BORDERLINE threshold
+- Parlay Builder REMOVE threshold
+- Parlay Builder calibration
+- market-odds interpretation
+
+This task is about:
+
+DISCOVERY
+AUTOMATION
+FREEZING
+RESULT INGESTION
+SETTLEMENT
+GRADING
+UPTIME
+OBSERVABILITY
+
+Not model tuning.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Give me:
+
+### PREDICTION ENGINE
+Real fixtures discovered today:
+Predictions created before start:
+Missed:
+Pending:
+Started:
+Correctly graded:
+Incorrectly graded:
+Errors:
+
+### PARLAY BUILDER
+Real fixtures discovered today:
+Pairs frozen before start:
+Started:
+Waiting for result:
+Correctly graded:
+Incorrectly graded:
+No decision:
+Data error:
+Ineligible:
+Errors:
+
+### RESULT INGESTION
+Completed matches found:
+Results ingested:
+Unresolved:
+Ambiguous:
+Average grading delay after result availability:
+
+### AUTOMATION
+Prediction Engine scheduler:
+Parlay Builder scheduler:
+Completed-result scheduler:
+Runs independently of web server: YES/NO
+
+### END-TO-END PROOF
+Show several real matches from prediction through final grading.
+
+### SAFETY
+No post-start predictions:
+No hindsight backfill:
+No synthetic contamination:
+Prediction Engine and Parlay Builder independent:
+Ambiguous results fail closed:
+
+### CODE
+Starting commit:
+Ending commit:
+Files changed:
+Tests passed:
+Working tree clean:
+
+### FINAL RESULT
+
+Use exactly one:
+
+SUCCESS — BOTH LIVE PAPER-TRADING SYSTEMS PREDICT AND GRADE AUTOMATICALLY ALL DAY
+
+PARTIAL SUCCESS — PREDICTIONS WORK, GRADING DELAYED
+
+PARTIAL SUCCESS — PREDICTION ENGINE ISSUE
+
+PARTIAL SUCCESS — PARLAY BUILDER ISSUE
+
+BACKGROUND SCHEDULING FAILURE
+
+RESULT INGESTION FAILURE
+
+GRADING FAILURE
+
+INTEGRITY FAILURE
+
+Do not call this successful until real pre-match predictions AND real post-match grading have both been observed naturally.

@@ -1,10 +1,8 @@
 /**
  * Match-start marking, outcome settlement, and grading for frozen paper trades.
  *
- * Settlement reuses the EXACT matching pattern already established by
- * `scripts/resolveParlayLegOutcomes.ts` (player-pair match, either orientation, chronologically
- * at-or-after the decision was created, small clock-skew buffer) against the same
- * `historical_matches` table -- no new matching logic invented. Void semantics
+ * Settlement resolves exact canonical player ids and comparable fixture metadata against
+ * `historical_matches`, and fails closed on missing or ambiguous results. Void semantics
  * (retired/walkover/cancelled -> resultType, cancelled||walkover -> void) reuse the same
  * convention `attachParlayBuilderResearchV1Outcomes.ts` already established for Research V1.
  *
@@ -13,10 +11,27 @@
  * deliberately never `selected_player_id`, never the KEEP/BORDERLINE/REMOVE `decision`. See
  * settlementLogic.test.ts's explicit wrong-side-trap test for the proof.
  */
-import { db, parlayPaperTradesTable, parlayPaperTradePairsTable } from "@workspace/db";
+import {
+  db,
+  liveCompletedResultsTable,
+  parlayPaperTradesTable,
+  parlayPaperTradePairsTable,
+} from "@workspace/db";
 import { pool } from "@workspace/db";
-import { and, eq, inArray, isNull, lte } from "drizzle-orm";
-import { deriveResultType, gradePaperTrade, type ResultType } from "./settlementLogic.js";
+import { and, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import {
+  deriveResultType,
+  gradePaperTrade,
+  isSettlementTimeReady,
+  isValidSettlementPair,
+  reconcileHistoricalWithLiveResult,
+  resolveLiveSettlementCandidate,
+  resolveSettlementCandidate,
+  SETTLEMENT_MATCH_TIME_WINDOW_MS,
+  shouldUseHistoricalSettlementFallback,
+  type ResultType,
+  type SettlementCandidate,
+} from "./settlementLogic.js";
 
 export interface MarkStartedSummary {
   pairsMarkedStarted: number;
@@ -43,45 +58,105 @@ export async function markStartedFixtures(now: Date = new Date()): Promise<MarkS
   return { pairsMarkedStarted: result.length / 2 };
 }
 
-interface CandidateMatchRow {
-  player1_id: string;
-  player2_id: string;
-  winner_id: string | null;
-  scheduled_start_at: Date | null;
-  retired: boolean | null;
-  walkover: boolean | null;
-  cancelled: boolean | null;
+type TradeRow = typeof parlayPaperTradesTable.$inferSelect;
+type HistoricalResolution = ReturnType<typeof resolveSettlementCandidate>;
+type LiveResolution = ReturnType<typeof resolveLiveSettlementCandidate>;
+
+async function findLiveSettledMatch(row: TradeRow): Promise<LiveResolution> {
+  const windowMs = SETTLEMENT_MATCH_TIME_WINDOW_MS;
+  const candidates = await db
+    .select()
+    .from(liveCompletedResultsTable)
+    .where(and(
+      eq(liveCompletedResultsTable.provider, row.fixtureProvider),
+      gte(liveCompletedResultsTable.scheduledStartAt, new Date(row.scheduledStartAt.getTime() - windowMs)),
+      lte(liveCompletedResultsTable.scheduledStartAt, new Date(row.scheduledStartAt.getTime() + windowMs)),
+      or(
+        and(
+          eq(liveCompletedResultsTable.providerPlayer1Id, row.player1Id),
+          eq(liveCompletedResultsTable.providerPlayer2Id, row.player2Id),
+        ),
+        and(
+          eq(liveCompletedResultsTable.providerPlayer1Id, row.player2Id),
+          eq(liveCompletedResultsTable.providerPlayer2Id, row.player1Id),
+        ),
+      ),
+    ));
+  return resolveLiveSettlementCandidate({
+    candidates,
+    provider: row.fixtureProvider,
+    providerPlayer1Id: row.player1Id,
+    providerPlayer2Id: row.player2Id,
+    scheduledStartAt: row.scheduledStartAt,
+    tournamentName: row.tournamentName,
+    surface: row.surface,
+  });
 }
 
-/**
- * Finds the real historical_matches row for a pending pair's fixture. Unlike
- * resolveParlayLegOutcomes.ts (which only knows a leg was created at some timestamp and must
- * guess "earliest match after that"), a paper trade already carries the fixture's OWN
- * scheduled_start_at -- so this matches player-pair (either orientation) AND scheduled_start_at
- * within a tight window of THIS fixture's own start time, not just "any later match between
- * these two players" (which risks picking up a different, subsequent meeting between the same
- * pair). This is the "settlement must identify the same fixture/player identities used by the
- * frozen paper trade" requirement, enforced structurally rather than by convention.
- */
-async function findSettledMatch(
-  player1Id: string, player2Id: string, fixtureScheduledStartAt: Date,
-): Promise<CandidateMatchRow | null> {
-  const windowMs = 24 * 60 * 60 * 1000; // matches are resolved same-day; generous for timezone/clock skew
-  const { rows } = await pool.query<CandidateMatchRow>(`
-    SELECT player1_id, player2_id, winner_id, scheduled_start_at, retired, walkover, cancelled
+async function findHistoricalCandidates(row: TradeRow, additionalPlayerIds: [string, string] | null = null): Promise<SettlementCandidate[]> {
+  const windowMs = SETTLEMENT_MATCH_TIME_WINDOW_MS;
+  const player1Id = additionalPlayerIds?.[0] ?? row.player1Id;
+  const player2Id = additionalPlayerIds?.[1] ?? row.player2Id;
+  const { rows } = await pool.query<SettlementCandidate>(`
+    SELECT id, provider, player1_id, player2_id, winner_id, scheduled_start_at, retired, walkover, cancelled,
+      tournament_name, surface
     FROM historical_matches
-    WHERE ((player1_id = $1 AND player2_id = $2) OR (player1_id = $2 AND player2_id = $1))
-      AND scheduled_start_at BETWEEN $3 AND $4
-      AND (winner_id IS NOT NULL OR cancelled = true OR walkover = true)
-    ORDER BY ABS(EXTRACT(EPOCH FROM (scheduled_start_at - $5::timestamptz)))
-    LIMIT 1
+    WHERE provider = $1
+      AND scheduled_start_time_confirmed = true
+      AND ((player1_id = $2 AND player2_id = $3) OR (player1_id = $3 AND player2_id = $2))
+      AND scheduled_start_at BETWEEN $4 AND $5
   `, [
-    player1Id, player2Id,
-    new Date(fixtureScheduledStartAt.getTime() - windowMs),
-    new Date(fixtureScheduledStartAt.getTime() + windowMs),
-    fixtureScheduledStartAt,
+    row.fixtureProvider, player1Id, player2Id,
+    new Date(row.scheduledStartAt.getTime() - windowMs),
+    new Date(row.scheduledStartAt.getTime() + windowMs),
   ]);
-  return rows[0] ?? null;
+  return rows;
+}
+
+function resolveHistoricalForTrade(
+  row: TradeRow,
+  candidates: SettlementCandidate[],
+): HistoricalResolution {
+  return resolveSettlementCandidate({
+    candidates,
+    provider: row.fixtureProvider,
+    player1Id: row.player1Id,
+    player2Id: row.player2Id,
+    scheduledStartAt: row.scheduledStartAt,
+    tournamentName: row.tournamentName,
+    surface: row.surface,
+  });
+}
+
+async function findHistoricalConflictWithLiveResult(
+  row: TradeRow,
+  live: Extract<LiveResolution, { kind: "settled" }>,
+): Promise<"consistent" | "conflict" | "ambiguous"> {
+  const providerIds: [string, string] = [
+    live.candidate.providerPlayer1Id,
+    live.candidate.providerPlayer2Id,
+  ];
+  const canonicalIds: [string, string] = [
+    live.candidate.canonicalPlayer1Id,
+    live.candidate.canonicalPlayer2Id,
+  ];
+  const providerCandidates = await findHistoricalCandidates(row, providerIds);
+  const canonicalCandidates = canonicalIds[0] === providerIds[0] && canonicalIds[1] === providerIds[1]
+    ? providerCandidates
+    : await findHistoricalCandidates(row, canonicalIds);
+  const historicalCandidates = [
+    ...new Map(
+      [...providerCandidates, ...canonicalCandidates].map((candidate) => [candidate.id, candidate]),
+    ).values(),
+  ];
+  return reconcileHistoricalWithLiveResult({
+    historicalCandidates,
+    liveCandidate: live.candidate,
+    providerWinnerId: live.providerWinnerId,
+    scheduledStartAt: row.scheduledStartAt,
+    tournamentName: row.tournamentName,
+    surface: row.surface,
+  });
 }
 
 export interface SettleSummary {
@@ -118,29 +193,83 @@ export async function settlePendingTrades(): Promise<SettleSummary> {
   }
 
   for (const [pairId, rows] of byPair) {
-    if (rows.length !== 2) {
-      summary.errors.push(`pair ${pairId}: expected 2 pending rows, found ${rows.length} -- skipped`);
+    if (!isValidSettlementPair(rows)) {
+      summary.errors.push(`pair ${pairId}: pending rows are not a valid, coherent two-sided frozen fixture -- skipped`);
       continue;
     }
     const [row1] = rows;
     try {
-      const match = await findSettledMatch(row1.player1Id, row1.player2Id, row1.scheduledStartAt);
-      if (match == null) {
+      if (!isSettlementTimeReady(row1.scheduledStartAt, row1.scheduledStartAt, new Date())) {
+        summary.stillPending++;
+        continue;
+      }
+      const liveResolution = await findLiveSettledMatch(row1);
+      let actualWinnerId: string;
+      let resultType: ResultType;
+      let resultScheduledStartAt: Date;
+
+      if (liveResolution.kind === "ambiguous") {
+        summary.stillPending++;
+        summary.errors.push(`pair ${pairId}: ${liveResolution.candidateCount} plausible live completed results; settlement held as ambiguous`);
+        continue;
+      }
+
+      if (liveResolution.kind === "settled") {
+        if (!isSettlementTimeReady(row1.scheduledStartAt, liveResolution.candidate.scheduledStartAt, new Date())) {
+          summary.stillPending++;
+          continue;
+        }
+        const agreement = await findHistoricalConflictWithLiveResult(row1, liveResolution);
+        if (agreement !== "consistent") {
+          summary.stillPending++;
+          summary.errors.push(`pair ${pairId}: historical/live result ${agreement}; settlement held`);
+          continue;
+        }
+        // Keep the outcome in the Builder's provider-ID namespace. The live row's canonical
+        // winner was translated through its exact provider-player slot by the pure resolver.
+        actualWinnerId = liveResolution.providerWinnerId;
+        resultType = liveResolution.resultType;
+        resultScheduledStartAt = liveResolution.candidate.scheduledStartAt;
+      } else if (!shouldUseHistoricalSettlementFallback(liveResolution)) {
+        summary.stillPending++;
+        summary.errors.push(`pair ${pairId}: live result exists for the provider fixture but identity/metadata could not be defensibly resolved`);
+        continue;
+      } else {
+        // Compatibility fallback for old Builder rows that predate live_completed_results.
+        // Historical winner ids are accepted only when their exact stored player IDs match the
+        // Builder provider IDs; no fuzzy name mapping or cross-provider guess is attempted.
+        const historyCandidates = await findHistoricalCandidates(row1);
+        const historyResolution = resolveHistoricalForTrade(row1, historyCandidates);
+        if (historyResolution.kind === "pending") {
+          summary.stillPending++;
+          continue;
+        }
+        if (historyResolution.kind === "ambiguous") {
+          summary.stillPending++;
+          summary.errors.push(`pair ${pairId}: ${historyResolution.candidateCount} plausible historical results; settlement held as ambiguous`);
+          continue;
+        }
+        if (!isSettlementTimeReady(row1.scheduledStartAt, historyResolution.match.scheduled_start_at, new Date())) {
+          summary.stillPending++;
+          continue;
+        }
+        actualWinnerId = historyResolution.match.winner_id!;
+        resultType = deriveResultType({
+          cancelled: historyResolution.match.cancelled ?? false,
+          walkover: historyResolution.match.walkover ?? false,
+          retired: historyResolution.match.retired ?? false,
+        });
+        resultScheduledStartAt = historyResolution.match.scheduled_start_at;
+      }
+      const now = new Date();
+      if (!isSettlementTimeReady(row1.scheduledStartAt, resultScheduledStartAt, now)) {
         summary.stillPending++;
         continue;
       }
 
-      const resultType: ResultType = deriveResultType({
-        cancelled: match.cancelled ?? false,
-        walkover: match.walkover ?? false,
-        retired: match.retired ?? false,
-      });
-      const actualWinnerId = match.winner_id;
-      const now = new Date();
-
       await db.transaction(async (tx) => {
         for (const row of rows) {
-          await tx
+          const updated = await tx
             .update(parlayPaperTradesTable)
             .set({
               actualWinnerId,
@@ -148,7 +277,15 @@ export async function settlePendingTrades(): Promise<SettleSummary> {
               outcomeAttachedAt: now,
               status: "COMPLETED",
             })
-            .where(eq(parlayPaperTradesTable.id, row.id));
+            .where(and(
+              eq(parlayPaperTradesTable.id, row.id),
+              inArray(parlayPaperTradesTable.status, ["FROZEN", "STARTED"]),
+              isNull(parlayPaperTradesTable.actualWinnerId),
+            ))
+            .returning({ id: parlayPaperTradesTable.id });
+          if (updated.length !== 1) {
+            throw new Error(`pair ${pairId}: sibling changed before outcome attachment; transaction rolled back`);
+          }
         }
       });
 

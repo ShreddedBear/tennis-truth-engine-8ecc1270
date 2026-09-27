@@ -62,6 +62,7 @@ const DRIZZLE_MANAGED_TABLES = [
   "match_source_links",
   "player_aliases",
   "player_resolution_reviews",
+  "live_completed_results",
 ];
 
 export default defineConfig({

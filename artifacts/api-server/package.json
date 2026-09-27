@@ -30,9 +30,13 @@
     "job:historical-backfill": "export HISTORICAL_BACKFILL_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runHistoricalBackfillJob.mjs",
     "job:degraded-recompute": "export DEGRADED_PREDICTION_RECOMPUTE_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runDegradedPredictionRecomputeJob.mjs",
     "job:historical-backfill:dev": "export HISTORICAL_BACKFILL_JOB_STANDALONE=1 && tsx src/jobs/runHistoricalBackfillJob.ts",
+    "job:recent-completed-results": "export RECENT_COMPLETED_RESULTS_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runRecentCompletedResultsJob.mjs",
+    "job:recent-completed-results:dev": "export RECENT_COMPLETED_RESULTS_JOB_STANDALONE=1 && tsx src/jobs/runRecentCompletedResultsJob.ts",
     "job:matched-cohort-sync": "export MATCHED_COHORT_SYNC_JOB_STANDALONE=1 && node --enable-source-maps ./dist/jobs/runMatchedCohortSyncJob.mjs",
     "job:matched-cohort-sync:dev": "export MATCHED_COHORT_SYNC_JOB_STANDALONE=1 && tsx src/jobs/runMatchedCohortSyncJob.ts",
-    "run:stage1-2": "tsx scripts/runStage1And2.ts"
+    "run:stage1-2": "tsx scripts/runStage1And2.ts",
+    "live-paper-trading:status": "tsx src/scripts/livePaperTradingStatus.ts",
+    "test:live-paper-trading:status": "tsx --test src/scripts/livePaperTradingStatusClassification.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.1",

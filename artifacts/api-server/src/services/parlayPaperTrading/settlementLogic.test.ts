@@ -1,6 +1,22 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { deriveResultType, isVoidResult, gradePaperTrade, hasMatchStarted } from "./settlementLogic.js";
+import {
+  deriveResultType,
+  isSettlementTimeReady,
+  isValidSettlementPair,
+  isVoidResult,
+  gradePaperTrade,
+  hasMatchStarted,
+  isBeforeScheduledStart,
+  reconcileHistoricalWithLiveResult,
+  resolveLiveSettlementCandidate,
+  resolveSettlementCandidate,
+  shouldUseHistoricalSettlementFallback,
+  SETTLEMENT_MATCH_TIME_WINDOW_MS,
+  type LiveSettlementCandidate,
+  type SettlementPairMember,
+  type SettlementCandidate,
+} from "./settlementLogic.js";
 
 describe("deriveResultType", () => {
   it("normal when no flags set", () => {
@@ -94,5 +110,291 @@ describe("hasMatchStarted", () => {
   });
   it("true after scheduled start", () => {
     assert.strictEqual(hasMatchStarted(scheduled, new Date(scheduled.getTime() + 1)), true);
+  });
+});
+
+describe("isBeforeScheduledStart", () => {
+  const scheduled = new Date("2026-09-23T12:00:00Z");
+  it("allows only a database timestamp strictly before start", () => {
+    assert.equal(isBeforeScheduledStart(scheduled, new Date(scheduled.getTime() - 1)), true);
+    assert.equal(isBeforeScheduledStart(scheduled, scheduled), false);
+    assert.equal(isBeforeScheduledStart(scheduled, new Date(scheduled.getTime() + 1)), false);
+  });
+});
+
+describe("isSettlementTimeReady", () => {
+  const scheduled = new Date("2026-09-23T12:00:00Z");
+  it("requires the frozen fixture and matched result scheduled times to have both arrived", () => {
+    assert.equal(isSettlementTimeReady(scheduled, scheduled, scheduled), true);
+    assert.equal(isSettlementTimeReady(scheduled, new Date(scheduled.getTime() + 1), scheduled), false);
+    assert.equal(isSettlementTimeReady(new Date(scheduled.getTime() + 1), scheduled, scheduled), false);
+    assert.equal(
+      isSettlementTimeReady(scheduled, new Date(scheduled.getTime() + 1), new Date(scheduled.getTime() + 1)),
+      true,
+    );
+  });
+});
+
+describe("isValidSettlementPair", () => {
+  const scheduled = new Date("2026-09-23T12:00:00Z");
+  const base: SettlementPairMember[] = [
+    {
+      pairId: "pair-1",
+      externalFixtureId: "fixture-1",
+      fixtureProvider: "Live Tennis API",
+      player1Id: "provider-a",
+      player2Id: "provider-b",
+      scheduledStartAt: scheduled,
+      tournamentName: "Example Open",
+      surface: "Hard",
+      evaluatedSide: "PLAYER_1",
+      selectedPlayerId: "provider-a",
+      opposingPlayerId: "provider-b",
+      status: "FROZEN",
+      builderPickedPlayerId: "provider-b",
+      actualWinnerId: null,
+    },
+    {
+      pairId: "pair-1",
+      externalFixtureId: "fixture-1",
+      fixtureProvider: "Live Tennis API",
+      player1Id: "provider-a",
+      player2Id: "provider-b",
+      scheduledStartAt: scheduled,
+      tournamentName: "Example Open",
+      surface: "Hard",
+      evaluatedSide: "PLAYER_2",
+      selectedPlayerId: "provider-b",
+      opposingPlayerId: "provider-a",
+      status: "FROZEN",
+      builderPickedPlayerId: "provider-b",
+      actualWinnerId: null,
+    },
+  ];
+
+  it("accepts exactly one coherent row for each side", () => {
+    assert.equal(isValidSettlementPair(base), true);
+  });
+
+  it("rejects duplicate sides, fixture mismatches, asymmetric picks, or settled rows", () => {
+    assert.equal(isValidSettlementPair([base[0], { ...base[1], evaluatedSide: "PLAYER_1" }]), false);
+    assert.equal(isValidSettlementPair([base[0], { ...base[1], fixtureProvider: "API-Tennis" }]), false);
+    assert.equal(isValidSettlementPair([base[0], { ...base[1], scheduledStartAt: new Date(scheduled.getTime() + 1) }]), false);
+    assert.equal(isValidSettlementPair([base[0], { ...base[1], builderPickedPlayerId: "provider-a" }]), false);
+    assert.equal(isValidSettlementPair([base[0], { ...base[1], actualWinnerId: "provider-b" }]), false);
+  });
+});
+
+describe("resolveSettlementCandidate", () => {
+  const scheduled = new Date("2026-09-23T12:00:00Z");
+  const base: SettlementCandidate = {
+    provider: "Live Tennis API",
+    player1_id: "canonical-a",
+    player2_id: "canonical-b",
+    winner_id: "canonical-a",
+    scheduled_start_at: scheduled,
+    retired: false,
+    walkover: false,
+    cancelled: false,
+    tournament_name: "Example Open",
+    surface: "Hard",
+  };
+  const resolve = (candidates: SettlementCandidate[]) => resolveSettlementCandidate({
+    candidates,
+    provider: "Live Tennis API",
+    player1Id: "canonical-a",
+    player2Id: "canonical-b",
+    scheduledStartAt: scheduled,
+    tournamentName: "Example Open",
+    surface: "Hard",
+  });
+
+  it("settles a unique result matched by exact canonical IDs and fixture metadata", () => {
+    assert.deepEqual(resolve([base]), { kind: "settled", match: base });
+  });
+
+  it("holds when multiple plausible results exist instead of choosing the first", () => {
+    assert.deepEqual(resolve([base, { ...base, scheduled_start_at: new Date(scheduled.getTime() + 60_000) }]), {
+      kind: "ambiguous",
+      candidateCount: 2,
+    });
+  });
+
+  it("keeps missing, foreign, or cancelled winners pending", () => {
+    assert.deepEqual(resolve([{ ...base, winner_id: null }]), { kind: "pending" });
+    assert.deepEqual(resolve([{ ...base, winner_id: "someone-else" }]), { kind: "pending" });
+    assert.deepEqual(resolve([{ ...base, cancelled: true }]), { kind: "pending" });
+  });
+
+  it("does not resolve mismatched players, time, tournament, or surface", () => {
+    assert.deepEqual(resolve([{ ...base, player1_id: "name:Alex Player" }]), { kind: "pending" });
+    assert.deepEqual(resolve([{ ...base, scheduled_start_at: new Date(scheduled.getTime() + 25 * 60 * 60 * 1000) }]), { kind: "pending" });
+    assert.deepEqual(resolve([{ ...base, tournament_name: "Different Open" }]), { kind: "pending" });
+    assert.deepEqual(resolve([{ ...base, surface: "Clay" }]), { kind: "pending" });
+  });
+
+  it("does not confuse a same-player rematch more than six hours later with this fixture", () => {
+    const rematch = {
+      ...base,
+      id: 12,
+      scheduled_start_at: new Date(scheduled.getTime() + SETTLEMENT_MATCH_TIME_WINDOW_MS + 60 * 60 * 1000),
+    };
+    assert.deepEqual(resolve([base, rematch]), { kind: "settled", match: base });
+  });
+
+  it("does not resolve a historical candidate from a different provider ID namespace", () => {
+    assert.deepEqual(resolve([{ ...base, provider: "API-Tennis" }]), { kind: "pending" });
+  });
+});
+
+describe("resolveLiveSettlementCandidate", () => {
+  const scheduled = new Date("2026-09-23T12:00:00Z");
+  const base: LiveSettlementCandidate = {
+    provider: "Live Tennis API",
+    externalId: "fixture-123",
+    providerPlayer1Id: "provider-a",
+    providerPlayer2Id: "provider-b",
+    canonicalPlayer1Id: "canonical-a",
+    canonicalPlayer2Id: "canonical-b",
+    canonicalWinnerId: "canonical-b",
+    terminalResultType: "finished",
+    scheduledStartAt: scheduled,
+    tournamentName: "Example Open",
+    surface: "Hard",
+  };
+  const resolve = (candidates: LiveSettlementCandidate[]) => resolveLiveSettlementCandidate({
+    candidates,
+    provider: "Live Tennis API",
+    // Deliberately reversed from the stored result row.
+    providerPlayer1Id: "provider-b",
+    providerPlayer2Id: "provider-a",
+    scheduledStartAt: scheduled,
+    tournamentName: "Example Open",
+    surface: "Hard",
+  });
+
+  it("maps a canonical winner through the verified provider-player slot before Builder grading", () => {
+    const result = resolve([base]);
+    assert.deepEqual(result, {
+      kind: "settled",
+      candidate: base,
+      providerWinnerId: "provider-b",
+      resultType: "normal",
+    });
+    if (result.kind !== "settled") throw new Error("expected a uniquely resolved result");
+    assert.equal(
+      gradePaperTrade({
+        builderPickedPlayerId: "provider-b",
+        actualWinnerId: result.providerWinnerId,
+        resultType: result.resultType,
+      }).gradedCorrect,
+      true,
+    );
+    assert.equal(
+      gradePaperTrade({
+        builderPickedPlayerId: "provider-b",
+        actualWinnerId: result.candidate.canonicalWinnerId,
+        resultType: result.resultType,
+      }).gradedCorrect,
+      false,
+      "canonical IDs must never be compared directly with Builder provider IDs",
+    );
+  });
+
+  it("fails closed on multiple plausible live results and provider namespace mismatches", () => {
+    assert.deepEqual(resolve([base, { ...base, externalId: "fixture-456" }]), {
+      kind: "ambiguous",
+      candidateCount: 2,
+    });
+    const wrongProvider = resolveLiveSettlementCandidate({
+      candidates: [base],
+      provider: "Different Provider",
+      providerPlayer1Id: "provider-b",
+      providerPlayer2Id: "provider-a",
+      scheduledStartAt: scheduled,
+      tournamentName: "Example Open",
+      surface: "Hard",
+    });
+    assert.deepEqual(wrongProvider, { kind: "pending", candidateCount: 0 });
+  });
+
+  it("holds a live candidate with mismatched comparable fixture metadata", () => {
+    assert.deepEqual(resolve([{ ...base, surface: "Clay" }]), {
+      kind: "pending",
+      candidateCount: 1,
+    });
+  });
+
+  it("does not treat a same-player rematch outside six hours as this live fixture", () => {
+    const rematch = {
+      ...base,
+      externalId: "fixture-rematch",
+      scheduledStartAt: new Date(scheduled.getTime() + SETTLEMENT_MATCH_TIME_WINDOW_MS + 60 * 60 * 1000),
+    };
+    assert.deepEqual(resolve([base, rematch]), {
+      kind: "settled",
+      candidate: base,
+      providerWinnerId: "provider-b",
+      resultType: "normal",
+    });
+  });
+
+  it("uses historical fallback only when no live provider result exists", () => {
+    assert.equal(shouldUseHistoricalSettlementFallback({ kind: "pending", candidateCount: 0 }), true);
+    assert.equal(shouldUseHistoricalSettlementFallback({ kind: "pending", candidateCount: 1 }), false);
+    assert.equal(shouldUseHistoricalSettlementFallback({ kind: "ambiguous", candidateCount: 2 }), false);
+  });
+});
+
+describe("reconcileHistoricalWithLiveResult", () => {
+  const scheduled = new Date("2026-09-23T12:00:00Z");
+  const live: LiveSettlementCandidate = {
+    provider: "Live Tennis API",
+    externalId: "fixture-123",
+    providerPlayer1Id: "provider-a",
+    providerPlayer2Id: "provider-b",
+    canonicalPlayer1Id: "canonical-a",
+    canonicalPlayer2Id: "canonical-b",
+    canonicalWinnerId: "canonical-b",
+    terminalResultType: "finished",
+    scheduledStartAt: scheduled,
+    tournamentName: "Example Open",
+    surface: "Hard",
+  };
+  const baseHistory: SettlementCandidate = {
+    id: 11,
+    provider: "Live Tennis API",
+    player1_id: "canonical-a",
+    player2_id: "canonical-b",
+    winner_id: "canonical-b",
+    scheduled_start_at: scheduled,
+    retired: false,
+    walkover: false,
+    cancelled: false,
+    tournament_name: "Example Open",
+    surface: "Hard",
+  };
+  const reconcile = (historicalCandidates: SettlementCandidate[]) => reconcileHistoricalWithLiveResult({
+    historicalCandidates,
+    liveCandidate: live,
+    providerWinnerId: "provider-b",
+    scheduledStartAt: scheduled,
+    tournamentName: "Example Open",
+    surface: "Hard",
+  });
+
+  it("allows agreeing canonical historical evidence", () => {
+    assert.equal(reconcile([baseHistory]), "consistent");
+  });
+
+  it("holds conflicting historical winner evidence rather than preferring live or history", () => {
+    assert.equal(reconcile([{ ...baseHistory, winner_id: "canonical-a" }]), "conflict");
+  });
+
+  it("holds ambiguous historical evidence", () => {
+    assert.equal(reconcile([
+      baseHistory,
+      { ...baseHistory, id: 12, scheduled_start_at: new Date(scheduled.getTime() + 60_000) },
+    ]), "ambiguous");
   });
 });

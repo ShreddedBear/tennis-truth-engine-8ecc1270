@@ -3,3 +3,4 @@
 - [Operational history resets](operational-history-resets.md) — paginate Supabase exports and verify provider availability before clearing cross-system prediction history.
 - [Truth data cutover](truth-data-cutover.md) — legacy Supabase match/audit history is intentionally excluded; convert runtime calls to preserve heliumdb as sole authority.
 - [Truth audit persistence contracts](truth-audit-persistence-contracts.md) — validate audit row mappings and retry keys against live heliumdb, not legacy Supabase types.
+- [Live-result time semantics](live-result-time-semantics.md) — upcoming fixtures and completed-history records can expose different time representations; verify UTC provenance before joining.

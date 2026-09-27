@@ -1,8 +1,9 @@
-import { db, evaluationPredictionsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { db, evaluationPredictionsTable, liveCompletedResultsTable } from "@workspace/db";
+import { and, eq, gte, lte, or, sql } from "drizzle-orm";
 import { getTennisDataProvider, getLiveTennisProviderForPredictionEngine, ProviderUnavailableError, type Fixture, type TennisDataProvider } from "../tennisData";
+import { LIVE_TENNIS_PROVIDER_NAME } from "../tennisData/liveTennisHistoricalProvider.js";
 import { getPredictionSettings, settleEvaluationPrediction } from "./settle";
-import { LIVE_MODEL_VERSION, type LiveFeatureSnapshot } from "./types";
+import { LIVE_MODEL_VERSION, type LiveFeatureSnapshot, type ResultType } from "./types";
 import { computeVigAdjustedImpliedProbability } from "../oddsData/impliedProbability";
 import { logger } from "../../lib/logger";
 import { defaultPredictionMode, derivePredictionStrategyIdentity, getCurrentProductionStrategyIdentity } from "./strategyIdentity";
@@ -35,6 +36,7 @@ import { extractFallbackInstrumentation } from "./fallbackInstrumentation";
  *   paperTradeLeadMinutes - LOCK_GRACE_MINUTES > 0  (lock deadline stays before match start)
  */
 const LOCK_GRACE_MINUTES = 25;
+const SHARED_LIVE_RESULT_WINDOW_MS = 6 * 60 * 60_000;
 
 function todayPlus(days: number): string {
   const d = new Date();
@@ -47,6 +49,208 @@ export interface PaperTradingCycleSummary {
   missed: number;
   graded: number;
   errors: string[];
+}
+
+type PaperTradeInsert = typeof evaluationPredictionsTable.$inferInsert;
+
+function parseDatabaseTimestamp(value: unknown): Date | null {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
+/**
+ * Persist a missed row, or freeze the scored prediction, only after rechecking the
+ * deadline at the persistence boundary. Scoring can take long enough for an
+ * eligible fixture to start; the earlier discovery-time check is not sufficient.
+ *
+ * The database clock is consulted after scoring, inside the insert transaction.
+ * `clock` is injectable solely for exercising the scoring-crosses-start boundary
+ * in tests; production uses the process clock as an additional conservative guard.
+ */
+async function persistBeforeStartOrMiss(
+  prediction: PaperTradeInsert,
+  missed: PaperTradeInsert,
+  scheduledStartAt: Date,
+  lockDeadline: Date,
+  clock: () => number,
+  forceMissed = false,
+): Promise<"locked" | "missed" | "duplicate"> {
+  const matchStartDeadlineExceeded = new Error("PAPER_TRADE_MATCH_START_DURING_PERSIST");
+  const insertMissed = async (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], lockedAt: Date) => {
+    const inserted = await tx
+      .insert(evaluationPredictionsTable)
+      .values({ ...missed, lockedAt, status: "missed" })
+      .onConflictDoNothing({
+        target: [
+          evaluationPredictionsTable.runKind,
+          evaluationPredictionsTable.provider,
+          evaluationPredictionsTable.externalFixtureId,
+        ],
+      })
+      .returning({ id: evaluationPredictionsTable.id });
+    return inserted.length > 0;
+  };
+
+  try {
+    return await db.transaction(async (tx) => {
+      const clockResult = await tx.execute(sql`
+        WITH wall_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+        SELECT now AS db_now,
+               now < ${scheduledStartAt} AND now < ${lockDeadline} AS before_deadline
+        FROM wall_clock
+      `);
+      const databaseNow = parseDatabaseTimestamp(clockResult.rows[0]?.db_now);
+      const databaseBeforeDeadline = clockResult.rows[0]?.before_deadline;
+      if (!databaseNow || typeof databaseBeforeDeadline !== "boolean") {
+        throw new Error("Paper-trade boundary check did not return a valid database timestamp and deadline result");
+      }
+      const lockedAt = new Date(Math.max(clock(), databaseNow.getTime()));
+      const missedDeadline =
+        forceMissed ||
+        !databaseBeforeDeadline ||
+        lockedAt.getTime() >= scheduledStartAt.getTime() ||
+        lockedAt.getTime() >= lockDeadline.getTime();
+      if (missedDeadline) {
+        const inserted = await insertMissed(tx, lockedAt);
+        return inserted ? "missed" : "duplicate";
+      }
+
+      const inserted = await tx
+        .insert(evaluationPredictionsTable)
+        .values({ ...prediction, lockedAt, status: "pending" })
+        .onConflictDoNothing({
+          target: [
+            evaluationPredictionsTable.runKind,
+            evaluationPredictionsTable.provider,
+            evaluationPredictionsTable.externalFixtureId,
+          ],
+        })
+        .returning({ id: evaluationPredictionsTable.id });
+      if (inserted.length === 0) return "duplicate";
+
+      // Guard the write itself as well: if even the insert crosses match start,
+      // roll it back completely and record only the honest missed state.
+      const finalClockResult = await tx.execute(sql`
+        WITH wall_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+        SELECT now AS db_now,
+               now < ${scheduledStartAt} AND now < ${lockDeadline} AS before_deadline
+        FROM wall_clock
+      `);
+      const finalDatabaseNow = parseDatabaseTimestamp(finalClockResult.rows[0]?.db_now);
+      const finalDatabaseBeforeDeadline = finalClockResult.rows[0]?.before_deadline;
+      if (
+        !finalDatabaseNow ||
+        typeof finalDatabaseBeforeDeadline !== "boolean" ||
+        !finalDatabaseBeforeDeadline ||
+        Math.max(clock(), finalDatabaseNow.getTime()) >= scheduledStartAt.getTime() ||
+        Math.max(clock(), finalDatabaseNow.getTime()) >= lockDeadline.getTime()
+      ) {
+        throw matchStartDeadlineExceeded;
+      }
+      return "locked";
+    });
+  } catch (err) {
+    if (err !== matchStartDeadlineExceeded) throw err;
+    const clockResult = await db.execute(sql`
+      WITH wall_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+      SELECT now AS db_now
+      FROM wall_clock
+    `);
+    const databaseNow = parseDatabaseTimestamp(clockResult.rows[0]?.db_now);
+    if (!databaseNow) throw new Error("Paper-trade missed-state write did not return a valid database timestamp");
+    const lockedAt = new Date(Math.max(clock(), databaseNow.getTime()));
+    return db.transaction(async (tx) => (await insertMissed(tx, lockedAt)) ? "missed" : "duplicate");
+  }
+}
+
+function liveResultSourceForPredictionProvider(providerName: string | null): string | null {
+  if (!providerName) return null;
+  if (providerName === LIVE_TENNIS_PROVIDER_NAME) return LIVE_TENNIS_PROVIDER_NAME;
+
+  // Live paper-trade rows store CompositeTennisProvider.name. Its first component
+  // is the primary provider whose fixture/player IDs are frozen on the row.
+  const [primaryProvider, fallbackProvider, ...unexpectedComponents] = providerName.split("+");
+  if (
+    primaryProvider === LIVE_TENNIS_PROVIDER_NAME
+    && fallbackProvider
+    && unexpectedComponents.length === 0
+  ) {
+    return primaryProvider;
+  }
+  return null;
+}
+
+function comparableMetadataMatches(left: string | null, right: string | null): boolean {
+  if (!left?.trim() || !right?.trim()) return true;
+  return left.trim().replace(/\s+/gu, " ").toLocaleLowerCase("en-US")
+    === right.trim().replace(/\s+/gu, " ").toLocaleLowerCase("en-US");
+}
+
+async function findSharedLiveResult(
+  providerName: string | null,
+  player1Id: string,
+  player2Id: string,
+  scheduledStartAt: Date,
+  tournamentName: string | null,
+  surface: string | null,
+  now: number,
+): Promise<
+  | { kind: "none" }
+  | { kind: "ambiguous" }
+  | { kind: "matched"; result: typeof liveCompletedResultsTable.$inferSelect }
+> {
+  const sourceProvider = liveResultSourceForPredictionProvider(providerName);
+  if (!sourceProvider) return { kind: "none" };
+
+  const lowerBound = new Date(scheduledStartAt.getTime() - SHARED_LIVE_RESULT_WINDOW_MS);
+  const upperBound = new Date(scheduledStartAt.getTime() + SHARED_LIVE_RESULT_WINDOW_MS);
+  const rows = await db
+    .select()
+    .from(liveCompletedResultsTable)
+    .where(and(
+      eq(liveCompletedResultsTable.provider, sourceProvider),
+      or(
+        and(
+          eq(liveCompletedResultsTable.providerPlayer1Id, player1Id),
+          eq(liveCompletedResultsTable.providerPlayer2Id, player2Id),
+        ),
+        and(
+          eq(liveCompletedResultsTable.providerPlayer1Id, player2Id),
+          eq(liveCompletedResultsTable.providerPlayer2Id, player1Id),
+        ),
+      ),
+      gte(liveCompletedResultsTable.scheduledStartAt, lowerBound),
+      lte(liveCompletedResultsTable.scheduledStartAt, upperBound),
+      lte(liveCompletedResultsTable.scheduledStartAt, new Date(now)),
+    ));
+
+  const candidates = rows.filter((result) =>
+    comparableMetadataMatches(tournamentName, result.tournamentName)
+    && comparableMetadataMatches(surface, result.surface)
+  );
+  if (candidates.length === 0) return { kind: "none" };
+  if (candidates.length > 1) return { kind: "ambiguous" };
+  return { kind: "matched", result: candidates[0] };
+}
+
+function mapSharedResultWinnerToProviderId(
+  result: typeof liveCompletedResultsTable.$inferSelect,
+): string | null {
+  if (result.canonicalWinnerId === result.canonicalPlayer1Id) return result.providerPlayer1Id;
+  if (result.canonicalWinnerId === result.canonicalPlayer2Id) return result.providerPlayer2Id;
+  return null;
+}
+
+function resultTypeFromSharedLiveRow(
+  result: typeof liveCompletedResultsTable.$inferSelect,
+): ResultType {
+  if (result.terminalResultType === "finished") return "normal";
+  if (result.terminalResultType === "retired") return "retired";
+  return "walkover";
 }
 
 /**
@@ -78,6 +282,7 @@ export interface PredictionEngineFixtureDiscoveryProvider {
 export async function runPaperTradingCycle(
   providerOverride?: TennisDataProvider,
   fixtureProviderOverride?: PredictionEngineFixtureDiscoveryProvider,
+  clock: () => number = Date.now,
 ): Promise<PaperTradingCycleSummary> {
   const summary: PaperTradingCycleSummary = { locked: 0, missed: 0, graded: 0, errors: [] };
   const settings = await getPredictionSettings();
@@ -115,7 +320,6 @@ export async function runPaperTradingCycle(
     throw err;
   }
 
-  const now = Date.now();
   const fixtureShapeById = new Map<string, { player1Id: string; player2Id: string }>();
 
   for (const fixture of fixtures) {
@@ -136,6 +340,7 @@ export async function runPaperTradingCycle(
 
     const cutoffAt = new Date(scheduledStartAt.getTime() - settings.paperTradeLeadMinutes * 60_000);
 
+    const now = clock();
     const [existing] = await db
       .select({ id: evaluationPredictionsTable.id })
       .from(evaluationPredictionsTable)
@@ -150,46 +355,48 @@ export async function runPaperTradingCycle(
 
     const lockDeadline = new Date(cutoffAt.getTime() + LOCK_GRACE_MINUTES * 60_000);
 
+    const missedValues: PaperTradeInsert = {
+      predictionMode: defaultPredictionMode("paper_trade"),
+      strategyId: effectiveProductionIdentity.strategyId,
+      strategyVersion: effectiveProductionIdentity.strategyVersion,
+      strategyFingerprint: effectiveProductionIdentity.strategyFingerprint,
+      optimizerRunId: null,
+      calibrationVersion: null,
+      competitiveBalanceVersion: null,
+      evidenceReliabilityVersion: null,
+      runKind: "paper_trade",
+      segment: "live",
+      dataSegment: "live",
+      provider: provider.name,
+      externalFixtureId: fixture.id,
+      player1Id: fixture.player1Id,
+      player1Name: fixture.player1Name,
+      player2Id: fixture.player2Id,
+      player2Name: fixture.player2Name,
+      surface: fixture.surface,
+      matchFormat: fixture.matchFormat,
+      tournamentLevel: fixture.tournamentLevel,
+      tournamentName: fixture.tournamentName,
+      scheduledStartAt,
+      cutoffAt,
+      lockedAt: new Date(now),
+      modelVersion: LIVE_MODEL_VERSION,
+      featureSnapshot: null,
+      rawProbability: null,
+      calibratedProbability: null,
+      usedFallback: null,
+      fallbackSources: null,
+      predictedWinnerId: null,
+      predictedWinnerName: null,
+      status: "missed",
+    };
+
     if (now >= scheduledStartAt.getTime() || now >= lockDeadline.getTime()) {
       // Either the match has already started, or the lock grace window after cutoff has already
       // elapsed with nothing locked. Either way this is a miss -- we never generate a prediction
       // after the cutoff has meaningfully passed, and we never backfill.
-      await db.insert(evaluationPredictionsTable).values({
-        predictionMode: defaultPredictionMode("paper_trade"),
-        strategyId: effectiveProductionIdentity.strategyId,
-        strategyVersion: effectiveProductionIdentity.strategyVersion,
-        strategyFingerprint: effectiveProductionIdentity.strategyFingerprint,
-        optimizerRunId: null,
-        calibrationVersion: null,
-        competitiveBalanceVersion: null,
-        evidenceReliabilityVersion: null,
-        runKind: "paper_trade",
-        segment: "live",
-        dataSegment: "live",
-        provider: provider.name,
-        externalFixtureId: fixture.id,
-        player1Id: fixture.player1Id,
-        player1Name: fixture.player1Name,
-        player2Id: fixture.player2Id,
-        player2Name: fixture.player2Name,
-        surface: fixture.surface,
-        matchFormat: fixture.matchFormat,
-        tournamentLevel: fixture.tournamentLevel,
-        tournamentName: fixture.tournamentName,
-        scheduledStartAt,
-        cutoffAt,
-        lockedAt: new Date(),
-        modelVersion: LIVE_MODEL_VERSION,
-        featureSnapshot: null,
-        rawProbability: null,
-        calibratedProbability: null,
-        usedFallback: null,
-        fallbackSources: null,
-        predictedWinnerId: null,
-        predictedWinnerName: null,
-        status: "missed",
-      });
-      summary.missed += 1;
+      const outcome = await persistBeforeStartOrMiss(missedValues, missedValues, scheduledStartAt, lockDeadline, clock, true);
+      if (outcome === "missed") summary.missed += 1;
       continue;
     }
 
@@ -245,7 +452,7 @@ export async function runPaperTradingCycle(
         impliedProbability === null ? null : favorsPlayer1 ? impliedProbability : 100 - impliedProbability;
       const marketEdge = impliedProbabilityForPick === null ? null : output.predictedWinnerProbability - impliedProbabilityForPick;
 
-      await db.insert(evaluationPredictionsTable).values({
+      const predictionValues: PaperTradeInsert = {
         predictionMode: defaultPredictionMode("paper_trade"),
         strategyId: effectiveProductionIdentity.strategyId,
         strategyVersion: effectiveProductionIdentity.strategyVersion,
@@ -269,7 +476,7 @@ export async function runPaperTradingCycle(
         tournamentName: fixture.tournamentName,
         scheduledStartAt,
         cutoffAt,
-        lockedAt: new Date(),
+        lockedAt: new Date(now),
         modelVersion: LIVE_MODEL_VERSION,
         featureSnapshot: snapshot,
         modelAgreement: output.engine.modelAgreement,
@@ -287,8 +494,14 @@ export async function runPaperTradingCycle(
         oddsFetchedAt: oddsQuote ? new Date(oddsQuote.fetchedAt) : null,
         impliedProbability,
         marketEdge,
-      });
-      summary.locked += 1;
+      };
+
+      // Scoring and provider calls above can cross the fixture's start. Recheck
+      // the deadline now and persist only a missed row if the point-in-time
+      // boundary has passed; never store or grade a hindsight prediction.
+      const outcome = await persistBeforeStartOrMiss(predictionValues, missedValues, scheduledStartAt, lockDeadline, clock);
+      if (outcome === "locked") summary.locked += 1;
+      if (outcome === "missed") summary.missed += 1;
     } catch (err) {
       if (err instanceof ProviderUnavailableError) {
         summary.errors.push(`Fixture ${fixture.id}: provider unavailable (${err.message})`);
@@ -316,57 +529,131 @@ async function gradePendingPaperTrades(errors: string[], providerOverride?: Tenn
 
   let gradedCount = 0;
   for (const row of pending) {
-    // Only attempt grading once the match's scheduled start is safely in the past.
-    if (Date.now() < row.scheduledStartAt.getTime() + 60 * 60_000) continue;
+    // A terminal provider record is not sufficient on its own: both the frozen
+    // start and the result record's scheduled start must be in the past.
+    const now = Date.now();
+    if (now < row.scheduledStartAt.getTime()) continue;
 
     if (row.player1Id === row.player2Id) {
       errors.push(`Grading prediction ${row.id}: duplicate player IDs (${row.player1Id}) -- grading blocked`);
       continue;
     }
 
-    try {
-      const matches = await provider.getPlayerMatches(row.player1Id);
-      const exactFixtureCandidates = row.externalFixtureId
-        ? matches.filter((m) => m.id === row.externalFixtureId && m.opponentId === row.player2Id)
-        : [];
-      const fallbackCandidates = matches.filter(
-        (m) => m.opponentId === row.player2Id && Math.abs(new Date(m.date).getTime() - row.scheduledStartAt.getTime()) < 3 * 24 * 60 * 60_000,
-      );
-      const candidates = row.externalFixtureId ? exactFixtureCandidates : fallbackCandidates;
+    let providerHistoryError: string | null = null;
+    // Preserve the legacy direct history resolver and its one-hour settling
+    // cushion. Some providers return 400 for this request; a failed or empty
+    // direct lookup then falls through to the neutral result ledger, whose
+    // source fixture IDs live in a separate namespace.
+    if (now >= row.scheduledStartAt.getTime() + 60 * 60_000) {
+      try {
+        const matches = await provider.getPlayerMatches(row.player1Id);
+        const candidates = matches.filter((match) => {
+          if (!row.externalFixtureId || match.id !== row.externalFixtureId) return false;
+          if (match.opponentId !== row.player2Id || (match.result !== "W" && match.result !== "L")) return false;
+          const resultScheduledStart = new Date(match.date).getTime();
+          if (
+            !Number.isFinite(resultScheduledStart)
+            || resultScheduledStart > Date.now()
+            || Math.abs(resultScheduledStart - row.scheduledStartAt.getTime()) > SHARED_LIVE_RESULT_WINDOW_MS
+          ) {
+            return false;
+          }
+          return comparableMetadataMatches(row.tournamentName, match.tournamentName)
+            && comparableMetadataMatches(row.surface, match.surface);
+        });
 
-      if (candidates.length > 1) {
-        errors.push(
-          row.externalFixtureId
-            ? `Grading prediction ${row.id}: ambiguous matches for fixture ${row.externalFixtureId}; grading blocked`
-            : `Grading prediction ${row.id}: ambiguous matches for player pair ${row.player1Id}/${row.player2Id}; grading blocked`,
-        );
-        continue;
-      }
-
-      const match = candidates[0];
-
-      if (!match) {
-        // No result surfaced after a generous window -- treat as cancelled rather than leaving
-        // it pending forever or silently discarding it.
-        if (Date.now() > row.scheduledStartAt.getTime() + 48 * 60 * 60_000) {
-          await settleEvaluationPrediction(row.id, { actualWinnerId: null, actualWinnerName: null, resultType: "cancelled" }, settings);
-          gradedCount += 1;
+        if (candidates.length > 1) {
+          errors.push(
+            row.externalFixtureId
+              ? `Grading prediction ${row.id}: ambiguous matches for fixture ${row.externalFixtureId}; grading blocked`
+              : `Grading prediction ${row.id}: ambiguous matches for player pair ${row.player1Id}/${row.player2Id}; grading blocked`,
+          );
+          continue;
         }
+
+        const match = candidates[0];
+        if (match) {
+          const directWinnerId = match.result === "W" ? row.player1Id : row.player2Id;
+          const directResultType = match.walkover ? "walkover" : match.retired ? "retired" : "normal";
+          const neutralResolution = await findSharedLiveResult(
+            row.provider,
+            row.player1Id,
+            row.player2Id,
+            row.scheduledStartAt,
+            row.tournamentName,
+            row.surface,
+            Date.now(),
+          );
+          if (neutralResolution.kind === "ambiguous") {
+            errors.push(`Grading prediction ${row.id}: ambiguous shared live results contradicting/directly corroborating provider history; grading blocked`);
+            continue;
+          }
+          if (neutralResolution.kind === "matched") {
+            const neutralWinnerId = mapSharedResultWinnerToProviderId(neutralResolution.result);
+            if (
+              !neutralWinnerId
+              || neutralWinnerId !== directWinnerId
+              || resultTypeFromSharedLiveRow(neutralResolution.result) !== directResultType
+            ) {
+              errors.push(`Grading prediction ${row.id}: provider history winner conflicts with shared live result or cannot be mapped; grading blocked`);
+              continue;
+            }
+          }
+
+          const winnerName = directWinnerId === row.player1Id ? row.player1Name : row.player2Name;
+          await settleEvaluationPrediction(row.id, { actualWinnerId: directWinnerId, actualWinnerName: winnerName, resultType: directResultType }, settings);
+          gradedCount += 1;
+          continue;
+        }
+      } catch (err) {
+        if (err instanceof ProviderUnavailableError) {
+          providerHistoryError = `provider unavailable (${err.message})`;
+        } else {
+          providerHistoryError = err instanceof Error ? err.message : String(err);
+        }
+      }
+    }
+
+    try {
+      const resolution = await findSharedLiveResult(
+        row.provider,
+        row.player1Id,
+        row.player2Id,
+        row.scheduledStartAt,
+        row.tournamentName,
+        row.surface,
+        Date.now(),
+      );
+      if (resolution.kind === "ambiguous") {
+        errors.push(`Grading prediction ${row.id}: ambiguous shared live results for provider player pair ${row.player1Id}/${row.player2Id}; grading blocked`);
+        if (providerHistoryError) errors.push(`Grading prediction ${row.id}: provider history unavailable (${providerHistoryError})`);
+        continue;
+      }
+      if (resolution.kind === "none") {
+        // No defensible result means pending. Time elapsed alone is not proof
+        // of cancellation, and must never be converted into a fabricated void.
+        if (providerHistoryError) errors.push(`Grading prediction ${row.id}: provider history unavailable (${providerHistoryError})`);
         continue;
       }
 
-      const winnerId = match.result === "W" ? row.player1Id : row.player2Id;
+      const { result } = resolution;
+      const winnerId = mapSharedResultWinnerToProviderId(result);
+      if (winnerId !== row.player1Id && winnerId !== row.player2Id) {
+        errors.push(`Grading prediction ${row.id}: shared live result winner could not be mapped to the frozen provider participants; grading blocked`);
+        continue;
+      }
       const winnerName = winnerId === row.player1Id ? row.player1Name : row.player2Name;
-      const resultType = match.walkover ? "walkover" : match.retired ? "retired" : "normal";
-
+      const resultType = resultTypeFromSharedLiveRow(result);
       await settleEvaluationPrediction(row.id, { actualWinnerId: winnerId, actualWinnerName: winnerName, resultType }, settings);
       gradedCount += 1;
-    } catch (err) {
-      if (err instanceof ProviderUnavailableError) {
-        errors.push(`Grading prediction ${row.id}: provider unavailable (${err.message})`);
-        continue;
+      if (providerHistoryError) {
+        logger.warn(
+          { predictionId: row.id, providerHistoryError },
+          "Paper-trade prediction graded from shared live result after provider history lookup failed",
+        );
       }
-      logger.error({ err, predictionId: row.id }, "Unexpected error grading paper-trade prediction");
+    } catch (err) {
+      logger.error({ err, predictionId: row.id }, "Unexpected error grading paper-trade prediction from shared live results");
       errors.push(`Grading prediction ${row.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }

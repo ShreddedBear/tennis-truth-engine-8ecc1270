@@ -1,4 +1,5 @@
 import { db, canonicalPlayersTable, playerAliasesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { enqueuePlayerResolutionReview, upsertProviderAlias } from "./canonicalPlayerPersistence.js";
 import {
   buildResolverIndex,
@@ -35,10 +36,21 @@ export interface CanonicalIngestionDependencies {
   }) => Promise<void>;
 }
 
-export async function loadCanonicalIngestionDependencies(): Promise<CanonicalIngestionDependencies> {
+export async function loadCanonicalIngestionDependencies(options?: {
+  verifiedProviderAliasesOnly?: boolean;
+}): Promise<CanonicalIngestionDependencies> {
+  const aliasQuery = db
+    .select({
+      provider: playerAliasesTable.provider,
+      externalPlayerId: playerAliasesTable.externalPlayerId,
+      canonicalPlayerId: playerAliasesTable.canonicalPlayerId,
+    })
+    .from(playerAliasesTable);
   const [players, aliases] = await Promise.all([
     db.select().from(canonicalPlayersTable),
-    db.select({ provider: playerAliasesTable.provider, externalPlayerId: playerAliasesTable.externalPlayerId, canonicalPlayerId: playerAliasesTable.canonicalPlayerId }).from(playerAliasesTable),
+    options?.verifiedProviderAliasesOnly
+      ? aliasQuery.where(eq(playerAliasesTable.verificationStatus, "verified"))
+      : aliasQuery,
   ]);
 
   return {

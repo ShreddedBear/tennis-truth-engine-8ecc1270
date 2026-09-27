@@ -20,6 +20,7 @@ async function buildAll() {
       path.resolve(artifactDir, "src/jobs/runPaperTradingJob.ts"),
       path.resolve(artifactDir, "src/jobs/runCalibrationRefitJob.ts"),
       path.resolve(artifactDir, "src/jobs/runHistoricalBackfillJob.ts"),
+      path.resolve(artifactDir, "src/jobs/runRecentCompletedResultsJob.ts"),
       path.resolve(artifactDir, "src/jobs/runParlayPaperTradingJob.ts"),
       path.resolve(artifactDir, "src/jobs/runMatchedCohortSyncJob.ts"),
       // Task #154: Monte Carlo simulator worker — compiled as a separate bundle so the main
