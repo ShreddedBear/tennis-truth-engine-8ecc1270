@@ -47,7 +47,11 @@ export default defineConfig({
         'attached_assets',
       ),
     },
-    dedupe: ['react', 'react-dom'],
+    // @tanstack/react-query must be a single instance: the generated hooks in
+    // @workspace/api-client-react otherwise resolve a second copy (pnpm peers it against the
+    // Truth Engine's React version), whose QueryClient context is empty, and every page of the
+    // production build crashes with "No QueryClient set".
+    dedupe: ['react', 'react-dom', '@tanstack/react-query'],
   },
   root: path.resolve(import.meta.dirname),
   build: {

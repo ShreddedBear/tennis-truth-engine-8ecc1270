@@ -38,7 +38,12 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Before every publish, run the production smoke test** (`pnpm run smoke:production` after building all three artifacts; `.github/workflows/production-smoke.yml` shows the exact build steps and env). It runs the *built* API, Tennis Matrix AI and Truth Engine behind one origin and checks in a browser that pages render with no failed same-origin assets. A successful build, a working `vite dev` preview, and HTTP 200 have each been true during real outages; none of them prove the published site works.
+- Past outages the smoke test and build guards now catch (do not reintroduce):
+  - Truth Engine: a root `index.html` becomes Nitro's production renderer (blank page); Nitro `baseURL` not matching `BASE_PATH` (every asset 404s); an auto-generated Cloudflare `compatibility_date` newer than the installed workerd (Worker won't start). Guarded by `artifacts/tennis-truth-engine/scripts/check-production-entry.mjs`.
+  - Tennis Matrix AI: two copies of `@tanstack/react-query` in the production bundle crash every page with "No QueryClient set" (dev mode hides it). Keep it in `resolve.dedupe`; guarded by `artifacts/tennis-predictor/scripts/check-production-bundle.mjs`.
+  - API server: `/api/healthz` (the deployment health check) must not depend on Clerk or any other per-request middleware, and a missing `CLERK_SECRET_KEY` must not take down public routes. Covered by `pnpm --filter @workspace/api-server run test:healthz`.
+- Never delete a `postbuild` guard or loosen its check to make a build pass; fix the cause it reports.
 
 ## Pointers
 

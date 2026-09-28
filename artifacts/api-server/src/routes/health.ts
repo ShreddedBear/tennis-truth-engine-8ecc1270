@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type RequestHandler } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { getAllBreakerStatuses } from "../lib/circuitBreaker";
 import { db, calibrationModelsTable } from "@workspace/db";
@@ -6,10 +6,12 @@ import { eq, desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-router.get("/healthz", (_req, res) => {
+export const healthzHandler: RequestHandler = (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
-});
+};
+
+router.get("/healthz", healthzHandler);
 
 /**
  * GET /health/system
