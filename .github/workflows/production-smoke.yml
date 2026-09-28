@@ -1,0 +1,88 @@
+name: Production Smoke
+
+# Builds all three published artifacts exactly as .replit-artifact/artifact.toml does, runs them
+# behind one origin with the published path routing, and checks in a real browser that each app
+# renders. Every recent outage passed "build succeeded" and "HTTP 200"; this is the check that
+# would have failed on each of them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tennis
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/tennis
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Restoration contract
+        run: pnpm run verify:restoration
+
+      - name: API health-check regression tests
+        run: pnpm --filter @workspace/api-server run test:healthz
+
+      - name: Truth Engine tests
+        run: pnpm --filter @workspace/tennis-truth-engine run test
+
+      # Build commands and env mirror each artifact.toml [services.production.build].
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server run build
+        env:
+          NODE_ENV: production
+
+      - name: Build Tennis Matrix AI
+        run: pnpm --filter @workspace/tennis-predictor run build
+        env:
+          PORT: "20235"
+          BASE_PATH: /
+
+      - name: Build Truth Engine
+        run: pnpm --filter @workspace/tennis-truth-engine run build
+        env:
+          PORT: "19024"
+          BASE_PATH: /truth-engine
+
+      - name: Push database schema
+        run: pnpm --filter @workspace/db run push
+
+      - name: Install Chromium
+        run: pnpm --filter @workspace/tennis-predictor exec playwright install --with-deps chromium
+
+      - name: Production smoke test
+        run: node scripts/production-smoke.mjs

@@ -71,7 +71,7 @@ describe("46MB tennis-runtime-index Worker-bundling outage guard", () => {
   // at all (shipping it there risks the same oversized-asset deploy failure again).
   it("fetches a gzip-compressed asset, decompresses it, and does not ship the raw 61MB file under public/", () => {
     const loader = readFileSync(join(process.cwd(), "src/lib/runtime-tennis-index-data.server.ts"), "utf8");
-    expect(loader).toContain('"/generated/tennis-runtime-index.json.gz"');
+    expect(loader).toMatch(/\/generated\/tennis-runtime-index\.json\.gz[`"]/);
     expect(loader).toContain("DecompressionStream");
     const rawAssetPath = join(process.cwd(), "public", "generated", "tennis-runtime-index.json");
     expect(existsSync(rawAssetPath), `${rawAssetPath} must not exist -- it exceeds Cloudflare Workers' 25 MiB static asset limit`).toBe(false);

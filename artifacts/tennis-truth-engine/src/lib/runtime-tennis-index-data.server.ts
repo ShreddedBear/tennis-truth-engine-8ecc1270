@@ -28,7 +28,9 @@ function empty(): RuntimeTennisIndex {
 // the cap) lives under public/ instead -- see scripts/build-runtime-tennis-index.mjs, which
 // writes both.
 const DISK_PATH = join(process.cwd(), "data", "generated", "tennis-runtime-index.json");
-const ASSET_PATH = "/generated/tennis-runtime-index.json.gz";
+// Static assets are published under the app's base path (e.g. /truth-engine/), the same
+// base Vite uses for every other asset URL, so the ASSETS-binding lookup must include it.
+const ASSET_PATH = `${(import.meta.env?.BASE_URL ?? "/").replace(/\/$/, "")}/generated/tennis-runtime-index.json.gz`;
 
 let cache: RuntimeTennisIndex | null = null;
 

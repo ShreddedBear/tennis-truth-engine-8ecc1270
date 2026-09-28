@@ -6,11 +6,17 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
+import { healthzHandler } from "./routes/health";
 import { logger } from "./lib/logger";
 import { formatDatabaseError } from "./lib/databaseError";
 import { generalApiLimiter } from "./middlewares/rateLimiter";
 
 const app: Express = express();
+
+// The deployment's startup/liveness probe. Answered before auth, rate limiting and body
+// parsing so a missing or rotated Clerk key (or any other per-request middleware failure)
+// cannot turn a running server into a failed health check and take the whole API offline.
+app.get("/api/healthz", healthzHandler);
 
 // Clerk proxy must be mounted before body parsers (streams raw bytes)
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
@@ -51,14 +57,26 @@ app.use(cookieParser(process.env.SESSION_SECRET));
 
 // Clerk session middleware — resolves auth from session cookie.
 // getClerkProxyHost ensures dev and prod use the same canonical host.
-app.use(
-  clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
+//
+// Without CLERK_SECRET_KEY, clerkMiddleware throws on every request, which took down public,
+// unauthenticated routes (fixtures, provider status) along with the signed-in ones. Skip it
+// instead: routes that need a Clerk user still fail closed (getAuth throws without the
+// middleware, and requireClerkUser only admits the signed admin cookie), while everything
+// public keeps serving.
+if (process.env.CLERK_SECRET_KEY) {
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY,
+      ),
+    })),
+  );
+} else {
+  logger.error(
+    "CLERK_SECRET_KEY is not set: Clerk sign-in is disabled and routes that need a signed-in user will reject requests. Public routes keep working.",
+  );
+}
 
 // Without this, a malformed body or an over-limit upload (e.g. too-large screenshot on
 // POST /matchups/from-screenshot) falls through to Express's default handler, which returns an

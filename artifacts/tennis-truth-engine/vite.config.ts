@@ -53,6 +53,13 @@ if (!Number.isFinite(port) || port <= 0) {
       },
    },
   
+  // Serve the Worker's static assets under the same base path Vite emits
+  // asset URLs for; otherwise production requests /truth-engine/assets/*
+  // while the ASSETS binding only has /assets/*, and the client never mounts.
+  // The wrapper's `nitro` type lists only a few options but forwards the whole
+  // object to nitro(), hence the cast.
+  nitro: { baseURL: basePath } as unknown as { preset?: string },
+
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
