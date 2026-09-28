@@ -1,4 +1,5 @@
 - [Truth Engine preservation](truth-engine-preservation.md) — product-shell recovery must preserve the current Truth Engine and never restore it from prediction-era history.
+- [Predictor production query context](predictor-production-query-context.md) — linked client packages can duplicate React Query only in production, breaking provider context.
 - [OCR failure boundaries](ocr-failure-boundaries.md) — screenshot imports must bound both vision and player resolution, preserve OCR names on degradation, and reject UI text as players.
 - [Operational history resets](operational-history-resets.md) — paginate Supabase exports and verify provider availability before clearing cross-system prediction history.
 - [Truth data cutover](truth-data-cutover.md) — legacy Supabase match/audit history is intentionally excluded; convert runtime calls to preserve heliumdb as sole authority.

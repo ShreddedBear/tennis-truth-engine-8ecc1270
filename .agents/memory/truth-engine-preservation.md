@@ -20,3 +20,9 @@ For TanStack Start production builds, do not keep an old Vite `index.html` besid
 **Why:** A published Truth Engine returned blank pages with HTTP 200 from a stale HTML renderer, while a local production preview initially failed because its generated Worker date was newer than the local runtime supported. Development alone did not reveal either failure.
 
 **How to apply:** Check the built Worker on a real nested route and confirm visible content and working assets; run the production-entry guard on every build. If runtime tooling changes, verify the pinned date against the actual Worker binary before adjusting it.
+
+When building below `/truth-engine`, Nitro may emit public assets at the output root even though Vite emits client URLs under the path prefix. The build must place files at those prefixed URLs, and verification must load JavaScript and CSS in a browser rather than checking only the HTML response.
+
+**Why:** An otherwise healthy local production Worker returned the correct route HTML but every `/truth-engine/assets/` request was 404; the page stayed blank until the asset layout was corrected.
+
+**How to apply:** Include built asset requests and visible content in the production-preview check whenever changing Vite, Nitro, or artifact routing.
